@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kmx-edc-ui.fullname" . }}
+  labels:
+    {{- include "kmx-edc-ui.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kmx-edc-ui.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "kmx-edc-ui.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kmx-edc-ui.serviceAccountName" . }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: {{ .Values.env.NODE_ENV | quote }}
+            - name: PORT
+              value: {{ .Values.env.PORT | quote }}
+            - name: VITE_DISABLE_DEMO
+              value: {{ .Values.env.VITE_DISABLE_DEMO | quote }}
+            - name: EDC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: edc-api-key
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.dbSecretName" . }}
+                  key: {{ include "kmx-edc-ui.dbSecretPasswordKey" . }}
+            - name: DATABASE_URL
+              value: {{ include "kmx-edc-ui.databaseUrl" . | quote }}
+            - name: EDC_DEFAULT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-config
+                  key: edc-default-url
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

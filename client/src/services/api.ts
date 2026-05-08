@@ -1,0 +1,355 @@
+// KMX EDC — BFF API service layer
+// Calls the Express BFF proxy for EDC Management API
+
+import axios from "axios";
+import { toast } from "sonner";
+import type {
+  Connector, Asset, Policy, Offering,
+  Negotiation, Transfer, EDR, EDRStats, CatalogOffer,
+} from "@/lib/data";
+
+const http = axios.create({ baseURL: "/api", timeout: 15_000 });
+
+// Attach auth token from session storage to every request
+http.interceptors.request.use((config) => {
+  try {
+    const stored = sessionStorage.getItem("kmx-edc-auth");
+    if (stored) {
+      const { token } = JSON.parse(stored);
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch { /* ignore */ }
+  return config;
+});
+
+// Translate 401/403 into user-visible toasts. Reads i18n lang from localStorage
+// so we don't need React context here.
+http.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const status = error?.response?.status;
+    if (status === 403 || status === 401) {
+      const lang = (typeof localStorage !== "undefined" && localStorage.getItem("locale")) || "ko";
+      const msg = status === 403
+        ? (lang === "ko" ? "이 작업을 수행할 권한이 없습니다." : "You are not allowed to perform this action.")
+        : (lang === "ko" ? "인증이 필요합니다. 다시 로그인해 주세요." : "Authentication required. Please sign in again.");
+      try { toast.error(msg); } catch { /* toaster not mounted */ }
+    }
+    return Promise.reject(error);
+  },
+);
+
+/* ── Fleet / Connectors ──────────────────────────────────────── */
+export async function fetchConnectors(): Promise<Connector[]> {
+  const { data } = await http.get("/connectors");
+  return data;
+}
+
+export async function fetchHealthCheck(connectorId: string) {
+  const { data } = await http.get(`/connectors/${connectorId}/health`);
+  return data;
+}
+
+export async function testConnection(managementUrl: string, apiKey?: string) {
+  const { data } = await http.post("/connectors/test-connection", { managementUrl, apiKey });
+  return data as { status: "ok" | "fail"; detail: unknown };
+}
+
+export async function registerConnector(entry: {
+  name: string; bpn: string; managementUrl: string; dspEndpoint: string;
+  apiKey?: string; env: string; roles: string[]; dcpVersion: string;
+  did?: string; identityHubUrl?: string;
+}) {
+  const { data } = await http.post("/connectors", entry);
+  return data;
+}
+
+export async function updateConnector(id: string, entry: {
+  name?: string; bpn?: string; managementUrl?: string; dspEndpoint?: string;
+  apiKey?: string; env?: string; roles?: string[]; dcpVersion?: string;
+  did?: string; identityHubUrl?: string;
+}) {
+  const { data } = await http.put(`/connectors/${id}`, entry);
+  return data;
+}
+
+export async function deleteConnector(id: string): Promise<void> {
+  await http.delete(`/connectors/${id}`);
+}
+
+export interface FleetKPI {
+  totalConnectors: number;
+  up: number; warn: number; down: number;
+  totalAssets: number; totalOffers: number;
+  totalNegotiations: number; totalTransfers: number;
+  vcWarnings: number;
+}
+
+export async function fetchFleetKPI(): Promise<FleetKPI> {
+  const { data } = await http.get("/fleet/kpi");
+  return data;
+}
+
+/* ── Assets ──────────────────────────────────────────────────── */
+export async function fetchAssets(connectorId: string): Promise<Asset[]> {
+  const { data } = await http.post(`/connectors/${connectorId}/assets`, {});
+  return data;
+}
+
+export async function fetchAssetById(id: string, connectorId: string): Promise<Asset | null> {
+  try {
+    const { data } = await http.get(`/connectors/${connectorId}/assets/${id}`);
+    return data;
+  } catch { return null; }
+}
+
+export async function createAsset(asset: Partial<Asset> & Record<string, unknown>, connectorId: string): Promise<Asset> {
+  const { data } = await http.post(`/connectors/${connectorId}/assets/create`, asset);
+  return data;
+}
+
+export async function updateAsset(id: string, asset: Record<string, unknown>, connectorId: string) {
+  const { data } = await http.put(`/connectors/${connectorId}/assets/${id}`, asset);
+  return data;
+}
+
+export async function deleteAsset(id: string, connectorId: string): Promise<void> {
+  await http.delete(`/connectors/${connectorId}/assets/${id}`);
+}
+
+/* ── Policies ────────────────────────────────────────────────── */
+export async function fetchPolicies(connectorId: string): Promise<Policy[]> {
+  const { data } = await http.post(`/connectors/${connectorId}/policies`, {});
+  return data;
+}
+
+export async function createPolicy(policy: Partial<Policy> | Record<string, unknown>, connectorId: string): Promise<Policy> {
+  const { data } = await http.post(`/connectors/${connectorId}/policies/create`, policy);
+  return data;
+}
+
+export async function updatePolicy(id: string, policy: Record<string, unknown>, connectorId: string) {
+  const { data } = await http.put(`/connectors/${connectorId}/policies/${id}`, policy);
+  return data;
+}
+
+export async function deletePolicy(id: string, connectorId: string): Promise<void> {
+  await http.delete(`/connectors/${connectorId}/policies/${id}`);
+}
+
+/* ── Offerings ───────────────────────────────────────────────── */
+export async function fetchOfferings(connectorId: string): Promise<Offering[]> {
+  const { data } = await http.post(`/connectors/${connectorId}/offerings`, {});
+  return data;
+}
+
+export async function createOffering(offering: Partial<Offering>, connectorId: string): Promise<Offering> {
+  const { data } = await http.post(`/connectors/${connectorId}/offerings/create`, offering);
+  return data;
+}
+
+export async function updateOffering(id: string, offering: Record<string, unknown>, connectorId: string) {
+  const { data } = await http.put(`/connectors/${connectorId}/offerings/${id}`, offering);
+  return data;
+}
+
+export async function deleteOffering(id: string, connectorId: string): Promise<void> {
+  await http.delete(`/connectors/${connectorId}/offerings/${id}`);
+}
+
+/* ── Catalog ─────────────────────────────────────────────────── */
+export async function fetchCatalog(dspEndpoint: string, counterPartyId: string, connectorId: string): Promise<CatalogOffer[]> {
+  const { data } = await http.post(`/connectors/${connectorId}/catalog`, { dspEndpoint, counterPartyId });
+  return data;
+}
+
+/* ── Negotiations ────────────────────────────────────────────── */
+export async function fetchNegotiations(connectorId: string): Promise<Negotiation[]> {
+  const { data } = await http.post(`/connectors/${connectorId}/negotiations`, {});
+  return data;
+}
+
+export async function terminateNegotiation(negId: string, connectorId: string, reason?: string): Promise<void> {
+  await http.post(`/connectors/${connectorId}/negotiations/${negId}/terminate`, { reason });
+}
+
+export async function fetchNegotiationById(id: string, connectorId: string): Promise<Negotiation | null> {
+  try {
+    const { data } = await http.get(`/connectors/${connectorId}/negotiations/${id}`);
+    return data;
+  } catch { return null; }
+}
+
+export async function startNegotiation(
+  offer: { offerId: string; assetId: string; providerDid: string; dspEndpoint: string; offerPolicy?: Record<string, unknown> },
+  connectorId: string
+): Promise<Negotiation> {
+  const { data } = await http.post(`/connectors/${connectorId}/negotiations/start`, offer);
+  return data;
+}
+
+/* ── Transfers ───────────────────────────────────────────────── */
+export async function fetchTransfers(connectorId: string): Promise<Transfer[]> {
+  const { data } = await http.post(`/connectors/${connectorId}/transfers`, {});
+  return data;
+}
+
+export async function startTransfer(
+  params: { agreementId: string; counterPartyAddress: string; assetId?: string; dataSink: Record<string, string> },
+  connectorId: string
+): Promise<Transfer> {
+  const { data } = await http.post(`/connectors/${connectorId}/transfers/start`, params);
+  return data;
+}
+
+export async function completeTransfer(tpId: string, connectorId: string): Promise<void> {
+  await http.post(`/connectors/${connectorId}/transfers/${tpId}/complete`, {});
+}
+
+export async function terminateTransfer(tpId: string, connectorId: string, reason?: string): Promise<void> {
+  await http.post(`/connectors/${connectorId}/transfers/${tpId}/terminate`, { reason });
+}
+
+export async function deleteAllTransfers(connectorId: string): Promise<{ deleted: number }> {
+  const { data } = await http.delete(`/connectors/${connectorId}/transfers`);
+  return data;
+}
+
+export async function fetchTransferData(
+  tpId: string,
+  connectorId: string
+): Promise<{ data: unknown; sizeBytes: number; contentType: string }> {
+  const { data } = await http.post(`/connectors/${connectorId}/transfers/${tpId}/fetch`, {});
+  return data;
+}
+
+/* ── EDR ──────────────────────────────────────────────────────── */
+export async function fetchEDRs(connectorId: string): Promise<EDR[]> {
+  const { data } = await http.post(`/connectors/${connectorId}/edrs`, {});
+  return data;
+}
+
+export async function fetchEDRStats(connectorId: string): Promise<EDRStats> {
+  const { data } = await http.get(`/connectors/${connectorId}/edrs/stats`);
+  return data;
+}
+
+export async function deleteEDR(tpId: string, connectorId: string): Promise<void> {
+  await http.delete(`/connectors/${connectorId}/edrs/${tpId}`);
+}
+
+/* ── Stats ────────────────────────────────────────────────────── */
+export interface TrendPoint {
+  t: string;          // "HH:00"
+  negs: number;
+  transfers: number;
+}
+
+export async function fetchTrend(connectorId: string, hours = 24): Promise<TrendPoint[]> {
+  const { data } = await http.get(`/connectors/${connectorId}/stats/trend?hours=${hours}`);
+  return data;
+}
+
+/* ── UI Notifications ─────────────────────────────────────────── */
+export interface NotificationItem {
+  id: string;
+  type: "info" | "warn" | "error" | "success";
+  source: "system" | "negotiation" | "transfer" | "edr" | "vc";
+  title: string;
+  message: string;
+  link?: string;
+  read: boolean;
+  timestamp: string; // ISO string (created_at)
+}
+
+export async function fetchNotifications(): Promise<NotificationItem[]> {
+  const { data } = await http.get("/notifications");
+  return data;
+}
+
+export async function createNotification(
+  n: Omit<NotificationItem, "id" | "read" | "timestamp">
+): Promise<NotificationItem> {
+  const { data } = await http.post("/notifications", n);
+  return data;
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await http.patch(`/notifications/${id}/read`);
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await http.patch("/notifications/read-all");
+}
+
+export async function dismissNotification(id: string): Promise<void> {
+  await http.delete(`/notifications/${id}`);
+}
+
+export async function clearAllNotifications(): Promise<void> {
+  await http.delete("/notifications");
+}
+
+/* ── System Info ──────────────────────────────────────────────── */
+export interface SystemInfo {
+  connectorHub: string;
+  edcRuntime: string;
+  dspVersion: string;
+  dcpVersion: string;
+  managementApi: string;
+  environment: string;
+  apiMode: string;
+  nodeEnv: string;
+  uptimeSeconds: number;
+  startedAt: string;
+}
+
+export async function fetchSystemInfo(): Promise<SystemInfo> {
+  const { data } = await http.get("/system/info");
+  return data;
+}
+
+/* ── Platform Vault ───────────────────────────────────────────── */
+export interface VaultStatusResp {
+  url: string;
+  sealed: boolean;
+  version: string;
+  clusterName: string | null;
+  clusterId: string | null;
+  initialized: boolean;
+  standby: boolean;
+  type: string;
+}
+export interface VaultListResp { aliases: string[]; total: number }
+
+export async function fetchVaultStatus(): Promise<VaultStatusResp> {
+  const { data } = await http.get("/platform/vault/status");
+  return data;
+}
+
+export async function fetchVaultList(): Promise<VaultListResp> {
+  const { data } = await http.get("/platform/vault/list");
+  return data;
+}
+
+/* ── Platform PostgreSQL ──────────────────────────────────────── */
+export interface PgOverviewResp { version: string; uptimeSeconds: number; settings: Record<string, string> }
+export interface PgDatabaseRow { name: string; sizeBytes: number; connections: number; owner: string }
+export interface PgDatabasesResp { databases: PgDatabaseRow[] }
+export interface PgLocksResp { granted: number; waiting: number }
+
+export async function fetchPgOverview(): Promise<PgOverviewResp> {
+  const { data } = await http.get("/platform/postgres/overview");
+  return data;
+}
+
+export async function fetchPgDatabases(): Promise<PgDatabasesResp> {
+  const { data } = await http.get("/platform/postgres/databases");
+  return data;
+}
+
+export async function fetchPgLocks(): Promise<PgLocksResp> {
+  const { data } = await http.get("/platform/postgres/locks");
+  return data;
+}
+

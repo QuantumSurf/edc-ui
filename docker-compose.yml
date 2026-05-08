@@ -1,0 +1,75 @@
+# KMX EDC UI — Docker Compose
+# Usage:
+#   docker compose up --build        # Build and run
+#   docker compose up -d             # Detached mode
+#   docker compose logs -f kmx-ui    # View logs
+#   docker compose down              # Stop
+#
+# EDC 커넥터 온보딩 정보 (kmx-ui에서 커넥터 등록 시 사용):
+#   Provider  Management API : http://kmx-provider-controlplane:8081/management
+#             DSP Endpoint   : http://kmx-provider-controlplane:8283/api/v1/dsp
+#   Consumer  Management API : http://kmx-consumer-controlplane:8081/management
+#             DSP Endpoint   : http://kmx-consumer-controlplane:8283/api/v1/dsp
+#   API Key (공통)           : password
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kmx-edc-ui-postgres
+    environment:
+      POSTGRES_DB: kmx_edc
+      POSTGRES_USER: kmx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kmx_dev_123}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kmx -d kmx_edc"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  kmx-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kmx-edc-ui
+    ports:
+      - "3003:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://kmx:${POSTGRES_PASSWORD:-kmx_dev_123}@postgres:5432/kmx_edc
+      - EDC_API_KEY=${EDC_API_KEY:-}
+      - EDC_DEFAULT_URL=${EDC_DEFAULT_URL:-}
+      - VITE_DISABLE_DEMO=${VITE_DISABLE_DEMO:-false}
+      - JWT_SECRET=${JWT_SECRET:-dev-local-secret-change-me-please-32chars}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-12h}
+      # Platform infrastructure (kmx-platform compose project)
+      - PLATFORM_VAULT_URL=${PLATFORM_VAULT_URL:-http://platform-vault:8200}
+      - PLATFORM_VAULT_TOKEN=${PLATFORM_VAULT_TOKEN:-root}
+      - PLATFORM_VAULT_NAMESPACE=${PLATFORM_VAULT_NAMESPACE:-}
+      - PLATFORM_DATABASE_URL=${PLATFORM_DATABASE_URL:-postgresql://kmxedc:kmxedc-dev-password@platform-postgres:5432/postgres}
+    networks:
+      - default
+      - kmx-ih_default   # provider/consumer EDC 컨테이너와 동일 네트워크
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/connectors"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  kmx-ih_default:
+    external: true   # kmx-provider-controlplane / kmx-consumer-controlplane 이 속한 네트워크

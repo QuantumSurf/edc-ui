@@ -1,0 +1,196 @@
+# KMX Platform — Shared Infrastructure (Vault + PostgreSQL)
+#
+# 모든 EDC 커넥터(provider/consumer 등)가 공유하는 인프라.
+# 소유: kmx-edc-ui (관리 콘솔이 platform infrastructure도 호스팅).
+#
+# 실행 순서 (전제):
+#   1. kmx-identityhub 먼저 실행 — 외부 네트워크 kmx-ih_default 생성
+#   2. 본 platform compose 실행
+#   3. kmx-edc-ui (BFF) 실행
+#   4. kmx-edc 커넥터 stack 실행 (provider/consumer)
+#
+# 자세한 설계 결정:
+#   - vault: ../kmx-edc/docs/architecture/vault-deployment.md
+#   - postgres: ../kmx-edc/docs/architecture/postgres-deployment.md
+#
+# Note: Vault는 dev mode (root token). 운영 환경에서는 production mode + auto-unseal
+#       (KMS) + AppRole로 교체 — SECURITY.md 참조.
+
+name: kmx-platform
+
+services:
+  # ──────────────────────────────────────────────────────────
+  # PostgreSQL — 공유 HA-ready 인스턴스
+  # 두 개의 EDC 커넥터 DB(kmxedc, kmxedc_consumer)를 호스팅.
+  # ──────────────────────────────────────────────────────────
+  platform-postgres:
+    image: postgres:15.6-alpine
+    container_name: kmx-platform-postgres
+    environment:
+      POSTGRES_DB: kmxedc
+      POSTGRES_USER: kmxedc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kmxedc-dev-password}
+      POSTGRES_MULTIPLE_DATABASES: "kmxedc,kmxedc_consumer"
+    ports:
+      - "5432:5432"
+    volumes:
+      - platformpgdata:/var/lib/postgresql/data
+      - ../kmx-edc/resources/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kmxedc -d kmxedc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - kmx-ih_default
+
+  # Flyway — Provider DB (kmxedc)
+  platform-flyway-provider:
+    image: flyway/flyway:10.10.0
+    container_name: kmx-platform-flyway-provider
+    depends_on:
+      platform-postgres:
+        condition: service_healthy
+    command: >
+      -url=jdbc:postgresql://platform-postgres:5432/kmxedc
+      -user=kmxedc
+      -password=${POSTGRES_PASSWORD:-kmxedc-dev-password}
+      -locations=filesystem:/flyway/sql
+      -validateMigrationNaming=true
+      migrate
+    volumes:
+      - ../kmx-edc/resources/db/migration:/flyway/sql:ro
+    networks:
+      - kmx-ih_default
+
+  # Flyway — Consumer DB (kmxedc_consumer)
+  platform-flyway-consumer:
+    image: flyway/flyway:10.10.0
+    container_name: kmx-platform-flyway-consumer
+    depends_on:
+      platform-postgres:
+        condition: service_healthy
+    command: >
+      -url=jdbc:postgresql://platform-postgres:5432/kmxedc_consumer
+      -user=kmxedc
+      -password=${POSTGRES_PASSWORD:-kmxedc-dev-password}
+      -locations=filesystem:/flyway/sql
+      -validateMigrationNaming=true
+      migrate
+    volumes:
+      - ../kmx-edc/resources/db/migration:/flyway/sql:ro
+    networks:
+      - kmx-ih_default
+
+  # ──────────────────────────────────────────────────────────
+  # HashiCorp Vault — 공유 시크릿 저장소
+  # 운영에서는 namespace로 커넥터별 격리 (Enterprise) 또는
+  # secret path prefix로 격리 (OSS).
+  # ──────────────────────────────────────────────────────────
+  platform-vault:
+    image: hashicorp/vault:1.17.6
+    container_name: kmx-platform-vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_ADDR: "http://127.0.0.1:8200"
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8200/v1/sys/health"]
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - kmx-ih_default
+
+  platform-vault-setup:
+    image: hashicorp/vault:1.17.6
+    container_name: kmx-platform-vault-setup
+    depends_on:
+      platform-vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: "http://platform-vault:8200"
+      VAULT_TOKEN: root
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        vault secrets enable -path=secret kv-v2 2>/dev/null || true
+        vault kv put secret/ih-aes-key content=xUIyz5ULSUMR/++dPtL10mneHwwS3mlmL/eZ8SJ/2ws=
+        vault kv put secret/dataplane-private-key content="-----BEGIN PRIVATE KEY-----
+        MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgjrO6Yz5FKHKwGeQT
+        wbUGYpePtwdW818H7tDzMO2+ZYyhRANCAAQWa8pxMRlftcbvB/aqfO67rLM2vUIp
+        l2q0D1JMHRkuBglgBtncV7JfHmgiNOM1rYwxEhUawDrvn6vItihv1p0G
+        -----END PRIVATE KEY-----"
+        vault kv put secret/dataplane-public-key content="-----BEGIN PUBLIC KEY-----
+        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFmvKcTEZX7XG7wf2qnzuu6yzNr1C
+        KZdqtA9STB0ZLgYJYAbZ3FeyXx5oIjTjNa2MMRIVGsA675+ryLYob9adBg==
+        -----END PUBLIC KEY-----"
+        echo "Platform Vault initialized (provider + consumer 공용)"
+    networks:
+      - kmx-ih_default
+
+  # ──────────────────────────────────────────────────────────
+  # STS Secret Bridge — IH 부트스트랩이 발급하는 client_secret 자동 주입
+  # Provider + Consumer 두 BPN 모두 처리 (단일 Vault에 두 alias로 저장).
+  # docker.sock 마운트는 dev 환경 한정.
+  # ──────────────────────────────────────────────────────────
+  platform-sts-bridge:
+    image: docker:24-cli
+    container_name: kmx-platform-sts-bridge
+    depends_on:
+      platform-vault-setup:
+        condition: service_completed_successfully
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        # IH 부트스트랩 완료 대기
+        for i in $$(seq 1 60); do
+          if docker logs kmx-ih-identityhub 2>&1 | grep -q "Bootstrap complete"; then
+            break
+          fi
+          sleep 2
+        done
+
+        # Provider STS secret — alias 'sts-client-secret' (provider EDC 설정과 일치)
+        PROVIDER_SECRET=$$(docker logs kmx-ih-identityhub 2>&1 \
+          | grep "BPNL000000000PRD" \
+          | grep -oE "clientSecret=[A-Za-z0-9+/=_-]+" \
+          | tail -1 | cut -d= -f2)
+        if [ -n "$$PROVIDER_SECRET" ]; then
+          docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=root \
+            kmx-platform-vault vault kv put secret/sts-client-secret content="$$PROVIDER_SECRET" >/dev/null
+          echo "Provider STS secret bridged (alias=sts-client-secret)"
+        fi
+
+        # Consumer STS secret
+        CONSUMER_SECRET=$$(docker logs kmx-ih-identityhub 2>&1 \
+          | grep "BPNL000000000CSM" \
+          | grep -oE "clientSecret=[A-Za-z0-9+/=_-]+" \
+          | tail -1 | cut -d= -f2)
+        if [ -n "$$CONSUMER_SECRET" ]; then
+          docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=root \
+            kmx-platform-vault vault kv put secret/consumer-sts-client-secret content="$$CONSUMER_SECRET" >/dev/null
+          echo "Consumer STS secret bridged"
+        fi
+    networks:
+      - kmx-ih_default
+
+volumes:
+  platformpgdata:
+
+networks:
+  # kmx-identityhub가 생성하는 외부 네트워크
+  kmx-ih_default:
+    external: true

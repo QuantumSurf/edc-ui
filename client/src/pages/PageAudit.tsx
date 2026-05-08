@@ -1,0 +1,555 @@
+// 감사 로그 (Audit Log) — Self-contained read-only audit trail viewer
+// Filter by category / result / severity / time range, search by actor/target/action
+// Click row → JSON detail | Export filtered set as CSV
+
+import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/i18n";
+import { useConnectorStore } from "@/stores/connectorStore";
+import { Card, KpiCard, SectionHdr, Badge, MonoText, DataSourceBadge } from "@/components/ui-kmx";
+import { DetailDialog } from "@/components/DetailDeleteDialogs";
+import { Pagination, paginate } from "@/components/Pagination";
+import { Activity, AlertTriangle, CalendarClock, ShieldX, Download, Search } from "lucide-react";
+import { toast } from "sonner";
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+/* ─── Types ──────────────────────────────────────────────────── */
+type AuditCategory =
+  | "AUTH" | "ASSET" | "POLICY" | "OFFERING"
+  | "NEGOTIATION" | "TRANSFER" | "VAULT" | "CONNECTOR" | "SYSTEM";
+type AuditResult = "SUCCESS" | "FAILURE";
+type AuditSeverity = "INFO" | "WARN" | "CRITICAL";
+
+interface AuditEvent {
+  id: string;
+  timestamp: string;          // ISO
+  actor: string;              // user id
+  actorRole: "admin" | "operator" | "viewer" | "system";
+  action: string;             // e.g. "asset.create"
+  category: AuditCategory;
+  target: string;             // resource id
+  targetType: string;         // e.g. "Asset"
+  result: AuditResult;
+  severity: AuditSeverity;
+  ip: string;
+  userAgent: string;
+  requestId: string;
+  message: string;
+  payload?: Record<string, unknown>;
+}
+
+/* ─── Demo data factory ──────────────────────────────────────── */
+function makeDemoEvents(connectorId: string): AuditEvent[] {
+  const isProd = connectorId.toLowerCase().includes("prod");
+  const baseDate = new Date("2026-05-08T11:30:00+09:00").getTime();
+  const min = 60_000;
+
+  const tpl: Omit<AuditEvent, "id" | "timestamp" | "requestId">[] = [
+    { actor: "admin",     actorRole: "admin",    action: "auth.login",                category: "AUTH",        target: "admin",                                                  targetType: "User",        result: "SUCCESS", severity: "INFO",     ip: "10.0.12.41",  userAgent: "Mozilla/5.0 Chrome/124", message: "관리자 로그인 성공" },
+    { actor: "operator",  actorRole: "operator", action: "asset.create",              category: "ASSET",       target: "kmx-test-asset-1777709569",                              targetType: "Asset",       result: "SUCCESS", severity: "INFO",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "자산 생성", payload: { id: "kmx-test-asset-1777709569", type: "data", baseUrl: "https://kmx-prod-01/api/data" } },
+    { actor: "operator",  actorRole: "operator", action: "policy.create",             category: "POLICY",      target: "policy-membership-cx",                                   targetType: "Policy",      result: "SUCCESS", severity: "INFO",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "ODRL 정책 생성", payload: { id: "policy-membership-cx", action: "use", constraints: 1 } },
+    { actor: "operator",  actorRole: "operator", action: "offering.publish",          category: "OFFERING",    target: "offering-2025-batch-001",                                targetType: "Offering",    result: "SUCCESS", severity: "INFO",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "계약 게시" },
+    { actor: "consumer-bpn", actorRole: "system", action: "negotiation.requested",    category: "NEGOTIATION", target: "neg-7c9e4d11-aa02",                                      targetType: "Negotiation", result: "SUCCESS", severity: "INFO",     ip: "203.0.113.7", userAgent: "EDC/0.7.2 Java/17", message: "협상 요청 수신" },
+    { actor: "consumer-bpn", actorRole: "system", action: "negotiation.finalized",    category: "NEGOTIATION", target: "neg-7c9e4d11-aa02",                                      targetType: "Negotiation", result: "SUCCESS", severity: "INFO",     ip: "203.0.113.7", userAgent: "EDC/0.7.2 Java/17", message: "계약 성립" },
+    { actor: "consumer-bpn", actorRole: "system", action: "transfer.started",         category: "TRANSFER",    target: "tp-f02a18b3-9c41",                                       targetType: "Transfer",    result: "SUCCESS", severity: "INFO",     ip: "203.0.113.7", userAgent: "EDC/0.7.2 Java/17", message: "전송 시작 (HttpData)" },
+    { actor: "consumer-bpn", actorRole: "system", action: "transfer.completed",       category: "TRANSFER",    target: "tp-f02a18b3-9c41",                                       targetType: "Transfer",    result: "SUCCESS", severity: "INFO",     ip: "203.0.113.7", userAgent: "EDC/0.7.2 Java/17", message: "전송 완료 (1.2 MB)" },
+    { actor: "operator",  actorRole: "operator", action: "vault.key.rotate",          category: "VAULT",       target: "edc:key:dsp-signing",                                    targetType: "VaultKey",    result: "SUCCESS", severity: "WARN",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "Ed25519 서명 키 회전" },
+    { actor: "system",    actorRole: "system",   action: "edr.gc.deleted",            category: "SYSTEM",      target: "edr-gc-batch-2026050801",                                targetType: "EdrBatch",    result: "SUCCESS", severity: "INFO",     ip: "127.0.0.1",   userAgent: "kmx-scheduler/1.0",      message: "EDR GC 12건 삭제" },
+    { actor: "consumer-bpn-bad", actorRole: "system", action: "auth.dsp.token",      category: "AUTH",        target: "did:web:example.org:bad",                                targetType: "DID",         result: "FAILURE", severity: "WARN",     ip: "198.51.100.9",userAgent: "EDC/0.6.x Java/17",     message: "STS 토큰 검증 실패 (issuer 미신뢰)" },
+    { actor: "consumer-bpn", actorRole: "system", action: "negotiation.terminated",   category: "NEGOTIATION", target: "neg-3a91c4ee-bb77",                                      targetType: "Negotiation", result: "FAILURE", severity: "WARN",     ip: "203.0.113.7", userAgent: "EDC/0.7.2 Java/17", message: "협상 종료 — Counter-offer 거절" },
+    { actor: "operator",  actorRole: "operator", action: "asset.delete",              category: "ASSET",       target: "obsolete-asset-001",                                     targetType: "Asset",       result: "SUCCESS", severity: "INFO",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "자산 삭제" },
+    { actor: "viewer",    actorRole: "viewer",   action: "policy.delete",             category: "POLICY",      target: "policy-restricted-eu",                                   targetType: "Policy",      result: "FAILURE", severity: "CRITICAL", ip: "10.0.12.71",  userAgent: "Mozilla/5.0 Safari/17", message: "권한 없음 — viewer가 삭제 시도" },
+    { actor: "admin",     actorRole: "admin",    action: "connector.update",          category: "CONNECTOR",   target: connectorId,                                              targetType: "Connector",   result: "SUCCESS", severity: "INFO",     ip: "10.0.12.41",  userAgent: "Mozilla/5.0 Chrome/124", message: "커넥터 정보 수정" },
+    { actor: "system",    actorRole: "system",   action: "vc.expiry.warn",            category: "SYSTEM",      target: "MembershipCredential",                                   targetType: "VC",          result: "SUCCESS", severity: "WARN",     ip: "127.0.0.1",   userAgent: "kmx-scheduler/1.0",      message: "MembershipCredential 23일 후 만료" },
+    { actor: "consumer-bpn", actorRole: "system", action: "transfer.terminated",      category: "TRANSFER",    target: "tp-77ee99cc-1f01",                                       targetType: "Transfer",    result: "FAILURE", severity: "CRITICAL", ip: "203.0.113.7", userAgent: "EDC/0.7.2 Java/17", message: "전송 실패 — Sink 응답 5xx" },
+    { actor: "operator",  actorRole: "operator", action: "policy.update",             category: "POLICY",      target: "policy-membership-cx",                                   targetType: "Policy",      result: "SUCCESS", severity: "INFO",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "정책 제약 조건 추가" },
+    { actor: "operator",  actorRole: "operator", action: "offering.update",           category: "OFFERING",    target: "offering-2025-batch-001",                                targetType: "Offering",    result: "SUCCESS", severity: "INFO",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "계약 수정 — 자산 추가" },
+    { actor: "admin",     actorRole: "admin",    action: "vault.secret.delete",       category: "VAULT",       target: "edc:secret:legacy-token",                                targetType: "VaultSecret", result: "SUCCESS", severity: "WARN",     ip: "10.0.12.41",  userAgent: "Mozilla/5.0 Chrome/124", message: "레거시 시크릿 삭제" },
+    { actor: "admin",     actorRole: "admin",    action: "auth.login",                category: "AUTH",        target: "admin",                                                  targetType: "User",        result: "FAILURE", severity: "CRITICAL", ip: "45.77.12.4",  userAgent: "curl/8.5",              message: "비밀번호 불일치 (시도 3회)" },
+    { actor: "system",    actorRole: "system",   action: "connector.health.degraded", category: "CONNECTOR",   target: isProd ? "kmx-prod-01" : "kmx-cons-01",                   targetType: "Connector",   result: "FAILURE", severity: "WARN",     ip: "127.0.0.1",   userAgent: "kmx-monitor/1.0",        message: "DSP readiness probe 실패" },
+    { actor: "consumer-bpn", actorRole: "system", action: "negotiation.requested",    category: "NEGOTIATION", target: "neg-aa11bb22-cc33",                                      targetType: "Negotiation", result: "SUCCESS", severity: "INFO",     ip: "203.0.113.8", userAgent: "EDC/0.7.2 Java/17", message: "협상 요청 수신" },
+    { actor: "operator",  actorRole: "operator", action: "asset.update",              category: "ASSET",       target: "kmx-test-asset-1777709569",                              targetType: "Asset",       result: "SUCCESS", severity: "INFO",     ip: "10.0.12.55",  userAgent: "Mozilla/5.0 Chrome/124", message: "자산 메타데이터 업데이트" },
+    { actor: "admin",     actorRole: "admin",    action: "auth.logout",               category: "AUTH",        target: "admin",                                                  targetType: "User",        result: "SUCCESS", severity: "INFO",     ip: "10.0.12.41",  userAgent: "Mozilla/5.0 Chrome/124", message: "로그아웃" },
+  ];
+
+  // Repeat the base 25 templates 3x with different timestamps (~75 events) so
+  // pagination is exercised meaningfully in dev/demo mode.
+  const REPEAT = 3;
+  const events: AuditEvent[] = [];
+  for (let r = 0; r < REPEAT; r++) {
+    tpl.forEach((e, i) => {
+      const seq = r * tpl.length + i;
+      const ts = new Date(baseDate - seq * 7 * min - Math.floor(Math.random() * 90) * min);
+      events.push({
+        ...e,
+        id: `evt-${(2026050800 - seq).toString(16)}`,
+        timestamp: ts.toISOString(),
+        requestId: `req-${Math.random().toString(36).slice(2, 10)}`,
+      });
+    });
+  }
+  return events;
+}
+
+/* ─── Helpers ────────────────────────────────────────────────── */
+function formatTs(iso: string) {
+  const d = new Date(iso);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
+
+const CAT_VARIANT: Record<AuditCategory, "blue" | "teal" | "purple" | "amber" | "sky" | "green" | "gray"> = {
+  AUTH:        "purple",
+  ASSET:       "blue",
+  POLICY:      "teal",
+  OFFERING:    "sky",
+  NEGOTIATION: "amber",
+  TRANSFER:    "green",
+  VAULT:       "purple",
+  CONNECTOR:   "blue",
+  SYSTEM:      "gray",
+};
+
+function severityBadge(sev: AuditSeverity, t: ReturnType<typeof useI18n>["t"]) {
+  if (sev === "CRITICAL") return <Badge variant="red">{t.audit.severityCritical}</Badge>;
+  if (sev === "WARN")     return <Badge variant="amber">{t.audit.severityWarn}</Badge>;
+  return <Badge variant="gray">{t.audit.severityInfo}</Badge>;
+}
+
+function resultBadge(r: AuditResult, t: ReturnType<typeof useI18n>["t"]) {
+  return r === "SUCCESS"
+    ? <Badge variant="green">{t.audit.resultSuccess}</Badge>
+    : <Badge variant="red">{t.audit.resultFailure}</Badge>;
+}
+
+function isToday(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear()
+    && d.getMonth() === now.getMonth()
+    && d.getDate() === now.getDate();
+}
+
+function withinRange(iso: string, range: "ALL" | "1D" | "7D" | "30D") {
+  if (range === "ALL") return true;
+  const days = range === "1D" ? 1 : range === "7D" ? 7 : 30;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return new Date(iso).getTime() >= cutoff;
+}
+
+/* ─── CSV Export ─────────────────────────────────────────────── */
+function exportCsv(rows: AuditEvent[]) {
+  const header = ["id", "timestamp", "actor", "actorRole", "action", "category", "target", "targetType", "result", "severity", "ip", "requestId", "message"];
+  const escape = (v: unknown) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    header.join(","),
+    ...rows.map((r) => header.map((h) => escape((r as unknown as Record<string, unknown>)[h])).join(",")),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ─── Page ───────────────────────────────────────────────────── */
+const CATEGORIES: ("ALL" | AuditCategory)[] = ["ALL", "AUTH", "ASSET", "POLICY", "OFFERING", "NEGOTIATION", "TRANSFER", "VAULT", "CONNECTOR", "SYSTEM"];
+
+export default function PageAudit() {
+  const { t } = useI18n();
+  const connector = useConnectorStore((s) => s.connector);
+  const connectorId = connector?.id ?? "kmx-prod-01";
+
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<"ALL" | AuditCategory>("ALL");
+  const [result, setResult] = useState<"ALL" | AuditResult>("ALL");
+  const [severity, setSeverity] = useState<"ALL" | AuditSeverity>("ALL");
+  const [range, setRange] = useState<"ALL" | "1D" | "7D" | "30D">("ALL");
+  const [selected, setSelected] = useState<AuditEvent | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(20);
+
+  const allEvents = useMemo(() => makeDemoEvents(connectorId), [connectorId]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allEvents.filter((e) => {
+      if (category !== "ALL" && e.category !== category) return false;
+      if (result !== "ALL" && e.result !== result) return false;
+      if (severity !== "ALL" && e.severity !== severity) return false;
+      if (!withinRange(e.timestamp, range)) return false;
+      if (q) {
+        const haystack = `${e.actor} ${e.action} ${e.target} ${e.message}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [allEvents, search, category, result, severity, range]);
+
+  // Reset page when filters change so users always see page 1 of new results.
+  useEffect(() => {
+    setPage(1);
+  }, [search, category, result, severity, range, pageSize]);
+
+  const pageRows = useMemo(() => paginate(filtered, page, pageSize), [filtered, page, pageSize]);
+
+  const todayCount = useMemo(() => allEvents.filter((e) => isToday(e.timestamp)).length, [allEvents]);
+  const failedCount = useMemo(() => allEvents.filter((e) => e.result === "FAILURE").length, [allEvents]);
+  const criticalCount = useMemo(() => allEvents.filter((e) => e.severity === "CRITICAL").length, [allEvents]);
+
+  const catLabel: Record<"ALL" | AuditCategory, string> = {
+    ALL: t.audit.catAll,
+    AUTH: t.audit.catAuth,
+    ASSET: t.audit.catAsset,
+    POLICY: t.audit.catPolicy,
+    OFFERING: t.audit.catOffering,
+    NEGOTIATION: t.audit.catNegotiation,
+    TRANSFER: t.audit.catTransfer,
+    VAULT: t.audit.catVault,
+    CONNECTOR: t.audit.catConnector,
+    SYSTEM: t.audit.catSystem,
+  };
+
+  return (
+    <>
+      <SectionHdr
+        breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
+        action={<DataSourceBadge mode="demo" />}
+      >
+        {t.audit.title}
+      </SectionHdr>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard
+          icon={<Activity className="w-[18px] h-[18px] text-blue-600" />}
+          iconBg="bg-blue-50"
+          label={t.audit.kpiTotal}
+          value={allEvents.length}
+        />
+        <KpiCard
+          icon={<CalendarClock className="w-[18px] h-[18px] text-sky-600" />}
+          iconBg="bg-sky-50"
+          label={t.audit.kpiToday}
+          value={todayCount}
+          valueColor="text-sky-600"
+        />
+        <KpiCard
+          icon={<ShieldX className="w-[18px] h-[18px] text-amber-600" />}
+          iconBg="bg-amber-50"
+          label={t.audit.kpiFailed}
+          value={failedCount}
+          valueColor={failedCount > 0 ? "text-amber-600" : undefined}
+        />
+        <KpiCard
+          icon={<AlertTriangle className="w-[18px] h-[18px] text-rose-600" />}
+          iconBg="bg-rose-50"
+          label={t.audit.kpiCritical}
+          value={criticalCount}
+          valueColor={criticalCount > 0 ? "text-rose-600" : undefined}
+        />
+      </div>
+
+      {/* Filter Bar */}
+      <Card>
+        <div className="flex flex-col gap-3">
+          {/* Row 1: search + export */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.audit.searchPlaceholder}
+                className="w-full pl-9 pr-3 py-2 text-[13px] border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              />
+            </div>
+            <button
+              onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium border border-border rounded-md hover:bg-muted/50 transition-colors text-foreground/80"
+            >
+              <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
+            </button>
+          </div>
+
+          {/* Row 2: category chips */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider mr-1">
+              {t.audit.filterCategory}
+            </span>
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={`text-[12px] px-2.5 py-1 rounded-md border transition-colors ${
+                  category === c
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border text-foreground/70 hover:bg-muted/50"
+                }`}
+              >
+                {catLabel[c]}
+              </button>
+            ))}
+          </div>
+
+          {/* Row 3: result / severity / range */}
+          <div className="flex flex-wrap items-center gap-4">
+            <FilterGroup label={t.audit.filterResult}>
+              {(["ALL", "SUCCESS", "FAILURE"] as const).map((r) => (
+                <Pill
+                  key={r}
+                  active={result === r}
+                  onClick={() => setResult(r)}
+                >
+                  {r === "ALL" ? t.common.all : r === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure}
+                </Pill>
+              ))}
+            </FilterGroup>
+            <FilterGroup label={t.audit.filterSeverity}>
+              {(["ALL", "INFO", "WARN", "CRITICAL"] as const).map((s) => (
+                <Pill
+                  key={s}
+                  active={severity === s}
+                  onClick={() => setSeverity(s)}
+                >
+                  {s === "ALL" ? t.common.all : s === "INFO" ? t.audit.severityInfo : s === "WARN" ? t.audit.severityWarn : t.audit.severityCritical}
+                </Pill>
+              ))}
+            </FilterGroup>
+            <FilterGroup label={t.audit.filterRange}>
+              {(["ALL", "1D", "7D", "30D"] as const).map((r) => (
+                <Pill
+                  key={r}
+                  active={range === r}
+                  onClick={() => setRange(r)}
+                >
+                  {r === "ALL" ? t.audit.rangeAll : r === "1D" ? t.audit.range1d : r === "7D" ? t.audit.range7d : t.audit.range30d}
+                </Pill>
+              ))}
+            </FilterGroup>
+          </div>
+        </div>
+      </Card>
+
+      {/* List — Desktop */}
+      <Card
+        title={t.audit.listTitle}
+        actions={<span className="text-[11px] text-muted-foreground">{t.audit.resultCount(filtered.length, allEvents.length)}</span>}
+        className="hidden md:block"
+        noPad
+      >
+        {filtered.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="text-[15px] font-semibold text-foreground mb-1">{t.audit.emptyTitle}</div>
+            <div className="text-[12px] text-muted-foreground">{t.audit.emptyDesc}</div>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.timestamp}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.actor}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.action}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.category}</th>
+                <th className="text-left px-4 py-3 !text-[12px] hidden lg:table-cell">{t.audit.col.target}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.result}</th>
+                <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.audit.col.severity}</th>
+                <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.audit.col.ip}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {pageRows.map((e) => (
+                <tr
+                  key={e.id}
+                  onClick={() => setSelected(e)}
+                  className="hover:bg-muted/40 transition-colors cursor-pointer"
+                >
+                  <td className="px-4 py-3">
+                    <MonoText className="!text-[12px] !font-normal">{formatTs(e.timestamp)}</MonoText>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="!text-[12px] font-normal text-foreground">{e.actor}</p>
+                    <p className="!text-[12px] text-muted-foreground">{e.actorRole}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <MonoText className="!text-[12px] !font-normal">{e.action}</MonoText>
+                    <p className="!text-[12px] text-muted-foreground truncate max-w-[260px]">{e.message}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={CAT_VARIANT[e.category]}>{e.category}</Badge>
+                  </td>
+                  <td className="px-4 py-3 hidden lg:table-cell">
+                    <MonoText className="!text-[12px] !font-normal truncate inline-block max-w-[220px] align-middle">{e.target}</MonoText>
+                    <p className="!text-[12px] font-normal text-muted-foreground">{e.targetType}</p>
+                  </td>
+                  <td className="px-4 py-3">{resultBadge(e.result, t)}</td>
+                  <td className="px-4 py-3 hidden xl:table-cell">{severityBadge(e.severity, t)}</td>
+                  <td className="px-4 py-3 hidden xl:table-cell">
+                    <MonoText className="!text-[12px] !font-normal">{e.ip}</MonoText>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Page-size selector + Pagination (desktop) */}
+        {filtered.length > 0 && (
+          <div className="px-4 pb-3 pt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">
+                {t.common.filter}
+              </span>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size)}
+                  className={`text-[12px] px-2 py-0.5 rounded-md border transition-colors ${
+                    pageSize === size
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-border text-foreground/70 hover:bg-muted/50"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+          </div>
+        )}
+      </Card>
+
+      {/* List — Mobile */}
+      <div className="md:hidden flex flex-col gap-2">
+        {filtered.length === 0 ? (
+          <div className="py-8 text-center text-[13px] text-muted-foreground">{t.audit.emptyTitle}</div>
+        ) : (
+          pageRows.map((e) => (
+            <div
+              key={e.id}
+              onClick={() => setSelected(e)}
+              className="bg-card rounded-xl p-3 shadow-sm border border-border active:bg-muted/40 transition-colors"
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <Badge variant={CAT_VARIANT[e.category]}>{e.category}</Badge>
+                <div className="flex items-center gap-1">
+                  {resultBadge(e.result, t)}
+                  {severityBadge(e.severity, t)}
+                </div>
+              </div>
+              <MonoText className="text-[13px] font-normal block">{e.action}</MonoText>
+              <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{e.message}</p>
+              <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
+                <MonoText className="text-[11px] font-normal">{formatTs(e.timestamp)}</MonoText>
+                <span className="font-normal">{e.actor}</span>
+              </div>
+            </div>
+          ))
+        )}
+
+        {/* Pagination (mobile) */}
+        {filtered.length > 0 && (
+          <Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/70">{t.audit.retentionNotice}</p>
+
+      {/* Detail Dialog */}
+      {selected && (
+        <DetailDialog
+          open={!!selected}
+          onClose={() => setSelected(null)}
+          title={t.audit.detailTitle}
+          subtitle={selected.id}
+          sections={[
+            {
+              title: t.audit.field.timestamp,
+              fields: [
+                { label: t.audit.field.eventId, value: selected.id, mono: true, copyable: true },
+                { label: t.audit.field.timestamp, value: formatTs(selected.timestamp), mono: true },
+                { label: t.audit.field.requestId, value: selected.requestId, mono: true, copyable: true },
+                { label: t.audit.field.category, value: selected.category, badge: { text: selected.category, variant: CAT_VARIANT[selected.category] === "sky" ? "blue" : (CAT_VARIANT[selected.category] as "blue" | "green" | "amber" | "gray" | "red" | "purple") } },
+              ],
+            },
+            {
+              title: t.audit.field.actor,
+              fields: [
+                { label: t.audit.field.actor, value: selected.actor, mono: true },
+                { label: t.audit.field.actorRole, value: selected.actorRole },
+                { label: t.audit.field.ip, value: selected.ip, mono: true, copyable: true },
+                { label: t.audit.field.userAgent, value: selected.userAgent, mono: true },
+              ],
+            },
+            {
+              title: t.audit.field.action,
+              fields: [
+                { label: t.audit.field.action, value: selected.action, mono: true, copyable: true },
+                { label: t.audit.field.target, value: selected.target, mono: true, copyable: true },
+                { label: t.audit.field.targetType, value: selected.targetType },
+                {
+                  label: t.audit.field.result,
+                  value: selected.result === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure,
+                  badge: { text: selected.result, variant: selected.result === "SUCCESS" ? "green" : "red" },
+                },
+                {
+                  label: t.audit.field.severity,
+                  value: selected.severity,
+                  badge: {
+                    text: selected.severity,
+                    variant: selected.severity === "CRITICAL" ? "red" : selected.severity === "WARN" ? "amber" : "gray",
+                  },
+                },
+                { label: t.audit.field.message, value: selected.message },
+                ...(selected.payload
+                  ? [{
+                      label: t.audit.field.payload,
+                      value: JSON.stringify(selected.payload, null, 2),
+                      pre: true,
+                      copyable: true,
+                    } as const]
+                  : []),
+              ],
+            },
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+/* ─── Filter primitives ──────────────────────────────────────── */
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-1">{children}</div>
+    </div>
+  );
+}
+
+function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-[12px] px-2 py-1 rounded-md border transition-colors ${
+        active
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-background border-border text-foreground/70 hover:bg-muted/50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
