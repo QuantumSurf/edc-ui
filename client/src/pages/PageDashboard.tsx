@@ -137,40 +137,37 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
         </Card>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <Card
-          title={t.dashboard.recentNegotiations}
-          actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/negotiation`)}>{t.dashboard.viewAll}</ViewAllLink>}
-        >
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  {[t.dashboard.col.negId, t.dashboard.col.state, t.dashboard.col.peer, t.dashboard.col.time].map(h => (
-                    <th key={h} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {negotiations.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center !text-[12px] text-muted-foreground">{t.dashboard.noResults}</td>
-                  </tr>
-                ) : negotiations.slice(0, 4).map((n) => (
-                  <tr key={n?.id ?? Math.random()} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{(n?.id ?? "").slice(0, 12)}</MonoText></td>
-                    <td className="px-4 py-3"><StateBadge name={n?.name ?? ""} /></td>
-                    <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{n?.peer ?? ""}</MonoText></td>
-                    <td className="px-4 py-3 !text-[12px] font-normal text-muted-foreground">{n?.ts ?? ""}</td>
-                  </tr>
+      {/* Recent Negotiations */}
+      <Card
+        title={t.dashboard.recentNegotiations}
+        actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/negotiation`)}>{t.dashboard.viewAll}</ViewAllLink>}
+      >
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                {[t.dashboard.col.negId, t.dashboard.col.state, t.dashboard.col.peer, t.dashboard.col.time].map(h => (
+                  <th key={h} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-      </div>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {negotiations.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center !text-[12px] text-muted-foreground">{t.dashboard.noResults}</td>
+                </tr>
+              ) : negotiations.slice(0, 4).map((n) => (
+                <tr key={n?.id ?? Math.random()} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{(n?.id ?? "").slice(0, 12)}</MonoText></td>
+                  <td className="px-4 py-3"><StateBadge name={n?.name ?? ""} /></td>
+                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{n?.peer ?? ""}</MonoText></td>
+                  <td className="px-4 py-3 !text-[12px] font-normal text-muted-foreground">{n?.ts ?? ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {/* Recent Transfers */}
       <Card

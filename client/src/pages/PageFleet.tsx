@@ -259,7 +259,6 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
   const [env, setEnv] = useState(connector.env ?? "PROD");
   const [dcpVersion, setDcpVersion] = useState((connector as any).dcpVersion ?? connector.dcp ?? "1.0");
   const [did, setDid] = useState((connector as any).did ?? "");
-  const [identityHubUrl, setIdentityHubUrl] = useState((connector as any).identityHubUrl ?? "");
 
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -287,7 +286,6 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
         managementUrl: managementUrl.trim(), dspEndpoint: dspEndpoint.trim(),
         env, roles: ROLE_MAP[role] ?? ["Provider", "Consumer"],
         dcpVersion, did: did.trim(),
-        identityHubUrl: identityHubUrl.trim(),
       };
       if (apiKey) updates.apiKey = apiKey;
       await updateConnector(connector.id, updates as any);
@@ -355,14 +353,9 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField label={t.addConnector.did}>
-              <input value={did} onChange={(e) => setDid(e.target.value)} placeholder={connector.id} className={`${inputClass} mono`} />
-            </FormField>
-            <FormField label={t.addConnector.identityHubUrl}>
-              <input value={identityHubUrl} onChange={(e) => setIdentityHubUrl(e.target.value)} placeholder="http://identityhub:8183" className={`${inputClass} mono`} />
-            </FormField>
-          </div>
+          <FormField label={t.addConnector.did}>
+            <input value={did} onChange={(e) => setDid(e.target.value)} placeholder={connector.id} className={`${inputClass} mono`} />
+          </FormField>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
             <button onClick={handleTest} disabled={testing || !managementUrl.trim()}

@@ -33,7 +33,6 @@ export default function PageAddConnector({ onNav }: PageAddConnectorProps) {
   const [env, setEnv] = useState("PROD");
   const [dcpVersion, setDcpVersion] = useState("1.0");
   const [did, setDid] = useState("");
-  const [identityHubUrl, setIdentityHubUrl] = useState("");
 
   // UI state
   const [testing, setTesting] = useState(false);
@@ -83,7 +82,6 @@ export default function PageAddConnector({ onNav }: PageAddConnectorProps) {
         roles: ROLE_MAP[role] ?? ["Provider", "Consumer"],
         dcpVersion,
         did: did.trim() || undefined,
-        identityHubUrl: identityHubUrl.trim() || undefined,
       });
       queryClient.invalidateQueries({ queryKey: ["connectors"] });
       toast.success(t.addConnector.registered);
@@ -214,14 +212,6 @@ export default function PageAddConnector({ onNav }: PageAddConnectorProps) {
                   value={did}
                   onChange={(e) => setDid(e.target.value)}
                   placeholder="did:web:kmx.io:participants:kmx-prod-03"
-                  className={`${inputClass} mono`}
-                />
-              </FormField>
-              <FormField label={t.addConnector.identityHubUrl}>
-                <input
-                  value={identityHubUrl}
-                  onChange={(e) => setIdentityHubUrl(e.target.value)}
-                  placeholder="http://identityhub:8183"
                   className={`${inputClass} mono`}
                 />
               </FormField>

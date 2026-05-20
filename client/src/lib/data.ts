@@ -116,6 +116,46 @@ export interface VC {
   ok: boolean;
 }
 
+export interface SpecificAssetId {
+  name: string;
+  value: string;
+}
+
+export interface ShellEndpoint {
+  interfaceName: string;
+  href: string;
+  endpointProtocol: string;
+  endpointProtocolVersion: string;
+  subprotocol: string;
+  subprotocolBody: string;
+  subprotocolBodyEncoding: string;
+}
+
+export interface SubmodelDescriptor {
+  id: string;
+  idShort: string;
+  semanticId: string;
+  endpointCount: number;
+  endpoints: ShellEndpoint[];
+}
+
+export interface ShellDescription {
+  language: string;
+  text: string;
+}
+
+export interface ShellDescriptor {
+  id: string;
+  idShort: string;
+  globalAssetId: string;
+  description: string;
+  descriptions: ShellDescription[];
+  specificAssetIds: SpecificAssetId[];
+  submodelCount: number;
+  submodelDescriptors: SubmodelDescriptor[];
+  createdAt: string;
+}
+
 export interface CatalogOffer {
   name: string;
   type: string;
@@ -152,3 +192,22 @@ export const TRANSFER_STATE_MAP: Record<number, { name: TransferStateName; label
 
 export const SINK_TYPES = ["HttpProxy", "HttpData", "AmazonS3", "AzureStorage"] as const;
 export type SinkType = typeof SINK_TYPES[number];
+
+export type SemanticModelStatus = "DRAFT" | "RELEASED" | "STANDARDIZED" | "DEPRECATED";
+
+export interface SemanticModelSummary {
+  urn: string;
+  name: string;
+  version: string;
+  status: SemanticModelStatus;
+  modelType: string;
+  descriptionKo: string;
+  descriptionEn: string;
+  contentBytes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SemanticModel extends Omit<SemanticModelSummary, "contentBytes"> {
+  content: string;
+}

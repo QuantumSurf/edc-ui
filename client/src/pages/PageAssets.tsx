@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
-import { fetchAssets, fetchAssetById, deleteAsset, createAsset, updateAsset } from "@/services";
+import { fetchAssets, fetchAssetById, deleteAsset, createAsset, updateAsset, fetchShellById } from "@/services";
 import { type Asset } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { Card, Badge, MonoText, SectionHdr, Stepper, FormField } from "@/components/ui-kmx";
@@ -40,6 +40,15 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
     queryKey: ["assets", connectorId],
     queryFn: () => fetchAssets(connectorId!),
     enabled: !!connectorId,
+  });
+
+  // Check DTR Shell registration status when detail dialog has an aasId
+  const detailAasId = detailTarget?.aasId;
+  const { data: shellLookup, isFetching: isShellLooking } = useQuery({
+    queryKey: ["shell-lookup", detailAasId],
+    queryFn: () => fetchShellById(detailAasId!),
+    enabled: !!detailAasId,
+    staleTime: 30_000,
   });
 
   const switchTab = (next: "list" | "wizard") => {
@@ -328,6 +337,24 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
               title: t.assets.sectionMeta,
               fields: [
                 { label: t.assets.col.semanticId, value: detailTarget.sem, mono: true, copyable: !!detailTarget.sem },
+                ...(detailTarget.aasId
+                  ? [
+                      { label: "kmx:aasId", value: detailTarget.aasId, mono: true, copyable: true },
+                      {
+                        label: "Digital Twin Registry",
+                        value: isShellLooking
+                          ? t.common.loading
+                          : shellLookup
+                            ? `${t.twins.badge.registered}: ${shellLookup.idShort || shellLookup.id}`
+                            : t.twins.badge.unregistered,
+                        badge: isShellLooking
+                          ? { text: "…", variant: "gray" as const }
+                          : shellLookup
+                            ? { text: t.twins.badge.registered, variant: "green" as const }
+                            : { text: t.twins.badge.unregistered, variant: "amber" as const },
+                      },
+                    ]
+                  : [{ label: "kmx:aasId", value: t.twins.badge.noAasId, badge: { text: t.twins.badge.noAasId, variant: "gray" as const } }]),
               ],
             },
             {

@@ -1,13 +1,15 @@
 // Connector Hub — Settings Page
 // Theme, Language, Profile, Notification preferences, System info
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
-import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge } from "@/components/ui-kmx";
-import { ChevronLeft, User, Bell, Monitor, Info } from "lucide-react";
-import { fetchSystemInfo } from "@/services/api";
+import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge, FormField } from "@/components/ui-kmx";
+import { ChevronLeft, User, Bell, Monitor, Info, Plug, Loader2 } from "lucide-react";
+import { fetchSystemInfo, fetchIdentityHubUrl, updateIdentityHubUrl } from "@/services/api";
+import { RoleGate } from "@/components/RoleGate";
+import { toast } from "sonner";
 
 interface PageSettingsProps {
   onNav: (path: string) => void;
@@ -34,7 +36,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* ── Appearance ──────────────────────────────────────── */}
-        <Card title={<CardTitle icon={<Monitor className="w-3.5 h-3.5 text-blue-500" />}>{t.settings.appearance}</CardTitle>}>
+        <Card title={<CardTitle icon={<Monitor className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.appearance}</span></CardTitle>}>
           <div className="space-y-4">
             {/* Language */}
             <div className="flex items-center justify-between">
@@ -62,7 +64,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
         </Card>
 
         {/* ── Profile ─────────────────────────────────────────── */}
-        <Card title={<CardTitle icon={<User className="w-3.5 h-3.5 text-blue-500" />}>{t.settings.profile}</CardTitle>}>
+        <Card title={<CardTitle icon={<User className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.profile}</span></CardTitle>}>
           <div className="space-y-3">
             <ProfileRow label={t.settings.username} value={user?.username ?? "—"} />
             <ProfileRow label={t.settings.displayName} value={user?.name ?? "—"} />
@@ -77,7 +79,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
         </Card>
 
         {/* ── Notifications ───────────────────────────────────── */}
-        <Card title={<CardTitle icon={<Bell className="w-3.5 h-3.5 text-blue-500" />}>{t.settings.notificationSettings}</CardTitle>}>
+        <Card title={<CardTitle icon={<Bell className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.notificationSettings}</span></CardTitle>}>
           <div className="space-y-3">
             <ToggleRow storageKey="notify.vcExpiry" label={t.settings.vcExpiry} desc={t.settings.vcExpiryDesc} defaultOn />
             <ToggleRow storageKey="notify.negTerminated" label={t.settings.negTerminated} desc={t.settings.negTerminatedDesc} defaultOn />
@@ -92,7 +94,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
           <CardTitle
             icon={<Info className="w-3.5 h-3.5 text-blue-500" />}
             badge={<DataSourceBadge mode={sysInfo ? "live" : "demo"} />}
-          >{t.settings.systemInfo}</CardTitle>
+          ><span className="font-bold">{t.settings.systemInfo}</span></CardTitle>
         }>
           <div className="space-y-3">
             <ProfileRow label="Connector Hub" value={sysInfo?.connectorHub ?? "—"} />
@@ -111,8 +113,72 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
             } />
           </div>
         </Card>
+
+        {/* ── Integration ─────────────────────────────────────── */}
+        <Card title={<CardTitle icon={<Plug className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.integration}</span></CardTitle>}>
+          <IdentityHubUrlSetting />
+        </Card>
       </div>
     </>
+  );
+}
+
+/* ─── Identity Hub URL setting (admin only) ──────────────────── */
+function IdentityHubUrlSetting() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const canEdit = user?.role === "admin";
+  const [value, setValue] = useState("");
+  const [original, setOriginal] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchIdentityHubUrl()
+      .then((v) => { setValue(v); setOriginal(v); })
+      .catch((e) => toast.error((e as Error).message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const dirty = value !== original;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const next = await updateIdentityHubUrl(value);
+      setValue(next);
+      setOriginal(next);
+      toast.success(t.settings.identityHubUrlSaved);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <FormField label={t.settings.identityHubUrl} hint={t.settings.identityHubUrlDesc}>
+      <div className="flex gap-2 items-center">
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={t.settings.identityHubUrlPlaceholder}
+          disabled={loading || !canEdit}
+          className="flex-1 px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60"
+        />
+        <RoleGate permission="connector:write">
+          <button
+            onClick={save}
+            disabled={saving || loading || !dirty}
+            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+            {t.settings.save}
+          </button>
+        </RoleGate>
+      </div>
+    </FormField>
   );
 }
 
@@ -121,7 +187,7 @@ function ProfileRow({ label, value }: { label: string; value: React.ReactNode })
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
       <span className="text-[12px] text-muted-foreground">{label}</span>
-      <span className="text-[12px] text-foreground font-medium">{value}</span>
+      <span className="text-[12px] text-foreground font-normal">{value}</span>
     </div>
   );
 }

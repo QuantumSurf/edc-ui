@@ -13,10 +13,9 @@ import {
   Search, FileText, ArrowRightLeft, Key,
   ChevronRight, ChevronLeft, Menu, X, Bell,
   Settings, LogOut, MoreHorizontal,
-  Vault as VaultIcon, ScrollText,
-  Activity, ListChecks, Workflow, Wrench, Server,
+  Vault as VaultIcon, ScrollText, Boxes, Layers,
+  Activity, ListChecks, Workflow, Wrench, Server, Fingerprint,
 } from "lucide-react";
-import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
@@ -62,7 +61,18 @@ function useNavItems() {
     Icon: Wrench,
     items: [
       { path: "/system/vault", label: t.nav.vault, Icon: VaultIcon, postMvp: true },
+      { path: "/system/identity-hub", label: t.nav.identityHub, Icon: Fingerprint, postMvp: true },
       { path: "/system/audit", label: t.nav.audit, Icon: ScrollText, postMvp: true },
+    ],
+  });
+
+  const digitalTwinGroup = (): NavGroup => ({
+    key: "digitalTwin",
+    label: t.nav.groupDigitalTwin,
+    Icon: Boxes,
+    items: [
+      { path: "/registry", label: t.nav.digitalTwins, Icon: Boxes },
+      { path: "/submodels", label: t.nav.submodels, Icon: Layers },
     ],
   });
 
@@ -82,7 +92,7 @@ function useNavItems() {
       items: [
         { path: `/connectors/${id}/assets`, label: t.nav.assets, Icon: Database, count: counts?.assets },
         { path: `/connectors/${id}/policy`, label: t.nav.policies, Icon: Shield, count: counts?.policies },
-        { path: `/connectors/${id}/offering`, label: t.nav.offerings, Icon: Package, count: counts?.offerings },
+        { path: `/connectors/${id}/contract`, label: t.nav.offerings, Icon: Package, count: counts?.offerings },
       ],
     },
     {
@@ -98,7 +108,7 @@ function useNavItems() {
     },
   ];
 
-  return { fleetGroup, systemGroup, connectorGroups };
+  return { fleetGroup, systemGroup, connectorGroups, digitalTwinGroup };
 }
 
 /* ─── Bottom Tab Bar items (Mobile) ──────────────────────────── */
@@ -137,7 +147,7 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
   const [location, navigate] = useLocation();
   const connector = useConnectorStore((s) => s.connector);
   const setDrawerOpen = useConnectorStore((s) => s.setDrawerOpen);
-  const { fleetGroup, systemGroup, connectorGroups } = useNavItems();
+  const { fleetGroup, systemGroup, connectorGroups, digitalTwinGroup } = useNavItems();
   const counts = useSidebarCounts(connector?.id ?? null);
   const { t } = useI18n();
   const { logout } = useAuth();
@@ -145,8 +155,8 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
   const openNotifications = useNotificationStore((s) => s.setPanelOpen);
 
   const groups: NavGroup[] = connector
-    ? [fleetGroup(), ...connectorGroups(connector.id, counts), systemGroup()]
-    : [fleetGroup(), systemGroup()];
+    ? [fleetGroup(), ...connectorGroups(connector.id, counts), digitalTwinGroup(), systemGroup()]
+    : [fleetGroup(), digitalTwinGroup(), systemGroup()];
 
   const handleNav = (path: string) => {
     navigate(path);
@@ -225,7 +235,7 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
                       onClick={() => handleNav(it.path)}
                       title={collapsed ? it.label : undefined}
                       className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 text-left relative",
+                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150 text-left relative",
                         collapsed && "lg:justify-center lg:px-0",
                       )}
                       style={
@@ -328,11 +338,12 @@ function Topbar() {
   const setDrawerOpen = useConnectorStore((s) => s.setDrawerOpen);
   const { locale, setLocale, t } = useI18n();
   const { user } = useAuth();
-  const { fleetGroup, systemGroup, connectorGroups } = useNavItems();
+  const { fleetGroup, systemGroup, connectorGroups, digitalTwinGroup } = useNavItems();
 
   const allItems: NavItem[] = [
     ...fleetGroup().items,
     ...connectorGroups("__id__").flatMap((g) => g.items),
+    ...digitalTwinGroup().items,
     ...systemGroup().items,
   ];
   const locSuffix = location.replace(/^\/connectors\/[^/]+/, "");
@@ -373,8 +384,6 @@ function Topbar() {
         >
           {LOCALES[locale].flag} {locale.toUpperCase()}
         </button>
-        {/* Theme switcher */}
-        <ThemeSwitcher />
         {/* User info */}
         <div className="flex items-center gap-2 pl-3 border-l border-border">
           <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
