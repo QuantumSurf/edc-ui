@@ -81,7 +81,7 @@ function DataViewer({ tpId, asset, data, sizeBytes, contentType, onClose }: Data
           </div>
         </DialogHeader>
         <div className="overflow-auto flex-1 p-4 min-h-0">
-          <pre className="text-[12px] font-mono leading-relaxed text-foreground/90 whitespace-pre-wrap break-all">
+          <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed break-all">
             {formatted}
           </pre>
         </div>

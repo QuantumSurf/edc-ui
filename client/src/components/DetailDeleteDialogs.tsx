@@ -60,7 +60,7 @@ function FieldValue({ field, idx, copied, onCopy }: { field: DetailField; idx: s
   if (field.pre && field.value) {
     return (
       <div className="relative group/pre">
-        <pre className="mono text-[12px] text-foreground/80 bg-muted/50 rounded-lg p-3 overflow-auto max-h-[240px] whitespace-pre-wrap leading-relaxed border border-border">
+        <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto max-h-[240px] whitespace-pre-wrap leading-relaxed">
           {field.value}
         </pre>
         {field.copyable && (
@@ -363,7 +363,7 @@ export function JsonViewerDialog({ open, onClose, title, subtitle, json, downloa
           {subtitle && <MonoText className="text-[12px] font-normal text-muted-foreground">{subtitle}</MonoText>}
         </DialogHeader>
         <div className="flex-1 overflow-auto p-4 min-h-0">
-          <pre className="mono text-[12px] text-foreground/80 bg-muted/50 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed border border-border">
+          <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">
             {json}
           </pre>
         </div>

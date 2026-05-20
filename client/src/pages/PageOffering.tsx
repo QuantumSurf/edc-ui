@@ -568,11 +568,11 @@ function OfferingWizard({
           })}
 
           {assetsSelectorJson && (
-            <div className="bg-muted rounded-md p-3 mt-2">
+            <div className="mt-2">
               <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                 {t.offerings.assetsSelector}
               </div>
-              <pre className="mono text-[11px] text-foreground/70 whitespace-pre-wrap">
+              <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">
                 {assetsSelectorJson}
               </pre>
             </div>
@@ -743,11 +743,11 @@ function OfferingWizard({
           </div>
 
           {assetsSelectorJson && (
-            <div className="bg-muted rounded-md p-3">
+            <div>
               <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                 {t.offerings.assetsSelector}
               </div>
-              <pre className="mono text-[11px] text-foreground/70 whitespace-pre-wrap">
+              <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">
                 {assetsSelectorJson}
               </pre>
             </div>
@@ -898,7 +898,7 @@ function PolicySelector({
           <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-2">
             ODRL JSON
           </div>
-          <pre className="mono text-[11px] text-foreground/70 bg-card rounded-md p-2.5 border border-border overflow-auto max-h-[160px] whitespace-pre-wrap">
+          <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto max-h-[160px] whitespace-pre-wrap leading-relaxed">
             {JSON.stringify({
               "@context": "http://www.w3.org/ns/odrl.jsonld",
               "@type": "Set",

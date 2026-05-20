@@ -716,9 +716,9 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
                 className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary" />
             </FormField>
           </div>
-          <div className="bg-muted rounded-md p-3">
+          <div>
             <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t.assets.dataAddressPreview}</div>
-            <pre className="mono text-[11px] text-foreground/70 whitespace-pre-wrap">{dataAddressJson}</pre>
+            <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">{dataAddressJson}</pre>
           </div>
           <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
             <button onClick={() => setStep(0)} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">

@@ -16,7 +16,6 @@ import {
   Vault as VaultIcon, ScrollText,
   Activity, ListChecks, Workflow, Wrench, Server,
 } from "lucide-react";
-import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
@@ -373,8 +372,6 @@ function Topbar() {
         >
           {LOCALES[locale].flag} {locale.toUpperCase()}
         </button>
-        {/* Theme switcher */}
-        <ThemeSwitcher />
         {/* User info */}
         <div className="flex items-center gap-2 pl-3 border-l border-border">
           <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">

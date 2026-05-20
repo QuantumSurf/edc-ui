@@ -939,11 +939,11 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
   );
 
   const jsonPreview = (
-    <div className="bg-muted rounded-md p-3 h-full">
+    <div className="h-full">
       <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
         <Code className="w-3 h-3" /> {t.policies.jsonPreview}
       </div>
-      <pre className="mono text-[11px] text-foreground/70 whitespace-pre-wrap overflow-auto max-h-[400px]">{odrlJson}</pre>
+      <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed max-h-[400px]">{odrlJson}</pre>
     </div>
   );
 
