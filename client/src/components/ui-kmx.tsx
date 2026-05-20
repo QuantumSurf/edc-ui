@@ -329,15 +329,17 @@ interface FormFieldProps {
   label: string;
   children: React.ReactNode;
   required?: boolean;
+  hint?: string;
 }
 
-export function FormField({ label, children, required }: FormFieldProps) {
+export function FormField({ label, children, required, hint }: FormFieldProps) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <label className="text-[12px] font-medium text-foreground/70">
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
       </label>
       {children}
+      {hint && <p className="text-[10px] text-muted-foreground leading-snug">{hint}</p>}
     </div>
   );
 }

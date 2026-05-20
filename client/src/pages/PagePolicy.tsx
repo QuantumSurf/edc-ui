@@ -306,6 +306,7 @@ export default function PagePolicy() {
           onClose={() => setDetailTarget(null)}
           title={detailTarget.id}
           subtitle={t.policies.constraintCount(parseConstraints(detailTarget.constraint).length)}
+          subtitleMono={false}
           sections={[
             {
               title: t.policies.sectionBasic,

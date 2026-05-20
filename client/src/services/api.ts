@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import type {
   Connector, Asset, Policy, Offering,
   Negotiation, Transfer, EDR, EDRStats, CatalogOffer,
+  ShellDescriptor, SubmodelDescriptor, SpecificAssetId,
+  SemanticModel, SemanticModelSummary,
 } from "@/lib/data";
 
 const http = axios.create({ baseURL: "/api", timeout: 15_000 });
@@ -350,6 +352,132 @@ export async function fetchPgDatabases(): Promise<PgDatabasesResp> {
 
 export async function fetchPgLocks(): Promise<PgLocksResp> {
   const { data } = await http.get("/platform/postgres/locks");
+  return data;
+}
+
+/* ── Digital Twin Registry (DTR) ──────────────────────────────── */
+export interface ShellListResp {
+  items: ShellDescriptor[];
+  cursor: string | null;
+}
+
+export async function fetchShells(params: { limit?: number; cursor?: string } = {}): Promise<ShellListResp> {
+  const { data } = await http.get("/dtr/shells", { params });
+  return data;
+}
+
+export async function fetchShellById(aasId: string): Promise<ShellDescriptor | null> {
+  try {
+    const { data } = await http.get(`/dtr/shells/${encodeURIComponent(aasId)}`);
+    return data;
+  } catch { return null; }
+}
+
+/** Fetch the raw DTR shell payload (for editor pre-fill). */
+export async function fetchShellRaw(aasId: string): Promise<Record<string, unknown> | null> {
+  try {
+    const { data } = await http.get(`/dtr/shells/${encodeURIComponent(aasId)}/raw`);
+    return data;
+  } catch { return null; }
+}
+
+export async function createShell(body: Record<string, unknown>): Promise<ShellDescriptor> {
+  const { data } = await http.post("/dtr/shells", body);
+  return data;
+}
+
+export async function updateShell(aasId: string, body: Record<string, unknown>): Promise<void> {
+  await http.put(`/dtr/shells/${encodeURIComponent(aasId)}`, body);
+}
+
+export async function deleteShell(aasId: string): Promise<void> {
+  await http.delete(`/dtr/shells/${encodeURIComponent(aasId)}`);
+}
+
+export async function lookupShells(assetIds: SpecificAssetId[]): Promise<{ shellIds: string[] }> {
+  const { data } = await http.post("/dtr/lookup", { assetIds });
+  return data;
+}
+
+export async function fetchSubmodels(aasId: string): Promise<{ items: SubmodelDescriptor[] }> {
+  const { data } = await http.get(`/dtr/shells/${encodeURIComponent(aasId)}/submodels`);
+  return data;
+}
+
+export async function createSubmodel(aasId: string, body: Record<string, unknown>): Promise<SubmodelDescriptor> {
+  const { data } = await http.post(`/dtr/shells/${encodeURIComponent(aasId)}/submodels`, body);
+  return data;
+}
+
+export async function updateSubmodel(aasId: string, submodelId: string, body: Record<string, unknown>): Promise<void> {
+  await http.put(`/dtr/shells/${encodeURIComponent(aasId)}/submodels/${encodeURIComponent(submodelId)}`, body);
+}
+
+export async function deleteSubmodel(aasId: string, submodelId: string): Promise<void> {
+  await http.delete(`/dtr/shells/${encodeURIComponent(aasId)}/submodels/${encodeURIComponent(submodelId)}`);
+}
+
+/* ── Semantic Models (local Postgres CRUD) ──────────────────── */
+
+export async function fetchSemanticModels(search?: string): Promise<{ items: SemanticModelSummary[]; total: number }> {
+  const params = search ? { search } : {};
+  const { data } = await http.get(`/semantics/models`, { params });
+  return data;
+}
+
+export async function fetchSemanticModel(urn: string): Promise<SemanticModel> {
+  const { data } = await http.get(`/semantics/models/${encodeURIComponent(urn)}`);
+  return data;
+}
+
+export async function createSemanticModel(body: Partial<SemanticModel>): Promise<SemanticModel> {
+  const { data } = await http.post(`/semantics/models`, body);
+  return data;
+}
+
+export async function updateSemanticModel(urn: string, body: Partial<SemanticModel>): Promise<SemanticModel> {
+  const { data } = await http.put(`/semantics/models/${encodeURIComponent(urn)}`, body);
+  return data;
+}
+
+export async function deleteSemanticModel(urn: string): Promise<void> {
+  await http.delete(`/semantics/models/${encodeURIComponent(urn)}`);
+}
+
+/* ── Global app settings ────────────────────────────────────── */
+
+export async function fetchIdentityHubUrl(): Promise<string> {
+  const { data } = await http.get(`/system/settings/identity-hub-url`);
+  return (data?.value as string) ?? "";
+}
+
+export async function updateIdentityHubUrl(value: string): Promise<string> {
+  const { data } = await http.put(`/system/settings/identity-hub-url`, { value });
+  return (data?.value as string) ?? "";
+}
+
+/* ── IdentityHub status monitor ─────────────────────────────── */
+
+export interface IdentityHubComponent {
+  component: string;
+  isHealthy: boolean;
+  failure: string | null;
+}
+
+export interface IdentityHubHealth {
+  status: "up" | "warn" | "down" | "unconfigured";
+  baseUrl: string;
+  endpointUrl: string;
+  latencyMs: number | null;
+  checkedAt: string;
+  isSystemHealthy: boolean | null;
+  components: IdentityHubComponent[];
+  httpStatus: number | null;
+  error: string | null;
+}
+
+export async function fetchIdentityHubHealth(): Promise<IdentityHubHealth> {
+  const { data } = await http.get(`/identity-hub/health`);
   return data;
 }
 

@@ -29,6 +29,11 @@ import authRouter from "./routes/auth.js";
 import vaultRouter from "./routes/vault.js";
 import platformInfraRouter from "./routes/platformInfra.js";
 import systemRouter from "./routes/system.js";
+import settingsRouter from "./routes/settings.js";
+import identityHubRouter from "./routes/identityHub.js";
+import shellsRouter from "./routes/shells.js";
+import submodelsRouter from "./routes/submodels.js";
+import semanticsRouter from "./routes/semantics.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,7 +46,9 @@ async function startServer() {
   const server = createServer(app);
 
   // ── Security Middleware ─────────────────────────────────────────
-  // JSON body parsing with size limit
+  // JSON body parsing — larger limit only for semantic models (SAMM TTL up to ~256 KB).
+  // All other routes keep a tight 10 KB cap to limit DoS exposure.
+  app.use("/api/semantics", express.json({ limit: "1mb" }));
   app.use(express.json({ limit: "10kb" }));
 
   // Security headers
@@ -92,6 +99,13 @@ async function startServer() {
   app.use("/api/platform/vault", vaultRouter);
   app.use("/api/platform/postgres", platformInfraRouter);
   app.use("/api/system", systemRouter);
+  app.use("/api/system", settingsRouter);
+  app.use("/api/identity-hub", identityHubRouter);
+  // Tractus-X Digital Twin Registry — global (connector-agnostic)
+  app.use("/api/dtr", shellsRouter);
+  app.use("/api/dtr", submodelsRouter);
+  // Tractus-X Semantic Models — local Postgres CRUD
+  app.use("/api/semantics", semanticsRouter);
 
   // Error handler (must be after routes)
   app.use(errorHandler);

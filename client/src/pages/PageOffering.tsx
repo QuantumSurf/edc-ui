@@ -285,6 +285,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
             onClose={() => setDetailTarget(null)}
             title={detailTarget.id}
             subtitle={`${t.offerings.contractCount}: ${detailTarget.cnt}  ·  ${t.offerings.assetCount(assetIds.length)}`}
+            subtitleMono={false}
             sections={[
               {
                 title: t.offerings.col.asset,
@@ -699,7 +700,7 @@ function OfferingWizard({
             <input
               value={offeringId}
               onChange={(e) => { setOfferingId(e.target.value); setOfferingIdError(null); markDirty(); }}
-              placeholder="offering-id"
+              placeholder="cd-id"
               disabled={isEdit}
               title={isEdit ? t.offerings.idImmutable : undefined}
               className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"

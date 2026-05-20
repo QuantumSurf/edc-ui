@@ -34,6 +34,8 @@ interface DetailDialogProps {
   onClose: () => void;
   title: string;
   subtitle?: string;
+  /** Render subtitle in monospace font. Default true (for IDs/hashes); set false for descriptive Korean text. */
+  subtitleMono?: boolean;
   /** Legacy flat field list */
   fields?: DetailField[];
   /** New: grouped sections */
@@ -104,7 +106,7 @@ function FieldValue({ field, idx, copied, onCopy }: { field: DetailField; idx: s
   );
 }
 
-export function DetailDialog({ open, onClose, title, subtitle, fields, sections, onEdit, onDelete, onDuplicate, onShowJson, deleteDisabledReason }: DetailDialogProps) {
+export function DetailDialog({ open, onClose, title, subtitle, subtitleMono = true, fields, sections, onEdit, onDelete, onDuplicate, onShowJson, deleteDisabledReason }: DetailDialogProps) {
   const { t } = useI18n();
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -126,7 +128,7 @@ export function DetailDialog({ open, onClose, title, subtitle, fields, sections,
             <DialogTitle className="font-display text-[15px] text-foreground font-semibold">{title}</DialogTitle>
             {subtitle && (
               <div className="flex items-center gap-2 mt-1.5">
-                <span className="mono text-[12px] font-normal text-foreground bg-muted/60 border border-border/40 px-2 py-0.5 rounded-md">{subtitle}</span>
+                <span className={`${subtitleMono ? "mono" : ""} text-[12px] font-normal text-foreground bg-muted/60 border border-border/40 px-2 py-0.5 rounded-md`}>{subtitle}</span>
               </div>
             )}
           </DialogHeader>

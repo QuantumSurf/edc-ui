@@ -232,7 +232,7 @@ export default function PageVault() {
         breadcrumb={
           connector
             ? `${connector.name} / ${connector.bpn}`
-            : `${backend.backend} / ${backend.namespace || "default"}`
+            : backend.backend
         }
         action={<DataSourceBadge mode={isLive ? "live" : "demo"} />}
       >
@@ -310,7 +310,7 @@ export default function PageVault() {
           ].map(([k, v]) => (
             <div key={k}>
               <div className="font-display text-[13px] font-semibold text-foreground/80 mb-1">{k}</div>
-              <div className="text-[12px] font-medium text-foreground/80 break-all">{v}</div>
+              <div className="mono text-[12px] font-normal text-foreground/80 break-all">{v}</div>
             </div>
           ))}
         </div>
@@ -326,16 +326,16 @@ export default function PageVault() {
         {items.length === 0 ? (
           <div className="py-8 text-center text-[13px] text-muted-foreground">{t.vault.noItems}</div>
         ) : (
-          <table className="w-full text-[13px]">
+          <table className="w-full">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                <th className="text-left px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{t.vault.col.alias}</th>
-                <th className="text-left px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{t.vault.col.type}</th>
-                <th className="text-left px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{t.vault.col.algorithm}</th>
-                <th className="text-left px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">{t.vault.col.created}</th>
-                <th className="text-left px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground hidden xl:table-cell">{t.vault.col.lastUsed}</th>
-                <th className="text-left px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{t.vault.col.expiry}</th>
-                <th className="text-right px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{t.vault.col.actions}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.alias}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.type}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.algorithm}</th>
+                <th className="text-left px-4 py-3 !text-[12px] hidden lg:table-cell">{t.vault.col.created}</th>
+                <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.vault.col.lastUsed}</th>
+                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.expiry}</th>
+                <th className="text-right px-4 py-3 !text-[12px]">{t.vault.col.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -345,7 +345,7 @@ export default function PageVault() {
                   <tr key={it.alias} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <MonoText className="text-[11px] font-normal truncate">{it.alias}</MonoText>
+                        <MonoText className="!text-[12px] !font-normal truncate">{it.alias}</MonoText>
                         <button
                           onClick={() => onCopy(it.alias)}
                           title={t.vault.copyAlias}
@@ -355,7 +355,7 @@ export default function PageVault() {
                         </button>
                       </div>
                       <div className="mt-1 flex items-center gap-1">
-                        <MonoText className="text-[11px] text-muted-foreground/80">
+                        <MonoText className="!text-[12px] !font-normal text-muted-foreground">
                           {isRevealed ? it.value : maskValue(it.value)}
                         </MonoText>
                         <button
@@ -369,10 +369,10 @@ export default function PageVault() {
                     </td>
                     <td className="px-4 py-3">{typeBadge(it.type, t)}</td>
                     <td className="px-4 py-3">
-                      <MonoText className="text-[11px]">{it.algorithm}</MonoText>
+                      <MonoText className="!text-[12px] !font-normal">{it.algorithm}</MonoText>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell font-normal text-foreground/70">{it.created}</td>
-                    <td className="px-4 py-3 hidden xl:table-cell text-foreground/70">{it.lastUsed}</td>
+                    <td className="px-4 py-3 hidden lg:table-cell !text-[12px] font-normal text-muted-foreground">{it.created}</td>
+                    <td className="px-4 py-3 hidden xl:table-cell !text-[12px] font-normal text-muted-foreground">{it.lastUsed}</td>
                     <td className="px-4 py-3">{expiryBadge(it.expiryDays, t)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">

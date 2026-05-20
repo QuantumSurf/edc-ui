@@ -123,8 +123,8 @@ export default function PageEDR() {
             [t.edr.gcEnabled, stats.gcScheduler.enabled ? t.edr.enabled : "—"],
           ].map(([k, v]) => (
             <div key={k}>
-              <div className="text-[11px] text-muted-foreground mb-1">{k}</div>
-              <div className={`mono text-[11px] ${v === t.edr.enabled ? "text-primary font-medium" : "text-foreground/80"}`}>{v}</div>
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">{k}</div>
+              <div className={`text-[11px] font-normal ${v === t.edr.enabled ? "text-primary" : "text-foreground/80"}`}>{v}</div>
             </div>
           ))}
         </div>

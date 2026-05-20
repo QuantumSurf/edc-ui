@@ -30,7 +30,7 @@ services:
       POSTGRES_DB: kmxedc
       POSTGRES_USER: kmxedc
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kmxedc-dev-password}
-      POSTGRES_MULTIPLE_DATABASES: "kmxedc,kmxedc_consumer"
+      POSTGRES_MULTIPLE_DATABASES: "kmxedc,kmxedc_consumer,dtr"
     ports:
       - "5432:5432"
     volumes:
@@ -184,6 +184,43 @@ services:
             kmx-platform-vault vault kv put secret/consumer-sts-client-secret content="$$CONSUMER_SECRET" >/dev/null
           echo "Consumer STS secret bridged"
         fi
+    networks:
+      - kmx-ih_default
+
+  # ──────────────────────────────────────────────────────────
+  # Tractus-X Digital Twin Registry (sldt-digital-twin-registry)
+  # 인증 비활성(dev), platform-postgres 의 'dtr' DB 사용.
+  # 컨테이너 내부 호출: http://platform-dtr:4243/semantics/registry/api/v3/...
+  # ──────────────────────────────────────────────────────────
+  platform-dtr:
+    image: tractusx/sldt-digital-twin-registry:0.11.0
+    container_name: kmx-platform-dtr
+    depends_on:
+      platform-postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://platform-postgres:5432/dtr
+      SPRING_DATASOURCE_USERNAME: kmxedc
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-kmxedc-dev-password}
+      SPRING_DATASOURCE_DRIVERCLASSNAME: org.postgresql.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      # Activate DTR's built-in `local` profile which wires LocalOauthSecurityConfig
+      # (permits all requests). No external IDP needed for dev.
+      SPRING_PROFILES_ACTIVE: local
+      REGISTRY_IDM_OWNINGTENANTID: default-tenant
+      REGISTRY_IDM_PUBLICCLIENTID: default-client
+      REGISTRY_USE_GRANULAR_ACCESS_CONTROL: "false"
+      SERVER_PORT: "4243"
+      SERVER_SERVLET_CONTEXT_PATH: /semantics/registry
+    ports:
+      - "4243:4243"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4243/semantics/registry/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
     networks:
       - kmx-ih_default
 

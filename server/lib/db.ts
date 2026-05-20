@@ -117,6 +117,38 @@ async function createSchema(): Promise<void> {
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  // Tractus-X 시멘틱 모델 (SAMM): 로컬 보관
+  // - urn: 모델 식별자 (e.g. urn:samm:io.catenax.pcf:7.0.0#Pcf)
+  // - status: DRAFT / RELEASED / STANDARDIZED / DEPRECATED
+  // - model_type: SAMM / BAMM / other (UI 호환용)
+  // - content: SAMM TTL/RDF 본문 (수 KB ~ 수십 KB)
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS semantic_models (
+      urn             TEXT PRIMARY KEY,
+      name            TEXT NOT NULL,
+      version         TEXT NOT NULL DEFAULT '',
+      status          TEXT NOT NULL DEFAULT 'DRAFT'
+                      CHECK (status IN ('DRAFT', 'RELEASED', 'STANDARDIZED', 'DEPRECATED')),
+      model_type      TEXT NOT NULL DEFAULT 'SAMM',
+      content         TEXT NOT NULL DEFAULT '',
+      description_ko  TEXT NOT NULL DEFAULT '',
+      description_en  TEXT NOT NULL DEFAULT '',
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await getPool().query(`CREATE INDEX IF NOT EXISTS idx_semantic_models_name ON semantic_models(name);`);
+
+  // 글로벌 애플리케이션 설정 (key-value).
+  // 예: identity_hub_url — 이 UI 인스턴스가 사용하는 단일 IdentityHub URL.
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key         TEXT PRIMARY KEY,
+      value       TEXT NOT NULL DEFAULT '',
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
 }
 
 /**

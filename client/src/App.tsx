@@ -1,7 +1,6 @@
 // Connector Hub — Main App with routing, TanStack Query, Zustand
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AppShell } from "./components/AppShell";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -30,6 +29,9 @@ import PageVault from "./pages/PageVault";
 import PageAudit from "./pages/PageAudit";
 import PageAddConnector from "./pages/PageAddConnector";
 import PageSettings from "./pages/PageSettings";
+import PageShells from "./pages/PageShells";
+import PageSubmodels from "./pages/PageSubmodels";
+import PageIdentityHub from "./pages/PageIdentityHub";
 
 /** Sync connector from URL param to Zustand store */
 function ConnectorSync({ id }: { id: string }) {
@@ -97,7 +99,7 @@ function AppRoutes() {
           </>
         )}
       </Route>
-      <Route path="/connectors/:id/offering">
+      <Route path="/connectors/:id/contract">
         {({ id }) => (
           <>
             <ConnectorSync id={id} />
@@ -141,8 +143,17 @@ function AppRoutes() {
       <Route path="/system/vault">
         <PageVault />
       </Route>
+      <Route path="/system/identity-hub">
+        <PageIdentityHub onNav={nav} />
+      </Route>
       <Route path="/system/audit">
         <PageAudit />
+      </Route>
+      <Route path="/registry">
+        <PageShells />
+      </Route>
+      <Route path="/submodels">
+        <PageSubmodels />
       </Route>
       <Route path="/connectors/:id/infra">
         {({ id }) => (
@@ -207,12 +218,10 @@ function App() {
       <I18nContext.Provider value={i18n}>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
-            <ThemeProvider>
-              <TooltipProvider>
-                <Toaster position="top-center" richColors expand visibleToasts={3} duration={3000} />
-                <AuthGate />
-              </TooltipProvider>
-            </ThemeProvider>
+            <TooltipProvider>
+              <Toaster position="top-center" richColors expand visibleToasts={3} duration={3000} />
+              <AuthGate />
+            </TooltipProvider>
           </QueryClientProvider>
         </AuthProvider>
       </I18nContext.Provider>

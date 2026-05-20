@@ -53,6 +53,8 @@ services:
       - PLATFORM_VAULT_TOKEN=${PLATFORM_VAULT_TOKEN:-root}
       - PLATFORM_VAULT_NAMESPACE=${PLATFORM_VAULT_NAMESPACE:-}
       - PLATFORM_DATABASE_URL=${PLATFORM_DATABASE_URL:-postgresql://kmxedc:kmxedc-dev-password@platform-postgres:5432/postgres}
+      # Digital Twin Registry (kmx-platform compose project)
+      - DTR_BASE_URL=${DTR_BASE_URL:-http://platform-dtr:4243/semantics/registry}
     networks:
       - default
       - kmx-ih_default   # provider/consumer EDC 컨테이너와 동일 네트워크
