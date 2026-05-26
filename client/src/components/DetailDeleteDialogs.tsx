@@ -1,17 +1,18 @@
 // KMX EDC — Reusable Detail + Delete Dialog Components
 // Used by PageAssets, PagePolicy, PageOffering
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/i18n";
-import { Loader2, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, Files, Code, Download, X } from "lucide-react";
+import { Loader2, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, Files, Code, Download, X, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { MonoText } from "@/components/ui-kmx";
+import { MonoText, JsonTreeView } from "@/components/ui-kmx";
 
 /* ─── Detail Dialog ──────────────────────────────────────────── */
 interface DetailField {
@@ -33,6 +34,8 @@ interface DetailDialogProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** Optional icon shown to the left of the title (DetailPanel only). */
+  icon?: React.ReactNode;
   subtitle?: string;
   /** Render subtitle in monospace font. Default true (for IDs/hashes); set false for descriptive Korean text. */
   subtitleMono?: boolean;
@@ -124,7 +127,7 @@ export function DetailDialog({ open, onClose, title, subtitle, subtitleMono = tr
       <DialogContent className="max-w-lg p-0 overflow-hidden">
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b border-border">
-          <DialogHeader>
+          <DialogHeader className="border-b-0 pb-0">
             <DialogTitle className="font-display text-[15px] text-foreground font-semibold">{title}</DialogTitle>
             {subtitle && (
               <div className="flex items-center gap-2 mt-1.5">
@@ -215,6 +218,185 @@ export function DetailDialog({ open, onClose, title, subtitle, subtitleMono = tr
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ─── Detail Panel (slide-in) ────────────────────────────────── */
+// Slide-in-from-right panel variant of DetailDialog — same props/API.
+// Referenced from fl-aggregator's task detail. Used by Assets/Policy/Offering.
+export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono = true, fields, sections, onEdit, onDelete, onDuplicate, onShowJson, deleteDisabledReason }: DetailDialogProps) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState<string | null>(null);
+  const [entered, setEntered] = useState(false);
+
+  // Trigger the slide-in transition on mount.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  // Close on ESC.
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [onClose]);
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  if (!open) return null;
+  const renderSections = sections && sections.length > 0;
+
+  return (
+    <>
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/20 transition-opacity duration-200", entered ? "opacity-100" : "opacity-0")}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 h-full w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out",
+          entered ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            {icon && <span className="flex items-center flex-shrink-0">{icon}</span>}
+            <div className="min-w-0">
+              <p className="font-display text-[14px] font-bold text-foreground truncate">{title}</p>
+              {subtitle && (
+                <p className={cn("text-[11px] text-muted-foreground truncate mt-0.5", subtitleMono && "mono")}>{subtitle}</p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+            aria-label={t.common.close}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {renderSections ? (
+            <div className="space-y-5">
+              {sections.map((section, si) => (
+                <div key={si}>
+                  <div className="mb-2.5">
+                    <span className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-wider">{section.title}</span>
+                    <div className="h-px bg-border mt-1.5" />
+                  </div>
+                  <div className="space-y-3">
+                    {section.fields.map((f, fi) => (
+                      <div key={fi} className="flex flex-col gap-1">
+                        <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{f.label}</span>
+                        <FieldValue field={f} idx={`${si}-${fi}`} copied={copied} onCopy={handleCopy} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : fields ? (
+            <div className="space-y-3">
+              {fields.map((f, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{f.label}</span>
+                  <FieldValue field={f} idx={String(i)} copied={copied} onCopy={handleCopy} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-1 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+          {onDelete && (
+            <button onClick={onDelete}
+              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
+            </button>
+          )}
+          {!onDelete && deleteDisabledReason && (
+            <button disabled title={deleteDisabledReason}
+              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-muted-foreground/40 cursor-not-allowed">
+              <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
+            </button>
+          )}
+          {onShowJson && (
+            <button onClick={onShowJson}
+              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors">
+              <Code className="w-3.5 h-3.5" /> JSON
+            </button>
+          )}
+          {onDuplicate && (
+            <button onClick={onDuplicate}
+              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors">
+              <Files className="w-3.5 h-3.5" /> {t.common.duplicate}
+            </button>
+          )}
+          <div className="flex-1" />
+          {onEdit && (
+            <button onClick={onEdit}
+              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors shadow-sm">
+              <Pencil className="w-3.5 h-3.5" /> {t.common.edit}
+            </button>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+/* ─── Slide-in Panel shell ───────────────────────────────────── */
+// Generic right-side slide-in container — supply header/content/footer as
+// children. Used by detail views with custom (non field-list) content.
+export function SlidePanel({ open, onClose, children, className }: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [onClose]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/20 transition-opacity duration-200", entered ? "opacity-100" : "opacity-0")}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 h-full w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out",
+          entered ? "translate-x-0" : "translate-x-full",
+          className,
+        )}
+      >
+        {children}
+      </aside>
+    </>
   );
 }
 
@@ -358,30 +540,42 @@ export function JsonViewerDialog({ open, onClose, title, subtitle, json, downloa
   };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
-        <DialogHeader className="px-5 py-3 border-b border-border flex-row items-center gap-2 space-y-0">
-          <Code className="w-4 h-4 text-muted-foreground" />
-          <DialogTitle className="font-display text-[15px] text-foreground font-semibold">{title}</DialogTitle>
-          {subtitle && <MonoText className="text-[12px] font-normal text-muted-foreground">{subtitle}</MonoText>}
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileJson className="w-4 h-4 text-blue-500" />
+            {title}
+          </DialogTitle>
+          {subtitle && (
+            <MonoText className="!text-[12px] !font-normal text-muted-foreground break-all">{subtitle}</MonoText>
+          )}
         </DialogHeader>
-        <div className="flex-1 overflow-auto p-4 min-h-0">
-          <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">
-            {json}
-          </pre>
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          {(() => {
+            try {
+              return <JsonTreeView data={JSON.parse(json)} className="flex-1 min-h-0" />;
+            } catch {
+              return (
+                <pre className="flex-1 min-h-0 overflow-auto bg-slate-900 text-slate-300 rounded-lg p-3 text-[12px] mono leading-relaxed whitespace-pre-wrap">
+                  {json}
+                </pre>
+              );
+            }
+          })()}
         </div>
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
+        <div className="flex justify-end gap-2 pt-3 border-t border-border">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted text-muted-foreground"
+            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
           >
-            {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
             {copied ? t.common.copied : t.common.copy}
           </button>
           <button
             onClick={handleDownload}
-            className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3 h-3" />
             {t.common.downloadJson ?? "Download"}
           </button>
         </div>

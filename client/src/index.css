@@ -99,14 +99,14 @@
   --chart-4: oklch(0.72 0.14 200);
   --chart-5: oklch(0.38 0.18 265);
 
-  /* Sidebar: Bright sky-blue gradient base */
-  --sidebar: oklch(0.28 0.09 240);
+  /* Sidebar: fl-aggregator dark navy tone (oklch 240) */
+  --sidebar: oklch(0.20 0.06 240);
   --sidebar-foreground: oklch(0.92 0.015 240);
   --sidebar-primary: oklch(0.60 0.20 240);
   --sidebar-primary-foreground: oklch(0.99 0.005 240);
   --sidebar-accent: oklch(0.36 0.10 240);
   --sidebar-accent-foreground: oklch(0.95 0.01 240);
-  --sidebar-border: oklch(0.38 0.08 240);
+  --sidebar-border: oklch(0.38 0.10 240 / 0.6);
   --sidebar-ring: oklch(0.60 0.20 240);
 
   /* Shell helpers retained for existing layout components */

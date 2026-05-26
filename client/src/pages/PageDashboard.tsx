@@ -6,7 +6,7 @@ import { useI18n } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNegotiations, fetchTransfers, fetchTrend } from "@/services";
 import { Card, StateBadge, MonoText, SectionHdr, KpiCard, CardTitle, ViewAllLink } from "@/components/ui-kmx";
-import { Database, ArrowRightLeft, Activity, TrendingUp } from "lucide-react";
+import { Package, ArrowRightLeft, Activity, TrendingUp, LayoutDashboard, FileText } from "lucide-react";
 import { useMemo } from "react";
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 
@@ -59,15 +59,15 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   return (
     <>
       {/* Page Title */}
-      <SectionHdr breadcrumb={`${conn.name} / ${conn.bpn}`}>{t.nav.dashboard}</SectionHdr>
+      <SectionHdr icon={<LayoutDashboard className="w-5 h-5 text-primary" />} breadcrumb={`${conn.name} / ${conn.bpn}`}>{t.nav.dashboard}</SectionHdr>
 
       {/* KPI Row — KpiCard 통일 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <KpiCard
-          icon={<Database className="w-[18px] h-[18px] text-blue-600" />}
+          icon={<Package className="w-[18px] h-[18px] text-blue-600" />}
           iconBg="bg-blue-50"
           value={conn.assets}
-          label={t.dashboard.assets}
+          title={t.dashboard.assets}
           sub={t.dashboard.includingOfferings}
           trend="up"
         />
@@ -75,7 +75,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
           icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />}
           iconBg="bg-sky-50"
           value={transfers.length}
-          label={t.dashboard.dataTransfers}
+          title={t.dashboard.dataTransfers}
           sub={t.dashboard.completedInProgress}
           valueColor="text-sky-600"
           trend="up"
@@ -139,7 +139,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
 
       {/* Recent Negotiations */}
       <Card
-        title={t.dashboard.recentNegotiations}
+        title={<CardTitle icon={<FileText className="w-3.5 h-3.5 text-blue-500" />}>{t.dashboard.recentNegotiations}</CardTitle>}
         actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/negotiation`)}>{t.dashboard.viewAll}</ViewAllLink>}
       >
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -171,7 +171,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
 
       {/* Recent Transfers */}
       <Card
-        title={t.dashboard.recentTransfers}
+        title={<CardTitle icon={<ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />}>{t.dashboard.recentTransfers}</CardTitle>}
         actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/transfer`)}>{t.dashboard.viewAll}</ViewAllLink>}
       >
         <div className="overflow-x-auto rounded-lg border border-border">

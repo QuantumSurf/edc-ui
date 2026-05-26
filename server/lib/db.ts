@@ -118,7 +118,7 @@ async function createSchema(): Promise<void> {
     );
   `);
 
-  // Tractus-X 시멘틱 모델 (SAMM): 로컬 보관
+  // Tractus-X 시맨틱 모델 (SAMM): 로컬 보관
   // - urn: 모델 식별자 (e.g. urn:samm:io.catenax.pcf:7.0.0#Pcf)
   // - status: DRAFT / RELEASED / STANDARDIZED / DEPRECATED
   // - model_type: SAMM / BAMM / other (UI 호환용)

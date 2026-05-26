@@ -3,11 +3,16 @@
 // Falls back to demo data when API is unavailable (e.g. dev without platform compose up).
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Vault, Lock, Unlock, KeyRound, AlertTriangle, Copy, RefreshCw, Trash2, Eye, ShieldCheck } from "lucide-react";
+import { Vault, Lock, Unlock, KeyRound, AlertTriangle, Copy, RefreshCw, Trash2, Eye, Server } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Card, KpiCard, SectionHdr, Badge, AlertBanner, MonoText, DataSourceBadge } from "@/components/ui-kmx";
+import {
+  Card, KpiCard, SectionHdr, Badge, AlertBanner, MonoText, DataSourceBadge, CardTitle,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+} from "@/components/ui-kmx";
+
+const VAULT_COLS = "grid-cols-[2.4fr_0.7fr_1fr_0.9fr_1fr_0.8fr_64px]";
 import {
   fetchVaultStatus, fetchVaultList,
   type VaultStatusResp as VaultStatus, type VaultListResp,
@@ -229,11 +234,8 @@ export default function PageVault() {
   return (
     <>
       <SectionHdr
-        breadcrumb={
-          connector
-            ? `${connector.name} / ${connector.bpn}`
-            : backend.backend
-        }
+        icon={<Vault className="w-5 h-5 text-primary" />}
+        breadcrumb={t.vault.subtitle}
         action={<DataSourceBadge mode={isLive ? "live" : "demo"} />}
       >
         {t.vault.title}
@@ -248,53 +250,7 @@ export default function PageVault() {
         </AlertBanner>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          icon={
-            backend.sealed ? (
-              <Lock className="w-[18px] h-[18px] text-rose-600" />
-            ) : (
-              <Unlock className="w-[18px] h-[18px] text-emerald-600" />
-            )
-          }
-          iconBg={backend.sealed ? "bg-rose-50" : "bg-emerald-50"}
-          label={t.vault.kpiSealStatus}
-          value={backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed}
-          valueColor={backend.sealed ? "text-rose-600" : "text-emerald-600"}
-        />
-        <KpiCard
-          icon={<ShieldCheck className="w-[18px] h-[18px] text-blue-600" />}
-          iconBg="bg-blue-50"
-          label={t.vault.kpiSecrets}
-          value={secretCount}
-          valueColor="text-blue-600"
-        />
-        <KpiCard
-          icon={<KeyRound className="w-[18px] h-[18px] text-violet-600" />}
-          iconBg="bg-violet-50"
-          label={t.vault.kpiKeys}
-          value={keyCount}
-          valueColor="text-violet-600"
-        />
-        <KpiCard
-          icon={<AlertTriangle className="w-[18px] h-[18px] text-amber-600" />}
-          iconBg="bg-amber-50"
-          label={t.vault.kpiExpiring}
-          value={expiringCount}
-          valueColor={expiringCount > 0 ? "text-amber-600" : "text-blue-600"}
-        />
-      </div>
-
-      <Card title={t.vault.backendInfo}>
-        {backend.shared && (
-          <div className="mb-3 px-3 py-2 rounded-md border border-sky-200 bg-sky-50 text-[12px] text-sky-800 flex items-start gap-2">
-            <ShieldCheck className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-            <span>
-              <strong className="font-semibold">{t.vault.sharedClusterTitle}</strong>{" "}
-              {t.vault.sharedClusterDesc(backend.namespace)}
-            </span>
-          </div>
-        )}
+      <Card title={<CardTitle icon={<Server className="w-4 h-4 text-primary" />}>{t.vault.backendInfo}</CardTitle>}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-[12px]">
           {[
             [t.vault.field.backend, backend.backend],
@@ -317,90 +273,82 @@ export default function PageVault() {
       </Card>
 
       {/* Desktop list */}
-      <Card
-        title={t.vault.listTitle}
-        actions={<span className="text-[11px] text-muted-foreground">{t.vault.masked}</span>}
+      <ListCard
+        title={t.vault.listTitle}        actions={<span className="text-[11px] text-muted-foreground">{t.vault.masked}</span>}
         className="hidden md:block"
-        noPad
       >
         {items.length === 0 ? (
-          <div className="py-8 text-center text-[13px] text-muted-foreground">{t.vault.noItems}</div>
+          <ListEmpty icon={<Vault />} message={t.vault.noItems} />
         ) : (
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.alias}</th>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.type}</th>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.algorithm}</th>
-                <th className="text-left px-4 py-3 !text-[12px] hidden lg:table-cell">{t.vault.col.created}</th>
-                <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.vault.col.lastUsed}</th>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.vault.col.expiry}</th>
-                <th className="text-right px-4 py-3 !text-[12px]">{t.vault.col.actions}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {items.map((it) => {
-                const isRevealed = revealed === it.alias;
-                return (
-                  <tr key={it.alias} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <MonoText className="!text-[12px] !font-normal truncate">{it.alias}</MonoText>
-                        <button
-                          onClick={() => onCopy(it.alias)}
-                          title={t.vault.copyAlias}
-                          className="opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
-                        >
-                          <Copy className="w-3 h-3 text-muted-foreground" />
-                        </button>
-                      </div>
-                      <div className="mt-1 flex items-center gap-1">
-                        <MonoText className="!text-[12px] !font-normal text-muted-foreground">
-                          {isRevealed ? it.value : maskValue(it.value)}
-                        </MonoText>
-                        <button
-                          onClick={() => setRevealed(isRevealed ? null : it.alias)}
-                          title={t.vault.revealValue}
-                          className="opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
-                        >
-                          <Eye className="w-3 h-3 text-muted-foreground" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{typeBadge(it.type, t)}</td>
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[12px] !font-normal">{it.algorithm}</MonoText>
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell !text-[12px] font-normal text-muted-foreground">{it.created}</td>
-                    <td className="px-4 py-3 hidden xl:table-cell !text-[12px] font-normal text-muted-foreground">{it.lastUsed}</td>
-                    <td className="px-4 py-3">{expiryBadge(it.expiryDays, t)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        {it.type === "key" && (
-                          <button
-                            onClick={() => onRotate(it.alias)}
-                            title={t.vault.rotate}
-                            className="p-1 rounded hover:bg-blue-50 text-blue-600 transition-colors"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => onDelete(it.alias)}
-                          title={t.common.delete}
-                          className="p-1 rounded hover:bg-rose-50 text-rose-500 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <>
+            <ListHeaderRow cols={VAULT_COLS}>
+              <ListColLabel>{t.vault.col.alias}</ListColLabel>
+              <ListColLabel>{t.vault.col.type}</ListColLabel>
+              <ListColLabel>{t.vault.col.algorithm}</ListColLabel>
+              <ListColLabel className="hidden lg:block">{t.vault.col.created}</ListColLabel>
+              <ListColLabel className="hidden xl:block">{t.vault.col.lastUsed}</ListColLabel>
+              <ListColLabel>{t.vault.col.expiry}</ListColLabel>
+              <ListColLabel className="text-right">{t.vault.col.actions}</ListColLabel>
+            </ListHeaderRow>
+            {items.map((it) => {
+              const isRevealed = revealed === it.alias;
+              return (
+                <ListRow key={it.alias} cols={VAULT_COLS}>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MonoText className="!text-[12px] !font-normal truncate">{it.alias}</MonoText>
+                      <button
+                        onClick={() => onCopy(it.alias)}
+                        title={t.vault.copyAlias}
+                        className="opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+                      >
+                        <Copy className="w-3 h-3 text-muted-foreground" />
+                      </button>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1 min-w-0">
+                      <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate">
+                        {isRevealed ? it.value : maskValue(it.value)}
+                      </MonoText>
+                      <button
+                        onClick={() => setRevealed(isRevealed ? null : it.alias)}
+                        title={t.vault.revealValue}
+                        className="opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+                      >
+                        <Eye className="w-3 h-3 text-muted-foreground" />
+                      </button>
+                    </div>
+                  </div>
+                  <div>{typeBadge(it.type, t)}</div>
+                  <div>
+                    <MonoText className="!text-[12px] !font-normal">{it.algorithm}</MonoText>
+                  </div>
+                  <div className="hidden lg:block text-[12px] font-normal text-muted-foreground">{it.created}</div>
+                  <div className="hidden xl:block text-[12px] font-normal text-muted-foreground">{it.lastUsed}</div>
+                  <div>{expiryBadge(it.expiryDays, t)}</div>
+                  <div className="flex items-center gap-1 justify-end">
+                    {it.type === "key" && (
+                      <button
+                        onClick={() => onRotate(it.alias)}
+                        title={t.vault.rotate}
+                        className="p-1 rounded hover:bg-blue-50 text-blue-600 transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onDelete(it.alias)}
+                      title={t.common.delete}
+                      className="p-1 rounded hover:bg-rose-50 text-rose-500 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </ListRow>
+              );
+            })}
+          </>
         )}
-      </Card>
+      </ListCard>
 
       {/* Mobile stack */}
       <div className="md:hidden flex flex-col gap-3">

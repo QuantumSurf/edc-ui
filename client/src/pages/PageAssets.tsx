@@ -7,10 +7,15 @@ import { useI18n } from "@/i18n";
 import { fetchAssets, fetchAssetById, deleteAsset, createAsset, updateAsset, fetchShellById } from "@/services";
 import { type Asset } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Card, Badge, MonoText, SectionHdr, Stepper, FormField } from "@/components/ui-kmx";
-import { DetailDialog, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import {
+  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField,
+  ListCard, ListHeaderRow, ListRow, ListColLabel,
+} from "@/components/ui-kmx";
+
+const ASSET_COLS = "grid-cols-[2fr_0.8fr_1.4fr_1fr_1.3fr]";
+import { DetailPanel, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
 import { Pagination, paginate } from "@/components/Pagination";
-import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, RefreshCw, Files, X } from "lucide-react";
+import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, RefreshCw, Files, X, Wand2 } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -74,6 +79,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
   return (
     <>
       <SectionHdr
+        icon={<Package className="w-5 h-5 text-primary" />}
         breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
         action={
           <RoleGate permission="resource:write">
@@ -181,91 +187,86 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
             </Card>
           )}
 
-          {/* Desktop/Tablet: Table (spec 3.3.2) */}
+          {/* Desktop/Tablet: List (spec 3.3.2) */}
           {!isLoading && !isError && (
-          <Card noPad className="hidden md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    {[t.assets.col.name, t.assets.col.type, t.assets.col.semanticId, t.assets.col.offering, t.assets.col.dataSource].map((h) => (
-                      <th key={h} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {paginate(filtered, page).map((a) => (
-                    <tr key={a.id} onClick={() => setDetailTarget(a)} className="hover:bg-muted/30 transition-colors group cursor-pointer">
-                      {/* Name + ID (primary column) */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-start gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Package className="w-4 h-4 text-blue-500" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="!text-[12px] font-normal text-foreground truncate">
-                              {a.name || a.id}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate">{a.id}</MonoText>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(a.id); toast.success(t.common.copied); }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                              >
-                                <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Type */}
-                      <td className="px-4 py-3">
-                        <AssetTypeBadge type={a.type} />
-                      </td>
-                      {/* Semantic ID */}
-                      <td className="px-4 py-3 max-w-[200px] hidden xl:table-cell">
-                        {a.sem ? (
-                          <MonoText className="truncate block !text-[12px] !font-normal">{a.sem}</MonoText>
-                        ) : (
-                          <span className="!text-[12px] text-muted-foreground/40 italic">{t.assets.notSet}</span>
-                        )}
-                      </td>
-                      {/* Offering status */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.offered ? "bg-emerald-500" : "bg-gray-300"}`} />
-                          <span className={`!text-[12px] font-normal ${a.offered ? "text-emerald-700" : "text-muted-foreground"}`}>
-                            {a.offered ? t.assets.registered : t.assets.unregistered}
-                          </span>
-                        </div>
-                      </td>
-                      {/* Data Source */}
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        {a.baseUrl ? (
-                          <div className="flex items-center gap-1.5" title={a.baseUrl}>
-                            <Globe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                            <MonoText className="!text-[12px] !font-normal truncate max-w-[180px]">
-                              {extractDomain(a.baseUrl)}
-                            </MonoText>
-                          </div>
-                        ) : (
-                          <span className="!text-[12px] text-muted-foreground/40">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filtered.length === 0 && (
+          <ListCard
+            title={t.assets.list}            className="hidden md:block"
+          >
+            <ListHeaderRow cols={ASSET_COLS}>
+              <ListColLabel>{t.assets.col.name}</ListColLabel>
+              <ListColLabel>{t.assets.col.type}</ListColLabel>
+              <ListColLabel className="hidden xl:block">{t.assets.col.semanticId}</ListColLabel>
+              <ListColLabel>{t.assets.col.offering}</ListColLabel>
+              <ListColLabel className="hidden lg:block">{t.assets.col.dataSource}</ListColLabel>
+            </ListHeaderRow>
+            {filtered.length === 0 ? (
               <EmptyAssets onCreateClick={() => switchTab("wizard")} />
+            ) : (
+              paginate(filtered, page).map((a) => (
+                <ListRow
+                  key={a.id}
+                  cols={ASSET_COLS}
+                  selected={detailTarget?.id === a.id}
+                  onClick={() => setDetailTarget(a)}
+                >
+                  {/* Name + ID (primary column) */}
+                  <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] font-normal text-foreground truncate">
+                        {a.name || a.id}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                        <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate">{a.id}</MonoText>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(a.id); toast.success(t.common.copied); }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        >
+                          <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Type */}
+                  <div>
+                    <AssetTypeBadge type={a.type} />
+                  </div>
+                  {/* Semantic ID */}
+                  <div className="hidden xl:block min-w-0">
+                    {a.sem ? (
+                      <MonoText className="truncate block !text-[12px] !font-normal">{a.sem}</MonoText>
+                    ) : (
+                      <span className="text-[12px] text-muted-foreground/40 italic">{t.assets.notSet}</span>
+                    )}
+                  </div>
+                  {/* Offering status */}
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.offered ? "bg-emerald-500" : "bg-gray-300"}`} />
+                    <span className={`text-[12px] font-normal ${a.offered ? "text-emerald-700" : "text-muted-foreground"}`}>
+                      {a.offered ? t.assets.registered : t.assets.unregistered}
+                    </span>
+                  </div>
+                  {/* Data Source */}
+                  <div className="hidden lg:block min-w-0">
+                    {a.baseUrl ? (
+                      <div className="flex items-center gap-1.5 min-w-0" title={a.baseUrl}>
+                        <Globe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        <MonoText className="!text-[12px] !font-normal truncate">
+                          {extractDomain(a.baseUrl)}
+                        </MonoText>
+                      </div>
+                    ) : (
+                      <span className="text-[12px] text-muted-foreground/40">—</span>
+                    )}
+                  </div>
+                </ListRow>
+              ))
             )}
-            <div className="px-4 pb-3">
-              <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-            </div>
-          </Card>
+            {filtered.length > 0 && (
+              <div className="px-4 py-2 border-t border-border/60">
+                <Pagination total={filtered.length} page={page} onPageChange={setPage} />
+              </div>
+            )}
+          </ListCard>
           )}
 
           {/* Mobile: Card Stack (spec 3.3.2) */}
@@ -311,10 +312,11 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
 
       {/* Detail Dialog */}
       {detailTarget && (
-        <DetailDialog
+        <DetailPanel
           open={!!detailTarget}
           onClose={() => setDetailTarget(null)}
           title={detailTarget.name || detailTarget.id}
+          icon={<Package className="w-4 h-4 text-primary" />}
           subtitle={detailTarget.id}
           sections={[
             {
@@ -460,9 +462,6 @@ function AssetCard({ asset: a }: { asset: Asset }) {
   return (
     <div className="bg-card rounded-xl p-3.5 shadow-sm border border-border hover:shadow-md transition-shadow">
       <div className="flex items-start gap-2.5 mb-2">
-        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-          <Package className="w-4 h-4 text-blue-500" />
-        </div>
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-semibold text-foreground truncate">{a.name || a.id}</div>
           <MonoText className="text-[11px] text-muted-foreground truncate block">{a.id}</MonoText>
@@ -610,7 +609,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
 
   return (
     <Card
-      title={isEdit ? t.assets.editWizard : duplicateSource ? t.assets.duplicateWizard : t.assets.createWizard}
+      title={<CardTitle icon={<Wand2 className="w-4 h-4 text-primary" />}>{isEdit ? t.assets.editWizard : duplicateSource ? t.assets.duplicateWizard : t.assets.createWizard}</CardTitle>}
       actions={onCancel ? (
         <button
           onClick={onCancel}

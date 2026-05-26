@@ -7,9 +7,14 @@ import { useI18n } from "@/i18n";
 import { fetchEDRs, fetchEDRStats } from "@/services";
 import { type EDR, type EDRStats } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Card, KpiCard, Badge, AlertBanner, MonoText, ProgressBar, SectionHdr } from "@/components/ui-kmx";
+import {
+  Card, KpiCard, Badge, AlertBanner, MonoText, ProgressBar, SectionHdr, CardTitle,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+} from "@/components/ui-kmx";
+
+const EDR_COLS = "grid-cols-[170px_1.7fr_90px_1.5fr_1.3fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
-import { Copy, Clock, Shield, Trash2, AlertTriangle } from "lucide-react";
+import { Copy, Shield, Trash2, AlertTriangle, Key, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 function maskToken(token: string) {
@@ -46,26 +51,7 @@ export default function PageEDR() {
 
   return (
     <>
-      <SectionHdr breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.edr.title}</SectionHdr>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          icon={<Shield className="w-[18px] h-[18px] text-blue-600" />}
-          iconBg="bg-blue-50" label={t.edr.activeEdr} value={edrs.length} valueColor="text-blue-600"
-        />
-        <KpiCard
-          icon={<Clock className="w-[18px] h-[18px] text-amber-600" />}
-          iconBg="bg-amber-50" label={t.edr.expiringSoon} value={expiringCount} valueColor="text-amber-600"
-        />
-        <KpiCard
-          icon={<Trash2 className="w-[18px] h-[18px] text-gray-600" />}
-          iconBg="bg-gray-50" label={t.edr.todayGcDeleted} value={stats.todayGcDeleted}
-        />
-        <KpiCard
-          icon={<AlertTriangle className="w-[18px] h-[18px] text-rose-600" />}
-          iconBg="bg-rose-50" label={t.edr.gcErrors} value={stats.gcErrors} valueColor={stats.gcErrors > 0 ? "text-rose-600" : "text-blue-600"}
-        />
-      </div>
+      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.edr.title}</SectionHdr>
 
       {alert && stats.nearestExpiry && stats.nearestExpiry.left < 60 && (
         <AlertBanner variant="warn" onClose={() => setAlert(false)}>
@@ -88,20 +74,29 @@ export default function PageEDR() {
         }}
       />
 
-      {/* EDR List — Desktop Table */}
-      <Card
-        title={t.edr.listTitle}
-        actions={<span className="text-[12px] text-muted-foreground">{t.edr.authCodeMasked}</span>}
+      {/* EDR List — Desktop */}
+      <ListCard
+        title={t.edr.listTitle}        actions={<span className="text-[12px] text-muted-foreground">{t.edr.authCodeMasked}</span>}
         className="hidden md:block"
       >
-        <div className="space-y-0">
-          {edrs.length === 0 ? (
-            <div className="py-6 text-center text-[12px] text-muted-foreground">{t.dashboard.noResults}</div>
-          ) : edrs.map((e, i) => (
-            <EDRRow key={e.tpId} edr={e} isLast={i === edrs.length - 1} onCopyAuth={(token) => setConfirmCopy(token)} />
-          ))}
-        </div>
-      </Card>
+        {edrs.length === 0 ? (
+          <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
+        ) : (
+          <>
+            <ListHeaderRow cols={EDR_COLS}>
+              <ListColLabel>{t.edr.col.id}</ListColLabel>
+              <ListColLabel>{t.edr.col.remaining}</ListColLabel>
+              <ListColLabel>{t.edr.col.provider}</ListColLabel>
+              <ListColLabel className="hidden lg:block">{t.edr.col.endpoint}</ListColLabel>
+              <ListColLabel className="hidden xl:block">{t.edr.col.authCode}</ListColLabel>
+              <ListColLabel>{t.edr.col.status}</ListColLabel>
+            </ListHeaderRow>
+            {edrs.map((e) => (
+              <EDRRow key={e.tpId} edr={e} onCopyAuth={(token) => setConfirmCopy(token)} />
+            ))}
+          </>
+        )}
+      </ListCard>
 
       {/* Mobile: Card Stack */}
       <div className="md:hidden flex flex-col gap-3">
@@ -112,7 +107,7 @@ export default function PageEDR() {
         ))}
       </div>
 
-      <Card title={t.edr.gcScheduler}>
+      <Card title={<CardTitle icon={<Clock className="w-4 h-4 text-primary" />}>{t.edr.gcScheduler}</CardTitle>}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-[12px]">
           {[
             [t.edr.gcInterval, stats.gcScheduler.interval],
@@ -136,8 +131,8 @@ export default function PageEDR() {
   );
 }
 
-/* ─── EDR Table Row (Desktop) ────────────────────────────────── */
-function EDRRow({ edr: e, isLast, onCopyAuth }: { edr: EDR; isLast: boolean; onCopyAuth: (token: string) => void }) {
+/* ─── EDR Row (Desktop) ──────────────────────────────────────── */
+function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) => void }) {
   const { t } = useI18n();
   const noExpiry = e.left < 0;                          // expiresAt 없음 → 활성으로 간주
   const pct = noExpiry ? 100 : Math.round((e.left / e.total) * 100);
@@ -149,39 +144,38 @@ function EDRRow({ edr: e, isLast, onCopyAuth }: { edr: EDR; isLast: boolean; onC
   const timeColor = isExpired ? "text-gray-400" : isCritical ? "text-rose-600" : isWarn ? "text-amber-600" : "text-foreground";
 
   return (
-    <div className={`flex items-center gap-4 py-3 ${!isLast ? "border-b border-border" : ""}`}>
-      <div className="w-28 flex-shrink-0">
-        <MonoText className="text-[12px] font-normal block">{e.tpId}</MonoText>
-        <div className="text-[12px] font-normal text-muted-foreground mt-0.5">{e.asset}</div>
+    <ListRow cols={EDR_COLS}>
+      <div className="min-w-0">
+        <MonoText className="!text-[12px] !font-normal block truncate">{e.tpId}</MonoText>
+        <div className="text-[11px] font-normal text-muted-foreground truncate">{e.asset}</div>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between text-[12px] mb-1.5">
-          <span className="font-normal text-muted-foreground">{t.edr.remaining}</span>
-          <span className={`font-normal ${timeColor} ${isCritical ? "animate-pulse" : ""}`}>
+      <div className="min-w-0">
+        <div className="flex justify-end text-[12px] mb-1">
+          <span className={`font-medium ${timeColor} ${isCritical ? "animate-pulse" : ""}`}>
             {isExpired ? t.edr.expired : noExpiry ? t.edr.active : `${e.left}분`}
           </span>
         </div>
         <ProgressBar value={pct} colorClass={colorClass} />
       </div>
-      <div className="w-20 flex-shrink-0">
-        <div className="text-[12px] font-normal text-muted-foreground mb-0.5">{t.edr.provider}</div>
-        <MonoText className="text-[12px] font-normal">{e.prov}</MonoText>
+      <div>
+        <MonoText className="!text-[12px] !font-normal">{e.prov}</MonoText>
       </div>
-      <div className="w-32 flex-shrink-0 hidden lg:block">
-        <div className="text-[12px] font-normal text-muted-foreground mb-0.5">{t.edr.endpoint}</div>
-        <div className="flex items-center gap-1">
-          <MonoText className="text-[12px] font-normal truncate">{e.endpoint || "—"}</MonoText>
+      <div className="hidden lg:block min-w-0">
+        <div className="flex items-center gap-1 min-w-0">
+          <MonoText className="!text-[12px] !font-normal truncate">{e.endpoint || "—"}</MonoText>
           {e.endpoint && (
-            <button onClick={() => { navigator.clipboard.writeText(e.endpoint!); toast.success(t.edr.endpointCopied); }}>
+            <button
+              onClick={() => { navigator.clipboard.writeText(e.endpoint!); toast.success(t.edr.endpointCopied); }}
+              className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0"
+            >
               <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
             </button>
           )}
         </div>
       </div>
-      <div className="w-28 flex-shrink-0 hidden xl:block">
-        <div className="text-[12px] font-normal text-muted-foreground mb-0.5">{t.edr.authCode}</div>
+      <div className="hidden xl:block">
         <div className="flex items-center gap-1">
-          <MonoText className="text-[12px] font-normal">{maskToken(e.authCode ?? "")}</MonoText>
+          <MonoText className="!text-[12px] !font-normal">{maskToken(e.authCode ?? "")}</MonoText>
           {e.authCode && (
             <button onClick={() => onCopyAuth(e.authCode!)} className="opacity-60 hover:opacity-100 transition-opacity">
               <Copy className="w-3 h-3 text-muted-foreground" />
@@ -189,13 +183,12 @@ function EDRRow({ edr: e, isLast, onCopyAuth }: { edr: EDR; isLast: boolean; onC
           )}
         </div>
       </div>
-      <Badge variant={isExpired ? "gray" : isCritical ? "red" : isWarn ? "amber" : "green"}>
-        {isExpired ? t.edr.expired : isCritical ? t.edr.critical : isWarn ? t.edr.expiring : t.edr.active}
-      </Badge>
-      {noExpiry && (
-        <span className="text-[12px] font-normal text-muted-foreground ml-1">(만료 없음)</span>
-      )}
-    </div>
+      <div className="flex items-center gap-1 flex-wrap">
+        <Badge variant={isExpired ? "gray" : isCritical ? "red" : isWarn ? "amber" : "green"}>
+          {isExpired ? t.edr.expired : isCritical ? t.edr.critical : isWarn ? t.edr.expiring : t.edr.active}
+        </Badge>
+      </div>
+    </ListRow>
   );
 }
 

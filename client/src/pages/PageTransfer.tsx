@@ -11,10 +11,13 @@ import { useConnectorStore } from "@/stores/connectorStore";
 import { Pagination, paginate } from "@/components/Pagination";
 import {
   Card, KpiCard, StateBadge, MonoText, SectionHdr, Badge, FormField,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
 } from "@/components/ui-kmx";
+
+const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_1fr_1fr_84px]";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Send, ArrowRightLeft, Clock, HardDrive, Filter, CheckCircle, XCircle, Download, Trash2, FileText } from "lucide-react";
+import { Send, ArrowRightLeft, Clock, HardDrive, CheckCircle, XCircle, Download, Trash2, FileText } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
 
@@ -306,179 +309,137 @@ export default function PageTransfer() {
           onClose={() => setDataViewer(null)}
         />
       )}
-      <SectionHdr breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.transfers.title}</SectionHdr>
+      <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.transfers.title}</SectionHdr>
 
-      {/* ── KPI Row ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          label={t.transfers.completed}
-          value={completedCount}
-          colorClass="text-emerald-600"
-          icon={<ArrowRightLeft className="w-4 h-4 text-emerald-600" />}
-          iconBg="bg-emerald-50"
-        />
-        <KpiCard
-          label={t.transfers.inflight}
-          value={inflightCount}
-          colorClass="text-blue-600"
-          icon={<Send className="w-4 h-4 text-blue-600" />}
-          iconBg="bg-blue-50"
-        />
-        <KpiCard
-          label={t.transfers.totalVolume}
-          value={`${totalVolume.toFixed(1)} MB`}
-          icon={<HardDrive className="w-4 h-4 text-violet-600" />}
-          iconBg="bg-violet-50"
-        />
-        <KpiCard
-          label={t.transfers.avgDuration}
-          value={avgDuration === "—" ? "—" : `${avgDuration}s`}
-          icon={<Clock className="w-4 h-4 text-amber-600" />}
-          iconBg="bg-amber-50"
-        />
+      {/* ── Filter — fl-aggregator TasksPage style ───────────── */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {ALL_STATE_FILTERS.map((f) => (
+          <button
+            key={f}
+            onClick={() => { setStateFilter(f); setPage(1); }}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
+              stateFilter === f
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {f === "ALL" ? t.transfers.filterAll : t.transfers.states[f as keyof typeof t.transfers.states] ?? f}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         {/* ── Transfer List (2-col span) ──────────────────────── */}
-        <Card
-          className="xl:col-span-2"
-          title={t.transfers.listTitle}
-          actions={
-            transfers.length > 0 ? (
-              <RoleGate permission="transaction:write">
-                <button
-                  onClick={handleDeleteAll}
-                  className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  {t.transfers.deleteAll}
-                </button>
-              </RoleGate>
-            ) : undefined
-          }
-        >
-          {/* ── Filter Bar ────────────────────────────────────── */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <Filter className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-            {ALL_STATE_FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => { setStateFilter(f); setPage(1); }}
-                className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
-                  stateFilter === f
-                    ? "bg-primary text-primary-foreground border-primary font-medium"
-                    : "border-border text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {f === "ALL" ? t.transfers.filterAll : t.transfers.states[f as keyof typeof t.transfers.states] ?? f}
-              </button>
-            ))}
-            <span className="text-[11px] text-muted-foreground ml-auto">
-              {t.transfers.resultCount(rows.length, transfers.length)}
-            </span>
-            {/* 페이지 크기 선택 */}
-            <div className="flex items-center gap-1 border-l border-border pl-2">
-              {[10, 20, 50].map((size) => (
-                <button
-                  key={size}
-                  onClick={() => { setPageSize(size); setPage(1); }}
-                  className={`text-[11px] px-2 py-1 rounded border transition-colors ${
-                    pageSize === size
-                      ? "bg-primary text-primary-foreground border-primary font-medium"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {size}건
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Desktop table ─────────────────────────────────── */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  {[t.transfers.col.id, t.transfers.col.state, t.transfers.col.assetId, t.transfers.col.type, t.transfers.col.size, t.transfers.col.duration, t.transfers.col.startedAt, t.transfers.col.completedAt, ""].map(
-                    (h, idx) => (
-                      <th
-                        key={idx}
-                        className="text-left !text-[12px] px-4 py-3 whitespace-nowrap"
+        <div className="xl:col-span-2 min-w-0">
+          {/* Desktop: List — fl-aggregator ListCard */}
+          <ListCard
+            title={t.transfers.listTitle}
+            className="hidden md:block"
+            actions={
+              <>
+                <span className="text-[11px] text-muted-foreground">{t.transfers.resultCount(rows.length, transfers.length)}</span>
+                {transfers.length > 0 && (
+                  <RoleGate permission="transaction:write">
+                    <button
+                      onClick={handleDeleteAll}
+                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      {t.transfers.deleteAll}
+                    </button>
+                  </RoleGate>
+                )}
+              </>
+            }
+          >
+            <ListHeaderRow cols={TRANSFER_COLS}>
+              <ListColLabel>{t.transfers.col.id}</ListColLabel>
+              <ListColLabel>{t.transfers.col.state}</ListColLabel>
+              <ListColLabel>{t.transfers.col.assetId}</ListColLabel>
+              <ListColLabel>{t.transfers.col.type}</ListColLabel>
+              <ListColLabel>{t.transfers.col.size}</ListColLabel>
+              <ListColLabel>{t.transfers.col.duration}</ListColLabel>
+              <ListColLabel>{t.transfers.col.startedAt}</ListColLabel>
+              <ListColLabel>{t.transfers.col.completedAt}</ListColLabel>
+              <ListColLabel>{""}</ListColLabel>
+            </ListHeaderRow>
+            {rows.length === 0 ? (
+              <ListEmpty
+                icon={<ArrowRightLeft />}
+                message={stateFilter !== "ALL" ? t.transfers.noFilterResults : t.transfers.noInflight}
+              />
+            ) : (
+              paginate(rows, page, pageSize).map((tr) => (
+              <ListRow key={tr.id} cols={TRANSFER_COLS}>
+                <div>
+                  <MonoText className="!text-[12px] !font-normal">{tr.id.slice(0, 12)}</MonoText>
+                </div>
+                <div>
+                  <StateBadge name={tr.name} />
+                </div>
+                <div className="min-w-0">
+                  <MonoText className="!text-[12px] !font-normal block truncate">{tr.asset}</MonoText>
+                </div>
+                <div>
+                  <Badge variant={tr.transferType === "PULL" ? "sky" : tr.transferType === "PUSH" ? "purple" : "gray"}>{tr.transferType ?? "—"}</Badge>
+                </div>
+                <div className="text-[12px] font-normal text-muted-foreground">{tr.size}</div>
+                <div className="text-[12px] font-normal text-muted-foreground">{tr.t}</div>
+                <div className="text-[12px] font-normal text-muted-foreground truncate">{tr.startedAt ?? "—"}</div>
+                <div className="text-[12px] font-normal text-muted-foreground truncate">{tr.completedAt ?? "—"}</div>
+                {/* 액션: STARTED → Fetch·완료·종료 */}
+                <div>
+                  {tr.name === "STARTED" && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleFetch(tr.id, tr.asset)}
+                        title={t.transfers.fetchData}
+                        className="p-1 rounded hover:bg-blue-100 text-blue-500 transition-colors"
                       >
-                        {h}
-                      </th>
-                    ),
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                      <RoleGate permission="transaction:write">
+                        <button
+                          onClick={() => handleComplete(tr.id)}
+                          title={t.transfers.completeTransfer}
+                          className="p-1 rounded hover:bg-emerald-100 text-emerald-600 transition-colors"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleTerminate(tr.id)}
+                          title={t.transfers.terminateTransfer}
+                          className="p-1 rounded hover:bg-red-100 text-red-500 transition-colors"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </RoleGate>
+                    </div>
                   )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginate(rows, page, pageSize).map((tr) => (
-                  <tr key={tr.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[12px] !font-normal">{tr.id.slice(0, 12)}</MonoText>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StateBadge name={tr.name} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[12px] !font-normal">{tr.asset}</MonoText>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={tr.transferType === "PULL" ? "sky" : tr.transferType === "PUSH" ? "purple" : "gray"}>{tr.transferType ?? "—"}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{tr.size}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{tr.t}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{tr.startedAt ?? "—"}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{tr.completedAt ?? "—"}</span>
-                    </td>
-                    {/* 액션: STARTED → Fetch·완료·종료 */}
-                    <td className="px-4 py-3">
-                      {tr.name === "STARTED" && (
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleFetch(tr.id, tr.asset)}
-                            title={t.transfers.fetchData}
-                            className="p-1 rounded hover:bg-blue-100 text-blue-500 transition-colors"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-                          <RoleGate permission="transaction:write">
-                            <button
-                              onClick={() => handleComplete(tr.id)}
-                              title={t.transfers.completeTransfer}
-                              className="p-1 rounded hover:bg-emerald-100 text-emerald-600 transition-colors"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleTerminate(tr.id)}
-                              title={t.transfers.terminateTransfer}
-                              className="p-1 rounded hover:bg-red-100 text-red-500 transition-colors"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                            </button>
-                          </RoleGate>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {rows.length === 0 && (
-              <div className="text-center py-6 text-[12px] text-muted-foreground">
-                {stateFilter !== "ALL" ? t.transfers.noFilterResults : t.transfers.noInflight}
+                </div>
+              </ListRow>
+              )))}
+            {rows.length > 0 && (
+              <div className="px-4 py-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-1">
+                  {[10, 20, 50].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => { setPageSize(size); setPage(1); }}
+                      className={`text-[11px] px-2 py-0.5 rounded-md border transition-colors ${
+                        pageSize === size
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {size}건
+                    </button>
+                  ))}
+                </div>
+                <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
               </div>
             )}
-            <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
-          </div>
+          </ListCard>
 
           {/* ── Mobile card stack ─────────────────────────────── */}
           <div className="md:hidden space-y-3">
@@ -517,12 +478,13 @@ export default function PageTransfer() {
               </div>
             ))}
             {rows.length === 0 && (
-              <div className="text-center py-6 text-[12px] text-muted-foreground">
-                {stateFilter !== "ALL" ? t.transfers.noFilterResults : t.transfers.noInflight}
-              </div>
+              <ListEmpty
+                icon={<ArrowRightLeft />}
+                message={stateFilter !== "ALL" ? t.transfers.noFilterResults : t.transfers.noInflight}
+              />
             )}
           </div>
-        </Card>
+        </div>
 
         {/* ── DataSink Start Form ─────────────────────────────── */}
         <Card title={t.transfers.dataSink}>

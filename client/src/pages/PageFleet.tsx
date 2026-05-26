@@ -15,7 +15,7 @@ import {
 import {
   PlusCircle, Database, Package, FileText, ArrowRightLeft,
   CheckCircle2, XCircle, Shield, Server, Activity,
-  Pencil, Trash2, Loader2,
+  Pencil, Trash2, Loader2, LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
@@ -94,7 +94,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
       </div>
 
       {/* Section Header */}
-      <SectionHdr action={
+      <SectionHdr icon={<LayoutGrid className="w-5 h-5 text-primary" />} action={
         <RoleGate permission="connector:write">
           <PrimaryActionButton onClick={() => onNav("/connectors/new")} icon={<PlusCircle className="w-3 h-3" />}>
             {t.common.addConnector}

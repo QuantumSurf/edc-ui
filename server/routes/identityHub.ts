@@ -3,18 +3,10 @@
 
 import { Router, type Request, type Response, type NextFunction } from "express";
 import axios from "axios";
-import { getPool } from "../lib/db.js";
+import { getIdentityHubConfig } from "../lib/identityHubConfig.js";
 
 const router = Router();
 const TIMEOUT_MS = 5000;
-
-async function readIdentityHubUrl(): Promise<string> {
-  const { rows } = await getPool().query<{ value: string }>(
-    `SELECT value FROM app_settings WHERE key = $1`,
-    ["identity_hub_url"],
-  );
-  return (rows[0]?.value ?? "").trim();
-}
 
 interface ComponentResult {
   component: string;
@@ -46,7 +38,7 @@ function buildHealthUrl(baseUrl: string): string {
 // GET /api/identity-hub/health — probe IdentityHub health
 router.get("/health", async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const baseUrl = await readIdentityHubUrl();
+    const { url: baseUrl } = await getIdentityHubConfig();
     if (!baseUrl) {
       const body: HealthResponse = {
         status: "unconfigured",
@@ -109,6 +101,97 @@ router.get("/health", async (_req: Request, res: Response, next: NextFunction) =
       };
       res.json(body);
     }
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* ─── Participant's own identity info ────────────────────────── */
+
+interface CredentialSummary {
+  id: string;
+  type: string;
+  issuer: string;
+  status: string;
+}
+
+interface ParticipantResponse {
+  configured: boolean;
+  participantId: string;
+  baseUrl: string;
+  did: string | null;
+  credentials: CredentialSummary[];
+  credentialError: string | null;
+  checkedAt: string;
+}
+
+// Map a (loosely-shaped) IdentityHub credential record into a flat summary.
+function mapCredential(raw: unknown): CredentialSummary {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const vcWrap = (o.verifiableCredential ?? {}) as Record<string, unknown>;
+  const vc = (vcWrap.credential ?? o.credential ?? o) as Record<string, unknown>;
+  const rawType = vc.type ?? (o as Record<string, unknown>).type;
+  const types: string[] = Array.isArray(rawType) ? rawType.map(String) : rawType ? [String(rawType)] : [];
+  const issuer = vc.issuer;
+  return {
+    id: String(o.id ?? vc.id ?? ""),
+    type: types.filter((t) => t !== "VerifiableCredential").join(", ") || "VerifiableCredential",
+    issuer: String(
+      issuer && typeof issuer === "object" ? (issuer as Record<string, unknown>).id ?? "" : issuer ?? "",
+    ),
+    status: String(o.state ?? o.status ?? "—"),
+  };
+}
+
+// The Identity Management API runs on a separate port from the default/health
+// API. kmx-ih layout: default :8181 (host :28181) → Identity API :8182 (:28182).
+function toIdentityApiBase(url: string): string {
+  return url
+    .replace(/\/+$/, "")
+    .replace(/:8181(?=\/|$)/, ":8182")
+    .replace(/:28181(?=\/|$)/, ":28182");
+}
+
+// GET /api/identity-hub/participant — fetch the participant's own identity
+// info (DID + verifiable credentials) from the configured IdentityHub server.
+router.get("/participant", async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const cfg = await getIdentityHubConfig();
+    const body: ParticipantResponse = {
+      configured: Boolean(cfg.url && cfg.participantId),
+      participantId: cfg.participantId,
+      baseUrl: cfg.url,
+      did: cfg.participantId.startsWith("did:") ? cfg.participantId : null,
+      credentials: [],
+      credentialError: null,
+      checkedAt: new Date().toISOString(),
+    };
+    if (!body.configured) {
+      res.json(body);
+      return;
+    }
+    // Tractus-X IdentityHub Identity Management API (port 8182). Credentials
+    // are retrieved via a POST "query" with the participant id used as-is in
+    // the path; the API key authenticates via the X-Api-Key header.
+    const base = toIdentityApiBase(cfg.url);
+    const idPath = encodeURIComponent(cfg.participantId);
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (cfg.apiKey) headers["x-api-key"] = cfg.apiKey;
+    try {
+      const { data, status } = await axios.post(
+        `${base}/api/identity/v1alpha/participants/${idPath}/credentials`,
+        {},
+        { headers, timeout: TIMEOUT_MS, validateStatus: () => true },
+      );
+      if (status >= 200 && status < 300 && Array.isArray(data)) {
+        body.credentials = data.map(mapCredential);
+      } else {
+        body.credentialError = `http ${status}`;
+      }
+    } catch (e) {
+      body.credentialError = (e as Error).message;
+    }
+    res.json(body);
   } catch (error) {
     next(error);
   }

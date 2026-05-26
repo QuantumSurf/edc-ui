@@ -5,10 +5,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Card, KpiCard, SectionHdr, Badge, MonoText, DataSourceBadge } from "@/components/ui-kmx";
-import { DetailDialog } from "@/components/DetailDeleteDialogs";
+import {
+  SectionHdr, Badge, MonoText, DataSourceBadge,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+} from "@/components/ui-kmx";
+
+const AUDIT_COLS = "grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
+import { DetailPanel } from "@/components/DetailDeleteDialogs";
 import { Pagination, paginate } from "@/components/Pagination";
-import { Activity, AlertTriangle, CalendarClock, ShieldX, Download, Search } from "lucide-react";
+import { Activity, Download, Search, ScrollText, Calendar, Filter, X } from "lucide-react";
 import { toast } from "sonner";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -220,193 +225,149 @@ export default function PageAudit() {
     SYSTEM: t.audit.catSystem,
   };
 
+  const hasActiveFilter =
+    !!search || category !== "ALL" || result !== "ALL" || severity !== "ALL" || range !== "ALL";
+
   return (
     <>
       <SectionHdr
-        breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
+        icon={<ScrollText className="w-5 h-5 text-primary" />}
+        breadcrumb={t.audit.subtitle}
         action={<DataSourceBadge mode="demo" />}
       >
         {t.audit.title}
       </SectionHdr>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          icon={<Activity className="w-[18px] h-[18px] text-blue-600" />}
-          iconBg="bg-blue-50"
-          label={t.audit.kpiTotal}
-          value={allEvents.length}
-        />
-        <KpiCard
-          icon={<CalendarClock className="w-[18px] h-[18px] text-sky-600" />}
-          iconBg="bg-sky-50"
-          label={t.audit.kpiToday}
-          value={todayCount}
-          valueColor="text-sky-600"
-        />
-        <KpiCard
-          icon={<ShieldX className="w-[18px] h-[18px] text-amber-600" />}
-          iconBg="bg-amber-50"
-          label={t.audit.kpiFailed}
-          value={failedCount}
-          valueColor={failedCount > 0 ? "text-amber-600" : undefined}
-        />
-        <KpiCard
-          icon={<AlertTriangle className="w-[18px] h-[18px] text-rose-600" />}
-          iconBg="bg-rose-50"
-          label={t.audit.kpiCritical}
-          value={criticalCount}
-          valueColor={criticalCount > 0 ? "text-rose-600" : undefined}
-        />
+      {/* Filter Bar 1 — search + range + export */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.audit.searchPlaceholder}
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 ml-auto">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          {(["ALL", "1D", "7D", "30D"] as const).map((r) => (
+            <RangeBtn key={r} active={range === r} onClick={() => setRange(r)}>
+              {r === "ALL" ? t.audit.rangeAll : r === "1D" ? t.audit.range1d : r === "7D" ? t.audit.range7d : t.audit.range30d}
+            </RangeBtn>
+          ))}
+        </div>
+        <button
+          onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
+        </button>
       </div>
 
-      {/* Filter Bar */}
-      <Card>
-        <div className="flex flex-col gap-3">
-          {/* Row 1: search + export */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t.audit.searchPlaceholder}
-                className="w-full pl-9 pr-3 py-2 text-[13px] border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              />
-            </div>
-            <button
-              onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium border border-border rounded-md hover:bg-muted/50 transition-colors text-foreground/80"
-            >
-              <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
-            </button>
-          </div>
-
-          {/* Row 2: category chips */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider mr-1">
-              {t.audit.filterCategory}
-            </span>
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCategory(c)}
-                className={`text-[12px] px-2.5 py-1 rounded-md border transition-colors ${
-                  category === c
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background border-border text-foreground/70 hover:bg-muted/50"
-                }`}
-              >
-                {catLabel[c]}
-              </button>
-            ))}
-          </div>
-
-          {/* Row 3: result / severity / range */}
-          <div className="flex flex-wrap items-center gap-4">
-            <FilterGroup label={t.audit.filterResult}>
-              {(["ALL", "SUCCESS", "FAILURE"] as const).map((r) => (
-                <Pill
-                  key={r}
-                  active={result === r}
-                  onClick={() => setResult(r)}
-                >
-                  {r === "ALL" ? t.common.all : r === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure}
-                </Pill>
-              ))}
-            </FilterGroup>
-            <FilterGroup label={t.audit.filterSeverity}>
-              {(["ALL", "INFO", "WARN", "CRITICAL"] as const).map((s) => (
-                <Pill
-                  key={s}
-                  active={severity === s}
-                  onClick={() => setSeverity(s)}
-                >
-                  {s === "ALL" ? t.common.all : s === "INFO" ? t.audit.severityInfo : s === "WARN" ? t.audit.severityWarn : t.audit.severityCritical}
-                </Pill>
-              ))}
-            </FilterGroup>
-            <FilterGroup label={t.audit.filterRange}>
-              {(["ALL", "1D", "7D", "30D"] as const).map((r) => (
-                <Pill
-                  key={r}
-                  active={range === r}
-                  onClick={() => setRange(r)}
-                >
-                  {r === "ALL" ? t.audit.rangeAll : r === "1D" ? t.audit.range1d : r === "7D" ? t.audit.range7d : t.audit.range30d}
-                </Pill>
-              ))}
-            </FilterGroup>
-          </div>
+      {/* Filter Bar 2 — category */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Filter className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+        <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterCategory}</span>
+        <div className="flex gap-1.5 flex-wrap">
+          {CATEGORIES.map((c) => (
+            <FilterPill key={c} active={category === c} onClick={() => setCategory(c)}>
+              {catLabel[c]}
+            </FilterPill>
+          ))}
         </div>
-      </Card>
+      </div>
+
+      {/* Filter Bar 3 — result / severity + clear */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterResult}</span>
+          {(["ALL", "SUCCESS", "FAILURE"] as const).map((r) => (
+            <FilterPill key={r} active={result === r} onClick={() => setResult(r)}>
+              {r === "ALL" ? t.common.all : r === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure}
+            </FilterPill>
+          ))}
+        </div>
+        <span className="text-muted-foreground/40 text-xs">·</span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterSeverity}</span>
+          {(["ALL", "INFO", "WARN", "CRITICAL"] as const).map((s) => (
+            <FilterPill key={s} active={severity === s} onClick={() => setSeverity(s)}>
+              {s === "ALL" ? t.common.all : s === "INFO" ? t.audit.severityInfo : s === "WARN" ? t.audit.severityWarn : t.audit.severityCritical}
+            </FilterPill>
+          ))}
+        </div>
+        {hasActiveFilter && (
+          <button
+            onClick={() => { setSearch(""); setCategory("ALL"); setResult("ALL"); setSeverity("ALL"); setRange("ALL"); }}
+            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <X className="w-3 h-3" />{t.audit.clearFilters}
+          </button>
+        )}
+      </div>
 
       {/* List — Desktop */}
-      <Card
-        title={t.audit.listTitle}
-        actions={<span className="text-[11px] text-muted-foreground">{t.audit.resultCount(filtered.length, allEvents.length)}</span>}
+      <ListCard
+        title={t.audit.listTitle}        actions={<span className="text-[11px] text-muted-foreground">{t.audit.resultCount(filtered.length, allEvents.length)}</span>}
         className="hidden md:block"
-        noPad
       >
         {filtered.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="text-[15px] font-semibold text-foreground mb-1">{t.audit.emptyTitle}</div>
-            <div className="text-[12px] text-muted-foreground">{t.audit.emptyDesc}</div>
-          </div>
+          <ListEmpty
+            icon={<Activity />}
+            message={
+              <>
+                <span className="block text-[15px] font-semibold text-foreground mb-1">{t.audit.emptyTitle}</span>
+                {t.audit.emptyDesc}
+              </>
+            }
+          />
         ) : (
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.timestamp}</th>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.actor}</th>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.action}</th>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.category}</th>
-                <th className="text-left px-4 py-3 !text-[12px] hidden lg:table-cell">{t.audit.col.target}</th>
-                <th className="text-left px-4 py-3 !text-[12px]">{t.audit.col.result}</th>
-                <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.audit.col.severity}</th>
-                <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.audit.col.ip}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {pageRows.map((e) => (
-                <tr
-                  key={e.id}
-                  onClick={() => setSelected(e)}
-                  className="hover:bg-muted/40 transition-colors cursor-pointer"
-                >
-                  <td className="px-4 py-3">
-                    <MonoText className="!text-[12px] !font-normal">{formatTs(e.timestamp)}</MonoText>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="!text-[12px] font-normal text-foreground">{e.actor}</p>
-                    <p className="!text-[12px] text-muted-foreground">{e.actorRole}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <MonoText className="!text-[12px] !font-normal">{e.action}</MonoText>
-                    <p className="!text-[12px] text-muted-foreground truncate max-w-[260px]">{e.message}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={CAT_VARIANT[e.category]}>{e.category}</Badge>
-                  </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
-                    <MonoText className="!text-[12px] !font-normal truncate inline-block max-w-[220px] align-middle">{e.target}</MonoText>
-                    <p className="!text-[12px] font-normal text-muted-foreground">{e.targetType}</p>
-                  </td>
-                  <td className="px-4 py-3">{resultBadge(e.result, t)}</td>
-                  <td className="px-4 py-3 hidden xl:table-cell">{severityBadge(e.severity, t)}</td>
-                  <td className="px-4 py-3 hidden xl:table-cell">
-                    <MonoText className="!text-[12px] !font-normal">{e.ip}</MonoText>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <ListHeaderRow cols={AUDIT_COLS}>
+              <ListColLabel>{t.audit.col.timestamp}</ListColLabel>
+              <ListColLabel>{t.audit.col.actor}</ListColLabel>
+              <ListColLabel>{t.audit.col.action}</ListColLabel>
+              <ListColLabel>{t.audit.col.category}</ListColLabel>
+              <ListColLabel className="hidden lg:block">{t.audit.col.target}</ListColLabel>
+              <ListColLabel>{t.audit.col.result}</ListColLabel>
+              <ListColLabel className="hidden xl:block">{t.audit.col.severity}</ListColLabel>
+              <ListColLabel className="hidden xl:block">{t.audit.col.ip}</ListColLabel>
+            </ListHeaderRow>
+            {pageRows.map((e) => (
+              <ListRow key={e.id} cols={AUDIT_COLS} onClick={() => setSelected(e)}>
+                <div>
+                  <MonoText className="!text-[12px] !font-normal">{formatTs(e.timestamp)}</MonoText>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-normal text-foreground truncate">{e.actor}</p>
+                  <p className="text-[11px] text-muted-foreground">{e.actorRole}</p>
+                </div>
+                <div className="min-w-0">
+                  <MonoText className="!text-[12px] !font-normal block truncate">{e.action}</MonoText>
+                  <p className="text-[11px] text-muted-foreground truncate">{e.message}</p>
+                </div>
+                <div>
+                  <Badge variant={CAT_VARIANT[e.category]}>{e.category}</Badge>
+                </div>
+                <div className="hidden lg:block min-w-0">
+                  <MonoText className="!text-[12px] !font-normal block truncate">{e.target}</MonoText>
+                  <p className="text-[11px] font-normal text-muted-foreground">{e.targetType}</p>
+                </div>
+                <div>{resultBadge(e.result, t)}</div>
+                <div className="hidden xl:block">{severityBadge(e.severity, t)}</div>
+                <div className="hidden xl:block">
+                  <MonoText className="!text-[12px] !font-normal">{e.ip}</MonoText>
+                </div>
+              </ListRow>
+            ))}
+          </>
         )}
 
         {/* Page-size selector + Pagination (desktop) */}
         {filtered.length > 0 && (
-          <div className="px-4 pb-3 pt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="px-4 pb-3 pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">
                 {t.common.filter}
@@ -428,7 +389,7 @@ export default function PageAudit() {
             <Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} />
           </div>
         )}
-      </Card>
+      </ListCard>
 
       {/* List — Mobile */}
       <div className="md:hidden flex flex-col gap-2">
@@ -466,12 +427,13 @@ export default function PageAudit() {
 
       <p className="text-[11px] text-muted-foreground/70">{t.audit.retentionNotice}</p>
 
-      {/* Detail Dialog */}
+      {/* Detail Panel */}
       {selected && (
-        <DetailDialog
+        <DetailPanel
           open={!!selected}
           onClose={() => setSelected(null)}
           title={t.audit.detailTitle}
+          icon={<ScrollText className="w-4 h-4 text-primary" />}
           subtitle={selected.id}
           sections={[
             {
@@ -530,23 +492,29 @@ export default function PageAudit() {
 }
 
 /* ─── Filter primitives ──────────────────────────────────────── */
-function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{label}</span>
-      <div className="flex items-center gap-1">{children}</div>
-    </div>
-  );
-}
-
-function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`text-[12px] px-2 py-1 rounded-md border transition-colors ${
+      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
         active
           ? "bg-primary text-primary-foreground border-primary"
-          : "bg-background border-border text-foreground/70 hover:bg-muted/50"
+          : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RangeBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+        active
+          ? "bg-primary/10 text-primary border-primary/30"
+          : "bg-card border-border text-muted-foreground hover:text-foreground"
       }`}
     >
       {children}

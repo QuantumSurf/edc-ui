@@ -40,13 +40,13 @@ router.get(
   requireRole("admin", "operator", "viewer"),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      const vault = getVaultClient();
+      const vault = await getVaultClient();
       const [seal, health] = await Promise.all([
         vault.get("/v1/sys/seal-status").then((r) => r.data),
         vault.get("/v1/sys/health").then((r) => r.data).catch((e) => e.response?.data ?? {}),
       ]);
       res.json({
-        url: getVaultUrl(),
+        url: await getVaultUrl(),
         sealed: seal.sealed === true,
         version: seal.version ?? health.version ?? "unknown",
         clusterName: seal.cluster_name ?? null,
@@ -68,7 +68,7 @@ router.get(
   requireRole("admin", "operator"),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      const vault = getVaultClient();
+      const vault = await getVaultClient();
       const r = await vault.request({
         method: "LIST",
         url: "/v1/secret/metadata",
@@ -98,7 +98,7 @@ router.get(
       if (!isAliasAllowed(alias)) {
         return res.status(403).json({ error: "alias-not-allowed" });
       }
-      const vault = getVaultClient();
+      const vault = await getVaultClient();
       const r = await vault.get(`/v1/secret/metadata/${encodeURIComponent(alias)}`);
       const meta = r.data?.data ?? {};
       // Strip any value-like fields defensively

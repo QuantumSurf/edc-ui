@@ -8,12 +8,18 @@ import {
   createSemanticModel, updateSemanticModel, deleteSemanticModel,
 } from "@/services";
 import type { SemanticModel, SemanticModelStatus, SemanticModelSummary } from "@/lib/data";
-import { Card, Badge, MonoText, SectionHdr, FormField } from "@/components/ui-kmx";
+import {
+  Card, Badge, MonoText, SectionHdr, FormField,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+} from "@/components/ui-kmx";
+
+const SUBMODEL_COLS = "grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
 import { Pagination, paginate } from "@/components/Pagination";
+import { SlidePanel } from "@/components/DetailDeleteDialogs";
 import { RoleGate } from "@/components/RoleGate";
 import {
   Layers, Search, RefreshCw, Loader2, AlertCircle,
-  PlusCircle, Pencil, Trash2, Copy, Download,
+  PlusCircle, Pencil, Trash2, Copy, Download, Shapes, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -93,6 +99,7 @@ export default function PageSubmodels() {
   return (
     <>
       <SectionHdr
+        icon={<Shapes className="w-5 h-5 text-primary" />}
         breadcrumb={t.submodels.subtitle}
         action={
           <div className="flex items-center gap-1.5">
@@ -119,21 +126,18 @@ export default function PageSubmodels() {
         {t.submodels.title}
       </SectionHdr>
 
-      {/* Search */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      {/* Search & Filter — fl-aggregator TasksPage style */}
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
             placeholder={t.submodels.searchPlaceholder}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
-        <span className="text-[11px] text-muted-foreground ml-auto">
-          {t.twins.resultCount(filtered.length, items.length)}
-        </span>
       </div>
 
       {isLoading && (
@@ -173,58 +177,54 @@ export default function PageSubmodels() {
       )}
 
       {!isLoading && !isError && items.length > 0 && (
-        <Card noPad>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  <th className="text-left px-4 py-3 !text-[12px]">{t.submodels.col.name}</th>
-                  <th className="text-left px-4 py-3 !text-[12px]">{t.submodels.col.urn}</th>
-                  <th className="text-left px-4 py-3 !text-[12px]">{t.submodels.col.version}</th>
-                  <th className="text-left px-4 py-3 !text-[12px]">{t.submodels.col.status}</th>
-                  <th className="text-left px-4 py-3 !text-[12px] hidden lg:table-cell">{t.submodels.col.modelType}</th>
-                  <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.submodels.col.size}</th>
-                  <th className="text-left px-4 py-3 !text-[12px] hidden xl:table-cell">{t.submodels.col.updated}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginate(filtered, page).map((m) => (
-                  <tr
-                    key={m.urn}
-                    onClick={() => setDetailUrn(m.urn)}
-                    className="hover:bg-muted/30 cursor-pointer"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Layers className="w-4 h-4 text-violet-500 flex-shrink-0" />
-                        <span className="!text-[12px] truncate">{m.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate max-w-[300px] inline-block">{m.urn}</MonoText>
-                    </td>
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[12px] !font-normal">{m.version || "—"}</MonoText>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      <span className="!text-[12px] font-normal">{m.modelType}</span>
-                    </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{formatBytes(m.contentBytes)}</span>
-                    </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{formatDate(m.updatedAt)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-        </Card>
+        <ListCard
+          title={t.submodels.listTitle}
+          actions={<span className="text-[11px] text-muted-foreground">{t.twins.resultCount(filtered.length, items.length)}</span>}
+        >
+          <ListHeaderRow cols={SUBMODEL_COLS}>
+            <ListColLabel>{t.submodels.col.name}</ListColLabel>
+            <ListColLabel>{t.submodels.col.urn}</ListColLabel>
+            <ListColLabel>{t.submodels.col.version}</ListColLabel>
+            <ListColLabel>{t.submodels.col.status}</ListColLabel>
+            <ListColLabel className="hidden lg:block">{t.submodels.col.modelType}</ListColLabel>
+            <ListColLabel className="hidden xl:block">{t.submodels.col.size}</ListColLabel>
+            <ListColLabel className="hidden xl:block">{t.submodels.col.updated}</ListColLabel>
+          </ListHeaderRow>
+          {filtered.length === 0 ? (
+            <ListEmpty icon={<Layers />} message={t.submodels.noSearchResults} />
+          ) : (
+            paginate(filtered, page).map((m) => (
+              <ListRow key={m.urn} cols={SUBMODEL_COLS} onClick={() => setDetailUrn(m.urn)}>
+                <div className="min-w-0">
+                  <span className="text-[12px] truncate block">{m.name}</span>
+                </div>
+                <div className="min-w-0">
+                  <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate block">{m.urn}</MonoText>
+                </div>
+                <div>
+                  <MonoText className="!text-[12px] !font-normal">{m.version || "—"}</MonoText>
+                </div>
+                <div>
+                  <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>
+                </div>
+                <div className="hidden lg:block">
+                  <span className="text-[12px] font-normal">{m.modelType}</span>
+                </div>
+                <div className="hidden xl:block">
+                  <span className="text-[12px] font-normal text-muted-foreground">{formatBytes(m.contentBytes)}</span>
+                </div>
+                <div className="hidden xl:block min-w-0">
+                  <span className="text-[12px] font-normal text-muted-foreground truncate block">{formatDate(m.updatedAt)}</span>
+                </div>
+              </ListRow>
+            ))
+          )}
+          {filtered.length > 0 && (
+            <div className="px-4 py-2 border-t border-border/60">
+              <Pagination total={filtered.length} page={page} onPageChange={setPage} />
+            </div>
+          )}
+        </ListCard>
       )}
 
       {/* Detail dialog */}
@@ -317,23 +317,32 @@ function SemanticModelDetailDialog({
   };
 
   return (
-    <Dialog open={!!urn} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-        <DialogHeader className="min-w-0">
-          <DialogTitle className="flex items-center gap-2 min-w-0">
-            <Layers className="w-4 h-4 text-violet-500 flex-shrink-0" />
-            <span className="truncate">{model?.name ?? t.submodels.detail.title}</span>
-            {model && <Badge variant={STATUS_VARIANT[model.status]}>{model.status}</Badge>}
-          </DialogTitle>
-        </DialogHeader>
+    <SlidePanel open={!!urn} onClose={onClose}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Layers className="w-4 h-4 text-violet-500 flex-shrink-0" />
+          <p className="font-display text-[14px] font-bold text-foreground truncate">{model?.name ?? t.submodels.detail.title}</p>
+          {model && <Badge variant={STATUS_VARIANT[model.status]}>{model.status}</Badge>}
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-        {loading || !model ? (
-          <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-[13px]">{t.common.loading}</span>
-          </div>
-        ) : (
-          <div className="space-y-3 text-[12px] min-w-0 flex-1 overflow-y-auto">
+      {/* Content */}
+      {loading || !model ? (
+        <div className="flex-1 flex items-center justify-center py-10 gap-2 text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-[13px]">{t.common.loading}</span>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="space-y-3 text-[12px] min-w-0">
             <DetailRow label="URN" value={model.urn} mono onCopy={(s) => copy(s, t.submodels.detail.copyUrn)} />
             <DetailRow label={t.submodels.col.version} value={model.version || "—"} mono />
             <DetailRow label={t.submodels.col.modelType} value={model.modelType} />
@@ -381,10 +390,12 @@ function SemanticModelDetailDialog({
               )}
             </div>
           </div>
+        </div>
         )}
 
-        <RoleGate permission="resource:write">
-          <div className="flex justify-end gap-2 pt-3 border-t border-border mt-2">
+      {/* Footer */}
+      <RoleGate permission="resource:write">
+          <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
             <button
               onClick={onEdit}
               disabled={!model}
@@ -407,8 +418,7 @@ function SemanticModelDetailDialog({
             </button>
           </div>
         </RoleGate>
-      </DialogContent>
-    </Dialog>
+    </SlidePanel>
   );
 }
 

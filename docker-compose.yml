@@ -55,6 +55,10 @@ services:
       - PLATFORM_DATABASE_URL=${PLATFORM_DATABASE_URL:-postgresql://kmxedc:kmxedc-dev-password@platform-postgres:5432/postgres}
       # Digital Twin Registry (kmx-platform compose project)
       - DTR_BASE_URL=${DTR_BASE_URL:-http://platform-dtr:4243/semantics/registry}
+      # IdentityHub (kmx-platform compose project) — baseline; UI can override
+      - IDENTITY_HUB_URL=${IDENTITY_HUB_URL:-}
+      - IDENTITY_HUB_PARTICIPANT_ID=${IDENTITY_HUB_PARTICIPANT_ID:-}
+      - IDENTITY_HUB_API_KEY=${IDENTITY_HUB_API_KEY:-}
     networks:
       - default
       - kmx-ih_default   # provider/consumer EDC 컨테이너와 동일 네트워크

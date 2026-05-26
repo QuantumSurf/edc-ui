@@ -9,10 +9,15 @@ import { useI18n } from "@/i18n";
 import { fetchOfferings, fetchAssets, fetchPolicies, fetchNegotiations, createOffering, updateOffering, deleteOffering } from "@/services";
 import { type Asset, type Policy, type Offering } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { DetailDialog, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DetailPanel, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
 import { Pagination, paginate } from "@/components/Pagination";
-import { Card, Badge, MonoText, SectionHdr, Stepper, FormField } from "@/components/ui-kmx";
-import { PlusCircle, Copy, Search, Loader2, RefreshCw, AlertCircle, Database, Shield, X, Code, CheckCircle2 } from "lucide-react";
+import {
+  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+} from "@/components/ui-kmx";
+
+const OFFERING_COLS = "grid-cols-[1.6fr_1.4fr_1.2fr_1.2fr_0.8fr]";
+import { PlusCircle, Copy, Search, Loader2, RefreshCw, AlertCircle, Database, Shield, X, Code, CheckCircle2, FileSignature, Wand2 } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -78,6 +83,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
   return (
     <>
       <SectionHdr
+        icon={<FileSignature className="w-5 h-5 text-primary" />}
         breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
         action={
           <RoleGate permission="resource:write">
@@ -164,58 +170,62 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
             </Card>
           )}
 
-          {/* Desktop/Tablet: Table */}
+          {/* Desktop/Tablet: List */}
           {!isLoading && !isError && (
-          <Card noPad className="hidden md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    {[t.offerings.offeringId, t.offerings.step1, t.offerings.step2, t.offerings.step3, t.offerings.contractCount].map((h) => (
-                      <th key={h} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {paginate(filtered, page).map((o) => (
-                    <tr key={o.id} onClick={() => setDetailTarget(o)} className="hover:bg-muted/30 transition-colors group cursor-pointer">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <MonoText className="!text-[12px] !font-normal">{o.id}</MonoText>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(o.id); toast.success(t.common.copied); }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="!text-[12px] font-normal text-foreground/80">{o.asset || "—"}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="purple" className="text-[11px]">{o.access || "—"}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="purple" className="text-[11px]">{o.contract || "—"}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="!text-[12px] font-normal text-foreground">{o.cnt}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filtered.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground text-[12px]">{t.common.noResults}</div>
+          <ListCard
+            title={t.offerings.list}            className="hidden md:block"
+          >
+            <ListHeaderRow cols={OFFERING_COLS}>
+              <ListColLabel>{t.offerings.offeringId}</ListColLabel>
+              <ListColLabel>{t.offerings.step1}</ListColLabel>
+              <ListColLabel>{t.offerings.step2}</ListColLabel>
+              <ListColLabel>{t.offerings.step3}</ListColLabel>
+              <ListColLabel>{t.offerings.contractCount}</ListColLabel>
+            </ListHeaderRow>
+            {filtered.length === 0 ? (
+              <ListEmpty icon={<Database />} message={t.common.noResults} />
+            ) : (
+              paginate(filtered, page).map((o) => (
+                <ListRow
+                  key={o.id}
+                  cols={OFFERING_COLS}
+                  selected={detailTarget?.id === o.id}
+                  onClick={() => setDetailTarget(o)}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <MonoText className="!text-[12px] !font-normal truncate">{o.id}</MonoText>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(o.id); toast.success(t.common.copied); }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    >
+                      <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                    </button>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[12px] font-normal text-foreground/80 truncate block">{o.asset || "—"}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <Badge variant="purple" className="text-[11px] max-w-full">
+                      <span className="truncate">{o.access || "—"}</span>
+                    </Badge>
+                  </div>
+                  <div className="min-w-0">
+                    <Badge variant="purple" className="text-[11px] max-w-full">
+                      <span className="truncate">{o.contract || "—"}</span>
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="text-[12px] font-normal text-foreground">{o.cnt}</span>
+                  </div>
+                </ListRow>
+              ))
             )}
-            <div className="px-4 pb-3">
-              <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-            </div>
-          </Card>
+            {filtered.length > 0 && (
+              <div className="px-4 py-2 border-t border-border/60">
+                <Pagination total={filtered.length} page={page} onPageChange={setPage} />
+              </div>
+            )}
+          </ListCard>
           )}
 
           {/* Mobile: Card Stack */}
@@ -280,10 +290,11 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
         if (contractDeleted) contractFields.push({ label: t.offerings.policyStatus, value: "", badge: { text: t.offerings.policyDeleted, variant: "red" } });
         else contractFields.push({ label: t.policies.constraints, value: contractP?.constraint || "—", mono: true });
         return (
-          <DetailDialog
+          <DetailPanel
             open={!!detailTarget}
             onClose={() => setDetailTarget(null)}
             title={detailTarget.id}
+            icon={<FileSignature className="w-4 h-4 text-primary" />}
             subtitle={`${t.offerings.contractCount}: ${detailTarget.cnt}  ·  ${t.offerings.assetCount(assetIds.length)}`}
             subtitleMono={false}
             sections={[
@@ -481,7 +492,7 @@ function OfferingWizard({
 
   return (
     <Card
-      title={isEdit ? t.offerings.editWizard : duplicateSource ? t.offerings.duplicateWizard : t.offerings.createWizard}
+      title={<CardTitle icon={<Wand2 className="w-4 h-4 text-primary" />}>{isEdit ? t.offerings.editWizard : duplicateSource ? t.offerings.duplicateWizard : t.offerings.createWizard}</CardTitle>}
       actions={onCancel ? (
         <button
           onClick={onCancel}

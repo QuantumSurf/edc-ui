@@ -2,7 +2,7 @@
 // Design: Admin Console style | Dark navy sidebar + white cards + light gray bg
 
 import { cn } from "@/lib/utils";
-import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight } from "lucide-react";
+import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight, ChevronDown, List } from "lucide-react";
 import React from "react";
 
 /* ─── Badge ─────────────────────────────────────────────────── */
@@ -79,7 +79,9 @@ export function StatusPill({ status = "down" }: { status?: "up" | "warn" | "down
 
 /* ─── KPI Card — large number style (matching image) ─────────── */
 interface KpiCardProps {
-  label: string;
+  label?: string;
+  /** Optional heading shown at the top of the card, next to the icon. */
+  title?: string;
   value: string | number;
   sub?: string;
   colorClass?: string;
@@ -91,18 +93,23 @@ interface KpiCardProps {
   loading?: boolean;
 }
 
-export function KpiCard({ label, value, sub, colorClass, valueColor, icon, iconBg, trend, iconColor, loading }: KpiCardProps) {
+export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon, iconBg, trend, iconColor, loading }: KpiCardProps) {
   return (
     <div className="bg-card rounded-xl p-5 flex flex-col gap-2 shadow-sm border border-border hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        {icon && (
-          <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", iconBg ?? iconColor ?? "bg-blue-50")}>
-            {icon}
-          </div>
-        )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {icon && (
+            <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", iconBg ?? iconColor ?? "bg-blue-50")}>
+              {icon}
+            </div>
+          )}
+          {title && (
+            <span className="font-display text-[13px] font-bold text-foreground truncate">{title}</span>
+          )}
+        </div>
         {trend && (
           <TrendingUp className={cn(
-            "w-4 h-4",
+            "w-4 h-4 flex-shrink-0",
             trend === "up" ? "text-emerald-500" : trend === "down" ? "text-rose-500" : "text-muted-foreground"
           )} />
         )}
@@ -114,7 +121,7 @@ export function KpiCard({ label, value, sub, colorClass, valueColor, icon, iconB
           {value}
         </div>
       )}
-      <div className="text-[13px] font-medium text-foreground/80">{label}</div>
+      {label && <div className="text-[13px] font-medium text-foreground/80">{label}</div>}
       {sub && <div className="text-[12px] text-muted-foreground">{sub}</div>}
     </div>
   );
@@ -195,13 +202,17 @@ interface SectionHdrProps {
   children: React.ReactNode;
   action?: React.ReactNode;
   breadcrumb?: string;
+  icon?: React.ReactNode;
 }
 
-export function SectionHdr({ children, action, breadcrumb }: SectionHdrProps) {
+export function SectionHdr({ children, action, breadcrumb, icon }: SectionHdrProps) {
   return (
     <div className="mb-1">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-foreground dark:text-white whitespace-nowrap">{children}</h1>
+        <h1 className="text-xl font-bold text-foreground dark:text-white whitespace-nowrap flex items-center gap-2">
+          {icon}
+          {children}
+        </h1>
         {action}
       </div>
       {breadcrumb && (
@@ -448,5 +459,211 @@ export function QuietButton({ onClick, icon, children, className }: QuietButtonP
       {icon}
       {children}
     </button>
+  );
+}
+
+/* ─── List View (fl-aggregator style) ─────────────────────────── */
+// Grid-based list shell matching the fl-aggregator look: bold dark headers
+// (no uppercase), card title bar with a List icon, left-accent rows on hover.
+
+// Outer card with a title bar. Place ListHeaderRow + ListRow(s) as children.
+interface ListCardProps {
+  title: React.ReactNode;
+  icon?: React.ReactNode;
+  iconColor?: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}
+export function ListCard({ title, icon, iconColor, actions, children, className }: ListCardProps) {
+  return (
+    <div className={cn("rounded-xl border border-border bg-card overflow-hidden shadow-sm", className)}>
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
+        <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+          {icon ?? <List className={cn("w-4 h-4", iconColor ?? "text-primary")} />}
+          {title}
+        </span>
+        {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Header row. `cols` must be a literal Tailwind grid-cols-[...] class so the
+// JIT compiler can see it; pass the SAME class to every ListRow below it.
+export function ListHeaderRow({ cols, className, children }: {
+  cols: string; className?: string; children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("grid gap-3 px-4 py-3 border-b border-border bg-muted/50", cols, className)}>
+      {children}
+    </div>
+  );
+}
+
+// Header cell label — bold, dark, not uppercase (fl-aggregator style).
+export function ListColLabel({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <span className={cn("text-[12px] font-bold text-foreground", className)}>{children}</span>;
+}
+
+// Data row. Pass the same `cols` class used by ListHeaderRow.
+export function ListRow({ cols, selected, onClick, className, children }: {
+  cols: string;
+  selected?: boolean;
+  onClick?: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        "grid gap-3 px-4 py-3 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
+        cols,
+        onClick && "cursor-pointer",
+        selected
+          ? "bg-primary/5 hover:bg-primary/10 border-l-primary"
+          : "hover:bg-muted/30 border-l-transparent",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Empty state — centered icon + message, fl-aggregator spacing.
+export function ListEmpty({ icon, message }: { icon?: React.ReactNode; message: React.ReactNode }) {
+  return (
+    <div className="py-16 text-center">
+      {icon && (
+        <div className="mx-auto mb-2 flex items-center justify-center opacity-30 text-muted-foreground [&>svg]:w-8 [&>svg]:h-8">
+          {icon}
+        </div>
+      )}
+      <p className="text-[12px] text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
+/* ─── JSON Tree Viewer ──────────────────────────────────────────
+   Syntax-highlighted, collapsible JSON tree (kmx-identityhub
+   DID-document card style). Nodes are expanded by default; click a
+   chevron to collapse. */
+export function JsonTreeView({ data, className }: { data: unknown; className?: string }) {
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
+
+  const toggle = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const renderValue = (value: unknown, key: string, indent: number): React.ReactNode => {
+    if (Array.isArray(value)) {
+      const isOpen = !collapsed.has(key);
+      return (
+        <span>
+          <button onClick={() => toggle(key)} className="text-slate-400 hover:text-slate-200 transition-colors">
+            {isOpen ? <ChevronDown size={10} className="inline" /> : <ChevronRight size={10} className="inline" />}
+          </button>
+          {" ["}
+          {isOpen ? (
+            <>
+              {value.map((item, i) => (
+                <div key={i} style={{ paddingLeft: `${(indent + 1) * 16}px` }}>
+                  {typeof item === "object" && item !== null ? (
+                    <span>
+                      {"{"}
+                      {Object.entries(item as object).map(([k, v], j, arr) => (
+                        <div key={k} style={{ paddingLeft: `${(indent + 2) * 16}px` }}>
+                          <span className="text-violet-400">"{k}"</span>
+                          <span className="text-slate-400">: </span>
+                          {renderValue(v, `${key}.${i}.${k}`, indent + 2)}
+                          {j < arr.length - 1 && <span className="text-slate-500">,</span>}
+                        </div>
+                      ))}
+                      <div style={{ paddingLeft: `${(indent + 1) * 16}px` }}>
+                        {"}"}{i < value.length - 1 && <span className="text-slate-500">,</span>}
+                      </div>
+                    </span>
+                  ) : (
+                    <span>
+                      {renderValue(item, `${key}.${i}`, indent + 1)}
+                      {i < value.length - 1 && <span className="text-slate-500">,</span>}
+                    </span>
+                  )}
+                </div>
+              ))}
+              <div style={{ paddingLeft: `${indent * 16}px` }}>]</div>
+            </>
+          ) : (
+            <span className="text-slate-500"> {value.length} items ]</span>
+          )}
+        </span>
+      );
+    }
+    if (typeof value === "object" && value !== null) {
+      const isOpen = !collapsed.has(key);
+      const entries = Object.entries(value);
+      return (
+        <span>
+          <button onClick={() => toggle(key)} className="text-slate-400 hover:text-slate-200 transition-colors">
+            {isOpen ? <ChevronDown size={10} className="inline" /> : <ChevronRight size={10} className="inline" />}
+          </button>
+          {" {"}
+          {isOpen ? (
+            <>
+              {entries.map(([k, v], j) => (
+                <div key={k} style={{ paddingLeft: `${(indent + 1) * 16}px` }}>
+                  <span className="text-violet-400">"{k}"</span>
+                  <span className="text-slate-400">: </span>
+                  {renderValue(v, `${key}.${k}`, indent + 1)}
+                  {j < entries.length - 1 && <span className="text-slate-500">,</span>}
+                </div>
+              ))}
+              <div style={{ paddingLeft: `${indent * 16}px` }}>{"}"}</div>
+            </>
+          ) : (
+            <span className="text-slate-500"> {entries.length} keys {"}"}</span>
+          )}
+        </span>
+      );
+    }
+    if (typeof value === "string") return <span className="text-emerald-400">"{value}"</span>;
+    if (value === null) return <span className="text-slate-500">null</span>;
+    return <span className="text-amber-400">{String(value)}</span>;
+  };
+
+  const wrapCls = cn("bg-slate-900 rounded-xl p-4 font-mono text-[12px] text-slate-300 overflow-auto", className);
+
+  if (data === null || typeof data !== "object") {
+    return (
+      <div className={wrapCls}>
+        {typeof data === "string"
+          ? <span className="text-emerald-400">"{data}"</span>
+          : data === null
+            ? <span className="text-slate-500">null</span>
+            : <span className="text-amber-400">{String(data)}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className={wrapCls}>
+      <span className="text-blue-400">{"{"}</span>
+      {Object.entries(data).map(([key, value], i, arr) => (
+        <div key={key} style={{ paddingLeft: "16px" }}>
+          <span className="text-violet-400">"{key}"</span>
+          <span className="text-slate-400">: </span>
+          {renderValue(value, key, 1)}
+          {i < arr.length - 1 && <span className="text-slate-500">,</span>}
+        </div>
+      ))}
+      <span className="text-blue-400">{"}"}</span>
+    </div>
   );
 }

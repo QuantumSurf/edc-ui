@@ -1,5 +1,5 @@
 // KMX EDC — Semantic Models (local Postgres CRUD)
-// Tractus-X 시멘틱 모델을 로컬 DB에 저장/수정/삭제하는 단순 CRUD.
+// Tractus-X 시맨틱 모델을 로컬 DB에 저장/수정/삭제하는 단순 CRUD.
 // 외부 Semantic Hub 서비스 없이 자체 테이블(`semantic_models`)에 보관한다.
 
 import { Router, type Request, type Response, type NextFunction } from "express";

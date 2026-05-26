@@ -8,9 +8,14 @@ import { fetchNegotiations, terminateNegotiation } from "@/services";
 import { NEG_STATE_MAP, type Negotiation } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { Pagination, paginate } from "@/components/Pagination";
-import { Card, KpiCard, StateBadge, MonoText, SectionHdr } from "@/components/ui-kmx";
-import { DetailDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
-import { FileText, Send, AlertCircle, Copy, Filter, XCircle, Search, Loader2, RefreshCw, Clock } from "lucide-react";
+import {
+  Card, KpiCard, StateBadge, MonoText, SectionHdr,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+} from "@/components/ui-kmx";
+
+const NEG_COLS = "grid-cols-[150px_104px_1.2fr_1.3fr_72px_1.3fr_180px]";
+import { DetailPanel, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { FileText, Send, AlertCircle, Copy, XCircle, Search, Loader2, RefreshCw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 
@@ -153,221 +158,188 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
         onConfirm={() => { if (terminateTarget) terminateMutation.mutate(terminateTarget); }}
       />
 
-      <SectionHdr breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.negotiations.title}</SectionHdr>
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          icon={<FileText className="w-[18px] h-[18px] text-emerald-600" />}
-          iconBg="bg-emerald-50"
-          label={t.negotiations.states.FINALIZED}
-          value={kpi.finalized}
-          valueColor="text-emerald-600"
-        />
-        <KpiCard
-          icon={<Send className="w-[18px] h-[18px] text-blue-600" />}
-          iconBg="bg-blue-50"
-          label={t.negotiations.states.REQUESTING}
-          value={kpi.requesting}
-          valueColor="text-blue-600"
-        />
-        <KpiCard
-          icon={<FileText className="w-[18px] h-[18px] text-teal-600" />}
-          iconBg="bg-teal-50"
-          label={t.negotiations.states.AGREED}
-          value={kpi.agreed}
-          valueColor="text-teal-600"
-        />
-        <KpiCard
-          icon={<AlertCircle className="w-[18px] h-[18px] text-rose-600" />}
-          iconBg="bg-rose-50"
-          label={t.negotiations.states.TERMINATED}
-          value={kpi.terminated}
-          valueColor="text-rose-600"
-        />
+      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.negotiations.title}</SectionHdr>
+      {/* ── Search & Filter — fl-aggregator TasksPage style ───── */}
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder={t.negotiations.searchPlaceholder}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {filters.map((f) => (
+            <button
+              key={f}
+              onClick={() => { setFilter(f); setPage(1); }}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
+                filter === f
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {filterLabel(f)}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1.5 flex-wrap items-center">
+          <Clock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          {TIME_RANGES.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => { setTimeRange(r.value); setPage(1); }}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
+                timeRange === r.value
+                  ? "bg-foreground text-background border-foreground shadow-sm"
+                  : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {r.value === "ALL" ? t.common.all : r.value}
+            </button>
+          ))}
+        </div>
       </div>
-
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-3">
         {/* Negotiation List */}
-        <Card title={t.negotiations.listTitle}>
-
-          {/* ── Search + Filter Bar ─────────────────────────────── */}
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={t.negotiations.searchPlaceholder}
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="flex items-center gap-1 border-l border-border pl-2">
-              <Clock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-              {TIME_RANGES.map((r) => (
-                <button
-                  key={r.value}
-                  onClick={() => { setTimeRange(r.value); setPage(1); }}
-                  className={`text-[11px] px-2 py-1 rounded border transition-colors ${
-                    timeRange === r.value
-                      ? "bg-primary text-primary-foreground border-primary font-medium"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {r.value === "ALL" ? t.common.all : r.value}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <Filter className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-            {filters.map((f) => (
-              <button
-                key={f}
-                onClick={() => { setFilter(f); setPage(1); }}
-                className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
-                  filter === f
-                    ? "bg-primary text-primary-foreground border-primary font-medium"
-                    : "border-border text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {filterLabel(f)}
-              </button>
-            ))}
-            <span className="text-[11px] text-muted-foreground ml-auto">
-              {t.negotiations.resultCount(rows.length, negotiations.length)}
-            </span>
-            {/* 페이지 크기 선택 */}
-            <div className="flex items-center gap-1 border-l border-border pl-2">
-              {[10, 20, 50].map((size) => (
-                <button
-                  key={size}
-                  onClick={() => { setPageSize(size); setPage(1); }}
-                  className={`text-[11px] px-2 py-1 rounded border transition-colors ${
-                    pageSize === size
-                      ? "bg-primary text-primary-foreground border-primary font-medium"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {size}건
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="min-w-0">
 
           {/* Loading state */}
           {isLoading && (
-            <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-[13px]">{t.common.loading}</span>
-            </div>
+            <Card>
+              <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-[13px]">{t.common.loading}</span>
+              </div>
+            </Card>
           )}
 
           {/* Error state */}
           {!isLoading && isError && (
-            <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <div className="flex items-center gap-2 text-rose-600">
-                <AlertCircle className="w-4 h-4" />
-                <span className="text-[13px] font-medium">{t.common.loadFailed}</span>
+            <Card>
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <div className="flex items-center gap-2 text-rose-600">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-[13px] font-medium">{t.common.loadFailed}</span>
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted text-foreground/80 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
+                  {t.common.retry}
+                </button>
               </div>
-              <button
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted text-foreground/80 disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
-                {t.common.retry}
-              </button>
-            </div>
+            </Card>
           )}
 
           {!isLoading && !isError && (
           <>
-          {/* Desktop: Table */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  {[t.negotiations.col.id, t.negotiations.col.state, t.negotiations.col.peer, t.negotiations.col.asset, t.negotiations.col.duration, t.negotiations.col.time, t.negotiations.col.action].map((h) => (
-                    <th key={h} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginate(rows, page, pageSize).map((n) => (
-                  <tr key={n.id} onClick={() => setDetailTarget(n)} className="hover:bg-muted/30 transition-colors group cursor-pointer">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <MonoText className="!text-[12px] !font-normal">{n.id.slice(0, 12)}</MonoText>
+          {/* Desktop: List — fl-aggregator ListCard */}
+          <ListCard
+            title={t.negotiations.listTitle}
+            actions={<span className="text-[11px] text-muted-foreground">{t.negotiations.resultCount(rows.length, negotiations.length)}</span>}
+            className="hidden md:block"
+          >
+            <ListHeaderRow cols={NEG_COLS}>
+              <ListColLabel>{t.negotiations.col.id}</ListColLabel>
+              <ListColLabel>{t.negotiations.col.state}</ListColLabel>
+              <ListColLabel>{t.negotiations.col.peer}</ListColLabel>
+              <ListColLabel>{t.negotiations.col.asset}</ListColLabel>
+              <ListColLabel>{t.negotiations.col.duration}</ListColLabel>
+              <ListColLabel>{t.negotiations.col.time}</ListColLabel>
+              <ListColLabel>{t.negotiations.col.action}</ListColLabel>
+            </ListHeaderRow>
+            {rows.length === 0 ? (
+              <ListEmpty icon={<FileText />} message={t.negotiations.noResults} />
+            ) : (
+              paginate(rows, page, pageSize).map((n) => (
+              <ListRow key={n.id} cols={NEG_COLS} onClick={() => setDetailTarget(n)}>
+                <div className="flex items-center gap-1 min-w-0">
+                  <MonoText className="!text-[12px] !font-normal truncate">{n.id.slice(0, 12)}</MonoText>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  >
+                    <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </div>
+                <div>
+                  <StateBadge name={n.name} />
+                </div>
+                <div className="min-w-0">
+                  <MonoText className="!text-[12px] !font-normal block truncate">{n.peer}</MonoText>
+                </div>
+                <div className="min-w-0">
+                  {n.assetId ? (
+                    <MonoText className="!text-[12px] !font-normal block truncate">{n.assetId}</MonoText>
+                  ) : (
+                    <span className="text-[12px] text-muted-foreground/50">—</span>
+                  )}
+                </div>
+                <div className="text-[12px] font-normal text-muted-foreground">{n.t}</div>
+                <div className="text-[12px] font-normal text-muted-foreground truncate">{n.ts}</div>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {n.name === "FINALIZED" && (
+                      <RoleGate permission="transaction:write">
                         <button
-                          onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleTransferStart(n)}
+                          className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap"
                         >
-                          <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                          {t.negotiations.startTransfer}
                         </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StateBadge name={n.name} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[12px] !font-normal">{n.peer}</MonoText>
-                    </td>
-                    <td className="px-4 py-3">
-                      {n.assetId ? (
-                        <MonoText className="!text-[12px] !font-normal">{n.assetId}</MonoText>
-                      ) : (
-                        <span className="!text-[12px] text-muted-foreground/50">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{n.t}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="!text-[12px] font-normal text-muted-foreground">{n.ts}</span>
-                    </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {n.name === "FINALIZED" && (
-                          <RoleGate permission="transaction:write">
-                            <button
-                              onClick={() => handleTransferStart(n)}
-                              className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap"
-                            >
-                              {t.negotiations.startTransfer}
-                            </button>
-                          </RoleGate>
-                        )}
-                        {n.name === "TERMINATED" && (
-                          <button
-                            onClick={() => handleTerminatedDetail(n)}
-                            className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap"
-                          >
-                            {t.negotiations.errorDetail}
-                          </button>
-                        )}
-                        {!TERMINAL_STATES.has(n.name) && (
-                          <RoleGate permission="transaction:write">
-                            <button
-                              onClick={() => { setTerminateTarget(n); setTerminateReason(""); }}
-                              className="text-[11px] px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 font-medium transition-colors whitespace-nowrap flex items-center gap-1"
-                            >
-                              <XCircle className="w-3 h-3" />
-                              {t.negotiations.terminate}
-                            </button>
-                          </RoleGate>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </RoleGate>
+                    )}
+                    {n.name === "TERMINATED" && (
+                      <button
+                        onClick={() => handleTerminatedDetail(n)}
+                        className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap"
+                      >
+                        {t.negotiations.errorDetail}
+                      </button>
+                    )}
+                    {!TERMINAL_STATES.has(n.name) && (
+                      <RoleGate permission="transaction:write">
+                        <button
+                          onClick={() => { setTerminateTarget(n); setTerminateReason(""); }}
+                          className="text-[11px] px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 font-medium transition-colors whitespace-nowrap flex items-center gap-1"
+                        >
+                          <XCircle className="w-3 h-3" />
+                          {t.negotiations.terminate}
+                        </button>
+                      </RoleGate>
+                    )}
+                  </div>
+                </div>
+              </ListRow>
+              )))}
+            {rows.length > 0 && (
+              <div className="px-4 py-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-1">
+                  {[10, 20, 50].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => { setPageSize(size); setPage(1); }}
+                      className={`text-[11px] px-2 py-0.5 rounded-md border transition-colors ${
+                        pageSize === size
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {size}건
+                    </button>
+                  ))}
+                </div>
+                <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+              </div>
+            )}
+          </ListCard>
 
           {/* Mobile: Card Stack */}
           <div className="md:hidden flex flex-col gap-3">
@@ -381,25 +353,23 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                 onTerminate={(neg) => { setTerminateTarget(neg); setTerminateReason(""); }}
               />
             ))}
+            {rows.length === 0 && (
+              <ListEmpty icon={<FileText />} message={t.negotiations.noResults} />
+            )}
+            <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
           </div>
-
-          {rows.length === 0 && (
-            <div className="text-center py-6 text-[12px] text-muted-foreground">
-              {t.negotiations.noResults}
-            </div>
-          )}
-          <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
           </>
           )}
-        </Card>
+        </div>
 
         {/* Detail Dialog */}
         {detailTarget && (
-          <DetailDialog
+          <DetailPanel
             open={!!detailTarget}
             onClose={() => setDetailTarget(null)}
             title={detailTarget.id}
-            subtitle={`${detailTarget.name}  ·  ${detailTarget.peer}`}
+            icon={<FileText className="w-4 h-4 text-primary" />}
+            subtitle={detailTarget.name}
             sections={[
               {
                 title: t.negotiations.sectionTimeline,
@@ -467,47 +437,58 @@ const TIMELINE_STATES: { code: number; name: string; short: string }[] = [
   { code: 1200, name: "FINALIZED", short: "FINAL" },
 ];
 
+// Vertical stepper — fits the narrow detail slide panel without horizontal
+// overflow, and shows full state names for legibility.
 function StateTimeline({ current, terminated }: { current: number; terminated: boolean }) {
+  const termIdx = terminated ? TIMELINE_STATES.findIndex((x) => x.code > current) : -1;
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex items-center gap-0 min-w-[520px] py-2">
-        {TIMELINE_STATES.map((s, idx) => {
-          const reached = current >= s.code;
-          const isCurrent = current === s.code && !terminated;
-          const dotClass = terminated && idx >= TIMELINE_STATES.findIndex((x) => x.code > current)
-            ? "bg-rose-500 border-rose-500"
+    <div className="flex flex-col">
+      {TIMELINE_STATES.map((s, idx) => {
+        const reached = current >= s.code;
+        const isCurrent = current === s.code && !terminated;
+        const isLast = idx === TIMELINE_STATES.length - 1 && !terminated;
+        const failed = terminated && termIdx >= 0 && idx >= termIdx;
+        const dotClass = failed
+          ? "bg-rose-500 border-rose-500"
+          : reached
+            ? isCurrent
+              ? "bg-primary border-primary ring-2 ring-primary/30"
+              : "bg-primary border-primary"
+            : "bg-card border-border";
+        const nextReached = idx < TIMELINE_STATES.length - 1 && current >= TIMELINE_STATES[idx + 1].code;
+        const lineClass = terminated && termIdx >= 0 && idx >= termIdx
+          ? "bg-rose-300"
+          : nextReached ? "bg-primary" : "bg-border";
+        const labelClass = failed
+          ? "text-rose-600 font-medium"
+          : isCurrent
+            ? "text-primary font-semibold"
             : reached
-              ? isCurrent
-                ? "bg-primary border-primary ring-2 ring-primary/30"
-                : "bg-primary border-primary"
-              : "bg-card border-border";
-          const lineClass = idx < TIMELINE_STATES.length - 1
-            ? (current >= TIMELINE_STATES[idx + 1].code ? "bg-primary" : terminated && current < TIMELINE_STATES[idx + 1].code ? "bg-rose-200" : "bg-border")
-            : "";
-          return (
-            <div key={s.code} className="flex items-center flex-1 last:flex-none">
-              <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                <div className={`w-3 h-3 rounded-full border-2 ${dotClass}`} />
-                <div className={`text-[11px] font-medium uppercase tracking-wider whitespace-nowrap ${reached ? "text-foreground" : "text-muted-foreground/50"}`}>
-                  {s.short}
-                </div>
-              </div>
-              {idx < TIMELINE_STATES.length - 1 && (
-                <div className={`h-0.5 flex-1 mx-1 ${lineClass}`} />
-              )}
+              ? "text-foreground font-medium"
+              : "text-muted-foreground/50 font-medium";
+        return (
+          <div key={s.code} className="flex gap-2.5">
+            <div className="flex flex-col items-center">
+              <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 mt-0.5 ${dotClass}`} />
+              {!isLast && <div className={`w-0.5 flex-1 min-h-[14px] ${lineClass}`} />}
             </div>
-          );
-        })}
-        {terminated && (
-          <div className="flex items-center ml-2">
-            <div className="h-0.5 w-3 bg-rose-300" />
-            <div className="flex flex-col items-center gap-1 flex-shrink-0 ml-1">
-              <div className="w-3 h-3 rounded-full border-2 bg-rose-500 border-rose-500 ring-2 ring-rose-300/40" />
-              <div className="text-[11px] font-medium uppercase tracking-wider whitespace-nowrap text-rose-600">TERM</div>
+            <div className={isLast ? "" : "pb-3"}>
+              <span className={`text-[12px] tracking-wide ${labelClass}`}>{s.name}</span>
+              <span className="text-[10px] font-mono text-muted-foreground/60 ml-1.5">{s.code}</span>
             </div>
           </div>
-        )}
-      </div>
+        );
+      })}
+      {terminated && (
+        <div className="flex gap-2.5">
+          <div className="flex flex-col items-center">
+            <div className="w-3.5 h-3.5 rounded-full border-2 bg-rose-500 border-rose-500 ring-2 ring-rose-300/40 flex-shrink-0 mt-0.5" />
+          </div>
+          <div>
+            <span className="text-[12px] font-semibold tracking-wide text-rose-600">TERMINATED</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

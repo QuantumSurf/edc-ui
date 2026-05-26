@@ -9,34 +9,55 @@
 
 import axios, { type AxiosInstance } from "axios";
 import pg from "pg";
+import { getPool } from "./db.js";
 
 const { Pool } = pg;
 
 /* ─── Vault Client ───────────────────────────────────────────── */
+// Connection config is read from `app_settings` (configurable via the
+// Settings screen); env vars are used as the fallback default.
 
-const VAULT_URL = process.env.PLATFORM_VAULT_URL ?? "http://platform-vault:8200";
-const VAULT_TOKEN = process.env.PLATFORM_VAULT_TOKEN ?? "root";
-const VAULT_NAMESPACE = process.env.PLATFORM_VAULT_NAMESPACE ?? "";
+const VAULT_URL_ENV = process.env.PLATFORM_VAULT_URL ?? "http://platform-vault:8200";
+const VAULT_TOKEN_ENV = process.env.PLATFORM_VAULT_TOKEN ?? "root";
+const VAULT_NAMESPACE_ENV = process.env.PLATFORM_VAULT_NAMESPACE ?? "";
+
+interface VaultConfig { url: string; token: string; namespace: string }
+
+async function readVaultConfig(): Promise<VaultConfig> {
+  try {
+    const { rows } = await getPool().query<{ key: string; value: string }>(
+      `SELECT key, value FROM app_settings WHERE key IN ('vault_url', 'vault_token', 'vault_namespace')`,
+    );
+    const m: Record<string, string> = {};
+    for (const r of rows) m[r.key] = r.value ?? "";
+    return {
+      url: m.vault_url?.trim() || VAULT_URL_ENV,
+      token: m.vault_token?.trim() || VAULT_TOKEN_ENV,
+      namespace: (m.vault_namespace ?? VAULT_NAMESPACE_ENV).trim(),
+    };
+  } catch {
+    // app_settings unavailable (e.g. DB not ready) — fall back to env.
+    return { url: VAULT_URL_ENV, token: VAULT_TOKEN_ENV, namespace: VAULT_NAMESPACE_ENV };
+  }
+}
 
 let vaultClient: AxiosInstance | null = null;
+let vaultCacheKey = "";
 
-export function getVaultClient(): AxiosInstance {
-  if (!vaultClient) {
-    const headers: Record<string, string> = {
-      "X-Vault-Token": VAULT_TOKEN,
-    };
-    if (VAULT_NAMESPACE) headers["X-Vault-Namespace"] = VAULT_NAMESPACE;
-    vaultClient = axios.create({
-      baseURL: VAULT_URL,
-      headers,
-      timeout: 5_000,
-    });
+export async function getVaultClient(): Promise<AxiosInstance> {
+  const cfg = await readVaultConfig();
+  const key = `${cfg.url}|${cfg.namespace}|${cfg.token}`;
+  if (!vaultClient || vaultCacheKey !== key) {
+    const headers: Record<string, string> = { "X-Vault-Token": cfg.token };
+    if (cfg.namespace) headers["X-Vault-Namespace"] = cfg.namespace;
+    vaultClient = axios.create({ baseURL: cfg.url, headers, timeout: 5_000 });
+    vaultCacheKey = key;
   }
   return vaultClient;
 }
 
-export function getVaultUrl(): string {
-  return VAULT_URL;
+export async function getVaultUrl(): Promise<string> {
+  return (await readVaultConfig()).url;
 }
 
 /* ─── Platform PG Pool (read-only stats) ─────────────────────── */

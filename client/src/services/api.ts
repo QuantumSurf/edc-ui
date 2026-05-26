@@ -456,6 +456,91 @@ export async function updateIdentityHubUrl(value: string): Promise<string> {
   return (data?.value as string) ?? "";
 }
 
+export interface IdentityHubConfigResp {
+  url: string;
+  participantId: string;
+  /** Whether an API key is stored (the value itself is never returned). */
+  hasApiKey: boolean;
+}
+
+export async function fetchIdentityHubConfig(): Promise<IdentityHubConfigResp> {
+  const { data } = await http.get(`/system/settings/identity-hub-config`);
+  return {
+    url: (data?.url as string) ?? "",
+    participantId: (data?.participantId as string) ?? "",
+    hasApiKey: data?.hasApiKey === true,
+  };
+}
+
+export async function updateIdentityHubConfig(input: {
+  url: string; participantId: string; apiKey: string;
+}): Promise<IdentityHubConfigResp> {
+  const { data } = await http.put(`/system/settings/identity-hub-config`, input);
+  return {
+    url: (data?.url as string) ?? "",
+    participantId: (data?.participantId as string) ?? "",
+    hasApiKey: data?.hasApiKey === true,
+  };
+}
+
+export interface IdentityHubCredential {
+  id: string;
+  type: string;
+  issuer: string;
+  status: string;
+}
+
+export interface IdentityHubParticipant {
+  configured: boolean;
+  participantId: string;
+  baseUrl: string;
+  did: string | null;
+  credentials: IdentityHubCredential[];
+  credentialError: string | null;
+  checkedAt: string;
+}
+
+/** Fetch the participant's own identity info (DID + credentials) from IdentityHub. */
+export async function fetchIdentityHubParticipant(): Promise<IdentityHubParticipant> {
+  const { data } = await http.get(`/identity-hub/participant`);
+  return {
+    configured: data?.configured === true,
+    participantId: (data?.participantId as string) ?? "",
+    baseUrl: (data?.baseUrl as string) ?? "",
+    did: (data?.did as string | null) ?? null,
+    credentials: Array.isArray(data?.credentials) ? data.credentials : [],
+    credentialError: (data?.credentialError as string | null) ?? null,
+    checkedAt: (data?.checkedAt as string) ?? "",
+  };
+}
+
+export interface VaultConfigResp {
+  url: string;
+  namespace: string;
+  /** Whether an access token is stored (the value itself is never returned). */
+  hasToken: boolean;
+}
+
+export async function fetchVaultConfig(): Promise<VaultConfigResp> {
+  const { data } = await http.get(`/system/settings/vault-config`);
+  return {
+    url: (data?.url as string) ?? "",
+    namespace: (data?.namespace as string) ?? "",
+    hasToken: data?.hasToken === true,
+  };
+}
+
+export async function updateVaultConfig(input: {
+  url: string; token: string; namespace: string;
+}): Promise<VaultConfigResp> {
+  const { data } = await http.put(`/system/settings/vault-config`, input);
+  return {
+    url: (data?.url as string) ?? "",
+    namespace: (data?.namespace as string) ?? "",
+    hasToken: data?.hasToken === true,
+  };
+}
+
 /* ── IdentityHub status monitor ─────────────────────────────── */
 
 export interface IdentityHubComponent {

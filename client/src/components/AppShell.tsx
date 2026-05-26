@@ -9,12 +9,12 @@ import { useConnectorStore } from "@/stores/connectorStore";
 import { useLocation } from "wouter";
 import { useIsFetching } from "@tanstack/react-query";
 import {
-  LayoutGrid, LayoutDashboard, Database, Shield, Package,
+  LayoutGrid, LayoutDashboard, Share2, ShieldCheck, Package, FileSignature,
   Search, FileText, ArrowRightLeft, Key,
-  ChevronRight, ChevronLeft, Menu, X, Bell,
+  ChevronRight, ChevronLeft, ChevronDown, Menu, X, Bell,
   Settings, LogOut, MoreHorizontal,
-  Vault as VaultIcon, ScrollText, Boxes, Layers,
-  Activity, ListChecks, Workflow, Wrench, Server, Fingerprint,
+  Vault as VaultIcon, ScrollText, Boxes, BookMarked, Shapes,
+  Activity, ListChecks, Workflow, Wrench, Network, Fingerprint,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES } from "@/i18n";
@@ -49,7 +49,7 @@ function useNavItems() {
   const fleetGroup = (): NavGroup => ({
     key: "fleet",
     label: t.nav.groupFleet,
-    Icon: Server,
+    Icon: Network,
     items: [
       { path: "/fleet", label: t.nav.fleetOverview, Icon: LayoutGrid },
     ],
@@ -71,8 +71,8 @@ function useNavItems() {
     label: t.nav.groupDigitalTwin,
     Icon: Boxes,
     items: [
-      { path: "/registry", label: t.nav.digitalTwins, Icon: Boxes },
-      { path: "/submodels", label: t.nav.submodels, Icon: Layers },
+      { path: "/registry", label: t.nav.digitalTwins, Icon: BookMarked },
+      { path: "/submodels", label: t.nav.submodels, Icon: Shapes },
     ],
   });
 
@@ -88,11 +88,11 @@ function useNavItems() {
     {
       key: "provide",
       label: t.nav.groupProvide,
-      Icon: Database,
+      Icon: Share2,
       items: [
-        { path: `/connectors/${id}/assets`, label: t.nav.assets, Icon: Database, count: counts?.assets },
-        { path: `/connectors/${id}/policy`, label: t.nav.policies, Icon: Shield, count: counts?.policies },
-        { path: `/connectors/${id}/contract`, label: t.nav.offerings, Icon: Package, count: counts?.offerings },
+        { path: `/connectors/${id}/assets`, label: t.nav.assets, Icon: Package, count: counts?.assets },
+        { path: `/connectors/${id}/policy`, label: t.nav.policies, Icon: ShieldCheck, count: counts?.policies },
+        { path: `/connectors/${id}/contract`, label: t.nav.offerings, Icon: FileSignature, count: counts?.offerings },
       ],
     },
     {
@@ -126,7 +126,7 @@ function useBottomTabs(roles?: string[]) {
   const connectorTabs: BottomTab[] = [
     { pathSuffix: "dashboard",   label: t.nav.dashboard,    Icon: LayoutDashboard },
     ...(isProvider
-      ? [{ pathSuffix: "assets",   label: t.nav.assets,      Icon: Database }]
+      ? [{ pathSuffix: "assets",   label: t.nav.assets,      Icon: Package }]
       : [{ pathSuffix: "catalog",  label: t.nav.catalog,     Icon: Search }]),
     { pathSuffix: "negotiation", label: t.nav.negotiations, Icon: FileText },
     { pathSuffix: "transfer",    label: t.nav.transfers,    Icon: ArrowRightLeft },
@@ -134,7 +134,7 @@ function useBottomTabs(roles?: string[]) {
   ];
   const fleetTabs: BottomTab[] = [
     { pathSuffix: "fleet",       label: t.nav.fleet,        Icon: LayoutGrid },
-    { pathSuffix: "assets",      label: t.nav.assets,       Icon: Database },
+    { pathSuffix: "assets",      label: t.nav.assets,       Icon: Package },
     { pathSuffix: "negotiation", label: t.nav.negotiations, Icon: FileText },
     { pathSuffix: "transfer",    label: t.nav.transfers,    Icon: ArrowRightLeft },
     { pathSuffix: "more",        label: t.nav.more,         Icon: MoreHorizontal },
@@ -153,6 +153,16 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
   const { logout } = useAuth();
   const unreadCount = useUnreadNotificationCount();
   const openNotifications = useNotificationStore((s) => s.setPanelOpen);
+
+  // Level-1 group expand/collapse (fl-aggregator pattern)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const groups: NavGroup[] = connector
     ? [fleetGroup(), ...connectorGroups(connector.id, counts), digitalTwinGroup(), systemGroup()]
@@ -214,18 +224,24 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
         <div className="space-y-3">
         {groups.map((group, gi) => {
           const GroupIcon = group.Icon;
+          const isGroupCollapsed = collapsedGroups.has(group.key);
           return (
             <div key={group.key} className={cn(gi > 0 && "pt-3")} style={gi > 0 ? { borderTop: "1px solid oklch(0.38 0.10 240 / 0.5)" } : undefined}>
               {!collapsed && (
-                <p
-                  className="flex items-center gap-1.5 text-[11px] uppercase tracking-widest px-2 mb-2 font-semibold"
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="w-full flex items-center gap-1.5 text-[11px] uppercase tracking-widest px-2 mb-2 font-semibold transition-colors"
                   style={{ color: "oklch(0.58 0.08 240)" }}
                 >
                   {GroupIcon && <GroupIcon size={14} style={{ color: "oklch(0.62 0.08 240)" }} />}
-                  {group.label}
-                </p>
+                  <span className="flex-1 text-left">{group.label}</span>
+                  {isGroupCollapsed
+                    ? <ChevronRight size={12} style={{ color: "oklch(0.62 0.08 240)" }} />
+                    : <ChevronDown size={12} style={{ color: "oklch(0.62 0.08 240)" }} />}
+                </button>
               )}
-              <div className="space-y-0.5">
+              <div className={cn("space-y-0.5", !collapsed && isGroupCollapsed && "hidden")}>
                 {group.items.map((it) => {
                   const isActive = isItemActive(it.path);
                   const { Icon } = it;
@@ -281,7 +297,10 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
       </nav>
 
       {/* Bottom Links */}
-      <div className={cn("p-2 space-y-0.5 border-t border-white/10", collapsed && "px-1")}>
+      <div
+        className={cn("p-2 space-y-0.5", collapsed && "px-1")}
+        style={{ borderTop: "1px solid oklch(0.38 0.10 240 / 0.5)" }}
+      >
         {/* Notifications */}
         <button
           onClick={() => openNotifications(true)}
@@ -339,6 +358,9 @@ function Topbar() {
   const { locale, setLocale, t } = useI18n();
   const { user } = useAuth();
   const { fleetGroup, systemGroup, connectorGroups, digitalTwinGroup } = useNavItems();
+  const togglePanel = useNotificationStore((s) => s.togglePanel);
+  const panelOpen = useNotificationStore((s) => s.panelOpen);
+  const unreadCount = useUnreadNotificationCount();
 
   const allItems: NavItem[] = [
     ...fleetGroup().items,
@@ -364,7 +386,7 @@ function Topbar() {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs flex-1 min-w-0">
-        <span className="font-display text-muted-foreground">{t.common.appName}</span>
+        <span className="text-muted-foreground">{t.common.appName}</span>
         {currentLabel && (
           <>
             <ChevronRight className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
@@ -376,6 +398,25 @@ function Topbar() {
       {/* Right side */}
       <div className="flex items-center gap-4">
         <span className="hidden sm:block text-[12px] text-muted-foreground font-medium">v0.16.0</span>
+        {/* Notification Bell */}
+        <button
+          onClick={togglePanel}
+          aria-label={t.nav.notifications}
+          className={cn(
+            "relative inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors",
+            panelOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+          )}
+        >
+          <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <span
+              className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full text-[9px] font-bold"
+              style={{ background: "oklch(0.62 0.22 25)", color: "white", boxShadow: "0 0 0 1.5px white" }}
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
         {/* Language toggle */}
         <button
           onClick={() => setLocale(locale === "ko" ? "en" : "ko")}
@@ -391,7 +432,6 @@ function Topbar() {
           </div>
           <div className="hidden sm:block leading-tight">
             <p className="text-xs font-semibold text-foreground">{user?.username ?? "user"}</p>
-            <p className="text-[11px] text-muted-foreground capitalize">{roleLabel}</p>
           </div>
           <span className="text-[11px] px-1.5 py-0.5 rounded font-medium border bg-primary/10 text-primary border-primary/30 capitalize">
             {roleLabel}

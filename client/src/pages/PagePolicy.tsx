@@ -7,10 +7,15 @@ import { useI18n } from "@/i18n";
 import { fetchPolicies, createPolicy, updatePolicy, deletePolicy } from "@/services";
 import { type Policy } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { DetailDialog, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DetailPanel, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
 import { Pagination, paginate, DEFAULT_PAGE_SIZE } from "@/components/Pagination";
-import { Card, Badge, MonoText, SectionHdr, FormField } from "@/components/ui-kmx";
-import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, RefreshCw, AlertCircle, X, CheckCircle2 } from "lucide-react";
+import {
+  Card, CardTitle, Badge, MonoText, SectionHdr, FormField,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, JsonTreeView,
+} from "@/components/ui-kmx";
+
+const POLICY_COLS = "grid-cols-[1.6fr_0.8fr_2fr_1fr]";
+import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, RefreshCw, AlertCircle, X, CheckCircle2, Hammer } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -186,6 +191,7 @@ export default function PagePolicy() {
   return (
     <>
       <SectionHdr
+        icon={<ShieldCheck className="w-5 h-5 text-primary" />}
         breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
         action={
           <RoleGate permission="resource:write">
@@ -301,10 +307,11 @@ export default function PagePolicy() {
       />
 
       {detailTarget && (
-        <DetailDialog
+        <DetailPanel
           open={!!detailTarget}
           onClose={() => setDetailTarget(null)}
           title={detailTarget.id}
+          icon={<ShieldCheck className="w-4 h-4 text-primary" />}
           subtitle={t.policies.constraintCount(parseConstraints(detailTarget.constraint).length)}
           subtitleMono={false}
           sections={[
@@ -437,77 +444,64 @@ function PolicyList({ policies, onSelect, onCreateClick }: { policies: Policy[];
 
   return (
     <>
-      {/* Desktop/Tablet: Table */}
-      <Card noPad className="hidden md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                {[t.policies.col.id, t.policies.col.action, t.policies.col.constraint, t.policies.col.offeringRef].map((h) => (
-                  <th key={h} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {paginate(policies, page).map((p) => {
-                const constraints = parseConstraints(p.constraint);
-                return (
-                  <tr key={p.id} onClick={() => onSelect?.(p)} className="hover:bg-muted/30 transition-colors group cursor-pointer">
-                    {/* Policy ID + icon */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <ShieldCheck className="w-4 h-4 text-violet-500" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <MonoText className="!text-[12px] !font-normal">{p.id}</MonoText>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); toast.success(t.common.copied); }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity ml-1.5 inline-flex"
-                          >
-                            <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                    {/* Action */}
-                    <td className="px-4 py-3">
-                      <Badge variant="blue">odrl:use</Badge>
-                    </td>
-                    {/* Constraints */}
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        {constraints.map((c, ci) => (
-                          <div key={ci} className="flex items-center gap-1.5">
-                            <MonoText className="!text-[12px] !font-normal">{c.left}</MonoText>
-                            {c.op && <Badge variant="amber">{c.op}</Badge>}
-                            <MonoText className="!text-[12px] !font-normal text-muted-foreground">{c.right}</MonoText>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    {/* Offering ref */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <Link2 className="w-3 h-3 text-muted-foreground" />
-                        <Badge variant={p.offers > 0 ? "blue" : "gray"}>{t.policies.offeringRef(p.offers)}</Badge>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {policies.length === 0 && (
+      {/* Desktop/Tablet: List */}
+      <ListCard
+        title={t.policies.list}        className="hidden md:block"
+      >
+        <ListHeaderRow cols={POLICY_COLS}>
+          <ListColLabel>{t.policies.col.id}</ListColLabel>
+          <ListColLabel>{t.policies.col.action}</ListColLabel>
+          <ListColLabel>{t.policies.col.constraint}</ListColLabel>
+          <ListColLabel>{t.policies.col.offeringRef}</ListColLabel>
+        </ListHeaderRow>
+        {policies.length === 0 ? (
           <EmptyPolicies onCreateClick={onCreateClick ?? (() => {})} />
+        ) : (
+          paginate(policies, page).map((p) => {
+            const constraints = parseConstraints(p.constraint);
+            return (
+              <ListRow key={p.id} cols={POLICY_COLS} onClick={() => onSelect?.(p)}>
+                {/* Policy ID */}
+                <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
+                    <MonoText className="!text-[12px] !font-normal">{p.id}</MonoText>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); toast.success(t.common.copied); }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-1.5 inline-flex"
+                    >
+                      <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                    </button>
+                  </div>
+                </div>
+                {/* Action */}
+                <div>
+                  <Badge variant="blue">odrl:use</Badge>
+                </div>
+                {/* Constraints */}
+                <div className="flex flex-col gap-1 min-w-0">
+                  {constraints.map((c, ci) => (
+                    <div key={ci} className="flex items-center gap-1.5 min-w-0">
+                      <MonoText className="!text-[12px] !font-normal">{c.left}</MonoText>
+                      {c.op && <Badge variant="amber">{c.op}</Badge>}
+                      <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate">{c.right}</MonoText>
+                    </div>
+                  ))}
+                </div>
+                {/* Offering ref */}
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                  <Badge variant={p.offers > 0 ? "blue" : "gray"}>{t.policies.offeringRef(p.offers)}</Badge>
+                </div>
+              </ListRow>
+            );
+          })
         )}
-        <div className="px-4 pb-3">
-          <Pagination total={policies.length} page={page} onPageChange={setPage} />
-        </div>
-      </Card>
+        {policies.length > 0 && (
+          <div className="px-4 py-2 border-t border-border/60">
+            <Pagination total={policies.length} page={page} onPageChange={setPage} />
+          </div>
+        )}
+      </ListCard>
 
       {/* Mobile: Card Stack */}
       <div className="md:hidden flex flex-col gap-2.5">
@@ -516,9 +510,6 @@ function PolicyList({ policies, onSelect, onCreateClick }: { policies: Policy[];
           return (
             <div key={p.id} onClick={() => onSelect?.(p)} className="bg-card rounded-xl p-3.5 shadow-sm border border-border cursor-pointer hover:shadow-md transition-shadow">
               <div className="flex items-start gap-2.5 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-violet-500" />
-                </div>
                 <div className="flex-1 min-w-0">
                   <MonoText className="text-[12px] font-medium truncate block">{p.id}</MonoText>
                   <div className="flex items-center gap-1.5 mt-0.5">
@@ -708,14 +699,14 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
   const constraintField = constraints.length > 1
     ? [{ [`odrl:${logicOp}`]: constraintNodes }]
     : constraintNodes;
-  const odrlJson = JSON.stringify({
+  const odrlObj = {
     "@context": "http://www.w3.org/ns/odrl.jsonld",
     "@type": "Set",
     [ruleKey]: [{
       "odrl:action": action,
       "odrl:constraint": constraintField,
     }],
-  }, null, 2);
+  };
 
   const handleSave = async () => {
     const idErr = validatePolicyId(policyId);
@@ -944,11 +935,15 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
       <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
         <Code className="w-3 h-3" /> {t.policies.jsonPreview}
       </div>
-      <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed max-h-[400px]">{odrlJson}</pre>
+      <JsonTreeView data={odrlObj} className="max-h-[400px]" />
     </div>
   );
 
-  const builderTitle = isEdit ? t.policies.editBuilder : duplicateSource ? t.policies.duplicateBuilder : t.policies.builder;
+  const builderTitle = (
+    <CardTitle icon={<Hammer className="w-4 h-4 text-primary" />}>
+      {isEdit ? t.policies.editBuilder : duplicateSource ? t.policies.duplicateBuilder : t.policies.builder}
+    </CardTitle>
+  );
   return (
     <>
       {/* Desktop: side-by-side 50% */}

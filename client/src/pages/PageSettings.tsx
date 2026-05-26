@@ -6,8 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
 import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge, FormField } from "@/components/ui-kmx";
-import { ChevronLeft, User, Bell, Monitor, Info, Plug, Loader2 } from "lucide-react";
-import { fetchSystemInfo, fetchIdentityHubUrl, updateIdentityHubUrl } from "@/services/api";
+import { ChevronLeft, User, Bell, Monitor, Info, Fingerprint, Loader2, Settings, Vault } from "lucide-react";
+import {
+  fetchSystemInfo, fetchIdentityHubConfig, updateIdentityHubConfig,
+  fetchVaultConfig, updateVaultConfig,
+} from "@/services/api";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -29,6 +32,8 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
   return (
     <>
       <SectionHdr
+        icon={<Settings className="w-5 h-5 text-primary" />}
+        breadcrumb={t.settings.subtitle}
         action={<QuietButton onClick={() => onNav("/fleet")} icon={<ChevronLeft className="w-3 h-3" />}>Fleet</QuietButton>}
       >
         {t.nav.settings}
@@ -114,42 +119,62 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
           </div>
         </Card>
 
-        {/* ── Integration ─────────────────────────────────────── */}
-        <Card title={<CardTitle icon={<Plug className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.integration}</span></CardTitle>}>
-          <IdentityHubUrlSetting />
+        {/* ── Identity Hub Server ─────────────────────────────── */}
+        <Card title={<CardTitle icon={<Fingerprint className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.integration}</span></CardTitle>}>
+          <p className="text-[11px] text-muted-foreground mb-3">{t.settings.identityHubServerDesc}</p>
+          <IdentityHubConfigSetting />
+        </Card>
+
+        {/* ── Vault Server ────────────────────────────────────── */}
+        <Card title={<CardTitle icon={<Vault className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.vaultServer}</span></CardTitle>}>
+          <p className="text-[11px] text-muted-foreground mb-3">{t.settings.vaultServerDesc}</p>
+          <VaultConfigSetting />
         </Card>
       </div>
     </>
   );
 }
 
-/* ─── Identity Hub URL setting (admin only) ──────────────────── */
-function IdentityHubUrlSetting() {
+/* ─── Identity Hub server config (admin only) ────────────────── */
+// Connection settings the Decentralized Identity screen uses to fetch the
+// participant's own info from the IdentityHub server.
+function IdentityHubConfigSetting() {
   const { t } = useI18n();
   const { user } = useAuth();
   const canEdit = user?.role === "admin";
-  const [value, setValue] = useState("");
-  const [original, setOriginal] = useState("");
+  const [url, setUrl] = useState("");
+  const [participantId, setParticipantId] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [original, setOriginal] = useState({ url: "", participantId: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    fetchIdentityHubUrl()
-      .then((v) => { setValue(v); setOriginal(v); })
+    fetchIdentityHubConfig()
+      .then((c) => {
+        setUrl(c.url);
+        setParticipantId(c.participantId);
+        setHasApiKey(c.hasApiKey);
+        setOriginal({ url: c.url, participantId: c.participantId });
+      })
       .catch((e) => toast.error((e as Error).message))
       .finally(() => setLoading(false));
   }, []);
 
-  const dirty = value !== original;
+  const dirty = url !== original.url || participantId !== original.participantId || apiKey.length > 0;
 
   const save = async () => {
     setSaving(true);
     try {
-      const next = await updateIdentityHubUrl(value);
-      setValue(next);
-      setOriginal(next);
-      toast.success(t.settings.identityHubUrlSaved);
+      const next = await updateIdentityHubConfig({ url, participantId, apiKey });
+      setUrl(next.url);
+      setParticipantId(next.participantId);
+      setHasApiKey(next.hasApiKey);
+      setOriginal({ url: next.url, participantId: next.participantId });
+      setApiKey("");
+      toast.success(t.settings.identityHubConfigSaved);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -157,17 +182,41 @@ function IdentityHubUrlSetting() {
     }
   };
 
+  const inputCls = "w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60 disabled:cursor-not-allowed";
+
   return (
-    <FormField label={t.settings.identityHubUrl} hint={t.settings.identityHubUrlDesc}>
-      <div className="flex gap-2 items-center">
+    <div className="space-y-3">
+      <FormField label={t.settings.identityHubUrl} hint={t.settings.identityHubUrlDesc}>
         <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
           placeholder={t.settings.identityHubUrlPlaceholder}
           disabled={loading || !canEdit}
-          className="flex-1 px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60"
+          className={inputCls}
         />
-        <RoleGate permission="connector:write">
+      </FormField>
+      <FormField label={t.settings.identityHubParticipantId} hint={t.settings.identityHubParticipantIdDesc}>
+        <input
+          value={participantId}
+          onChange={(e) => setParticipantId(e.target.value)}
+          placeholder="BPNL000000000000"
+          disabled={loading || !canEdit}
+          className={inputCls}
+        />
+      </FormField>
+      <FormField label={t.settings.identityHubApiKey} hint={t.settings.identityHubApiKeyDesc}>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={hasApiKey ? t.settings.identityHubApiKeySet : t.settings.identityHubApiKeyUnset}
+          disabled={loading || !canEdit}
+          autoComplete="new-password"
+          className={inputCls}
+        />
+      </FormField>
+      <RoleGate permission="connector:write">
+        <div className="flex justify-end">
           <button
             onClick={save}
             disabled={saving || loading || !dirty}
@@ -176,9 +225,103 @@ function IdentityHubUrlSetting() {
             {saving && <Loader2 className="w-3 h-3 animate-spin" />}
             {t.settings.save}
           </button>
-        </RoleGate>
-      </div>
-    </FormField>
+        </div>
+      </RoleGate>
+    </div>
+  );
+}
+
+/* ─── Vault server config (admin only) ───────────────────────── */
+function VaultConfigSetting() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const canEdit = user?.role === "admin";
+  const [url, setUrl] = useState("");
+  const [namespace, setNamespace] = useState("");
+  const [token, setToken] = useState("");
+  const [hasToken, setHasToken] = useState(false);
+  const [original, setOriginal] = useState({ url: "", namespace: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchVaultConfig()
+      .then((c) => {
+        setUrl(c.url);
+        setNamespace(c.namespace);
+        setHasToken(c.hasToken);
+        setOriginal({ url: c.url, namespace: c.namespace });
+      })
+      .catch((e) => toast.error((e as Error).message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const dirty = url !== original.url || namespace !== original.namespace || token.length > 0;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const next = await updateVaultConfig({ url, token, namespace });
+      setUrl(next.url);
+      setNamespace(next.namespace);
+      setHasToken(next.hasToken);
+      setOriginal({ url: next.url, namespace: next.namespace });
+      setToken("");
+      toast.success(t.settings.vaultConfigSaved);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls = "w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60 disabled:cursor-not-allowed";
+
+  return (
+    <div className="space-y-3">
+      <FormField label={t.settings.vaultUrl} hint={t.settings.vaultUrlDesc}>
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="http://platform-vault:8200"
+          disabled={loading || !canEdit}
+          className={inputCls}
+        />
+      </FormField>
+      <FormField label={t.settings.vaultNamespace} hint={t.settings.vaultNamespaceDesc}>
+        <input
+          value={namespace}
+          onChange={(e) => setNamespace(e.target.value)}
+          placeholder="kmx/prod"
+          disabled={loading || !canEdit}
+          className={inputCls}
+        />
+      </FormField>
+      <FormField label={t.settings.vaultToken} hint={t.settings.vaultTokenDesc}>
+        <input
+          type="password"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          placeholder={hasToken ? t.settings.vaultTokenSet : t.settings.vaultTokenUnset}
+          disabled={loading || !canEdit}
+          autoComplete="new-password"
+          className={inputCls}
+        />
+      </FormField>
+      <RoleGate permission="connector:write">
+        <div className="flex justify-end">
+          <button
+            onClick={save}
+            disabled={saving || loading || !dirty}
+            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+            {t.settings.save}
+          </button>
+        </div>
+      </RoleGate>
+    </div>
   );
 }
 

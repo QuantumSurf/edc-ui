@@ -6,9 +6,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { fetchShells, createShell, updateShell, deleteShell, fetchShellRaw } from "@/services";
 import type { ShellDescriptor, SpecificAssetId } from "@/lib/data";
-import { Card, Badge, MonoText, SectionHdr, FormField } from "@/components/ui-kmx";
+import {
+  Card, Badge, MonoText, SectionHdr, FormField,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, JsonTreeView,
+} from "@/components/ui-kmx";
+
+const SHELL_COLS = "grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr]";
 import { Pagination, paginate } from "@/components/Pagination";
-import { Boxes, PlusCircle, Trash2, Search, RefreshCw, Loader2, AlertCircle, Copy, X, Pencil, FileJson, Download } from "lucide-react";
+import { SlidePanel } from "@/components/DetailDeleteDialogs";
+import { Boxes, PlusCircle, Trash2, Search, RefreshCw, Loader2, AlertCircle, Copy, X, Pencil, FileJson, Download, BookMarked } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import {
   type SubmodelInput,
@@ -75,6 +81,7 @@ export default function PageShells() {
   return (
     <>
       <SectionHdr
+        icon={<BookMarked className="w-5 h-5 text-primary" />}
         breadcrumb={t.twins.subtitle}
         action={
           <div className="flex items-center gap-1.5">
@@ -101,21 +108,18 @@ export default function PageShells() {
         {t.twins.title}
       </SectionHdr>
 
-      {/* Search */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      {/* Search & Filter — fl-aggregator TasksPage style */}
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
             placeholder={t.twins.searchPlaceholder}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
-        <span className="text-[11px] text-muted-foreground ml-auto">
-          {t.twins.resultCount(filtered.length, shells.length)}
-        </span>
       </div>
 
       {/* Loading */}
@@ -157,59 +161,55 @@ export default function PageShells() {
         </Card>
       )}
 
-      {/* Table */}
+      {/* List — fl-aggregator ListCard */}
       {!isLoading && !isError && shells.length > 0 && (
-        <Card noPad>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  {[
-                    t.twins.col.idShort,
-                    t.twins.col.aasId,
-                    t.twins.col.globalAssetId,
-                    t.twins.col.specificAssetIds,
-                    t.twins.col.submodels,
-                  ].map((h) => (
-                    <th key={h} style={{ textTransform: "none" }} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginate(filtered, page).map((s) => (
-                  <tr key={s.id} onClick={() => setDetail(s)} className="hover:bg-muted/30 cursor-pointer">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Boxes className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        <span className="!text-[12px] truncate">{s.idShort || "—"}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate max-w-[260px] inline-block">{s.id}</MonoText>
-                    </td>
-                    <td className="px-4 py-3">
-                      <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate max-w-[260px] inline-block">{s.globalAssetId || "—"}</MonoText>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {s.specificAssetIds.slice(0, 2).map((sa, i) => (
-                          <Badge key={i} variant="gray">{sa.name}={sa.value}</Badge>
-                        ))}
-                        {s.specificAssetIds.length > 2 && (
-                          <span className="text-[10px] text-muted-foreground">+{s.specificAssetIds.length - 2}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={s.submodelCount > 0 ? "blue" : "gray"}>{s.submodelCount}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-        </Card>
+        <ListCard
+          title={t.twins.listTitle}
+          actions={<span className="text-[11px] text-muted-foreground">{t.twins.resultCount(filtered.length, shells.length)}</span>}
+        >
+          <ListHeaderRow cols={SHELL_COLS}>
+            <ListColLabel>{t.twins.col.idShort}</ListColLabel>
+            <ListColLabel>{t.twins.col.aasId}</ListColLabel>
+            <ListColLabel className="hidden lg:block">{t.twins.col.globalAssetId}</ListColLabel>
+            <ListColLabel className="hidden md:block">{t.twins.col.specificAssetIds}</ListColLabel>
+            <ListColLabel>{t.twins.col.submodels}</ListColLabel>
+          </ListHeaderRow>
+          {filtered.length === 0 ? (
+            <ListEmpty icon={<Boxes />} message={t.twins.noSearchResults} />
+          ) : (
+            paginate(filtered, page).map((s) => (
+              <ListRow key={s.id} cols={SHELL_COLS} onClick={() => setDetail(s)}>
+                <div className="min-w-0">
+                  <span className="text-[12px] truncate block">{s.idShort || "—"}</span>
+                </div>
+                <div className="min-w-0">
+                  <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">{s.id}</MonoText>
+                </div>
+                <div className="hidden lg:block min-w-0">
+                  <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">{s.globalAssetId || "—"}</MonoText>
+                </div>
+                <div className="hidden md:block min-w-0">
+                  <div className="flex flex-wrap gap-1">
+                    {s.specificAssetIds.slice(0, 2).map((sa, i) => (
+                      <Badge key={i} variant="gray">{sa.name}={sa.value}</Badge>
+                    ))}
+                    {s.specificAssetIds.length > 2 && (
+                      <span className="text-[10px] text-muted-foreground">+{s.specificAssetIds.length - 2}</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Badge variant={s.submodelCount > 0 ? "blue" : "gray"}>{s.submodelCount}</Badge>
+                </div>
+              </ListRow>
+            ))
+          )}
+          {filtered.length > 0 && (
+            <div className="px-4 py-2 border-t border-border/60">
+              <Pagination total={filtered.length} page={page} onPageChange={setPage} />
+            </div>
+          )}
+        </ListCard>
       )}
 
       {/* Detail dialog */}
@@ -263,14 +263,23 @@ function ShellDetailDialog({
   if (!shell) return null;
   const copy = (s: string) => { navigator.clipboard.writeText(s); toast.success(t.common.copied); };
   return (
-    <Dialog open={!!shell} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader className="min-w-0">
-          <DialogTitle className="flex items-center gap-2 min-w-0">
-            <Boxes className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <span className="truncate">{shell.idShort || t.twins.detail.title}</span>
-          </DialogTitle>
-        </DialogHeader>
+    <SlidePanel open={!!shell} onClose={onClose}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Boxes className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <p className="font-display text-[14px] font-bold text-foreground truncate">{shell.idShort || t.twins.detail.title}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-3 text-[12px] min-w-0">
           <Field label={t.twins.col.aasId} value={shell.id} mono onCopy={copy} />
           <Field label={t.twins.col.globalAssetId} value={shell.globalAssetId} mono onCopy={copy} />
@@ -334,8 +343,9 @@ function ShellDetailDialog({
                 </ul>}
           </div>
         </div>
-
-        <div className="flex justify-between items-center gap-2 pt-3 border-t border-border mt-2">
+      </div>
+      {/* Footer */}
+      <div className="flex justify-between items-center gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
           <button
             onClick={onViewJson}
             className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
@@ -362,8 +372,7 @@ function ShellDetailDialog({
             </div>
           </RoleGate>
         </div>
-      </DialogContent>
-    </Dialog>
+    </SlidePanel>
   );
 }
 
@@ -401,7 +410,7 @@ function ShellJsonDialog({ shell, onClose }: { shell: ShellDescriptor | null; on
   return (
     <Dialog open={!!shell} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
+        <DialogHeader className="gap-3">
           <DialogTitle className="flex items-center gap-2">
             <FileJson className="w-4 h-4 text-blue-500" />
             {t.twins.detail.jsonTitle}
@@ -417,9 +426,7 @@ function ShellJsonDialog({ shell, onClose }: { shell: ShellDescriptor | null; on
               <span className="text-[13px]">{t.common.loading}</span>
             </div>
           ) : (
-            <pre className="flex-1 min-h-0 overflow-auto bg-muted/40 border border-border rounded p-3 text-[11px] mono leading-relaxed whitespace-pre">
-              {formatted}
-            </pre>
+            <JsonTreeView data={raw} className="flex-1 min-h-0" />
           )}
         </div>
 
