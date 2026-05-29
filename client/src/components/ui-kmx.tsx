@@ -209,14 +209,14 @@ export function SectionHdr({ children, action, breadcrumb, icon }: SectionHdrPro
   return (
     <div className="mb-1">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-foreground dark:text-white whitespace-nowrap flex items-center gap-2">
+        <h1 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
           {icon}
           {children}
         </h1>
         {action}
       </div>
       {breadcrumb && (
-        <div className="text-[12px] text-foreground/70 dark:text-white/70 mt-0.5">{breadcrumb}</div>
+        <div className="text-[12px] text-muted-foreground mt-1">{breadcrumb}</div>
       )}
       <div className="h-px bg-border mt-1.5" />
     </div>
@@ -237,7 +237,7 @@ export function Card({ title, children, actions, className, noPad }: CardProps) 
     <div className={cn("bg-card rounded-xl overflow-hidden shadow-sm border border-border", className)}>
       {title && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <span className="font-display text-[13px] font-semibold text-foreground/80">{title}</span>
+          <span className="font-display text-[13px] font-bold text-foreground/80">{title}</span>
           {actions && <div className="flex items-center gap-1.5">{actions}</div>}
         </div>
       )}
@@ -354,6 +354,13 @@ export function FormField({ label, children, required, hint }: FormFieldProps) {
     </div>
   );
 }
+
+/* ─── Editable field base class ──────────────────────────────── */
+// Canonical styling for all editable text controls (input / textarea / select)
+// so font, color, size, and focus behavior stay consistent across screens.
+// Append " mono" for code-like values and " flex-1" etc. as needed.
+export const inputBase =
+  "w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed transition-colors";
 
 /* ─── Env Badge ──────────────────────────────────────────────── */
 export function EnvBadge({ env }: { env: string }) {
@@ -518,10 +525,13 @@ export function ListRow({ cols, selected, onClick, className, children }: {
   return (
     <div
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       className={cn(
         "grid gap-3 px-4 py-3 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
         cols,
-        onClick && "cursor-pointer",
+        onClick && "cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
         selected
           ? "bg-primary/5 hover:bg-primary/10 border-l-primary"
           : "hover:bg-muted/30 border-l-transparent",

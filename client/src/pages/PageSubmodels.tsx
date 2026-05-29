@@ -14,7 +14,7 @@ import {
 } from "@/components/ui-kmx";
 
 const SUBMODEL_COLS = "grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
-import { Pagination, paginate } from "@/components/Pagination";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import { SlidePanel } from "@/components/DetailDeleteDialogs";
 import { RoleGate } from "@/components/RoleGate";
 import {
@@ -55,7 +55,6 @@ export default function PageSubmodels() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [detailUrn, setDetailUrn] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SemanticModelSummary | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -84,11 +83,13 @@ export default function PageSubmodels() {
     );
   });
 
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+
   const onDeleted = async () => {
     if (!deleteTarget) return;
     try {
       await deleteSemanticModel(deleteTarget.urn);
-      toast.success(deleteTarget.name + " 삭제됨");
+      toast.success(t.submodels.msg.deleted(deleteTarget.name));
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ["semantic-models"] });
     } catch (e) {
@@ -134,8 +135,8 @@ export default function PageSubmodels() {
             type="text"
             placeholder={t.submodels.searchPlaceholder}
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
       </div>
@@ -179,7 +180,6 @@ export default function PageSubmodels() {
       {!isLoading && !isError && items.length > 0 && (
         <ListCard
           title={t.submodels.listTitle}
-          actions={<span className="text-[11px] text-muted-foreground">{t.twins.resultCount(filtered.length, items.length)}</span>}
         >
           <ListHeaderRow cols={SUBMODEL_COLS}>
             <ListColLabel>{t.submodels.col.name}</ListColLabel>
@@ -193,10 +193,10 @@ export default function PageSubmodels() {
           {filtered.length === 0 ? (
             <ListEmpty icon={<Layers />} message={t.submodels.noSearchResults} />
           ) : (
-            paginate(filtered, page).map((m) => (
+            paginatedData.map((m) => (
               <ListRow key={m.urn} cols={SUBMODEL_COLS} onClick={() => setDetailUrn(m.urn)}>
                 <div className="min-w-0">
-                  <span className="text-[12px] truncate block">{m.name}</span>
+                  <span className="text-[12px] font-medium text-primary group-hover:text-primary/80 truncate block">{m.name}</span>
                 </div>
                 <div className="min-w-0">
                   <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate block">{m.urn}</MonoText>
@@ -219,10 +219,15 @@ export default function PageSubmodels() {
               </ListRow>
             ))
           )}
-          {filtered.length > 0 && (
-            <div className="px-4 py-2 border-t border-border/60">
-              <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-            </div>
+          {totalItems > 0 && (
+            <DataTablePagination
+              totalItems={totalItems}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              rowsPerPageLabel={t.common.rowsPerPage}
+            />
           )}
         </ListCard>
       )}
@@ -347,10 +352,10 @@ function SemanticModelDetailDialog({
             <DetailRow label={t.submodels.col.version} value={model.version || "—"} mono />
             <DetailRow label={t.submodels.col.modelType} value={model.modelType} />
             {model.descriptionKo && (
-              <DetailRow label="설명 (ko)" value={model.descriptionKo} />
+              <DetailRow label={t.submodels.form.descriptionKo} value={model.descriptionKo} />
             )}
             {model.descriptionEn && (
-              <DetailRow label="Description (en)" value={model.descriptionEn} />
+              <DetailRow label={t.submodels.form.descriptionEn} value={model.descriptionEn} />
             )}
             <DetailRow label="Created" value={formatDate(model.createdAt)} />
             <DetailRow label="Updated" value={formatDate(model.updatedAt)} />
@@ -425,6 +430,7 @@ function SemanticModelDetailDialog({
 function DetailRow({ label, value, mono, onCopy }: {
   label: string; value: string; mono?: boolean; onCopy?: (s: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="min-w-0">
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
@@ -435,7 +441,8 @@ function DetailRow({ label, value, mono, onCopy }: {
         {onCopy && value && (
           <button
             onClick={() => onCopy(value)}
-            className="opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5"
+            className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+            aria-label={t.common.copy ?? "Copy"}
           >
             <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
           </button>
@@ -511,10 +518,10 @@ function SemanticModelEditorDialog({
       };
       if (mode === "edit" && initialUrn) {
         await updateSemanticModel(initialUrn, body);
-        toast.success(name + " 수정됨");
+        toast.success(t.submodels.msg.updated(name));
       } else {
         await createSemanticModel(body);
-        toast.success(name + " 등록됨");
+        toast.success(t.submodels.msg.created(name));
       }
       reset();
       onSaved();
@@ -526,9 +533,9 @@ function SemanticModelEditorDialog({
       } else if (serverMsg) {
         toast.error(serverMsg);
       } else if (err.response?.status === 413) {
-        toast.error("본문이 너무 큽니다 (최대 1 MB)");
+        toast.error(t.submodels.msg.tooLarge);
       } else {
-        toast.error(err.message ?? "등록 실패");
+        toast.error(err.message ?? t.submodels.msg.saveFailed);
       }
     } finally {
       setSubmitting(false);
@@ -536,34 +543,39 @@ function SemanticModelEditorDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
-      <DialogContent
-        className="max-w-3xl max-h-[85vh] overflow-y-auto"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="min-w-0">
-          <DialogTitle className="flex items-center gap-2 min-w-0">
-            <PlusCircle className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">{mode === "edit" ? t.submodels.edit : t.submodels.create}</span>
-          </DialogTitle>
-        </DialogHeader>
+    <SlidePanel open={open} onClose={() => { reset(); onClose(); }} className="max-w-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <PlusCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <p className="font-display text-[14px] font-bold text-foreground truncate">
+            {mode === "edit" ? t.submodels.edit : t.submodels.create}
+          </p>
+        </div>
+        <button
+          onClick={() => { reset(); onClose(); }}
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-[13px]">{t.common.loading}</span>
-          </div>
-        ) : (
-          <div className="space-y-3 min-w-0">
+      {/* Body */}
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center py-10 gap-2 text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-[13px]">{t.common.loading}</span>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-w-0">
             <FormField label={t.submodels.form.urn} required hint={t.submodels.form.urnHint}>
               <input
                 value={urn}
                 onChange={(e) => setUrn(e.target.value)}
                 disabled={mode === "edit"}
                 placeholder="urn:samm:io.catenax.pcf:7.0.0#Pcf"
-                className="w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full px-2.5 py-1.5 text-[12px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </FormField>
             <FormField label={t.submodels.form.name} required>
@@ -571,7 +583,7 @@ function SemanticModelEditorDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Pcf"
-                className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+                className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </FormField>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0">
@@ -580,14 +592,14 @@ function SemanticModelEditorDialog({
                   value={version}
                   onChange={(e) => setVersion(e.target.value)}
                   placeholder="7.0.0"
-                  className="w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card"
+                  className="w-full px-2.5 py-1.5 text-[12px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </FormField>
               <FormField label={t.submodels.form.status}>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as SemanticModelStatus)}
-                  className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+                  className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>{s}</option>
@@ -598,7 +610,7 @@ function SemanticModelEditorDialog({
                 <input
                   value={modelType}
                   onChange={(e) => setModelType(e.target.value)}
-                  className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+                  className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </FormField>
             </div>
@@ -607,7 +619,7 @@ function SemanticModelEditorDialog({
                 value={descriptionKo}
                 onChange={(e) => setDescriptionKo(e.target.value)}
                 lang="ko"
-                className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+                className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </FormField>
             <FormField label={t.submodels.form.descriptionEn}>
@@ -615,7 +627,7 @@ function SemanticModelEditorDialog({
                 value={descriptionEn}
                 onChange={(e) => setDescriptionEn(e.target.value)}
                 lang="en"
-                className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+                className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </FormField>
             <FormField label={t.submodels.form.content} hint={t.submodels.form.contentHint}>
@@ -625,7 +637,7 @@ function SemanticModelEditorDialog({
                 rows={14}
                 spellCheck={false}
                 placeholder={`@prefix samm: <urn:samm:org.eclipse.esmf.samm:meta-model:2.1.0#> .\n@prefix : <urn:samm:io.catenax.pcf:7.0.0#> .\n\n:Pcf a samm:Aspect ;\n   samm:preferredName "PCF"@en ;\n   samm:properties ( ) ;\n   samm:operations ( ) .\n`}
-                className="w-full px-2 py-1.5 text-[11px] mono border border-border rounded-md bg-card whitespace-pre overflow-auto"
+                className="w-full px-2 py-1.5 text-[11px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary whitespace-pre overflow-auto"
                 style={{ resize: "vertical" }}
               />
               <div className="text-[10px] text-muted-foreground text-right">
@@ -633,25 +645,25 @@ function SemanticModelEditorDialog({
               </div>
             </FormField>
           </div>
-        )}
+      )}
 
-        <div className="flex justify-end gap-2 pt-3 border-t border-border mt-3">
-          <button
-            onClick={() => { reset(); onClose(); }}
-            className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
-          >
-            {t.submodels.form.cancel}
-          </button>
-          <button
-            onClick={submit}
-            disabled={submitting || loading}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-            {mode === "edit" ? t.submodels.form.update : t.submodels.form.submit}
-          </button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {/* Footer */}
+      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          onClick={() => { reset(); onClose(); }}
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
+        >
+          {t.submodels.form.cancel}
+        </button>
+        <button
+          onClick={submit}
+          disabled={submitting || loading}
+          className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+          {mode === "edit" ? t.submodels.form.update : t.submodels.form.submit}
+        </button>
+      </div>
+    </SlidePanel>
   );
 }

@@ -7,17 +7,15 @@ import { useI18n } from "@/i18n";
 import { fetchPolicies, createPolicy, updatePolicy, deletePolicy } from "@/services";
 import { type Policy } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { DetailPanel, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
-import { Pagination, paginate, DEFAULT_PAGE_SIZE } from "@/components/Pagination";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, CardTitle, Badge, MonoText, SectionHdr, FormField,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, JsonTreeView,
+  Card, CardTitle, Badge, MonoText, SectionHdr, FormField, JsonTreeView,
 } from "@/components/ui-kmx";
-
-const POLICY_COLS = "grid-cols-[1.6fr_0.8fr_2fr_1fr]";
-import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, RefreshCw, AlertCircle, X, CheckCircle2, Hammer } from "lucide-react";
+import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, RefreshCw, AlertCircle, X, CheckCircle2, Hammer, Pencil, Files, ChevronsRight, List } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 /* ─── ODRL Constants (spec 4.3.1) ────────────────────────────── */
 const LEFT_OPERANDS = [
@@ -188,6 +186,8 @@ export default function PagePolicy() {
       (p.constraint ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+
   return (
     <>
       <SectionHdr
@@ -222,7 +222,7 @@ export default function PagePolicy() {
 
       {tab === "list" && (
         <>
-          {/* Search & Result count */}
+          {/* Search */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -230,13 +230,10 @@ export default function PagePolicy() {
                 type="text"
                 placeholder={t.policies.searchPlaceholder}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            <span className="text-[11px] text-muted-foreground ml-auto">
-              {t.policies.resultCount(filtered.length, policies.length)}
-            </span>
           </div>
 
           {/* Loading state */}
@@ -273,7 +270,13 @@ export default function PagePolicy() {
             <PolicyList
               onSelect={setDetailTarget}
               onCreateClick={() => switchTab("builder")}
-              policies={filtered}
+              policies={paginatedData}
+              totalItems={totalItems}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              setCurrentPage={setCurrentPage}
+              setPageSize={setPageSize}
+              selectedId={detailTarget?.id}
             />
           )}
         </>
@@ -307,59 +310,9 @@ export default function PagePolicy() {
       />
 
       {detailTarget && (
-        <DetailPanel
-          open={!!detailTarget}
+        <PolicyDetailSheet
+          target={detailTarget}
           onClose={() => setDetailTarget(null)}
-          title={detailTarget.id}
-          icon={<ShieldCheck className="w-4 h-4 text-primary" />}
-          subtitle={t.policies.constraintCount(parseConstraints(detailTarget.constraint).length)}
-          subtitleMono={false}
-          sections={[
-            {
-              title: t.policies.sectionBasic,
-              fields: [
-                { label: t.policies.col.id, value: detailTarget.id, mono: true, copyable: true },
-                { label: t.policies.col.action, value: t.policies.actionUse, badge: { text: "odrl:use", variant: "blue" } },
-              ],
-            },
-            {
-              title: t.policies.sectionConstraints,
-              fields: parseConstraints(detailTarget.constraint).map((c, i) => ({
-                label: `${t.policies.leftOperand} #${i + 1}`,
-                value: `${c.left}  ${c.op ? `[${c.op}]` : ""}  ${c.right}`,
-                mono: true,
-              })),
-            },
-            {
-              title: t.policies.sectionOffering,
-              fields: [
-                { label: t.policies.col.offeringRef, value: "", badge: { text: t.policies.offeringRef(detailTarget.offers), variant: detailTarget.offers > 0 ? "blue" : "gray" } },
-              ],
-            },
-            {
-              title: t.policies.sectionJson,
-              fields: [
-                {
-                  label: "ODRL Policy JSON",
-                  value: JSON.stringify({
-                    "@context": "http://www.w3.org/ns/odrl.jsonld",
-                    "@type": "Set",
-                    "@id": detailTarget.id,
-                    "odrl:permission": [{
-                      "odrl:action": "use",
-                      "odrl:constraint": parseConstraints(detailTarget.constraint).map((c) => ({
-                        "odrl:leftOperand": c.left,
-                        "odrl:operator": { "@id": `odrl:${c.op || "eq"}` },
-                        "odrl:rightOperand": c.right,
-                      })),
-                    }],
-                  }, null, 2),
-                  pre: true,
-                  copyable: true,
-                },
-              ],
-            },
-          ]}
           onEdit={() => { setEditTarget(detailTarget); setDetailTarget(null); setTab("builder"); }}
           onDuplicate={() => { setDuplicateSource(detailTarget); setDetailTarget(null); setTab("builder"); }}
           onShowJson={() => { setJsonTarget(detailTarget); setDetailTarget(null); }}
@@ -432,107 +385,137 @@ function EmptyPolicies({ onCreateClick }: { onCreateClick: () => void }) {
   );
 }
 
-function PolicyList({ policies, onSelect, onCreateClick }: { policies: Policy[]; onSelect?: (p: Policy) => void; onCreateClick?: () => void }) {
+function PolicyList({
+  policies, onSelect, onCreateClick, totalItems, currentPage, pageSize, setCurrentPage, setPageSize, selectedId,
+}: {
+  policies: Policy[];
+  onSelect?: (p: Policy) => void;
+  onCreateClick?: () => void;
+  totalItems: number;
+  currentPage: number;
+  pageSize: number;
+  setCurrentPage: (n: number) => void;
+  setPageSize: (n: number) => void;
+  selectedId?: string;
+}) {
   const { t } = useI18n();
-  const [page, setPage] = useState(1);
-
-  // Reset to page 1 when filtered list shrinks past current page
-  useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(policies.length / DEFAULT_PAGE_SIZE));
-    if (page > totalPages) setPage(1);
-  }, [policies.length, page]);
 
   return (
     <>
-      {/* Desktop/Tablet: List */}
-      <ListCard
-        title={t.policies.list}        className="hidden md:block"
-      >
-        <ListHeaderRow cols={POLICY_COLS}>
-          <ListColLabel>{t.policies.col.id}</ListColLabel>
-          <ListColLabel>{t.policies.col.action}</ListColLabel>
-          <ListColLabel>{t.policies.col.constraint}</ListColLabel>
-          <ListColLabel>{t.policies.col.offeringRef}</ListColLabel>
-        </ListHeaderRow>
-        {policies.length === 0 ? (
-          <EmptyPolicies onCreateClick={onCreateClick ?? (() => {})} />
-        ) : (
-          paginate(policies, page).map((p) => {
-            const constraints = parseConstraints(p.constraint);
-            return (
-              <ListRow key={p.id} cols={POLICY_COLS} onClick={() => onSelect?.(p)}>
-                {/* Policy ID */}
-                <div className="min-w-0">
-                  <div className="min-w-0 flex-1">
-                    <MonoText className="!text-[12px] !font-normal">{p.id}</MonoText>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); toast.success(t.common.copied); }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-1.5 inline-flex"
-                    >
-                      <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
-                    </button>
-                  </div>
-                </div>
-                {/* Action */}
-                <div>
-                  <Badge variant="blue">odrl:use</Badge>
-                </div>
-                {/* Constraints */}
-                <div className="flex flex-col gap-1 min-w-0">
-                  {constraints.map((c, ci) => (
-                    <div key={ci} className="flex items-center gap-1.5 min-w-0">
-                      <MonoText className="!text-[12px] !font-normal">{c.left}</MonoText>
-                      {c.op && <Badge variant="amber">{c.op}</Badge>}
-                      <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate">{c.right}</MonoText>
-                    </div>
-                  ))}
-                </div>
-                {/* Offering ref */}
-                <div className="flex items-center gap-1.5">
-                  <Link2 className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                  <Badge variant={p.offers > 0 ? "blue" : "gray"}>{t.policies.offeringRef(p.offers)}</Badge>
-                </div>
-              </ListRow>
-            );
-          })
-        )}
-        {policies.length > 0 && (
-          <div className="px-4 py-2 border-t border-border/60">
-            <Pagination total={policies.length} page={page} onPageChange={setPage} />
-          </div>
-        )}
-      </ListCard>
+      {/* Desktop/Tablet: Table */}
+      <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+            <List className="w-4 h-4 text-primary" />
+            {t.policies.list}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.col.id}</th>
+                <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.col.action}</th>
+                <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.col.constraint}</th>
+                <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.col.offeringRef}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {policies.map((p) => {
+                const constraints = parseConstraints(p.constraint);
+                return (
+                  <tr
+                    key={p.id}
+                    onClick={() => onSelect?.(p)}
+                    className={cn("table-row-hover cursor-pointer group", selectedId === p.id && "bg-primary/5")}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <MonoText className="!text-[12px] font-medium !text-primary group-hover:text-primary/80 truncate block">{p.id}</MonoText>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); toast.success(t.common.copied); }}
+                            className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                            aria-label={t.common.copy ?? "Copy"}
+                          >
+                            <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                          </button>
+                        </div>
+                        <div className="text-xs text-foreground truncate">
+                          {t.policies.constraintCount(constraints.length)}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><Badge variant="blue" className="!font-normal">odrl:use</Badge></td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        {constraints.map((c, ci) => (
+                          <div key={ci} className="flex items-center gap-1.5 min-w-0">
+                            <MonoText className="!text-[12px] !font-normal text-foreground truncate">{c.left}</MonoText>
+                            {c.op && <Badge variant="amber" className="!font-normal">{c.op}</Badge>}
+                            <MonoText className="!text-[12px] !font-normal text-foreground truncate">{c.right}</MonoText>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", p.offers > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
+                        <span className={cn("text-xs", p.offers > 0 ? "text-emerald-700" : "text-foreground")}>
+                          {t.policies.offeringRef(p.offers)}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {policies.length === 0 && (
+            <EmptyPolicies onCreateClick={onCreateClick ?? (() => {})} />
+          )}
+          {totalItems > 0 && (
+            <DataTablePagination
+              totalItems={totalItems}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              rowsPerPageLabel={t.common.rowsPerPage}
+            />
+          )}
+        </div>
+      </div>
 
       {/* Mobile: Card Stack */}
       <div className="md:hidden flex flex-col gap-2.5">
-        {paginate(policies, page).map((p) => {
+        {policies.map((p) => {
           const constraints = parseConstraints(p.constraint);
           return (
             <div key={p.id} onClick={() => onSelect?.(p)} className="bg-card rounded-xl p-3.5 shadow-sm border border-border cursor-pointer hover:shadow-md transition-shadow">
               <div className="flex items-start gap-2.5 mb-2">
                 <div className="flex-1 min-w-0">
-                  <MonoText className="text-[12px] font-medium truncate block">{p.id}</MonoText>
+                  <span className="text-xs font-medium text-primary truncate block">{p.id}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <Badge variant="blue">odrl:use</Badge>
+                    <Badge variant="blue" className="!font-normal">odrl:use</Badge>
                   </div>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); toast.success(t.common.copied); }}>
                   <Copy className="w-3 h-3 text-muted-foreground" />
                 </button>
               </div>
-              {/* Constraints */}
               <div className="flex flex-col gap-1 mb-2">
                 {constraints.map((c, ci) => (
                   <div key={ci} className="flex items-center gap-1.5">
-                    <MonoText className="text-[11px]">{c.left}</MonoText>
-                    {c.op && <Badge variant="amber">{c.op}</Badge>}
-                    <MonoText className="text-[11px] text-muted-foreground">{c.right}</MonoText>
+                    <span className="text-[11px] text-foreground">{c.left}</span>
+                    {c.op && <Badge variant="amber" className="!font-normal">{c.op}</Badge>}
+                    <span className="text-[11px] text-foreground">{c.right}</span>
                   </div>
                 ))}
               </div>
               <div className="flex items-center gap-1.5">
                 <Link2 className="w-2.5 h-2.5 text-muted-foreground" />
-                <Badge variant={p.offers > 0 ? "blue" : "gray"}>{t.policies.offeringRef(p.offers)}</Badge>
+                <Badge variant={p.offers > 0 ? "blue" : "gray"} className="!font-normal">{t.policies.offeringRef(p.offers)}</Badge>
               </div>
             </div>
           );
@@ -541,6 +524,152 @@ function PolicyList({ policies, onSelect, onCreateClick }: { policies: Policy[];
           <EmptyPolicies onCreateClick={onCreateClick ?? (() => {})} />
         )}
       </div>
+    </>
+  );
+}
+
+/* ─── Policy Detail Sheet (asset-style) ──────────────────────── */
+function InfoCard({ label, value, span, mono }: { label: string; value: React.ReactNode; span?: boolean; mono?: boolean }) {
+  return (
+    <div className={cn("bg-slate-50 rounded-lg border border-slate-100 px-3 py-2", span && "md:col-span-2")}>
+      <p className="text-slate-500">{label}</p>
+      <p className={cn("text-slate-700 mt-0.5 break-all", mono && "mono")}>{value || "—"}</p>
+    </div>
+  );
+}
+
+function PolicyDetailSheet({
+  target, onClose, onEdit, onDuplicate, onShowJson, onDelete, deleteDisabledReason,
+}: {
+  target: Policy;
+  onClose: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onShowJson: () => void;
+  onDelete?: () => void;
+  deleteDisabledReason?: string;
+}) {
+  const { t } = useI18n();
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [onClose]);
+
+  const constraints = parseConstraints(target.constraint);
+  const odrlObj = {
+    "@context": "http://www.w3.org/ns/odrl.jsonld",
+    "@type": "Set",
+    "@id": target.id,
+    "odrl:permission": [{
+      "odrl:action": "use",
+      "odrl:constraint": constraints.map((c) => ({
+        "odrl:leftOperand": c.left,
+        "odrl:operator": { "@id": `odrl:${c.op || "eq"}` },
+        "odrl:rightOperand": c.right,
+      })),
+    }],
+  };
+
+  return (
+    <>
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/20 transition-opacity duration-200", entered ? "opacity-100" : "opacity-0")}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-white flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          entered ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap pr-8">
+            <h2 className="text-base font-semibold text-slate-900 truncate">{target.id}</h2>
+            <Badge variant="blue" className="!font-normal">odrl:use</Badge>
+            <Badge variant={target.offers > 0 ? "blue" : "gray"} className="!font-normal">
+              {t.policies.offeringRef(target.offers)}
+            </Badge>
+            <button
+              onClick={onClose}
+              className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              aria-label={t.common.close}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.policies.sectionBasic}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.policies.col.id} value={target.id} span mono />
+              <InfoCard label={t.policies.col.action} value="odrl:use" mono />
+              <InfoCard label={t.policies.col.offeringRef} value={t.policies.offeringRef(target.offers)} />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.policies.sectionConstraints}</p>
+            <div className="grid grid-cols-1 gap-3">
+              {constraints.length === 0 ? (
+                <InfoCard label="—" value="" />
+              ) : constraints.map((c, i) => (
+                <InfoCard key={i} label={`${t.policies.leftOperand} #${i + 1}`} value={`${c.left}  ${c.op ? `[${c.op}]` : ""}  ${c.right}`} mono />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.policies.sectionJson}</p>
+            <JsonTreeView data={odrlObj} className="max-h-[300px]" />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-shrink-0">
+          {onDelete && (
+            <button onClick={onDelete}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+              <Trash2 size={13} /> {t.common.delete}
+            </button>
+          )}
+          {!onDelete && deleteDisabledReason && (
+            <button disabled title={deleteDisabledReason}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 cursor-not-allowed rounded-md">
+              <Trash2 size={13} /> {t.common.delete}
+            </button>
+          )}
+          <button onClick={onShowJson}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <Code size={13} /> JSON
+          </button>
+          <button onClick={onDuplicate}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <Files size={13} /> {t.common.duplicate}
+          </button>
+          <div className="flex-1" />
+          <button onClick={onEdit}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors">
+            <Pencil size={13} /> {t.common.edit}
+          </button>
+          <button onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            <X size={13} /> {t.common.close}
+          </button>
+        </div>
+      </aside>
     </>
   );
 }
@@ -744,7 +873,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
         onChange={(e) => { setJsonText(e.target.value); setJsonError(null); }}
         placeholder={`{\n  "@context": "http://www.w3.org/ns/odrl.jsonld",\n  "@type": "Set",\n  "@id": "kmx-policy-v1",\n  "odrl:permission": [...]\n}`}
         rows={14}
-        className="w-full text-[11px] mono px-3 py-2 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+        className="w-full text-[11px] mono px-3 py-2 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary resize-y"
       />
       {jsonError && (
         <div className="flex items-start gap-1.5 text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1.5">
@@ -796,12 +925,12 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
                 if (tpl) applyTemplate(tpl);
                 e.target.value = "";
               }}
-              className="text-[11px] px-2 py-1 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary max-w-[260px]"
+              className="text-[11px] px-2 py-1 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary max-w-[260px]"
               title={t.policies.templateHint}
             >
               <option value="">{t.policies.templateChoose}</option>
               {POLICY_TEMPLATES.map((tpl) => (
-                <option key={tpl.id} value={tpl.id} title={tpl.description}>{tpl.label}</option>
+                <option key={tpl.id} value={tpl.id} title={t.policies.templateDesc[tpl.id] ?? tpl.description}>{tpl.label}</option>
               ))}
             </select>
           </div>
@@ -817,7 +946,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
           placeholder="kmx-policy-v1"
           disabled={isEdit}
           title={isEdit ? t.policies.idImmutable : undefined}
-          className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
         />
         {policyIdError && (
           <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
@@ -831,7 +960,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
           <select
             value={ruleType}
             onChange={(e) => { setRuleType(e.target.value as RuleType); markDirty(); }}
-            className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           >
             {RULE_TYPES.map((r) => (
               <option key={r.value} value={r.value}>
@@ -846,7 +975,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
             onChange={(e) => { setAction(e.target.value); markDirty(); }}
             list="odrl-actions"
             placeholder="use"
-            className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono"
+            className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
           />
           <datalist id="odrl-actions">
             {ACTIONS.map((a) => <option key={a} value={a} />)}
@@ -892,7 +1021,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
                 onChange={(e) => updateConstraint(idx, "leftOperand", e.target.value)}
                 list="odrl-left-operands"
                 placeholder="cx-policy:Membership"
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary mono"
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
               />
               <datalist id="odrl-left-operands">
                 {LEFT_OPERANDS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -900,14 +1029,14 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
             </FormField>
             <FormField label={t.policies.operator}>
               <select value={c.operator} onChange={(e) => updateConstraint(idx, "operator", e.target.value)}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary">
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
                 {OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </FormField>
             <FormField label={t.policies.rightOperand}>
               <input value={c.rightOperand} onChange={(e) => updateConstraint(idx, "rightOperand", e.target.value)}
                 list={`suggestions-${idx}`}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
               <datalist id={`suggestions-${idx}`}>
                 {(RIGHT_OPERAND_SUGGESTIONS[c.leftOperand] ?? []).map((s) => <option key={s} value={s} />)}
               </datalist>

@@ -9,13 +9,11 @@ import { type Asset } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField,
-  ListCard, ListHeaderRow, ListRow, ListColLabel,
 } from "@/components/ui-kmx";
-
-const ASSET_COLS = "grid-cols-[2fr_0.8fr_1.4fr_1fr_1.3fr]";
-import { DetailPanel, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
-import { Pagination, paginate } from "@/components/Pagination";
-import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, RefreshCw, Files, X, Wand2 } from "lucide-react";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
+import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, RefreshCw, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -31,7 +29,6 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
   const connectorId = connector?.id;
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "wizard">("list");
-  const [page, setPage] = useState(1);
   const [detailTarget, setDetailTarget] = useState<Asset | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
   const [offeringFilter, setOfferingFilter] = useState<OfferingFilter>("all");
@@ -75,6 +72,8 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
       (offeringFilter === "unregistered" && !a.offered);
     return matchesSearch && matchesFilter;
   });
+
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
 
   return (
     <>
@@ -130,8 +129,8 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                 type="text"
                 placeholder={t.assets.searchPlaceholder}
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             {/* Offering filter chips */}
@@ -140,7 +139,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
               {(["all", "registered", "unregistered"] as const).map((f) => (
                 <button
                   key={f}
-                  onClick={() => { setOfferingFilter(f); setPage(1); }}
+                  onClick={() => { setOfferingFilter(f); setCurrentPage(1); }}
                   className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
                     offeringFilter === f
                       ? "bg-primary text-primary-foreground border-primary font-medium"
@@ -151,10 +150,6 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                 </button>
               ))}
             </div>
-            {/* Result count */}
-            <span className="text-[11px] text-muted-foreground ml-auto">
-              {t.assets.resultCount(filtered.length, assets.length)}
-            </span>
           </div>
 
           {/* Loading state */}
@@ -187,92 +182,101 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
             </Card>
           )}
 
-          {/* Desktop/Tablet: List (spec 3.3.2) */}
+          {/* Desktop/Tablet: Table (creddef style) */}
           {!isLoading && !isError && (
-          <ListCard
-            title={t.assets.list}            className="hidden md:block"
-          >
-            <ListHeaderRow cols={ASSET_COLS}>
-              <ListColLabel>{t.assets.col.name}</ListColLabel>
-              <ListColLabel>{t.assets.col.type}</ListColLabel>
-              <ListColLabel className="hidden xl:block">{t.assets.col.semanticId}</ListColLabel>
-              <ListColLabel>{t.assets.col.offering}</ListColLabel>
-              <ListColLabel className="hidden lg:block">{t.assets.col.dataSource}</ListColLabel>
-            </ListHeaderRow>
-            {filtered.length === 0 ? (
-              <EmptyAssets onCreateClick={() => switchTab("wizard")} />
-            ) : (
-              paginate(filtered, page).map((a) => (
-                <ListRow
-                  key={a.id}
-                  cols={ASSET_COLS}
-                  selected={detailTarget?.id === a.id}
-                  onClick={() => setDetailTarget(a)}
-                >
-                  {/* Name + ID (primary column) */}
-                  <div className="min-w-0">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[12px] font-normal text-foreground truncate">
-                        {a.name || a.id}
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                        <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate">{a.id}</MonoText>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(a.id); toast.success(t.common.copied); }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                        >
-                          <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Type */}
-                  <div>
-                    <AssetTypeBadge type={a.type} />
-                  </div>
-                  {/* Semantic ID */}
-                  <div className="hidden xl:block min-w-0">
-                    {a.sem ? (
-                      <MonoText className="truncate block !text-[12px] !font-normal">{a.sem}</MonoText>
-                    ) : (
-                      <span className="text-[12px] text-muted-foreground/40 italic">{t.assets.notSet}</span>
-                    )}
-                  </div>
-                  {/* Offering status */}
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.offered ? "bg-emerald-500" : "bg-gray-300"}`} />
-                    <span className={`text-[12px] font-normal ${a.offered ? "text-emerald-700" : "text-muted-foreground"}`}>
-                      {a.offered ? t.assets.registered : t.assets.unregistered}
-                    </span>
-                  </div>
-                  {/* Data Source */}
-                  <div className="hidden lg:block min-w-0">
-                    {a.baseUrl ? (
-                      <div className="flex items-center gap-1.5 min-w-0" title={a.baseUrl}>
-                        <Globe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                        <MonoText className="!text-[12px] !font-normal truncate">
-                          {extractDomain(a.baseUrl)}
-                        </MonoText>
-                      </div>
-                    ) : (
-                      <span className="text-[12px] text-muted-foreground/40">—</span>
-                    )}
-                  </div>
-                </ListRow>
-              ))
-            )}
-            {filtered.length > 0 && (
-              <div className="px-4 py-2 border-t border-border/60">
-                <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-              </div>
-            )}
-          </ListCard>
+          <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+              <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+                <List className="w-4 h-4 text-primary" />
+                {t.assets.list}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.assets.col.name}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.assets.col.type}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden xl:table-cell">{t.assets.col.semanticId}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.assets.col.offering}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden lg:table-cell">{t.assets.col.dataSource}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginatedData.map((a) => (
+                    <tr
+                      key={a.id}
+                      onClick={() => setDetailTarget(a)}
+                      className={`table-row-hover cursor-pointer group ${detailTarget?.id === a.id ? "bg-primary/5" : ""}`}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium text-primary group-hover:text-primary/80 truncate">{a.name || a.id}</div>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <MonoText className="!text-[12px] !font-normal text-foreground truncate block">{a.id}</MonoText>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(a.id); toast.success(t.common.copied); }}
+                                className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                                aria-label={t.common.copy ?? "Copy"}
+                              >
+                                <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><AssetTypeBadge type={a.type} /></td>
+                      <td className="px-4 py-3 hidden xl:table-cell">
+                        {a.sem ? (
+                          <MonoText className="!text-[12px] !font-normal text-foreground truncate block max-w-[250px]">{a.sem}</MonoText>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">{t.assets.notSet}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.offered ? "bg-emerald-500" : "bg-gray-300"}`} />
+                          <span className={`text-xs ${a.offered ? "text-emerald-700" : "text-foreground"}`}>
+                            {a.offered ? t.assets.registered : t.assets.unregistered}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        {a.baseUrl ? (
+                          <div className="flex items-center gap-1.5 min-w-0" title={a.baseUrl}>
+                            <Globe size={11} className="text-muted-foreground shrink-0" />
+                            <span className="text-xs text-foreground truncate max-w-[180px]">{extractDomain(a.baseUrl)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filtered.length === 0 && (
+                <EmptyAssets onCreateClick={() => switchTab("wizard")} />
+              )}
+              {totalItems > 0 && (
+                <DataTablePagination
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  rowsPerPageLabel={t.common.rowsPerPage}
+                />
+              )}
+            </div>
+          </div>
           )}
 
           {/* Mobile: Card Stack (spec 3.3.2) */}
           {!isLoading && !isError && (
           <div className="md:hidden flex flex-col gap-2.5">
-            {paginate(filtered, page).map((a) => (
+            {paginatedData.map((a) => (
               <div key={a.id} onClick={() => setDetailTarget(a)} className="cursor-pointer"><AssetCard asset={a} /></div>
             ))}
             {filtered.length === 0 && (
@@ -310,62 +314,13 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
         onConfirm={() => { if (pendingTabSwitch) { setWizardDirty(false); setTab(pendingTabSwitch); setPendingTabSwitch(null); } }}
       />
 
-      {/* Detail Dialog */}
+      {/* Detail Sheet */}
       {detailTarget && (
-        <DetailPanel
-          open={!!detailTarget}
+        <AssetDetailSheet
+          target={detailTarget}
+          shellLookup={shellLookup}
+          isShellLooking={isShellLooking}
           onClose={() => setDetailTarget(null)}
-          title={detailTarget.name || detailTarget.id}
-          icon={<Package className="w-4 h-4 text-primary" />}
-          subtitle={detailTarget.id}
-          sections={[
-            {
-              title: t.assets.sectionBasic,
-              fields: [
-                { label: t.assets.col.id, value: detailTarget.id, mono: true, copyable: true },
-                { label: t.assets.col.name, value: detailTarget.name || "—" },
-                { label: t.assets.col.type, value: detailTarget.type, badge: { text: detailTarget.type || "N/A", variant: "blue" } },
-                { label: t.assets.description, value: detailTarget.description || "—" },
-              ],
-            },
-            {
-              title: t.assets.sectionDataSource,
-              fields: [
-                { label: t.assets.sourceType, value: detailTarget.dataAddressType, badge: { text: detailTarget.dataAddressType || "N/A", variant: "purple" } },
-                { label: t.assets.sourceUrl, value: detailTarget.baseUrl, mono: true, copyable: !!detailTarget.baseUrl },
-              ],
-            },
-            {
-              title: t.assets.sectionMeta,
-              fields: [
-                { label: t.assets.col.semanticId, value: detailTarget.sem, mono: true, copyable: !!detailTarget.sem },
-                ...(detailTarget.aasId
-                  ? [
-                      { label: "kmx:aasId", value: detailTarget.aasId, mono: true, copyable: true },
-                      {
-                        label: "Digital Twin Registry",
-                        value: isShellLooking
-                          ? t.common.loading
-                          : shellLookup
-                            ? `${t.twins.badge.registered}: ${shellLookup.idShort || shellLookup.id}`
-                            : t.twins.badge.unregistered,
-                        badge: isShellLooking
-                          ? { text: "…", variant: "gray" as const }
-                          : shellLookup
-                            ? { text: t.twins.badge.registered, variant: "green" as const }
-                            : { text: t.twins.badge.unregistered, variant: "amber" as const },
-                      },
-                    ]
-                  : [{ label: "kmx:aasId", value: t.twins.badge.noAasId, badge: { text: t.twins.badge.noAasId, variant: "gray" as const } }]),
-              ],
-            },
-            {
-              title: t.assets.sectionOffering,
-              fields: [
-                { label: t.assets.col.offering, value: detailTarget.offered ? t.assets.registered : t.assets.unregistered, badge: { text: detailTarget.offered ? t.assets.registered : t.assets.unregistered, variant: detailTarget.offered ? "green" : "gray" } },
-              ],
-            },
-          ]}
           onEdit={() => { setEditTarget(detailTarget); setDetailTarget(null); setTab("wizard"); }}
           onDuplicate={() => { setDuplicateSource(detailTarget); setDetailTarget(null); setTab("wizard"); }}
           onShowJson={() => { setJsonTarget(detailTarget); setDetailTarget(null); }}
@@ -384,6 +339,156 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
           queryKeys={[["assets", connectorId]]}
         />
       )}
+    </>
+  );
+}
+
+/* ─── Asset Detail Sheet (IssuancePolicies-style) ────────────── */
+type ShellLookup = { id: string; idShort?: string } | null | undefined;
+
+function InfoCard({ label, value, span, mono }: { label: string; value: React.ReactNode; span?: boolean; mono?: boolean }) {
+  return (
+    <div className={cn("bg-slate-50 rounded-lg border border-slate-100 px-3 py-2", span && "md:col-span-2")}>
+      <p className="text-slate-500">{label}</p>
+      <p className={cn("text-slate-700 mt-0.5 break-all", mono && "mono")}>{value || "—"}</p>
+    </div>
+  );
+}
+
+function AssetDetailSheet({
+  target, shellLookup, isShellLooking,
+  onClose, onEdit, onDuplicate, onShowJson, onDelete, deleteDisabledReason,
+}: {
+  target: Asset;
+  shellLookup: ShellLookup;
+  isShellLooking: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onShowJson: () => void;
+  onDelete?: () => void;
+  deleteDisabledReason?: string;
+}) {
+  const { t } = useI18n();
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [onClose]);
+
+  const dtrValue = !target.aasId
+    ? t.twins.badge.noAasId
+    : isShellLooking
+      ? t.common.loading
+      : shellLookup
+        ? `${t.twins.badge.registered}: ${shellLookup.idShort || shellLookup.id}`
+        : t.twins.badge.unregistered;
+
+  return (
+    <>
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/20 transition-opacity duration-200", entered ? "opacity-100" : "opacity-0")}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-white flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          entered ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap pr-8">
+            <h2 className="text-base font-semibold text-slate-900 truncate">{target.name || target.id}</h2>
+            <AssetTypeBadge type={target.type} />
+            <span className={cn(
+              "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border",
+              target.offered ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
+            )}>
+              <span className={cn("w-1.5 h-1.5 rounded-full", target.offered ? "bg-emerald-500" : "bg-gray-300")} />
+              {target.offered ? t.assets.registered : t.assets.unregistered}
+            </span>
+            <button
+              onClick={onClose}
+              className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              aria-label={t.common.close}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.sectionBasic}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.assets.col.id} value={target.id} span mono />
+              <InfoCard label={t.assets.col.name} value={target.name} />
+              <InfoCard label={t.assets.col.type} value={target.type} />
+              <InfoCard label={t.assets.description} value={target.description} span />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.sectionDataSource}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.assets.sourceType} value={target.dataAddressType} />
+              <InfoCard label={t.assets.sourceUrl} value={target.baseUrl} span mono />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.sectionMeta}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.assets.col.semanticId} value={target.sem} span mono />
+              <InfoCard label="kmx:aasId" value={target.aasId} span mono />
+              <InfoCard label={t.common.digitalTwinRegistry} value={dtrValue} span />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-shrink-0">
+          {onDelete && (
+            <button onClick={onDelete}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+              <Trash2 size={13} /> {t.common.delete}
+            </button>
+          )}
+          {!onDelete && deleteDisabledReason && (
+            <button disabled title={deleteDisabledReason}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 cursor-not-allowed rounded-md">
+              <Trash2 size={13} /> {t.common.delete}
+            </button>
+          )}
+          <button onClick={onShowJson}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <Code size={13} /> JSON
+          </button>
+          <button onClick={onDuplicate}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <Files size={13} /> {t.common.duplicate}
+          </button>
+          <div className="flex-1" />
+          <button onClick={onEdit}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors">
+            <Pencil size={13} /> {t.common.edit}
+          </button>
+          <button onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            <X size={13} /> {t.common.close}
+          </button>
+        </div>
+      </aside>
     </>
   );
 }
@@ -495,7 +600,7 @@ function AssetTypeBadge({ type }: { type: string }) {
   const map: Record<string, "blue" | "sky" | "purple" | "amber" | "teal"> = {
     Bundle: "blue", PCF: "sky", DTR: "purple", BOM: "amber", QA: "teal",
   };
-  return <Badge variant={map[type] ?? "gray"}>{type}</Badge>;
+  return <Badge variant={map[type] ?? "gray"} className="!font-normal">{type}</Badge>;
 }
 
 /* ─── URL Domain Extractor ───────────────────────────────────── */
@@ -520,7 +625,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
 
   // Step 1 state — duplicate appends "-copy" to ID, name keeps with " (Copy)"
   const initialId = editTarget ? editTarget.id : duplicateSource ? `${duplicateSource.id}-copy` : "kmx-new-asset-v1";
-  const initialName = editTarget ? (editTarget.name ?? "") : duplicateSource ? `${duplicateSource.name ?? duplicateSource.id} (Copy)` : "Serial Part Bundle v3";
+  const initialName = editTarget ? (editTarget.name ?? "") : duplicateSource ? `${duplicateSource.name ?? duplicateSource.id}${t.assets.copySuffix}` : "Serial Part Bundle v3";
   const [assetId, setAssetId] = useState(initialId);
   const [dctType, setDctType] = useState(baseSrc?.type ?? "cx-taxo:SubmodelBundle");
   const [label, setLabel] = useState(initialName);
@@ -641,7 +746,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
                 onChange={(e) => { setAssetId(e.target.value); setIdError(null); markDirty(); }}
                 disabled={isEdit}
                 title={isEdit ? t.assets.idImmutable : undefined}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
               />
               {idError && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
@@ -653,7 +758,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
               <select
                 value={dctType}
                 onChange={(e) => { setDctType(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="cx-taxo:SubmodelBundle">cx-taxo:SubmodelBundle</option>
                 <option value="cx-taxo:DigitalTwinRegistry">cx-taxo:DigitalTwinRegistry</option>
@@ -665,14 +770,14 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
               <input
                 value={label}
                 onChange={(e) => { setLabel(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </FormField>
             <FormField label="cx-common:version">
               <input
                 value={version}
                 onChange={(e) => { setVersion(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </FormField>
           </div>
@@ -699,7 +804,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label={t.assets.dataAddressType} required>
               <select value={addrType} onChange={(e) => { setAddrType(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary">
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
                 <option>HttpData</option>
                 <option>AmazonS3</option>
                 <option>AzureStorage</option>
@@ -707,7 +812,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             </FormField>
             <FormField label={t.assets.baseUrlLabel} required>
               <input value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
               {baseUrl && !baseUrl.startsWith("https://") && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
                   <AlertCircle className="w-3 h-3" /> {t.assets.httpsRequired}
@@ -716,14 +821,14 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             </FormField>
             <FormField label={t.assets.proxyPath}>
               <select value={proxyPath} onChange={(e) => { setProxyPath(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary">
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
                 <option>true</option>
                 <option>false</option>
               </select>
             </FormField>
             <FormField label={t.assets.authCodeLabel} required>
               <input value={authCode} onChange={(e) => { setAuthCode(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
               {authCode && !authCode.startsWith("edc:key") && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-amber-600">
                   <AlertCircle className="w-3 h-3" /> {t.assets.authCodeHint}
@@ -732,14 +837,14 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             </FormField>
             <FormField label={t.assets.proxyQueryParams}>
               <select value={proxyQuery} onChange={(e) => { setProxyQuery(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary">
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
                 <option>true</option>
                 <option>false</option>
               </select>
             </FormField>
             <FormField label={t.assets.contentTypeLabel}>
               <input value={contentType} onChange={(e) => { setContentType(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary" />
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary" />
             </FormField>
           </div>
           <div>
@@ -771,7 +876,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             <FormField label="aas-semantics:semanticId">
               <input value={semanticId} onChange={(e) => { setSemanticId(e.target.value); markDirty(); }}
                 placeholder="urn:samm:io.catenax...."
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
               {semanticId && semanticId.startsWith("urn:samm:") && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-emerald-600">
                   <CheckCircle2 className="w-3 h-3" /> {t.assets.urnConfirmed}
@@ -780,7 +885,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             </FormField>
             <FormField label="kmx:aasVersion">
               <input value={aasVersion} onChange={(e) => { setAasVersion(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary" />
+                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary" />
             </FormField>
           </div>
           <div className="bg-muted rounded-md p-3">
@@ -790,11 +895,11 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="kmx:aasId">
                 <input value={aasId} onChange={(e) => { setAasId(e.target.value); markDirty(); }} placeholder="urn:uuid:..."
-                  className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                  className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
               </FormField>
               <FormField label="kmx:submodelId">
                 <input value={submodelId} onChange={(e) => { setSubmodelId(e.target.value); markDirty(); }} placeholder="urn:uuid:..."
-                  className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                  className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
               </FormField>
             </div>
           </div>
@@ -822,13 +927,13 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
                       value={p.key}
                       onChange={(e) => updateCustomProp(idx, "key", e.target.value)}
                       placeholder={t.assets.propKey}
-                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary mono"
+                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
                     />
                     <input
                       value={p.value}
                       onChange={(e) => updateCustomProp(idx, "value", e.target.value)}
                       placeholder={t.assets.propValue}
-                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     <button
                       onClick={() => removeCustomProp(idx)}

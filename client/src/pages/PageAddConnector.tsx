@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/i18n";
-import { Card, SectionHdr, FormField } from "@/components/ui-kmx";
+import { Card, SectionHdr, FormField, inputBase } from "@/components/ui-kmx";
 import { ChevronLeft, Plug, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { testConnection, registerConnector } from "@/services";
@@ -94,7 +94,7 @@ export default function PageAddConnector({ onNav }: PageAddConnectorProps) {
     }
   };
 
-  const inputClass = "w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-blue-400";
+  const inputClass = inputBase;
 
   return (
     <>

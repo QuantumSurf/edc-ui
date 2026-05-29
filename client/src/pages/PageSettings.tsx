@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
-import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge, FormField } from "@/components/ui-kmx";
+import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge, FormField, inputBase } from "@/components/ui-kmx";
 import { ChevronLeft, User, Bell, Monitor, Info, Fingerprint, Loader2, Settings, Vault } from "lucide-react";
 import {
   fetchSystemInfo, fetchIdentityHubConfig, updateIdentityHubConfig,
@@ -34,7 +34,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
       <SectionHdr
         icon={<Settings className="w-5 h-5 text-primary" />}
         breadcrumb={t.settings.subtitle}
-        action={<QuietButton onClick={() => onNav("/fleet")} icon={<ChevronLeft className="w-3 h-3" />}>Fleet</QuietButton>}
+        action={<QuietButton onClick={() => onNav("/fleet")} icon={<ChevronLeft className="w-3 h-3" />}>{t.nav.fleet}</QuietButton>}
       >
         {t.nav.settings}
       </SectionHdr>
@@ -182,7 +182,7 @@ function IdentityHubConfigSetting() {
     }
   };
 
-  const inputCls = "w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60 disabled:cursor-not-allowed";
+  const inputCls = `${inputBase} mono`;
 
   return (
     <div className="space-y-3">
@@ -220,7 +220,7 @@ function IdentityHubConfigSetting() {
           <button
             onClick={save}
             disabled={saving || loading || !dirty}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
           >
             {saving && <Loader2 className="w-3 h-3 animate-spin" />}
             {t.settings.save}
@@ -276,7 +276,7 @@ function VaultConfigSetting() {
     }
   };
 
-  const inputCls = "w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60 disabled:cursor-not-allowed";
+  const inputCls = `${inputBase} mono`;
 
   return (
     <div className="space-y-3">
@@ -314,7 +314,7 @@ function VaultConfigSetting() {
           <button
             onClick={save}
             disabled={saving || loading || !dirty}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
           >
             {saving && <Loader2 className="w-3 h-3 animate-spin" />}
             {t.settings.save}
@@ -375,8 +375,11 @@ function ToggleRow({
       </div>
       <button
         onClick={toggle}
-        className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${
-          on ? "bg-blue-500 justify-end" : "bg-gray-300 dark:bg-gray-600 justify-start"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
+          on ? "bg-blue-500 justify-end" : "bg-muted-foreground/40 justify-start"
         }`}
       >
         <div className="w-4 h-4 rounded-full bg-white shadow-sm transition-transform" />

@@ -6,17 +6,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  SectionHdr, Badge, MonoText, DataSourceBadge,
+  SectionHdr, Badge, MonoText, KpiCard,
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
 } from "@/components/ui-kmx";
 
 const AUDIT_COLS = "grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
 import { DetailPanel } from "@/components/DetailDeleteDialogs";
-import { Pagination, paginate } from "@/components/Pagination";
-import { Activity, Download, Search, ScrollText, Calendar, Filter, X } from "lucide-react";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
+import { Activity, Download, Search, ScrollText, Calendar, Filter, X, AlertTriangle, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 /* ─── Types ──────────────────────────────────────────────────── */
 type AuditCategory =
@@ -46,7 +44,7 @@ interface AuditEvent {
 /* ─── Demo data factory ──────────────────────────────────────── */
 function makeDemoEvents(connectorId: string): AuditEvent[] {
   const isProd = connectorId.toLowerCase().includes("prod");
-  const baseDate = new Date("2026-05-08T11:30:00+09:00").getTime();
+  const baseDate = Date.now();
   const min = 60_000;
 
   const tpl: Omit<AuditEvent, "id" | "timestamp" | "requestId">[] = [
@@ -84,7 +82,7 @@ function makeDemoEvents(connectorId: string): AuditEvent[] {
   for (let r = 0; r < REPEAT; r++) {
     tpl.forEach((e, i) => {
       const seq = r * tpl.length + i;
-      const ts = new Date(baseDate - seq * 7 * min - Math.floor(Math.random() * 90) * min);
+      const ts = new Date(baseDate - r * 24 * 60 * min - i * 11 * min - Math.floor(Math.random() * 90) * min);
       events.push({
         ...e,
         id: `evt-${(2026050800 - seq).toString(16)}`,
@@ -132,14 +130,6 @@ function resultBadge(r: AuditResult, t: ReturnType<typeof useI18n>["t"]) {
     : <Badge variant="red">{t.audit.resultFailure}</Badge>;
 }
 
-function isToday(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear()
-    && d.getMonth() === now.getMonth()
-    && d.getDate() === now.getDate();
-}
-
 function withinRange(iso: string, range: "ALL" | "1D" | "7D" | "30D") {
   if (range === "ALL") return true;
   const days = range === "1D" ? 1 : range === "7D" ? 7 : 30;
@@ -181,10 +171,18 @@ export default function PageAudit() {
   const [severity, setSeverity] = useState<"ALL" | AuditSeverity>("ALL");
   const [range, setRange] = useState<"ALL" | "1D" | "7D" | "30D">("ALL");
   const [selected, setSelected] = useState<AuditEvent | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(20);
 
   const allEvents = useMemo(() => makeDemoEvents(connectorId), [connectorId]);
+
+  const kpi = useMemo(() => {
+    const total = allEvents.length;
+    const failed = allEvents.filter((e) => e.result === "FAILURE").length;
+    const critical = allEvents.filter((e) => e.severity === "CRITICAL").length;
+    const latest = allEvents.reduce((m, e) => Math.max(m, new Date(e.timestamp).getTime()), 0);
+    const latestDay = new Date(latest).toDateString();
+    const today = allEvents.filter((e) => new Date(e.timestamp).toDateString() === latestDay).length;
+    return { total, failed, critical, today };
+  }, [allEvents]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -201,16 +199,12 @@ export default function PageAudit() {
     });
   }, [allEvents, search, category, result, severity, range]);
 
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+
   // Reset page when filters change so users always see page 1 of new results.
   useEffect(() => {
-    setPage(1);
-  }, [search, category, result, severity, range, pageSize]);
-
-  const pageRows = useMemo(() => paginate(filtered, page, pageSize), [filtered, page, pageSize]);
-
-  const todayCount = useMemo(() => allEvents.filter((e) => isToday(e.timestamp)).length, [allEvents]);
-  const failedCount = useMemo(() => allEvents.filter((e) => e.result === "FAILURE").length, [allEvents]);
-  const criticalCount = useMemo(() => allEvents.filter((e) => e.severity === "CRITICAL").length, [allEvents]);
+    setCurrentPage(1);
+  }, [search, category, result, severity, range, setCurrentPage]);
 
   const catLabel: Record<"ALL" | AuditCategory, string> = {
     ALL: t.audit.catAll,
@@ -233,10 +227,16 @@ export default function PageAudit() {
       <SectionHdr
         icon={<ScrollText className="w-5 h-5 text-primary" />}
         breadcrumb={t.audit.subtitle}
-        action={<DataSourceBadge mode="demo" />}
       >
         {t.audit.title}
       </SectionHdr>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard icon={<ScrollText className="w-[18px] h-[18px] text-primary" />} iconBg="bg-primary/10" value={kpi.total} label={t.audit.kpiTotal} />
+        <KpiCard icon={<Calendar className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={kpi.today} label={t.audit.kpiToday} valueColor="text-sky-600" />
+        <KpiCard icon={<AlertTriangle className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={kpi.failed} label={t.audit.kpiFailed} valueColor={kpi.failed > 0 ? "text-amber-600" : undefined} />
+        <KpiCard icon={<ShieldAlert className="w-[18px] h-[18px] text-rose-600" />} iconBg="bg-rose-50" value={kpi.critical} label={t.audit.kpiCritical} valueColor={kpi.critical > 0 ? "text-rose-600" : undefined} />
+      </div>
 
       {/* Filter Bar 1 — search + range + export */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -247,8 +247,17 @@ export default function PageAudit() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.audit.searchPlaceholder}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label={t.common.clear ?? "Clear"}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
           <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
@@ -260,7 +269,8 @@ export default function PageAudit() {
         </div>
         <button
           onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+          disabled={filtered.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
         >
           <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
         </button>
@@ -310,7 +320,7 @@ export default function PageAudit() {
 
       {/* List — Desktop */}
       <ListCard
-        title={t.audit.listTitle}        actions={<span className="text-[11px] text-muted-foreground">{t.audit.resultCount(filtered.length, allEvents.length)}</span>}
+        title={t.audit.listTitle}
         className="hidden md:block"
       >
         {filtered.length === 0 ? (
@@ -335,7 +345,7 @@ export default function PageAudit() {
               <ListColLabel className="hidden xl:block">{t.audit.col.severity}</ListColLabel>
               <ListColLabel className="hidden xl:block">{t.audit.col.ip}</ListColLabel>
             </ListHeaderRow>
-            {pageRows.map((e) => (
+            {paginatedData.map((e) => (
               <ListRow key={e.id} cols={AUDIT_COLS} onClick={() => setSelected(e)}>
                 <div>
                   <MonoText className="!text-[12px] !font-normal">{formatTs(e.timestamp)}</MonoText>
@@ -345,7 +355,7 @@ export default function PageAudit() {
                   <p className="text-[11px] text-muted-foreground">{e.actorRole}</p>
                 </div>
                 <div className="min-w-0">
-                  <MonoText className="!text-[12px] !font-normal block truncate">{e.action}</MonoText>
+                  <MonoText className="!text-[12px] !font-normal block truncate !text-primary">{e.action}</MonoText>
                   <p className="text-[11px] text-muted-foreground truncate">{e.message}</p>
                 </div>
                 <div>
@@ -365,29 +375,16 @@ export default function PageAudit() {
           </>
         )}
 
-        {/* Page-size selector + Pagination (desktop) */}
-        {filtered.length > 0 && (
-          <div className="px-4 pb-3 pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">
-                {t.common.filter}
-              </span>
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setPageSize(size)}
-                  className={`text-[12px] px-2 py-0.5 rounded-md border transition-colors ${
-                    pageSize === size
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background border-border text-foreground/70 hover:bg-muted/50"
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-            <Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} />
-          </div>
+        {/* Pagination (desktop) */}
+        {totalItems > 0 && (
+          <DataTablePagination
+            totalItems={totalItems}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            rowsPerPageLabel={t.common.rowsPerPage}
+          />
         )}
       </ListCard>
 
@@ -396,11 +393,14 @@ export default function PageAudit() {
         {filtered.length === 0 ? (
           <div className="py-8 text-center text-[13px] text-muted-foreground">{t.audit.emptyTitle}</div>
         ) : (
-          pageRows.map((e) => (
+          paginatedData.map((e) => (
             <div
               key={e.id}
               onClick={() => setSelected(e)}
-              className="bg-card rounded-xl p-3 shadow-sm border border-border active:bg-muted/40 transition-colors"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelected(e); } }}
+              className="bg-card rounded-xl p-3 shadow-sm border border-border active:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             >
               <div className="flex items-center justify-between gap-2 mb-1">
                 <Badge variant={CAT_VARIANT[e.category]}>{e.category}</Badge>
@@ -409,7 +409,7 @@ export default function PageAudit() {
                   {severityBadge(e.severity, t)}
                 </div>
               </div>
-              <MonoText className="text-[13px] font-normal block">{e.action}</MonoText>
+              <MonoText className="text-[13px] font-normal block !text-primary">{e.action}</MonoText>
               <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{e.message}</p>
               <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
                 <MonoText className="text-[11px] font-normal">{formatTs(e.timestamp)}</MonoText>
@@ -420,8 +420,17 @@ export default function PageAudit() {
         )}
 
         {/* Pagination (mobile) */}
-        {filtered.length > 0 && (
-          <Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+        {totalItems > 0 && (
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <DataTablePagination
+              totalItems={totalItems}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              rowsPerPageLabel={t.common.rowsPerPage}
+            />
+          </div>
         )}
       </div>
 
@@ -433,7 +442,6 @@ export default function PageAudit() {
           open={!!selected}
           onClose={() => setSelected(null)}
           title={t.audit.detailTitle}
-          icon={<ScrollText className="w-4 h-4 text-primary" />}
           subtitle={selected.id}
           sections={[
             {
@@ -477,9 +485,8 @@ export default function PageAudit() {
                 ...(selected.payload
                   ? [{
                       label: t.audit.field.payload,
-                      value: JSON.stringify(selected.payload, null, 2),
-                      pre: true,
-                      copyable: true,
+                      value: "",
+                      json: selected.payload,
                     } as const]
                   : []),
               ],

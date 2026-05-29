@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { type Connector } from "@/lib/data";
 import { fetchFleetKPI, fetchConnectors, updateConnector, deleteConnector, testConnection } from "@/services";
-import { AlertBanner, SectionHdr, Badge, StatusPill, EnvBadge, ServiceCard, KpiCard, FormField, PrimaryActionButton } from "@/components/ui-kmx";
+import { SectionHdr, Badge, StatusPill, EnvBadge, KpiCard, FormField, PrimaryActionButton, inputBase } from "@/components/ui-kmx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   PlusCircle, Database, Package, FileText, ArrowRightLeft,
-  CheckCircle2, XCircle, Shield, Server, Activity,
+  CheckCircle2, XCircle, Shield, Server,
   Pencil, Trash2, Loader2, LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,7 +40,6 @@ function rolesToKey(roles: string[]): string {
 export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const [alert, setAlert] = useState(true);
 
   // Edit dialog state
   const [editTarget, setEditTarget] = useState<Connector | null>(null);
@@ -76,7 +75,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
       toast.success(t.fleet.deleted);
       setDeleteTarget(null);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      toast.error(err instanceof Error ? err.message : t.fleet.deleteFailed);
     } finally {
       setDeleting(false);
     }
@@ -124,12 +123,12 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         <RoleGate permission="connector:write">
           <button
             onClick={() => onNav("/connectors/new")}
-            className="bg-card border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-blue-300 hover:bg-blue-50/30 transition-all group shadow-sm"
+            className="bg-card border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-primary/40 hover:bg-primary/5 transition-all group shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           >
-            <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center group-hover:border-blue-400 transition-colors bg-gray-50">
-              <PlusCircle className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+            <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:border-primary transition-colors bg-muted">
+              <PlusCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
-            <span className="text-[13px] text-gray-400 group-hover:text-blue-600 transition-colors font-medium">{t.common.addConnector}</span>
+            <span className="text-[13px] text-muted-foreground group-hover:text-primary transition-colors font-medium">{t.common.addConnector}</span>
           </button>
         </RoleGate>
       </div>
@@ -181,7 +180,7 @@ function ConnectorCard({ connector: c, onClick, onEdit, onDelete }: {
 }) {
   const { t } = useI18n();
   return (
-    <div className="bg-card rounded-xl p-4 text-left hover:shadow-md transition-all group shadow-sm border border-border hover:border-blue-200">
+    <div className="bg-card rounded-xl p-4 text-left hover:shadow-md transition-all group shadow-sm border border-border hover:border-primary/40">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <button onClick={onClick} className="flex items-center gap-2 text-left flex-1 min-w-0">
@@ -189,21 +188,21 @@ function ConnectorCard({ connector: c, onClick, onEdit, onDelete }: {
             c.status === "up" ? "bg-emerald-500" :
             c.status === "warn" ? "bg-amber-500 status-pulse" : "bg-rose-500"
           }`} />
-          <span className="text-[15px] font-semibold text-foreground truncate">{c.name}</span>
+          <span className="text-[15px] font-semibold text-foreground group-hover:text-primary transition-colors truncate">{c.name}</span>
         </button>
         <div className="flex items-center gap-1 flex-shrink-0">
           <StatusPill status={c.status} />
           <RoleGate permission="connector:write">
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(); }}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors opacity-60 group-hover:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               title={t.fleet.editConnector}
             >
               <Pencil className="w-3 h-3" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-rose-600 transition-colors opacity-60 group-hover:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
               title={t.fleet.deleteConnector}
             >
               <Trash2 className="w-3 h-3" />
@@ -272,9 +271,9 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
       const result = await testConnection(managementUrl, apiKey || undefined);
       setTestResult(result.status);
       toast[result.status === "ok" ? "success" : "error"](
-        result.status === "ok" ? (t.addConnector.testSuccess ?? "OK") : (t.addConnector.testFail ?? "Fail")
+        result.status === "ok" ? t.addConnector.testSuccess : t.addConnector.testFail
       );
-    } catch { setTestResult("fail"); toast.error(t.addConnector.testFail ?? "Fail"); }
+    } catch { setTestResult("fail"); toast.error(t.addConnector.testFail); }
     finally { setTesting(false); }
   };
 
@@ -292,11 +291,11 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
       toast.success(t.fleet.updated);
       onSaved();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Update failed");
+      toast.error(err instanceof Error ? err.message : t.fleet.updateFailed);
     } finally { setSaving(false); }
   };
 
-  const inputClass = "w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-blue-400";
+  const inputClass = inputBase;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -329,7 +328,7 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <FormField label={t.addConnector.apiKey}>
-              <input type="password" value={apiKey} onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }} placeholder="(unchanged)" className={inputClass} />
+              <input type="password" value={apiKey} onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }} placeholder={t.fleet.apiKeyUnchanged} className={inputClass} />
             </FormField>
             <FormField label={t.addConnector.role}>
               <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
@@ -367,7 +366,7 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
               {t.fleet.cancel}
             </button>
             <button onClick={handleSave} disabled={saving || !name.trim()}
-              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors disabled:opacity-40">
+              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40">
               {saving && <Loader2 className="w-3 h-3 animate-spin" />}
               {t.fleet.save}
             </button>

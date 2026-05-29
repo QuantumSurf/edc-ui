@@ -9,7 +9,7 @@ import {
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/i18n";
-import { Loader2, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, Files, Code, Download, X, FileJson } from "lucide-react";
+import { Loader2, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, Files, Code, Download, X, FileJson, ChevronsRight } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { MonoText, JsonTreeView } from "@/components/ui-kmx";
@@ -22,6 +22,8 @@ interface DetailField {
   copyable?: boolean;
   /** Render value as syntax-highlighted JSON in a pre block */
   pre?: boolean;
+  /** Render the given object with the collapsible JsonTreeView (existing JSON viewer style) */
+  json?: unknown;
   badge?: { text: string; variant: "blue" | "green" | "amber" | "gray" | "red" | "purple" };
 }
 
@@ -60,7 +62,12 @@ const BADGE_STYLES: Record<string, string> = {
   purple: "bg-purple-50 text-purple-700 border-purple-200",
 };
 
-function FieldValue({ field, idx, copied, onCopy }: { field: DetailField; idx: string; copied: string | null; onCopy: (text: string, key: string) => void }) {
+function FieldValue({ field, idx, copied, onCopy, inCard }: { field: DetailField; idx: string; copied: string | null; onCopy: (text: string, key: string) => void; inCard?: boolean }) {
+  // Collapsible JSON tree (existing JSON viewer style)
+  if (field.json !== undefined) {
+    return <JsonTreeView data={field.json} className="max-h-[280px]" />;
+  }
+
   // Pre-formatted JSON block
   if (field.pre && field.value) {
     return (
@@ -90,7 +97,7 @@ function FieldValue({ field, idx, copied, onCopy }: { field: DetailField; idx: s
           {field.badge.text}
         </span>
       ) : (
-        <span className={`text-[12px] text-foreground leading-relaxed font-normal ${field.mono ? "mono bg-muted/60 px-2 py-1 rounded-md text-[12px] text-foreground break-all border border-border/40" : ""}`}>
+        <span className={`text-[12px] text-foreground leading-relaxed font-normal ${field.mono ? (inCard ? "mono break-all" : "mono bg-muted/30 px-2 py-1 rounded text-[12px] text-foreground break-all border border-border") : ""}`}>
           {field.value || <span className="text-muted-foreground/60 italic">N/A</span>}
         </span>
       )}
@@ -154,7 +161,7 @@ export function DetailDialog({ open, onClose, title, subtitle, subtitleMono = tr
                       <div key={fi} className={`flex flex-col gap-1 ${
                         f.pre || (f.mono && String(f.value ?? "").length > 30) ? "sm:col-span-2" : ""
                       }`}>
-                        <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{f.label}</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{f.label}</span>
                         <FieldValue field={f} idx={`${si}-${fi}`} copied={copied} onCopy={handleCopy} />
                       </div>
                     ))}
@@ -168,7 +175,7 @@ export function DetailDialog({ open, onClose, title, subtitle, subtitleMono = tr
                 <div key={i} className={`flex flex-col gap-1 ${
                   f.mono && String(f.value ?? "").length > 30 ? "sm:col-span-2" : ""
                 }`}>
-                  <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{f.label}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{f.label}</span>
                   <FieldValue field={f} idx={String(i)} copied={copied} onCopy={handleCopy} />
                 </div>
               ))}
@@ -265,11 +272,11 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             {icon && <span className="flex items-center flex-shrink-0">{icon}</span>}
             <div className="min-w-0">
-              <p className="font-display text-[14px] font-bold text-foreground truncate">{title}</p>
+              <p className="text-base font-semibold text-foreground truncate">{title}</p>
               {subtitle && (
                 <p className={cn("text-[11px] text-muted-foreground truncate mt-0.5", subtitleMono && "mono")}>{subtitle}</p>
               )}
@@ -290,16 +297,22 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
             <div className="space-y-5">
               {sections.map((section, si) => (
                 <div key={si}>
-                  <div className="mb-2.5">
-                    <span className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-wider">{section.title}</span>
-                    <div className="h-px bg-border mt-1.5" />
-                  </div>
-                  <div className="space-y-3">
+                  <h4 className="mb-2.5 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                    <ChevronsRight className="w-3.5 h-3.5 text-primary" />{section.title}
+                  </h4>
+                  <div className="space-y-2.5">
                     {section.fields.map((f, fi) => (
-                      <div key={fi} className="flex flex-col gap-1">
-                        <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{f.label}</span>
-                        <FieldValue field={f} idx={`${si}-${fi}`} copied={copied} onCopy={handleCopy} />
-                      </div>
+                      f.pre || f.json !== undefined ? (
+                        <div key={fi} className="flex flex-col gap-1">
+                          <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{f.label}</span>
+                          <FieldValue field={f} idx={`${si}-${fi}`} copied={copied} onCopy={handleCopy} />
+                        </div>
+                      ) : (
+                        <div key={fi} className="bg-muted/30 rounded-lg border border-border px-3 py-2">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">{f.label}</p>
+                          <FieldValue field={f} idx={`${si}-${fi}`} copied={copied} onCopy={handleCopy} inCard />
+                        </div>
+                      )
                     ))}
                   </div>
                 </div>
@@ -309,7 +322,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
             <div className="space-y-3">
               {fields.map((f, i) => (
                 <div key={i} className="flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{f.label}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{f.label}</span>
                   <FieldValue field={f} idx={String(i)} copied={copied} onCopy={handleCopy} />
                 </div>
               ))}
@@ -318,7 +331,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-1 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <div className="flex items-center gap-1 px-6 py-4 border-t border-border bg-muted/30 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
               className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors">
@@ -344,6 +357,10 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
             </button>
           )}
           <div className="flex-1" />
+          <button onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            <X className="w-3.5 h-3.5" /> {t.common.close}
+          </button>
           {onEdit && (
             <button onClick={onEdit}
               className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors shadow-sm">

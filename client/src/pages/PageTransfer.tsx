@@ -6,12 +6,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { useI18n } from "@/i18n";
 import { fetchTransfers, startTransfer, completeTransfer, terminateTransfer, fetchTransferData, deleteAllTransfers } from "@/services";
-import { TRANSFER_STATE_MAP, SINK_TYPES, type Transfer } from "@/lib/data";
+import { SINK_TYPES, type Transfer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Pagination, paginate } from "@/components/Pagination";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
   Card, KpiCard, StateBadge, MonoText, SectionHdr, Badge, FormField,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, JsonTreeView, inputBase,
 } from "@/components/ui-kmx";
 
 const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_1fr_1fr_84px]";
@@ -22,8 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
 
 /* ── helpers ──────────────────────────────────────────────────── */
-const INPUT_CLS =
-  "w-full text-[12px] px-2.5 py-1.5 border border-border rounded bg-card focus:outline-none focus:ring-1 focus:ring-primary";
+const INPUT_CLS = inputBase;
 
 const ALL_STATE_FILTERS = ["ALL", "REQUESTING", "STARTED", "SUSPENDED", "COMPLETED", "TERMINATED"] as const;
 type StateFilter = typeof ALL_STATE_FILTERS[number];
@@ -84,9 +83,13 @@ function DataViewer({ tpId, asset, data, sizeBytes, contentType, onClose }: Data
           </div>
         </DialogHeader>
         <div className="overflow-auto flex-1 p-4 min-h-0">
-          <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed break-all">
-            {formatted}
-          </pre>
+          {isJson ? (
+            <JsonTreeView data={data} />
+          ) : (
+            <pre className="mono text-[12px] bg-muted text-foreground rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed break-all border border-border">
+              {formatted}
+            </pre>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -99,8 +102,6 @@ export default function PageTransfer() {
   const search = useSearch();
   const qParams = useMemo(() => new URLSearchParams(search), [search]);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [sinkType, setSinkType] = useState("HttpProxy");
   const [sinkEndpoint, setSinkEndpoint] = useState("");
   const [agreementId, setAgreementId] = useState(() => qParams.get("agreementId") ?? "");
@@ -203,6 +204,8 @@ export default function PageTransfer() {
       return tb.localeCompare(ta);
     });
   }, [transfers, stateFilter]);
+
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(rows, 10);
 
   /* ── complete / terminate handlers ─────────────────────────── */
   async function handleComplete(tpId: string) {
@@ -311,12 +314,20 @@ export default function PageTransfer() {
       )}
       <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.transfers.title}</SectionHdr>
 
+      {/* ── KPI row ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={inflightCount} label={t.transfers.inflight} valueColor="text-sky-600" />
+        <KpiCard icon={<CheckCircle className="w-[18px] h-[18px] text-emerald-600" />} iconBg="bg-emerald-50" value={completedCount} label={t.transfers.completed} valueColor="text-emerald-600" />
+        <KpiCard icon={<HardDrive className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={`${totalVolume.toFixed(1)} MB`} label={t.transfers.totalVolume} />
+        <KpiCard icon={<Clock className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={avgDuration === "—" ? "—" : `${avgDuration}s`} label={t.transfers.avgDuration} valueColor="text-amber-600" />
+      </div>
+
       {/* ── Filter — fl-aggregator TasksPage style ───────────── */}
       <div className="flex flex-wrap items-center gap-1.5">
         {ALL_STATE_FILTERS.map((f) => (
           <button
             key={f}
-            onClick={() => { setStateFilter(f); setPage(1); }}
+            onClick={() => { setStateFilter(f); setCurrentPage(1); }}
             className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
               stateFilter === f
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
@@ -328,28 +339,25 @@ export default function PageTransfer() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        {/* ── Transfer List (2-col span) ──────────────────────── */}
-        <div className="xl:col-span-2 min-w-0">
+      <div className="space-y-3">
+        {/* ── Transfer List ──────────────────────────────────── */}
+        <div className="min-w-0">
           {/* Desktop: List — fl-aggregator ListCard */}
           <ListCard
             title={t.transfers.listTitle}
             className="hidden md:block"
             actions={
-              <>
-                <span className="text-[11px] text-muted-foreground">{t.transfers.resultCount(rows.length, transfers.length)}</span>
-                {transfers.length > 0 && (
-                  <RoleGate permission="transaction:write">
-                    <button
-                      onClick={handleDeleteAll}
-                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      {t.transfers.deleteAll}
-                    </button>
-                  </RoleGate>
-                )}
-              </>
+              transfers.length > 0 ? (
+                <RoleGate permission="transaction:write">
+                  <button
+                    onClick={handleDeleteAll}
+                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    {t.transfers.deleteAll}
+                  </button>
+                </RoleGate>
+              ) : undefined
             }
           >
             <ListHeaderRow cols={TRANSFER_COLS}>
@@ -369,10 +377,10 @@ export default function PageTransfer() {
                 message={stateFilter !== "ALL" ? t.transfers.noFilterResults : t.transfers.noInflight}
               />
             ) : (
-              paginate(rows, page, pageSize).map((tr) => (
+              paginatedData.map((tr) => (
               <ListRow key={tr.id} cols={TRANSFER_COLS}>
                 <div>
-                  <MonoText className="!text-[12px] !font-normal">{tr.id.slice(0, 12)}</MonoText>
+                  <MonoText className="!text-[12px] !font-normal text-primary group-hover:text-primary/80">{tr.id.slice(0, 12)}</MonoText>
                 </div>
                 <div>
                   <StateBadge name={tr.name} />
@@ -419,31 +427,21 @@ export default function PageTransfer() {
                 </div>
               </ListRow>
               )))}
-            {rows.length > 0 && (
-              <div className="px-4 py-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex items-center gap-1">
-                  {[10, 20, 50].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => { setPageSize(size); setPage(1); }}
-                      className={`text-[11px] px-2 py-0.5 rounded-md border transition-colors ${
-                        pageSize === size
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card border-border text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {size}건
-                    </button>
-                  ))}
-                </div>
-                <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
-              </div>
+            {totalItems > 0 && (
+              <DataTablePagination
+                totalItems={totalItems}
+                pageSize={pageSize}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                rowsPerPageLabel={t.common.rowsPerPage}
+              />
             )}
           </ListCard>
 
           {/* ── Mobile card stack ─────────────────────────────── */}
           <div className="md:hidden space-y-3">
-            {paginate(rows, page, pageSize).map((tr) => (
+            {paginatedData.map((tr) => (
               <div
                 key={tr.id}
                 className="rounded-lg border border-border p-4 bg-muted/20 space-y-1.5"
@@ -553,26 +551,6 @@ export default function PageTransfer() {
                 {submitting ? `${t.transfers.startTransfer}...` : t.transfers.startTransfer}
               </button>
             </RoleGate>
-
-            <SectionHdr>{t.transfers.fsmCodes}</SectionHdr>
-            <div className="space-y-0">
-              {Object.entries(TRANSFER_STATE_MAP).map(([code, info], i, arr) => (
-                <div
-                  key={code}
-                  className={`flex items-center gap-3 py-1.5 ${
-                    i < arr.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <span className="mono text-[11px] text-muted-foreground w-10 flex-shrink-0">
-                    {code}
-                  </span>
-                  <span className="w-28 flex-shrink-0"><StateBadge name={info.name} /></span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {info.label}
-                  </span>
-                </div>
-              ))}
-            </div>
           </div>
         </Card>
       </div>

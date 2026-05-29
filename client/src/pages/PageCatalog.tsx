@@ -8,9 +8,11 @@ import { fetchCatalog, startNegotiation } from "@/services";
 import { type CatalogOffer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { Card, Badge, SectionHdr } from "@/components/ui-kmx";
-import { Search, Globe, ArrowRight, Loader2, Building2, Info } from "lucide-react";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
+import { Search, Globe, ArrowRight, Loader2, Building2, Info, Package } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
+import { cn } from "@/lib/utils";
 
 interface PageCatalogProps {
   onNav: (path: string) => void;
@@ -104,7 +106,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={t.catalog.dspPlaceholder}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono"
+                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
               />
             </div>
           </div>
@@ -117,7 +119,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                 value={counterPartyId}
                 onChange={(e) => setCounterPartyId(e.target.value)}
                 placeholder={t.catalog.bpnPlaceholder}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono"
+                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
               />
             </div>
             <button
@@ -132,41 +134,113 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
         </div>
 
         {loaded && (
-          <>
-            <div className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              {t.catalog.offersFound(offers.length)}
-            </div>
-            <div className="space-y-2">
-              {offers.map((o, i) => (
-                <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border border-border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-all">
-                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center font-semibold text-[15px] text-muted-foreground flex-shrink-0 hidden sm:flex">
-                    {o.name[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold text-foreground mb-0.5">{o.name}</div>
-                    <div className="text-[11px] text-muted-foreground mb-1.5">{o.type}{o.src ? ` · ${o.src}` : ""}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {o.pols.map((p) => (
-                        <Badge key={p} variant="purple" className="text-[11px]">{p}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <RoleGate permission="transaction:write">
-                    <button
-                      onClick={() => negMutation.mutate(o)}
-                      disabled={negMutation.isPending}
-                      className="flex items-center gap-1 text-[12px] px-2.5 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors flex-shrink-0 disabled:opacity-60 sm:w-auto w-full justify-center"
-                    >
-                      {t.catalog.startNegotiation} <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </RoleGate>
-                </div>
-              ))}
-            </div>
-          </>
+          <CatalogResults offers={offers} onNegotiate={(o) => negMutation.mutate(o)} negotiating={negMutation.isPending} />
         )}
       </Card>
+    </>
+  );
+}
+
+/* ─── Catalog Results Table (asset-style) ────────────────────── */
+function CatalogResults({ offers, onNegotiate, negotiating }: { offers: CatalogOffer[]; onNegotiate: (o: CatalogOffer) => void; negotiating: boolean }) {
+  const { t } = useI18n();
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(offers, 10);
+
+  return (
+    <>
+      <div className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+        {t.catalog.offersFound(offers.length)}
+      </div>
+
+      {/* Desktop/Tablet: Table */}
+      <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.assets.col.name}</th>
+                <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.assets.col.type}</th>
+                <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.title}</th>
+                <th className="px-4 py-3 text-right text-[12px] font-bold text-foreground">{t.catalog.startNegotiation}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {paginatedData.map((o, i) => (
+                <tr key={`${o.offerId}-${i}`} className="table-row-hover group">
+                  <td className="px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-primary truncate">{o.name}</div>
+                      {o.src && <div className="text-xs text-foreground truncate">{o.src}</div>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3"><Badge variant="blue" className="!font-normal">{o.type}</Badge></td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {o.pols.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : o.pols.map((p) => (
+                        <Badge key={p} variant="purple" className="!font-normal">{p}</Badge>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <RoleGate permission="transaction:write">
+                      <button
+                        onClick={() => onNegotiate(o)}
+                        disabled={negotiating}
+                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60"
+                      >
+                        {t.catalog.startNegotiation} <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </RoleGate>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {offers.length === 0 && (
+            <div className="py-12 text-center">
+              <Package size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">{t.common.noResults}</p>
+            </div>
+          )}
+          {totalItems > 0 && (
+            <DataTablePagination
+              totalItems={totalItems}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              rowsPerPageLabel={t.common.rowsPerPage}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Mobile: Card Stack */}
+      <div className="md:hidden flex flex-col gap-2.5">
+        {paginatedData.map((o, i) => (
+          <div key={`${o.offerId}-${i}`} className="bg-card rounded-xl p-3.5 shadow-sm border border-border">
+            <div className="text-xs font-medium text-primary truncate mb-0.5">{o.name}</div>
+            <div className="text-xs text-foreground truncate mb-2">{o.type}{o.src ? ` · ${o.src}` : ""}</div>
+            <div className="flex flex-wrap gap-1 mb-3">
+              {o.pols.map((p) => (
+                <Badge key={p} variant="purple" className="!font-normal">{p}</Badge>
+              ))}
+            </div>
+            <RoleGate permission="transaction:write">
+              <button
+                onClick={() => onNegotiate(o)}
+                disabled={negotiating}
+                className={cn("w-full inline-flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors", negotiating && "opacity-60")}
+              >
+                {t.catalog.startNegotiation} <ArrowRight className="w-3 h-3" />
+              </button>
+            </RoleGate>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

@@ -223,19 +223,19 @@ export function SubmodelFormFields({
         placeholder={t.twins.form.subIdShort + " *"}
         value={s.idShort}
         onChange={(e) => updateField("idShort", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card"
+        className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
       />
       <input
         placeholder={t.twins.form.subId + " *"}
         value={s.id}
         onChange={(e) => updateField("id", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card"
+        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
       />
       <input
         placeholder={t.twins.form.subSemanticId}
         value={s.semanticId}
         onChange={(e) => updateField("semanticId", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card"
+        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
       />
 
       {showDescription && (
@@ -245,14 +245,14 @@ export function SubmodelFormFields({
             value={s.descriptionKo}
             onChange={(e) => updateField("descriptionKo", e.target.value)}
             lang="ko"
-            className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card"
+            className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <input
             placeholder={t.twins.form.descriptionEn}
             value={s.descriptionEn}
             onChange={(e) => updateField("descriptionEn", e.target.value)}
             lang="en"
-            className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card"
+            className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </>
       )}
@@ -288,7 +288,7 @@ export function SubmodelFormFields({
                   placeholder={t.twins.form.endpointInterface + " (e.g. SUBMODEL-3.0)"}
                   value={ep.interfaceName}
                   onChange={(e) => updateEndpoint(ei, { interfaceName: e.target.value })}
-                  className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card"
+                  className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 {/* Protocol Information */}
                 <div className="pl-2 border-l-2 border-violet-300 space-y-1.5">
@@ -300,7 +300,7 @@ export function SubmodelFormFields({
                       placeholder="https://provider-edc/data-plane/{path}"
                       value={ep.protocolInformation.href}
                       onChange={(e) => updatePi(ei, { href: e.target.value })}
-                      className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card"
+                      className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </FormField>
 
@@ -309,13 +309,13 @@ export function SubmodelFormFields({
                       placeholder="endpointProtocol"
                       value={ep.protocolInformation.endpointProtocol}
                       onChange={(e) => updatePi(ei, { endpointProtocol: e.target.value })}
-                      className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card"
+                      className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     <input
                       placeholder="endpointProtocolVersion"
                       value={ep.protocolInformation.endpointProtocolVersion}
                       onChange={(e) => updatePi(ei, { endpointProtocolVersion: e.target.value })}
-                      className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card"
+                      className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
 
@@ -323,7 +323,7 @@ export function SubmodelFormFields({
                     <select
                       value={ep.protocolInformation.subprotocol}
                       onChange={(e) => updatePi(ei, { subprotocol: e.target.value })}
-                      className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card"
+                      className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       <option value="DSP">DSP</option>
                       <option value="">(none)</option>
@@ -337,7 +337,7 @@ export function SubmodelFormFields({
                           placeholder="urn:uuid:edc-asset-id"
                           value={ep.protocolInformation.dspAssetId}
                           onChange={(e) => updatePi(ei, { dspAssetId: e.target.value })}
-                          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card"
+                          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                         />
                       </FormField>
                       <FormField label={t.twins.form.dspEndpoint} hint={t.twins.form.dspEndpointHint}>
@@ -345,7 +345,7 @@ export function SubmodelFormFields({
                           placeholder="https://provider-edc/api/v1/dsp"
                           value={ep.protocolInformation.dspEndpoint}
                           onChange={(e) => updatePi(ei, { dspEndpoint: e.target.value })}
-                          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card"
+                          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                         />
                       </FormField>
                       <div className="text-[10px] text-muted-foreground">
@@ -361,7 +361,7 @@ export function SubmodelFormFields({
                         placeholder="raw subprotocolBody"
                         value={ep.protocolInformation.subprotocolBodyRaw}
                         onChange={(e) => updatePi(ei, { subprotocolBodyRaw: e.target.value })}
-                        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card"
+                        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                     </FormField>
                   )}
@@ -370,7 +370,7 @@ export function SubmodelFormFields({
                     <input
                       value={ep.protocolInformation.subprotocolBodyEncoding}
                       onChange={(e) => updatePi(ei, { subprotocolBodyEncoding: e.target.value })}
-                      className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card"
+                      className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </FormField>
                 </div>

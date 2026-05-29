@@ -1,23 +1,21 @@
 // Connector Hub — Contract Negotiation Page (spec 4.5)
 // FSM state polling, KPI cards, filter buttons, responsive table/card
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { fetchNegotiations, terminateNegotiation } from "@/services";
-import { NEG_STATE_MAP, type Negotiation } from "@/lib/data";
+import { type Negotiation } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Pagination, paginate } from "@/components/Pagination";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, KpiCard, StateBadge, MonoText, SectionHdr,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  Card, StateBadge, MonoText, SectionHdr, ListEmpty,
 } from "@/components/ui-kmx";
-
-const NEG_COLS = "grid-cols-[150px_104px_1.2fr_1.3fr_72px_1.3fr_180px]";
-import { DetailPanel, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
-import { FileText, Send, AlertCircle, Copy, XCircle, Search, Loader2, RefreshCw, Clock } from "lucide-react";
+import { ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { FileText, AlertCircle, Copy, XCircle, Search, Loader2, RefreshCw, Clock, Package, X, ChevronsRight, Code, Send, List } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
+import { cn } from "@/lib/utils";
 
 
 type FilterKey = "ALL" | "FINALIZED" | "REQUESTING" | "AGREED" | "TERMINATED";
@@ -43,8 +41,6 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
   const [filter, setFilter] = useState<FilterKey>("ALL");
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("ALL");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
   // Terminate modal state
   const [terminateTarget, setTerminateTarget] = useState<Negotiation | null>(null);
@@ -79,13 +75,6 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
     },
   });
 
-  const kpi = useMemo(() => ({
-    finalized:  negotiations.filter((n) => n.name === "FINALIZED").length,
-    requesting: negotiations.filter((n) => n.name === "REQUESTING").length,
-    agreed:     negotiations.filter((n) => n.name === "AGREED").length,
-    terminated: negotiations.filter((n) => n.name === "TERMINATED").length,
-  }), [negotiations]);
-
   const rows = useMemo(() => {
     let filtered = filter === "ALL" ? negotiations : negotiations.filter((n) => n.name === filter);
 
@@ -113,6 +102,8 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
     // 최신 시각(ts) 내림차순 정렬
     return [...filtered].sort((a, b) => b.ts.localeCompare(a.ts));
   }, [negotiations, filter, search, timeRange]);
+
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(rows, 10);
 
   const filters: FilterKey[] = ["ALL", "FINALIZED", "REQUESTING", "AGREED", "TERMINATED"];
 
@@ -167,15 +158,15 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
             type="text"
             placeholder={t.negotiations.searchPlaceholder}
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {filters.map((f) => (
             <button
               key={f}
-              onClick={() => { setFilter(f); setPage(1); }}
+              onClick={() => { setFilter(f); setCurrentPage(1); }}
               className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
                 filter === f
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
@@ -191,7 +182,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
           {TIME_RANGES.map((r) => (
             <button
               key={r.value}
-              onClick={() => { setTimeRange(r.value); setPage(1); }}
+              onClick={() => { setTimeRange(r.value); setCurrentPage(1); }}
               className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
                 timeRange === r.value
                   ? "bg-foreground text-background border-foreground shadow-sm"
@@ -204,7 +195,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-3">
+      <div>
         {/* Negotiation List */}
         <div className="min-w-0">
 
@@ -240,110 +231,113 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
 
           {!isLoading && !isError && (
           <>
-          {/* Desktop: List — fl-aggregator ListCard */}
-          <ListCard
-            title={t.negotiations.listTitle}
-            actions={<span className="text-[11px] text-muted-foreground">{t.negotiations.resultCount(rows.length, negotiations.length)}</span>}
-            className="hidden md:block"
-          >
-            <ListHeaderRow cols={NEG_COLS}>
-              <ListColLabel>{t.negotiations.col.id}</ListColLabel>
-              <ListColLabel>{t.negotiations.col.state}</ListColLabel>
-              <ListColLabel>{t.negotiations.col.peer}</ListColLabel>
-              <ListColLabel>{t.negotiations.col.asset}</ListColLabel>
-              <ListColLabel>{t.negotiations.col.duration}</ListColLabel>
-              <ListColLabel>{t.negotiations.col.time}</ListColLabel>
-              <ListColLabel>{t.negotiations.col.action}</ListColLabel>
-            </ListHeaderRow>
-            {rows.length === 0 ? (
-              <ListEmpty icon={<FileText />} message={t.negotiations.noResults} />
-            ) : (
-              paginate(rows, page, pageSize).map((n) => (
-              <ListRow key={n.id} cols={NEG_COLS} onClick={() => setDetailTarget(n)}>
-                <div className="flex items-center gap-1 min-w-0">
-                  <MonoText className="!text-[12px] !font-normal truncate">{n.id.slice(0, 12)}</MonoText>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                  >
-                    <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                  </button>
-                </div>
-                <div>
-                  <StateBadge name={n.name} />
-                </div>
-                <div className="min-w-0">
-                  <MonoText className="!text-[12px] !font-normal block truncate">{n.peer}</MonoText>
-                </div>
-                <div className="min-w-0">
-                  {n.assetId ? (
-                    <MonoText className="!text-[12px] !font-normal block truncate">{n.assetId}</MonoText>
-                  ) : (
-                    <span className="text-[12px] text-muted-foreground/50">—</span>
-                  )}
-                </div>
-                <div className="text-[12px] font-normal text-muted-foreground">{n.t}</div>
-                <div className="text-[12px] font-normal text-muted-foreground truncate">{n.ts}</div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {n.name === "FINALIZED" && (
-                      <RoleGate permission="transaction:write">
-                        <button
-                          onClick={() => handleTransferStart(n)}
-                          className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap"
-                        >
-                          {t.negotiations.startTransfer}
-                        </button>
-                      </RoleGate>
-                    )}
-                    {n.name === "TERMINATED" && (
-                      <button
-                        onClick={() => handleTerminatedDetail(n)}
-                        className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap"
-                      >
-                        {t.negotiations.errorDetail}
-                      </button>
-                    )}
-                    {!TERMINAL_STATES.has(n.name) && (
-                      <RoleGate permission="transaction:write">
-                        <button
-                          onClick={() => { setTerminateTarget(n); setTerminateReason(""); }}
-                          className="text-[11px] px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 font-medium transition-colors whitespace-nowrap flex items-center gap-1"
-                        >
-                          <XCircle className="w-3 h-3" />
-                          {t.negotiations.terminate}
-                        </button>
-                      </RoleGate>
-                    )}
-                  </div>
-                </div>
-              </ListRow>
-              )))}
-            {rows.length > 0 && (
-              <div className="px-4 py-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex items-center gap-1">
-                  {[10, 20, 50].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => { setPageSize(size); setPage(1); }}
-                      className={`text-[11px] px-2 py-0.5 rounded-md border transition-colors ${
-                        pageSize === size
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card border-border text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {size}건
-                    </button>
+          {/* Desktop/Tablet: Table — asset-list style */}
+          <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+              <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+                <List className="w-4 h-4 text-primary" />
+                {t.negotiations.listTitle}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px]">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.negotiations.col.id}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.negotiations.col.state}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.negotiations.col.peer}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.negotiations.col.duration}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.negotiations.col.time}</th>
+                    <th className="px-4 py-3 text-right text-[12px] font-bold text-foreground">{t.negotiations.col.action}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginatedData.map((n) => (
+                    <tr key={n.id} className="table-row-hover group cursor-pointer" onClick={() => setDetailTarget(n)}>
+                      <td className="px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <MonoText className="!text-[12px] !font-normal truncate text-primary group-hover:text-primary/80">{n.id}</MonoText>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }}
+                              className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                              aria-label={t.common.copy ?? "Copy"}
+                            >
+                              <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                            </button>
+                          </div>
+                          {n.assetId ? (
+                            <MonoText className="!text-[12px] !font-normal block truncate">{n.assetId}</MonoText>
+                          ) : (
+                            <div className="text-[12px] font-normal text-muted-foreground/50">—</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><StateBadge name={n.name} /></td>
+                      <td className="px-4 py-3">
+                        <MonoText className="!text-[12px] !font-normal block truncate max-w-[240px]">{n.peer}</MonoText>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] font-normal text-muted-foreground">{n.t}</td>
+                      <td className="px-4 py-3 text-[12px] font-normal text-muted-foreground whitespace-nowrap">{n.ts}</td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {n.name === "FINALIZED" && (
+                            <RoleGate permission="transaction:write">
+                              <button
+                                onClick={() => handleTransferStart(n)}
+                                className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap"
+                              >
+                                {t.negotiations.startTransfer}
+                              </button>
+                            </RoleGate>
+                          )}
+                          {n.name === "TERMINATED" && (
+                            <button
+                              onClick={() => handleTerminatedDetail(n)}
+                              className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap"
+                            >
+                              {t.negotiations.errorDetail}
+                            </button>
+                          )}
+                          {!TERMINAL_STATES.has(n.name) && (
+                            <RoleGate permission="transaction:write">
+                              <button
+                                onClick={() => { setTerminateTarget(n); setTerminateReason(""); }}
+                                className="text-[11px] px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                              >
+                                <XCircle className="w-3 h-3" />
+                                {t.negotiations.terminate}
+                              </button>
+                            </RoleGate>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   ))}
+                </tbody>
+              </table>
+              {rows.length === 0 && (
+                <div className="py-12 text-center">
+                  <Package size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">{t.negotiations.noResults}</p>
                 </div>
-                <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
-              </div>
-            )}
-          </ListCard>
+              )}
+              {totalItems > 0 && (
+                <DataTablePagination
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  rowsPerPageLabel={t.common.rowsPerPage}
+                />
+              )}
+            </div>
+          </div>
 
           {/* Mobile: Card Stack */}
           <div className="md:hidden flex flex-col gap-3">
-            {paginate(rows, page, pageSize).map((n) => (
+            {paginatedData.map((n) => (
               <NegotiationCard
                 key={n.id}
                 negotiation={n}
@@ -356,72 +350,189 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
             {rows.length === 0 && (
               <ListEmpty icon={<FileText />} message={t.negotiations.noResults} />
             )}
-            <Pagination total={rows.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+            {totalItems > 0 && (
+              <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                <DataTablePagination
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  rowsPerPageLabel={t.common.rowsPerPage}
+                />
+              </div>
+            )}
           </div>
           </>
           )}
         </div>
 
-        {/* Detail Dialog */}
+        {/* Detail Sheet */}
         {detailTarget && (
-          <DetailPanel
-            open={!!detailTarget}
+          <NegotiationDetailSheet
+            target={detailTarget}
             onClose={() => setDetailTarget(null)}
-            title={detailTarget.id}
-            icon={<FileText className="w-4 h-4 text-primary" />}
-            subtitle={detailTarget.name}
-            sections={[
-              {
-                title: t.negotiations.sectionTimeline,
-                fields: [
-                  { label: t.negotiations.progress, value: <StateTimeline current={detailTarget.state} terminated={detailTarget.name === "TERMINATED"} /> },
-                ],
-              },
-              {
-                title: t.negotiations.sectionBasic,
-                fields: [
-                  { label: t.negotiations.col.id, value: detailTarget.id, mono: true, copyable: true },
-                  { label: t.negotiations.col.state, value: "", badge: { text: `${detailTarget.name} (${detailTarget.state})`, variant: detailTarget.name === "FINALIZED" ? "green" : detailTarget.name === "TERMINATED" ? "red" : "blue" } },
-                  { label: t.negotiations.col.peer, value: detailTarget.peer, mono: true, copyable: true },
-                  { label: t.negotiations.col.duration, value: detailTarget.t },
-                  { label: t.negotiations.col.time, value: detailTarget.ts },
-                ],
-              },
-              {
-                title: t.negotiations.sectionRefs,
-                fields: [
-                  { label: t.negotiations.col.asset, value: detailTarget.assetId || "—", mono: !!detailTarget.assetId, copyable: !!detailTarget.assetId },
-                  { label: t.negotiations.agreementId, value: detailTarget.agreementId || "—", mono: !!detailTarget.agreementId, copyable: !!detailTarget.agreementId },
-                  { label: t.negotiations.counterPartyAddress, value: detailTarget.counterPartyAddress || "—", mono: !!detailTarget.counterPartyAddress, copyable: !!detailTarget.counterPartyAddress },
-                ],
-              },
-              ...(detailTarget.errorDetail ? [{
-                title: t.negotiations.errorDetail,
-                fields: [{ label: t.negotiations.errorMessage, value: detailTarget.errorDetail, badge: { text: t.negotiations.terminated, variant: "red" } }],
-              }] : []),
-            ]}
             onShowJson={() => { setJsonTarget(detailTarget); setDetailTarget(null); }}
+            onTransfer={() => { handleTransferStart(detailTarget); }}
+            onTerminate={() => { setDetailTarget(null); setTerminateTarget(detailTarget); setTerminateReason(""); }}
           />
         )}
 
         {/* JSON Viewer */}
         {jsonTarget && <NegotiationJsonDialog negotiation={jsonTarget} onClose={() => setJsonTarget(null)} />}
-
-        {/* State Code Map */}
-        <Card title={t.negotiations.fsmMapping}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-2 gap-2">
-            {Object.entries(NEG_STATE_MAP).map(([code, info]) => (
-              <div key={code} className="bg-muted rounded-md p-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="mono text-[11px] text-muted-foreground">{code}</span>
-                  <StateBadge name={info.name} />
-                </div>
-                <div className="text-[11px] text-muted-foreground mt-1">{info.label}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
       </div>
+    </>
+  );
+}
+
+/* ─── Detail Sheet (asset-style card grid) ───────────────────── */
+function InfoCard({ label, value, span, mono, copyable }: { label: string; value: React.ReactNode; span?: boolean; mono?: boolean; copyable?: string }) {
+  const { t } = useI18n();
+  return (
+    <div className={cn("bg-slate-50 rounded-lg border border-slate-100 px-3 py-2", span && "md:col-span-2")}>
+      <p className="text-slate-500">{label}</p>
+      <div className="flex items-start gap-1.5 mt-0.5">
+        <p className={cn("text-slate-700 break-all flex-1", mono && "mono")}>{value || "—"}</p>
+        {copyable && (
+          <button
+            onClick={() => { navigator.clipboard.writeText(copyable); toast.success(t.common.copied); }}
+            className="flex-shrink-0 text-slate-400 hover:text-slate-700 transition-colors mt-0.5"
+            aria-label={t.common.copy}
+          >
+            <Copy size={12} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NegotiationDetailSheet({
+  target, onClose, onShowJson, onTransfer, onTerminate,
+}: {
+  target: Negotiation;
+  onClose: () => void;
+  onShowJson: () => void;
+  onTransfer: () => void;
+  onTerminate: () => void;
+}) {
+  const { t } = useI18n();
+  const [entered, setEntered] = useState(false);
+  const terminated = target.name === "TERMINATED";
+  const isTerminal = TERMINAL_STATES.has(target.name);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [onClose]);
+
+  return (
+    <>
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/20 transition-opacity duration-200", entered ? "opacity-100" : "opacity-0")}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-white flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          entered ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap pr-8">
+            <h2 className="text-base font-semibold text-slate-900 truncate mono">{target.id}</h2>
+            <StateBadge name={target.name} />
+            <span className="text-[11px] font-mono text-slate-400">{target.state}</span>
+            <button
+              onClick={onClose}
+              className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              aria-label={t.common.close}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
+          {/* Timeline */}
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.negotiations.sectionTimeline}</p>
+            <div className="bg-slate-50 rounded-lg border border-slate-100 px-3 py-3">
+              <StateTimeline current={target.state} terminated={terminated} />
+            </div>
+          </div>
+
+          {/* Basic */}
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.negotiations.sectionBasic}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.negotiations.col.id} value={target.id} span mono copyable={target.id} />
+              <InfoCard label={t.negotiations.col.state} value={`${target.name} (${target.state})`} />
+              <InfoCard label={t.negotiations.col.peer} value={target.peer} mono copyable={target.peer} />
+              <InfoCard label={t.negotiations.col.duration} value={target.t} />
+              <InfoCard label={t.negotiations.col.time} value={target.ts} />
+            </div>
+          </div>
+
+          {/* References */}
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.negotiations.sectionRefs}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.negotiations.col.asset} value={target.assetId} span mono copyable={target.assetId || undefined} />
+              <InfoCard label={t.negotiations.agreementId} value={target.agreementId} span mono copyable={target.agreementId || undefined} />
+              <InfoCard label={t.negotiations.counterPartyAddress} value={target.counterPartyAddress} span mono copyable={target.counterPartyAddress || undefined} />
+            </div>
+          </div>
+
+          {/* Error */}
+          {target.errorDetail && (
+            <div>
+              <p className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-rose-500" />{t.negotiations.errorDetail}</p>
+              <div className="bg-rose-50 rounded-lg border border-rose-100 px-3 py-2">
+                <p className="text-rose-700 break-all">{target.errorDetail}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-shrink-0">
+          <button onClick={onShowJson}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <Code size={13} /> JSON
+          </button>
+          <div className="flex-1" />
+          {target.name === "FINALIZED" && (
+            <RoleGate permission="transaction:write">
+              <button onClick={onTransfer}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+                <Send size={13} /> {t.negotiations.startTransfer}
+              </button>
+            </RoleGate>
+          )}
+          {!isTerminal && (
+            <RoleGate permission="transaction:write">
+              <button onClick={onTerminate}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors">
+                <XCircle size={13} /> {t.negotiations.terminate}
+              </button>
+            </RoleGate>
+          )}
+          <button onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            <X size={13} /> {t.common.close}
+          </button>
+        </div>
+      </aside>
     </>
   );
 }
@@ -544,7 +655,7 @@ function NegotiationCard({
           <StateBadge name={n.name} />
           <MonoText className="text-[11px]">{n.id.slice(0, 12)}</MonoText>
         </div>
-        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }}>
+        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }} aria-label={t.common.copy ?? "Copy"}>
           <Copy className="w-3 h-3 text-muted-foreground" />
         </button>
       </div>

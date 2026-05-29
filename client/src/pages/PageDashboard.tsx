@@ -44,6 +44,16 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
     refetchInterval: 60_000, // 1분마다 갱신
   });
 
+  // 전송 통계: 완료(COMPLETED) / 진행 중(REQUESTING·STARTED·SUSPENDED)
+  const transferStats = useMemo(() => {
+    let done = 0, active = 0;
+    for (const tr of transfers) {
+      if (tr?.name === "COMPLETED") done++;
+      else if (tr?.name === "REQUESTING" || tr?.name === "STARTED" || tr?.name === "SUSPENDED") active++;
+    }
+    return { done, active };
+  }, [transfers]);
+
   // FSM 분포: 실제 negotiations 데이터에서 집계
   const pieData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -76,7 +86,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
           iconBg="bg-sky-50"
           value={transfers.length}
           title={t.dashboard.dataTransfers}
-          sub={t.dashboard.completedInProgress}
+          sub={t.dashboard.completedInProgress(transferStats.done, transferStats.active)}
           valueColor="text-sky-600"
           trend="up"
         />
@@ -86,7 +96,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         {/* Line Chart — RPM/Latency style */}
         <Card
-          title={<CardTitle icon={<TrendingUp className="w-3.5 h-3.5 text-blue-500" />}>{t.dashboard.trendTitle}</CardTitle>}
+          title={<CardTitle icon={<TrendingUp className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.dashboard.trendTitle}</span></CardTitle>}
           className="xl:col-span-2"
           actions={
             <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -110,7 +120,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
         </Card>
 
         {/* FSM Donut */}
-        <Card title={<CardTitle icon={<Activity className="w-3.5 h-3.5 text-blue-500" />}>{t.dashboard.fsmDistribution}</CardTitle>}>
+        <Card title={<CardTitle icon={<Activity className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.dashboard.fsmDistribution}</span></CardTitle>}>
           <div className="flex flex-col items-center">
             <ResponsiveContainer width="100%" height={130}>
               <PieChart>
@@ -139,7 +149,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
 
       {/* Recent Negotiations */}
       <Card
-        title={<CardTitle icon={<FileText className="w-3.5 h-3.5 text-blue-500" />}>{t.dashboard.recentNegotiations}</CardTitle>}
+        title={<CardTitle icon={<FileText className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.dashboard.recentNegotiations}</span></CardTitle>}
         actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/negotiation`)}>{t.dashboard.viewAll}</ViewAllLink>}
       >
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -147,7 +157,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <thead className="bg-muted/50 border-b border-border">
               <tr>
                 {[t.dashboard.col.negId, t.dashboard.col.state, t.dashboard.col.peer, t.dashboard.col.time].map(h => (
-                  <th key={h} className="text-left !text-[12px] px-4 py-3 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left text-[12px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -171,11 +181,11 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
 
       {/* Recent Transfers */}
       <Card
-        title={<CardTitle icon={<ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />}>{t.dashboard.recentTransfers}</CardTitle>}
+        title={<CardTitle icon={<ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.dashboard.recentTransfers}</span></CardTitle>}
         actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/transfer`)}>{t.dashboard.viewAll}</ViewAllLink>}
       >
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-[13px]">
+          <table className="w-full">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
                 {[t.dashboard.col.transferId, t.dashboard.col.state, t.dashboard.col.assetId, t.dashboard.col.size, t.dashboard.col.duration, t.dashboard.col.time].map(h => (
@@ -186,16 +196,16 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <tbody className="divide-y divide-border">
               {transfers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-[13px] text-muted-foreground">{t.dashboard.noResults}</td>
+                  <td colSpan={6} className="py-6 text-center !text-[12px] text-muted-foreground">{t.dashboard.noResults}</td>
                 </tr>
               ) : transfers.slice(0, 4).map((tr) => (
                 <tr key={tr?.id ?? Math.random()} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3"><MonoText>{(tr?.id ?? "").slice(0, 12)}</MonoText></td>
+                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{(tr?.id ?? "").slice(0, 12)}</MonoText></td>
                   <td className="px-4 py-3"><StateBadge name={tr?.name ?? ""} /></td>
-                  <td className="px-4 py-3"><MonoText>{tr?.asset ?? ""}</MonoText></td>
-                  <td className="px-4 py-3 text-muted-foreground">{tr?.size ?? ""}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{tr?.t ?? ""}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{tr?.ts ?? ""}</td>
+                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{tr?.asset ?? ""}</MonoText></td>
+                  <td className="px-4 py-3 !text-[12px] text-muted-foreground">{tr?.size ?? ""}</td>
+                  <td className="px-4 py-3 !text-[12px] text-muted-foreground">{tr?.t ?? ""}</td>
+                  <td className="px-4 py-3 !text-[12px] text-muted-foreground">{tr?.ts ?? ""}</td>
                 </tr>
               ))}
             </tbody>

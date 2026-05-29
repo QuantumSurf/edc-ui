@@ -9,15 +9,13 @@ import { useI18n } from "@/i18n";
 import { fetchOfferings, fetchAssets, fetchPolicies, fetchNegotiations, createOffering, updateOffering, deleteOffering } from "@/services";
 import { type Asset, type Policy, type Offering } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { DetailPanel, DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
-import { Pagination, paginate } from "@/components/Pagination";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField, JsonTreeView,
 } from "@/components/ui-kmx";
-
-const OFFERING_COLS = "grid-cols-[1.6fr_1.4fr_1.2fr_1.2fr_0.8fr]";
-import { PlusCircle, Copy, Search, Loader2, RefreshCw, AlertCircle, Database, Shield, X, Code, CheckCircle2, FileSignature, Wand2 } from "lucide-react";
+import { PlusCircle, Copy, Search, Loader2, RefreshCw, AlertCircle, Database, Shield, X, Code, CheckCircle2, FileSignature, Wand2, Pencil, Files, Trash2, ChevronsRight, List } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -33,7 +31,6 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
   const connectorId = connector?.id;
   const [tab, setTab] = useState<"list" | "wizard">("list");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [detailTarget, setDetailTarget] = useState<Offering | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Offering | null>(null);
   const [wizardDirty, setWizardDirty] = useState(false);
@@ -79,6 +76,10 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
       (o.id ?? "").toLowerCase().includes(search.toLowerCase()) ||
       (o.asset ?? "").toLowerCase().includes(search.toLowerCase())
   );
+
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+
+  const assetCount = (o: Offering) => (o.asset ?? "").split(",").map((s) => s.trim()).filter(Boolean).length;
 
   return (
     <>
@@ -134,8 +135,8 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                 type="text"
                 placeholder={t.offerings.searchPlaceholder}
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
@@ -170,68 +171,94 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
             </Card>
           )}
 
-          {/* Desktop/Tablet: List */}
+          {/* Desktop/Tablet: Table */}
           {!isLoading && !isError && (
-          <ListCard
-            title={t.offerings.list}            className="hidden md:block"
-          >
-            <ListHeaderRow cols={OFFERING_COLS}>
-              <ListColLabel>{t.offerings.offeringId}</ListColLabel>
-              <ListColLabel>{t.offerings.step1}</ListColLabel>
-              <ListColLabel>{t.offerings.step2}</ListColLabel>
-              <ListColLabel>{t.offerings.step3}</ListColLabel>
-              <ListColLabel>{t.offerings.contractCount}</ListColLabel>
-            </ListHeaderRow>
-            {filtered.length === 0 ? (
-              <ListEmpty icon={<Database />} message={t.common.noResults} />
-            ) : (
-              paginate(filtered, page).map((o) => (
-                <ListRow
-                  key={o.id}
-                  cols={OFFERING_COLS}
-                  selected={detailTarget?.id === o.id}
-                  onClick={() => setDetailTarget(o)}
-                >
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <MonoText className="!text-[12px] !font-normal truncate">{o.id}</MonoText>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(o.id); toast.success(t.common.copied); }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                    >
-                      <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                    </button>
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[12px] font-normal text-foreground/80 truncate block">{o.asset || "—"}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <Badge variant="purple" className="text-[11px] max-w-full">
-                      <span className="truncate">{o.access || "—"}</span>
-                    </Badge>
-                  </div>
-                  <div className="min-w-0">
-                    <Badge variant="purple" className="text-[11px] max-w-full">
-                      <span className="truncate">{o.contract || "—"}</span>
-                    </Badge>
-                  </div>
-                  <div>
-                    <span className="text-[12px] font-normal text-foreground">{o.cnt}</span>
-                  </div>
-                </ListRow>
-              ))
-            )}
-            {filtered.length > 0 && (
-              <div className="px-4 py-2 border-t border-border/60">
-                <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-              </div>
-            )}
-          </ListCard>
+          <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+              <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+                <List className="w-4 h-4 text-primary" />
+                {t.offerings.list}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.offeringId}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.step1}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.step2}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.step3}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.contractCount}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginatedData.map((o) => {
+                    const aCount = assetCount(o);
+                    return (
+                      <tr
+                        key={o.id}
+                        onClick={() => setDetailTarget(o)}
+                        className={cn("table-row-hover cursor-pointer group", detailTarget?.id === o.id && "bg-primary/5")}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <MonoText className="!text-[12px] font-medium !text-primary group-hover:text-primary/80 truncate block">{o.id}</MonoText>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(o.id); toast.success(t.common.copied); }}
+                                className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                                aria-label={t.common.copy ?? "Copy"}
+                              >
+                                <Copy className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                              </button>
+                            </div>
+                            <div className="text-xs text-foreground truncate">{t.offerings.assetCount(aCount)}</div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <MonoText className="!text-[12px] !font-normal text-foreground truncate block max-w-[220px]" title={o.asset}>{o.asset || "—"}</MonoText>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="purple" className="!font-normal max-w-full"><span className="truncate">{o.access || "—"}</span></Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="purple" className="!font-normal max-w-full"><span className="truncate">{o.contract || "—"}</span></Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", o.cnt > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
+                            <span className={cn("text-xs", o.cnt > 0 ? "text-emerald-700" : "text-foreground")}>{o.cnt}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filtered.length === 0 && (
+                <div className="py-12 text-center">
+                  <Database size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">{t.common.noResults}</p>
+                </div>
+              )}
+              {totalItems > 0 && (
+                <DataTablePagination
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  rowsPerPageLabel={t.common.rowsPerPage}
+                />
+              )}
+            </div>
+          </div>
           )}
 
           {/* Mobile: Card Stack */}
           {!isLoading && !isError && (
           <div className="md:hidden flex flex-col gap-3">
-            {paginate(filtered, page).map((o) => (
+            {paginatedData.map((o) => (
               <div key={o.id} onClick={() => setDetailTarget(o)} className="cursor-pointer"><OfferingCard offering={o} /></div>
             ))}
             {filtered.length === 0 && (
@@ -272,71 +299,19 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
         onConfirm={() => { if (pendingTabSwitch) { setWizardDirty(false); setTab(pendingTabSwitch); setPendingTabSwitch(null); } }}
       />
 
-      {detailTarget && (() => {
-        const accessP = policies.find((p) => p.id === detailTarget.access);
-        const contractP = policies.find((p) => p.id === detailTarget.contract);
-        const assetIds = (detailTarget.asset ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-        const relatedNegs = negotiations.filter((n) => n.assetId && assetIds.includes(n.assetId)).slice(0, 5);
-        const accessDeleted = !!detailTarget.access && !accessP;
-        const contractDeleted = !!detailTarget.contract && !contractP;
-        const accessFields: { label: string; value: string; mono?: boolean; copyable?: boolean; badge?: { text: string; variant: string } }[] = [
-          { label: t.policies.col.id, value: detailTarget.access, mono: true, copyable: true },
-        ];
-        if (accessDeleted) accessFields.push({ label: t.offerings.policyStatus, value: "", badge: { text: t.offerings.policyDeleted, variant: "red" } });
-        else accessFields.push({ label: t.policies.constraints, value: accessP?.constraint || "—", mono: true });
-        const contractFields: typeof accessFields = [
-          { label: t.policies.col.id, value: detailTarget.contract, mono: true, copyable: true },
-        ];
-        if (contractDeleted) contractFields.push({ label: t.offerings.policyStatus, value: "", badge: { text: t.offerings.policyDeleted, variant: "red" } });
-        else contractFields.push({ label: t.policies.constraints, value: contractP?.constraint || "—", mono: true });
-        return (
-          <DetailPanel
-            open={!!detailTarget}
-            onClose={() => setDetailTarget(null)}
-            title={detailTarget.id}
-            icon={<FileSignature className="w-4 h-4 text-primary" />}
-            subtitle={`${t.offerings.contractCount}: ${detailTarget.cnt}  ·  ${t.offerings.assetCount(assetIds.length)}`}
-            subtitleMono={false}
-            sections={[
-              {
-                title: t.offerings.col.asset,
-                fields: assetIds.length === 0
-                  ? [{ label: t.assets.col.id, value: detailTarget.asset, mono: true, copyable: true }]
-                  : assetIds.map((id, i) => ({ label: assetIds.length > 1 ? `#${i + 1}` : t.assets.col.id, value: id, mono: true, copyable: true })),
-              },
-              {
-                title: t.offerings.col.access,
-                fields: accessFields,
-              },
-              {
-                title: t.offerings.col.contract,
-                fields: contractFields,
-              },
-              {
-                title: t.offerings.col.cnt,
-                fields: [
-                  { label: t.offerings.contractCount, value: "", badge: { text: `${detailTarget.cnt}`, variant: detailTarget.cnt > 0 ? "blue" : "gray" } },
-                ],
-              },
-              {
-                title: t.offerings.relatedNegotiations,
-                fields: relatedNegs.length === 0
-                  ? [{ label: "", value: t.offerings.noRelatedNegotiations }]
-                  : relatedNegs.map((n) => ({
-                      label: n.name,
-                      value: `${n.id.slice(0, 12)}…  ·  ${n.peer}  ·  ${n.ts}`,
-                      mono: true,
-                    })),
-              },
-            ]}
-            onEdit={() => { setEditTarget(detailTarget); setDetailTarget(null); setTab("wizard"); }}
-            onDuplicate={() => { setDuplicateSource(detailTarget); setDetailTarget(null); setTab("wizard"); }}
-            onShowJson={() => { setJsonTarget(detailTarget); setDetailTarget(null); }}
-            onDelete={detailTarget.cnt > 0 ? undefined : () => { setDeleteTarget(detailTarget); setDetailTarget(null); }}
-            deleteDisabledReason={detailTarget.cnt > 0 ? t.offerings.deleteBlockedByContracts(detailTarget.cnt) : undefined}
-          />
-        );
-      })()}
+      {detailTarget && (
+        <OfferingDetailSheet
+          target={detailTarget}
+          policies={policies}
+          negotiations={negotiations}
+          onClose={() => setDetailTarget(null)}
+          onEdit={() => { setEditTarget(detailTarget); setDetailTarget(null); setTab("wizard"); }}
+          onDuplicate={() => { setDuplicateSource(detailTarget); setDetailTarget(null); setTab("wizard"); }}
+          onShowJson={() => { setJsonTarget(detailTarget); setDetailTarget(null); }}
+          onDelete={detailTarget.cnt > 0 ? undefined : () => { setDeleteTarget(detailTarget); setDetailTarget(null); }}
+          deleteDisabledReason={detailTarget.cnt > 0 ? t.offerings.deleteBlockedByContracts(detailTarget.cnt) : undefined}
+        />
+      )}
 
       {deleteTarget && connectorId && (
         <DeleteConfirmDialog
@@ -347,6 +322,169 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
           queryKeys={[["offerings", connectorId], ["policies", connectorId], ["assets", connectorId]]}
         />
       )}
+    </>
+  );
+}
+
+/* ─── Offering Detail Sheet (asset-style) ────────────────────── */
+function InfoCard({ label, value, span, mono }: { label: string; value: React.ReactNode; span?: boolean; mono?: boolean }) {
+  return (
+    <div className={cn("bg-slate-50 rounded-lg border border-slate-100 px-3 py-2", span && "md:col-span-2")}>
+      <p className="text-slate-500">{label}</p>
+      <p className={cn("text-slate-700 mt-0.5 break-all", mono && "mono")}>{value || "—"}</p>
+    </div>
+  );
+}
+
+function OfferingDetailSheet({
+  target, policies, negotiations,
+  onClose, onEdit, onDuplicate, onShowJson, onDelete, deleteDisabledReason,
+}: {
+  target: Offering;
+  policies: Policy[];
+  negotiations: Array<{ id: string; assetId?: string; name?: string; peer?: string; ts?: string }>;
+  onClose: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onShowJson: () => void;
+  onDelete?: () => void;
+  deleteDisabledReason?: string;
+}) {
+  const { t } = useI18n();
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [onClose]);
+
+  const accessP = policies.find((p) => p.id === target.access);
+  const contractP = policies.find((p) => p.id === target.contract);
+  const assetIds = (target.asset ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const relatedNegs = negotiations.filter((n) => n.assetId && assetIds.includes(n.assetId)).slice(0, 5);
+  const accessDeleted = !!target.access && !accessP;
+  const contractDeleted = !!target.contract && !contractP;
+
+  return (
+    <>
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/20 transition-opacity duration-200", entered ? "opacity-100" : "opacity-0")}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-white flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          entered ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap pr-8">
+            <h2 className="text-base font-semibold text-slate-900 truncate">{target.id}</h2>
+            <Badge variant="purple" className="!font-normal">{t.offerings.assetCount(assetIds.length)}</Badge>
+            <span className={cn(
+              "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border",
+              target.cnt > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
+            )}>
+              <span className={cn("w-1.5 h-1.5 rounded-full", target.cnt > 0 ? "bg-emerald-500" : "bg-slate-300")} />
+              {t.offerings.contractCount}: {target.cnt}
+            </span>
+            <button
+              onClick={onClose}
+              className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              aria-label={t.common.close}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.col.asset}</p>
+            <div className="grid grid-cols-1 gap-3">
+              {assetIds.length === 0 ? (
+                <InfoCard label={t.assets.col.id} value="—" />
+              ) : assetIds.map((id, i) => (
+                <InfoCard key={id} label={assetIds.length > 1 ? `#${i + 1}` : t.assets.col.id} value={id} mono />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.col.access}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.policies.col.id} value={target.access} span mono />
+              {accessDeleted ? (
+                <InfoCard label={t.offerings.policyStatus} value={t.offerings.policyDeleted} span />
+              ) : (
+                <InfoCard label={t.policies.constraints} value={accessP?.constraint || "—"} span mono />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.col.contract}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label={t.policies.col.id} value={target.contract} span mono />
+              {contractDeleted ? (
+                <InfoCard label={t.offerings.policyStatus} value={t.offerings.policyDeleted} span />
+              ) : (
+                <InfoCard label={t.policies.constraints} value={contractP?.constraint || "—"} span mono />
+              )}
+            </div>
+          </div>
+
+          {relatedNegs.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.relatedNegotiations}</p>
+              <div className="grid grid-cols-1 gap-3">
+                {relatedNegs.map((n) => (
+                  <InfoCard key={n.id} label={n.name || "—"} value={`${n.id.slice(0, 12)}…  ·  ${n.peer}  ·  ${n.ts}`} mono />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-shrink-0">
+          {onDelete && (
+            <button onClick={onDelete}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+              <Trash2 size={13} /> {t.common.delete}
+            </button>
+          )}
+          {!onDelete && deleteDisabledReason && (
+            <button disabled title={deleteDisabledReason}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 cursor-not-allowed rounded-md">
+              <Trash2 size={13} /> {t.common.delete}
+            </button>
+          )}
+          <button onClick={onShowJson}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <Code size={13} /> JSON
+          </button>
+          <button onClick={onDuplicate}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <Files size={13} /> {t.common.duplicate}
+          </button>
+          <div className="flex-1" />
+          <button onClick={onEdit}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors">
+            <Pencil size={13} /> {t.common.edit}
+          </button>
+          <button onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            <X size={13} /> {t.common.close}
+          </button>
+        </div>
+      </aside>
     </>
   );
 }
@@ -444,18 +582,14 @@ function OfferingWizard({
     markDirty();
   };
 
-  const assetsSelectorJson =
+  const assetsSelectorObj =
     selAssets.length > 0
-      ? JSON.stringify(
-          {
-            "@type": "CriterionDto",
-            operandLeft: EDC_NS_ID,
-            operator: "in",
-            operandRight: selAssets,
-          },
-          null,
-          2
-        )
+      ? {
+          "@type": "CriterionDto",
+          operandLeft: EDC_NS_ID,
+          operator: "in",
+          operandRight: selAssets,
+        }
       : null;
 
   const handlePublish = async () => {
@@ -545,7 +679,7 @@ function OfferingWizard({
                 placeholder={t.offerings.searchAssetPlaceholder}
                 value={assetSearch}
                 onChange={(e) => setAssetSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           )}
@@ -579,14 +713,12 @@ function OfferingWizard({
             );
           })}
 
-          {assetsSelectorJson && (
+          {assetsSelectorObj && (
             <div className="mt-2">
               <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                 {t.offerings.assetsSelector}
               </div>
-              <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">
-                {assetsSelectorJson}
-              </pre>
+              <JsonTreeView data={assetsSelectorObj} />
             </div>
           )}
 
@@ -623,7 +755,7 @@ function OfferingWizard({
                   placeholder={t.offerings.searchPolicyPlaceholder}
                   value={policySearch}
                   onChange={(e) => setPolicySearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <PolicySelector
@@ -672,7 +804,7 @@ function OfferingWizard({
                   placeholder={t.offerings.searchPolicyPlaceholder}
                   value={policySearch}
                   onChange={(e) => setPolicySearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <PolicySelector
@@ -714,7 +846,7 @@ function OfferingWizard({
               placeholder="cd-id"
               disabled={isEdit}
               title={isEdit ? t.offerings.idImmutable : undefined}
-              className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-muted focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
             />
             {offeringIdError && (
               <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
@@ -754,14 +886,12 @@ function OfferingWizard({
             </div>
           </div>
 
-          {assetsSelectorJson && (
+          {assetsSelectorObj && (
             <div>
               <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                 {t.offerings.assetsSelector}
               </div>
-              <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">
-                {assetsSelectorJson}
-              </pre>
+              <JsonTreeView data={assetsSelectorObj} />
             </div>
           )}
 
@@ -910,8 +1040,9 @@ function PolicySelector({
           <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-2">
             ODRL JSON
           </div>
-          <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto max-h-[160px] whitespace-pre-wrap leading-relaxed">
-            {JSON.stringify({
+          <JsonTreeView
+            className="max-h-[160px]"
+            data={{
               "@context": "http://www.w3.org/ns/odrl.jsonld",
               "@type": "Set",
               "@id": selectedPolicy.id,
@@ -923,8 +1054,8 @@ function PolicySelector({
                   "odrl:rightOperand": c.right,
                 })),
               }],
-            }, null, 2)}
-          </pre>
+            }}
+          />
         </div>
       )}
     </div>

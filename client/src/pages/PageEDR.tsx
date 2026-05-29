@@ -48,10 +48,19 @@ export default function PageEDR() {
   });
 
   const expiringCount = edrs.filter((e) => e.left >= 0 && e.left < 60).length;
+  const activeCount = edrs.filter((e) => e.left !== 0).length;
 
   return (
     <>
       <SectionHdr icon={<Key className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.edr.title}</SectionHdr>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={activeCount} label={t.edr.activeEdr} />
+        <KpiCard icon={<AlertTriangle className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={expiringCount} label={t.edr.expiringSoon} valueColor="text-amber-600" />
+        <KpiCard icon={<Trash2 className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={stats.todayGcDeleted} label={t.edr.todayGcDeleted} />
+        <KpiCard icon={<AlertTriangle className="w-[18px] h-[18px] text-rose-600" />} iconBg="bg-rose-50" value={stats.gcErrors} label={t.edr.gcErrors} valueColor={stats.gcErrors > 0 ? "text-rose-600" : undefined} />
+      </div>
 
       {alert && stats.nearestExpiry && stats.nearestExpiry.left < 60 && (
         <AlertBanner variant="warn" onClose={() => setAlert(false)}>
@@ -140,8 +149,8 @@ function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) 
   const isCritical = !noExpiry && e.left < 10 && !isExpired;
   const isWarn = !noExpiry && e.left < 60 && !isCritical && !isExpired;
 
-  const colorClass = isExpired ? "bg-gray-400" : isCritical ? "bg-rose-500" : isWarn ? "bg-amber-500" : "bg-blue-500";
-  const timeColor = isExpired ? "text-gray-400" : isCritical ? "text-rose-600" : isWarn ? "text-amber-600" : "text-foreground";
+  const colorClass = isExpired ? "bg-muted-foreground/40" : isCritical ? "bg-rose-500" : isWarn ? "bg-amber-500" : "bg-blue-500";
+  const timeColor = isExpired ? "text-muted-foreground" : isCritical ? "text-rose-600" : isWarn ? "text-amber-600" : "text-foreground";
 
   return (
     <ListRow cols={EDR_COLS}>

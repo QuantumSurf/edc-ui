@@ -39,6 +39,8 @@ const en: Translations = {
     unsavedChangesDesc: "Your input will be lost. Continue?",
     leave: "Leave",
     stay: "Stay",
+    rowsPerPage: "Rows per page",
+    digitalTwinRegistry: "Digital Twin Registry",
   },
 
   nav: {
@@ -104,6 +106,9 @@ const en: Translations = {
     confirmDeleteDesc: (name: string) => `Deleting "${name}" cannot be undone.`,
     updated: "Connector updated successfully",
     deleted: "Connector deleted successfully",
+    updateFailed: "Failed to update connector.",
+    deleteFailed: "Failed to delete connector.",
+    apiKeyUnchanged: "(unchanged)",
     cancel: "Cancel",
     save: "Save",
     delete: "Delete",
@@ -116,7 +121,7 @@ const en: Translations = {
     edrActive: "Active EDR",
     includingOfferings: "Including offerings",
     expiringWithin30: "3 expiring within 30 days",
-    completedInProgress: "79 completed / 3 in progress",
+    completedInProgress: (done: number, active: number) => `${done} completed / ${active} in progress`,
     expiringSoon: "4 expiring soon",
     negotiations: "Negotiations",
     transfers: "Transfers",
@@ -151,7 +156,7 @@ const en: Translations = {
     description: "Description",
     sourceType: "Source Type",
     sourceUrl: "Source URL",
-    col: { id: "Asset ID", type: "Type", name: "Name", version: "Version", semanticId: "Semantic ID", offering: "Offering", dataSource: "Data Source", created: "Created" },
+    col: { id: "Asset ID", type: "Type", name: "Name / Asset ID", version: "Version", semanticId: "Semantic ID", offering: "Offering", dataSource: "Data Source", created: "Created" },
     resultCount: (shown: number, total: number) => `${shown} / ${total} total`,
     emptyTitle: "No assets registered",
     emptyDesc: "Use the asset creation wizard to register your first asset.",
@@ -191,6 +196,7 @@ const en: Translations = {
     updateFailed: "Failed to update asset.",
     editWizard: "Edit Asset",
     duplicateWizard: "Duplicate Asset",
+    copySuffix: " (Copy)",
     jsonTitle: "Asset JSON (EDC v3)",
     downloadJson: "Download JSON",
     customProps: "Custom Properties",
@@ -260,10 +266,18 @@ const en: Translations = {
     templateChoose: "Choose template...",
     templateHint: "Quickly apply common Catena-X policy patterns.",
     templateApplied: (name: string) => `Applied template '${name}'.`,
+    templateDesc: {
+      "membership-active": "Allow use only for participants with an active Catena-X membership.",
+      "framework-traceability": "Allow only participants with a signed Traceability framework agreement.",
+      "bpn-allowlist-bmw-vw": "Allow use for two specified BPNs only (OR combination).",
+      "membership-and-framework": "Require active membership AND the Data Exchange Governance framework.",
+      "prohibit-third-country-transfer": "Prohibit data transfer to specific countries (prohibition + transfer).",
+      "usage-purpose-dtr": "Allow use only for Digital Twin Registry purposes.",
+    } as Record<string, string>,
     offeringRef: (n: number) => `${n} offerings`,
     deleteBlockedByOffering: "Cannot delete a policy that is linked to an offering.",
     searchPlaceholder: "Search policy ID or constraints...",
-    col: { id: "Policy ID", action: "Action", constraint: "Constraints", offeringRef: "Offering Ref", created: "Created" },
+    col: { id: "Policy ID / Summary", action: "Action", constraint: "Constraints", offeringRef: "Offering Ref", created: "Created" },
     actionUse: "Permission: Use",
     sectionBasic: "Basic Info",
     sectionConstraints: "ODRL Constraints",
@@ -517,7 +531,9 @@ const en: Translations = {
     sharedClusterDesc: (ns: string) =>
       `All connectors share a single Vault HA cluster; this connector is isolated by namespace "${ns}". More efficient than per-connector Vault in terms of operations, licensing, and audit visibility.`,
     listTitle: "Secrets / Keys",
-    masked: "Value: first 12 chars masked (NF-23)",
+    masked: "Value: first 12 chars masked",
+    serverManaged: "Server-managed · value hidden",
+    serverManagedAction: "Managed server-side — not editable from this console.",
     col: {
       alias: "Alias",
       type: "Type",
@@ -561,7 +577,7 @@ const en: Translations = {
     exportCsv: "Export CSV",
     exported: "Audit log exported as CSV.",
     clearFilters: "Clear filters",
-    detailTitle: "Audit Event Detail",
+    detailTitle: "Event Detail",
     rangeAll: "All",
     range1d: "1d",
     range7d: "7d",
@@ -611,7 +627,7 @@ const en: Translations = {
     emptyTitle: "No matching events",
     emptyDesc: "Try changing the filter criteria.",
     resultCount: (shown: number, total: number) => `${shown} of ${total}`,
-    retentionNotice: "Audit logs are retained for 90 days (NF-12).",
+    retentionNotice: "Audit logs are retained for 90 days.",
   },
 
   dcp: {
@@ -809,6 +825,7 @@ const en: Translations = {
     credentialFetchFailed: "Failed to fetch credentials",
     participantNotConfigured: "Participant ID is not configured",
     participantNotConfiguredHint: "Enter the participant ID and API key in Settings → Identity Hub Server to fetch your own info.",
+    requestFailed: "Request failed",
   },
 
   notifications: {
@@ -892,6 +909,13 @@ const en: Translations = {
       update: "Update",
       cancel: "Cancel",
     },
+    msg: {
+      deleted: (name: string) => `${name} deleted`,
+      created: (name: string) => `${name} created`,
+      updated: (name: string) => `${name} updated`,
+      tooLarge: "Content is too large (max 1 MB)",
+      saveFailed: "Failed to save",
+    },
   },
 
   // ── Digital Twin Registry ──
@@ -968,6 +992,15 @@ const en: Translations = {
       submit: "Create",
       update: "Update",
       cancel: "Cancel",
+    },
+    msg: {
+      deleted: (name: string) => `${name} deleted`,
+      created: (name: string) => `${name} created`,
+      updated: (name: string) => `${name} updated`,
+      loadFailed: "Failed to load shell information.",
+      requiredAasId: "AAS ID and idShort are required.",
+      requiredSubmodel: "Submodel requires both ID and idShort.",
+      requiredEndpointHref: "Endpoint requires Protocol Information.href.",
     },
   },
 };

@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { Card, SectionHdr, CardTitle, MonoText, Badge } from "@/components/ui-kmx";
 import {
-  Fingerprint, ExternalLink, AlertCircle, Loader2, Copy,
+  Fingerprint, AlertCircle, Loader2, Copy,
   Settings as SettingsIcon, Activity, RefreshCw, CheckCircle2, XCircle, UserCircle,
 } from "lucide-react";
 import {
@@ -53,27 +53,19 @@ export default function PageIdentityHub({ onNav }: PageIdentityHubProps) {
         ) : url ? (
           <div className="space-y-3">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
+              <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
                 {t.identityHub.endpointUrl}
               </div>
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 bg-muted/30 border border-border rounded p-2">
                 <MonoText className="!text-[12px] !font-normal break-all flex-1 min-w-0">{url}</MonoText>
                 <button
                   onClick={copy}
-                  className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                  className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   title={t.common.copy}
+                  aria-label={t.common.copy}
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </button>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="flex items-center gap-1 text-[12px] px-2.5 py-1 rounded border border-border hover:bg-muted flex-shrink-0"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  {t.identityHub.open}
-                </a>
               </div>
             </div>
             <div className="flex items-center gap-2 pt-2 border-t border-border">
@@ -148,13 +140,14 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
       ) : (
         <div className="space-y-3">
           <div>
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{t.identityHub.participantId}</div>
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">{t.identityHub.participantId}</div>
+            <div className="flex items-center gap-2 min-w-0 bg-muted/30 border border-border rounded p-2">
               <MonoText className="!text-[12px] !font-normal break-all flex-1 min-w-0">{data.participantId}</MonoText>
               <button
                 onClick={() => copy(data.participantId)}
-                className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 title={t.common.copy}
+                aria-label={t.common.copy}
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
@@ -162,13 +155,23 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
           </div>
           {data.did && (
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{t.identityHub.did}</div>
-              <MonoText className="!text-[12px] !font-normal break-all block">{data.did}</MonoText>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">{t.identityHub.did}</div>
+              <div className="flex items-center gap-2 min-w-0 bg-muted/30 border border-border rounded p-2">
+                <MonoText className="!text-[12px] !font-normal break-all flex-1 min-w-0">{data.did}</MonoText>
+                <button
+                  onClick={() => copy(data.did!)}
+                  className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                  title={t.common.copy}
+                  aria-label={t.common.copy}
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           )}
           <div className="pt-2 border-t border-border">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 {t.identityHub.credentials} ({data.credentials.length})
               </span>
               <button
@@ -251,7 +254,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
 
         <div className="pt-2 border-t border-border">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{t.identityHub.components}</span>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t.identityHub.components}</span>
             <button
               onClick={() => refetch()}
               disabled={isFetching}
@@ -266,16 +269,21 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
           ) : (
             <ul className="space-y-1.5">
               {(data?.components ?? []).map((c, i) => (
-                <li key={i} className="flex items-center gap-2 px-2 py-1.5 rounded bg-muted/40 border border-border">
-                  {c.isHealthy ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                <li key={i} className="px-2 py-1.5 rounded bg-muted/40 border border-border">
+                  <div className="flex items-center gap-2">
+                    {c.isHealthy ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                    )}
+                    <span className="text-[12px] flex-1 min-w-0 truncate">{c.component}</span>
+                    <Badge variant={c.isHealthy ? "green" : "red"}>
+                      {c.isHealthy ? t.identityHub.componentHealthy : t.identityHub.componentUnhealthy}
+                    </Badge>
+                  </div>
+                  {!c.isHealthy && c.failure && (
+                    <p className="text-[11px] text-rose-600 break-all mt-1 pl-[22px]">{c.failure}</p>
                   )}
-                  <span className="text-[12px] flex-1 min-w-0 truncate">{c.component}</span>
-                  <Badge variant={c.isHealthy ? "green" : "red"}>
-                    {c.isHealthy ? t.identityHub.componentHealthy : t.identityHub.componentUnhealthy}
-                  </Badge>
                 </li>
               ))}
             </ul>
@@ -286,7 +294,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
           <div className="flex items-start gap-2 text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded px-2 py-1.5">
             <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
             <MonoText className="!text-[11px] !font-normal break-all flex-1 min-w-0">
-              {data?.error ?? "request failed"}
+              {data?.error ?? t.identityHub.requestFailed}
             </MonoText>
           </div>
         )}
@@ -300,7 +308,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-muted/30 border border-border rounded p-2 min-w-0">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
       <MonoText className="!text-[13px] !font-normal block truncate">{value}</MonoText>
     </div>
   );

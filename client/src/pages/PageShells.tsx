@@ -12,7 +12,7 @@ import {
 } from "@/components/ui-kmx";
 
 const SHELL_COLS = "grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr]";
-import { Pagination, paginate } from "@/components/Pagination";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import { SlidePanel } from "@/components/DetailDeleteDialogs";
 import { Boxes, PlusCircle, Trash2, Search, RefreshCw, Loader2, AlertCircle, Copy, X, Pencil, FileJson, Download, BookMarked } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
@@ -37,7 +37,6 @@ export default function PageShells() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<ShellDescriptor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ShellDescriptor | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -66,11 +65,13 @@ export default function PageShells() {
     );
   });
 
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+
   const onDeleted = async () => {
     if (!deleteTarget) return;
     try {
       await deleteShell(deleteTarget.id);
-      toast.success(deleteTarget.idShort + " 삭제됨");
+      toast.success(t.twins.msg.deleted(deleteTarget.idShort));
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ["shells"] });
     } catch (e) {
@@ -116,8 +117,8 @@ export default function PageShells() {
             type="text"
             placeholder={t.twins.searchPlaceholder}
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
       </div>
@@ -165,7 +166,6 @@ export default function PageShells() {
       {!isLoading && !isError && shells.length > 0 && (
         <ListCard
           title={t.twins.listTitle}
-          actions={<span className="text-[11px] text-muted-foreground">{t.twins.resultCount(filtered.length, shells.length)}</span>}
         >
           <ListHeaderRow cols={SHELL_COLS}>
             <ListColLabel>{t.twins.col.idShort}</ListColLabel>
@@ -177,16 +177,16 @@ export default function PageShells() {
           {filtered.length === 0 ? (
             <ListEmpty icon={<Boxes />} message={t.twins.noSearchResults} />
           ) : (
-            paginate(filtered, page).map((s) => (
+            paginatedData.map((s) => (
               <ListRow key={s.id} cols={SHELL_COLS} onClick={() => setDetail(s)}>
                 <div className="min-w-0">
-                  <span className="text-[12px] truncate block">{s.idShort || "—"}</span>
+                  <span className="text-[12px] font-medium text-primary group-hover:text-primary/80 truncate block">{s.idShort || "—"}</span>
                 </div>
                 <div className="min-w-0">
-                  <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">{s.id}</MonoText>
+                  <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate block">{s.id}</MonoText>
                 </div>
                 <div className="hidden lg:block min-w-0">
-                  <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">{s.globalAssetId || "—"}</MonoText>
+                  <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate block">{s.globalAssetId || "—"}</MonoText>
                 </div>
                 <div className="hidden md:block min-w-0">
                   <div className="flex flex-wrap gap-1">
@@ -204,10 +204,15 @@ export default function PageShells() {
               </ListRow>
             ))
           )}
-          {filtered.length > 0 && (
-            <div className="px-4 py-2 border-t border-border/60">
-              <Pagination total={filtered.length} page={page} onPageChange={setPage} />
-            </div>
+          {totalItems > 0 && (
+            <DataTablePagination
+              totalItems={totalItems}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              rowsPerPageLabel={t.common.rowsPerPage}
+            />
           )}
         </ListCard>
       )}
@@ -456,6 +461,7 @@ function ShellJsonDialog({ shell, onClose }: { shell: ShellDescriptor | null; on
 function Field({ label, value, mono, onCopy }: {
   label: string; value: string; mono?: boolean; onCopy?: (s: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="min-w-0">
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
@@ -466,7 +472,8 @@ function Field({ label, value, mono, onCopy }: {
         {onCopy && value && (
           <button
             onClick={() => onCopy(value)}
-            className="opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5"
+            className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+            aria-label={t.common.copy ?? "Copy"}
           >
             <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
           </button>
@@ -531,7 +538,7 @@ function ShellEditorDialog({
       setLoading(true);
       fetchShellRaw(initialAasId)
         .then((raw) => {
-          if (!raw) { toast.error("Shell 정보를 불러올 수 없습니다."); return; }
+          if (!raw) { toast.error(t.twins.msg.loadFailed); return; }
           const s = rawToEditorState(raw);
           setIdShort(s.idShort);
           setAasId(s.aasId);
@@ -549,17 +556,17 @@ function ShellEditorDialog({
 
   const submit = async () => {
     if (!aasId || !idShort) {
-      toast.error("AAS ID 와 idShort 는 필수입니다.");
+      toast.error(t.twins.msg.requiredAasId);
       return;
     }
     for (const s of subs) {
       if (!s.id || !s.idShort) {
-        toast.error("Submodel 은 ID 와 idShort 가 필수입니다.");
+        toast.error(t.twins.msg.requiredSubmodel);
         return;
       }
       for (const ep of s.endpoints) {
         if (!ep.protocolInformation.href) {
-          toast.error("Endpoint 는 Protocol Information.href 가 필수입니다.");
+          toast.error(t.twins.msg.requiredEndpointHref);
           return;
         }
       }
@@ -581,10 +588,10 @@ function ShellEditorDialog({
       }
       if (mode === "edit") {
         await updateShell(initialAasId!, body);
-        toast.success(idShort + " 수정됨");
+        toast.success(t.twins.msg.updated(idShort));
       } else {
         await createShell(body);
-        toast.success(idShort + " 등록됨");
+        toast.success(t.twins.msg.created(idShort));
       }
       reset();
       onSaved();
@@ -596,27 +603,32 @@ function ShellEditorDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
-      <DialogContent
-        className="max-w-2xl max-h-[85vh] overflow-y-auto"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-      >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <PlusCircle className="w-4 h-4" />
+    <SlidePanel open={open} onClose={() => { reset(); onClose(); }} className="max-w-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <PlusCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <p className="font-display text-[14px] font-bold text-foreground truncate">
             {mode === "edit" ? t.twins.edit : t.twins.create}
-          </DialogTitle>
-        </DialogHeader>
+          </p>
+        </div>
+        <button
+          onClick={() => { reset(); onClose(); }}
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-[13px]">{t.common.loading}</span>
-          </div>
-        ) : (
-        <div className="space-y-3">
+      {/* Body */}
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center py-10 gap-2 text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-[13px]">{t.common.loading}</span>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {/* Asset Administration Shell Descriptor */}
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold border-b border-border pb-1">
             Asset Administration Shell Descriptor
@@ -626,7 +638,7 @@ function ShellEditorDialog({
               value={idShort}
               onChange={(e) => setIdShort(e.target.value)}
               placeholder="MyShell"
-              className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+              className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </FormField>
           <FormField label={t.twins.form.aasId} required>
@@ -635,7 +647,7 @@ function ShellEditorDialog({
               onChange={(e) => setAasId(e.target.value)}
               placeholder="urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               disabled={mode === "edit"}
-              className="w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full px-2.5 py-1.5 text-[12px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed"
             />
           </FormField>
           <FormField label={t.twins.form.globalAssetId}>
@@ -643,7 +655,7 @@ function ShellEditorDialog({
               value={globalAssetId}
               onChange={(e) => setGlobalAssetId(e.target.value)}
               placeholder="urn:uuid:..."
-              className="w-full px-2 py-1.5 text-[12px] mono border border-border rounded-md bg-card"
+              className="w-full px-2.5 py-1.5 text-[12px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </FormField>
           <FormField label={t.twins.form.descriptionKo}>
@@ -651,7 +663,7 @@ function ShellEditorDialog({
               value={descriptionKo}
               onChange={(e) => setDescriptionKo(e.target.value)}
               lang="ko"
-              className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+              className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </FormField>
           <FormField label={t.twins.form.descriptionEn}>
@@ -659,7 +671,7 @@ function ShellEditorDialog({
               value={descriptionEn}
               onChange={(e) => setDescriptionEn(e.target.value)}
               lang="en"
-              className="w-full px-2 py-1.5 text-[12px] border border-border rounded-md bg-card"
+              className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </FormField>
 
@@ -683,13 +695,13 @@ function ShellEditorDialog({
                     placeholder={t.twins.form.keyName}
                     value={s.name}
                     onChange={(e) => { const n = [...specs]; n[i] = { ...n[i], name: e.target.value }; setSpecs(n); }}
-                    className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card"
+                    className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <input
                     placeholder={t.twins.form.keyValue}
                     value={s.value}
                     onChange={(e) => { const n = [...specs]; n[i] = { ...n[i], value: e.target.value }; setSpecs(n); }}
-                    className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card"
+                    className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <button
                     onClick={() => setSpecs(specs.filter((_, j) => j !== i))}
@@ -729,25 +741,25 @@ function ShellEditorDialog({
             </div>
           </div>
         </div>
-        )}
+      )}
 
-        <div className="flex justify-end gap-2 pt-3 border-t border-border mt-3">
-          <button
-            onClick={() => { reset(); onClose(); }}
-            className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
-          >
-            {t.twins.form.cancel}
-          </button>
-          <button
-            onClick={submit}
-            disabled={submitting || loading}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-            {mode === "edit" ? t.twins.form.update : t.twins.form.submit}
-          </button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {/* Footer */}
+      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          onClick={() => { reset(); onClose(); }}
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
+        >
+          {t.twins.form.cancel}
+        </button>
+        <button
+          onClick={submit}
+          disabled={submitting || loading}
+          className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+          {mode === "edit" ? t.twins.form.update : t.twins.form.submit}
+        </button>
+      </div>
+    </SlidePanel>
   );
 }
