@@ -14,7 +14,9 @@ import {
 const SHELL_COLS = "grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr]";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import { SlidePanel } from "@/components/DetailDeleteDialogs";
-import { Boxes, PlusCircle, Trash2, Search, RefreshCw, Loader2, AlertCircle, Copy, X, Pencil, FileJson, Download, BookMarked } from "lucide-react";
+import { ExposeSubmodelDialog, type ExposeTarget } from "@/components/ExposeSubmodelDialog";
+import { ExposeDtrDialog } from "@/components/ExposeDtrDialog";
+import { Boxes, PlusCircle, Trash2, Search, RefreshCw, Loader2, AlertCircle, Copy, X, Pencil, FileJson, Download, BookMarked, Share2 } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import {
   type SubmodelInput,
@@ -43,6 +45,8 @@ export default function PageShells() {
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [editorAasId, setEditorAasId] = useState<string | undefined>(undefined);
   const [jsonView, setJsonView] = useState<ShellDescriptor | null>(null);
+  const [exposeTarget, setExposeTarget] = useState<ExposeTarget | null>(null);
+  const [exposeDtrOpen, setExposeDtrOpen] = useState(false);
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["shells"],
@@ -95,6 +99,13 @@ export default function PageShells() {
               {t.twins.refresh}
             </button>
             <RoleGate permission="resource:write">
+              <button
+                onClick={() => setExposeDtrOpen(true)}
+                className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border border-border hover:bg-muted text-foreground font-medium"
+              >
+                <Share2 className="w-3 h-3" />
+                {t.twins.exposeDtr.action}
+              </button>
               <button
                 onClick={() => { setEditorMode("create"); setEditorAasId(undefined); setEditorOpen(true); }}
                 className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
@@ -224,6 +235,21 @@ export default function PageShells() {
         onEdit={() => { if (detail) { setEditorMode("edit"); setEditorAasId(detail.id); setEditorOpen(true); setDetail(null); } }}
         onDelete={() => { setDeleteTarget(detail); setDetail(null); }}
         onViewJson={() => { if (detail) { setJsonView(detail); setDetail(null); } }}
+        onExpose={(tgt) => setExposeTarget(tgt)}
+      />
+
+      {/* Expose submodel to catalog */}
+      <ExposeSubmodelDialog
+        target={exposeTarget}
+        onClose={() => setExposeTarget(null)}
+        onDone={() => { qc.invalidateQueries({ queryKey: ["shells"] }); }}
+      />
+
+      {/* Expose the DTR itself to catalog */}
+      <ExposeDtrDialog
+        open={exposeDtrOpen}
+        onClose={() => setExposeDtrOpen(false)}
+        onDone={() => { /* registry list unchanged; asset/offering created on connector */ }}
       />
 
       {/* JSON view dialog */}
@@ -262,8 +288,8 @@ export default function PageShells() {
 
 /* ─── Detail dialog ──────────────────────────────────────────── */
 function ShellDetailDialog({
-  shell, onClose, onEdit, onDelete, onViewJson,
-}: { shell: ShellDescriptor | null; onClose: () => void; onEdit: () => void; onDelete: () => void; onViewJson: () => void }) {
+  shell, onClose, onEdit, onDelete, onViewJson, onExpose,
+}: { shell: ShellDescriptor | null; onClose: () => void; onEdit: () => void; onDelete: () => void; onViewJson: () => void; onExpose: (target: ExposeTarget) => void }) {
   const { t } = useI18n();
   if (!shell) return null;
   const copy = (s: string) => { navigator.clipboard.writeText(s); toast.success(t.common.copied); };
@@ -334,7 +360,18 @@ function ShellDetailDialog({
                             <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">semanticId: {sub.semanticId}</MonoText>
                           )}
                         </div>
-                        <Badge variant="blue">{sub.endpointCount} ep</Badge>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <Badge variant="blue">{sub.endpointCount} ep</Badge>
+                          <RoleGate permission="resource:write">
+                            <button
+                              onClick={() => onExpose({ aasId: shell.id, submodelId: sub.id, idShort: sub.idShort, semanticId: sub.semanticId })}
+                              className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+                            >
+                              <Share2 className="w-3 h-3" />
+                              {t.twins.expose.action}
+                            </button>
+                          </RoleGate>
+                        </div>
                       </div>
                       {(sub.endpoints ?? []).length > 0 && (
                         <div className="space-y-1.5 pl-2 border-l-2 border-violet-300">
