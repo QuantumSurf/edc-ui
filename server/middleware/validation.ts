@@ -13,18 +13,25 @@ export function validateDspEndpoint(url: string): string | null {
 
     if (process.env.ALLOW_PRIVATE_DSP === "true") return null;
 
-    const hostname = parsed.hostname;
-    // Block private IP ranges, localhost, link-local, AWS/GCP metadata
+    const hostname = parsed.hostname.toLowerCase();
+    const h6 = hostname.replace(/^\[|\]$/g, ""); // IPv6 리터럴 브래킷 제거 후 비교
+    // Block private IP ranges, localhost, link-local, AWS/GCP/Azure metadata,
+    // IPv6 loopback/unspecified/ULA/link-local/IPv4-mapped, and decimal/hex IP encodings.
     if (
       hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
       hostname.startsWith("127.") ||
       hostname.startsWith("10.") ||
       hostname.startsWith("192.168.") ||
       /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
       hostname === "0.0.0.0" ||
-      hostname.startsWith("169.254.") || // includes AWS/GCP/Azure metadata 169.254.169.254
-      hostname === "[::1]" ||
-      hostname === "::1"
+      hostname.startsWith("169.254.") || // includes 169.254.169.254 cloud metadata
+      /^0x[0-9a-f]+$/i.test(hostname) || // hex-encoded IP (e.g. 0x7f000001)
+      /^\d+$/.test(hostname) ||          // decimal integer IP (e.g. 2130706433 = 127.0.0.1)
+      h6 === "::1" || h6 === "::" ||      // IPv6 loopback / unspecified
+      h6.startsWith("fc") || h6.startsWith("fd") || // IPv6 ULA fc00::/7
+      /^fe[89ab]/.test(h6) ||            // IPv6 link-local fe80::/10
+      h6.startsWith("::ffff:")           // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
     ) {
       return "Private/internal network addresses are not allowed";
     }

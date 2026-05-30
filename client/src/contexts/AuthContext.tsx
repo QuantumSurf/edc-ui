@@ -11,13 +11,17 @@ export interface AuthUser {
   role: "admin" | "operator" | "viewer";
   email?: string;
   token?: string;
+  // Tenant (organization) the user belongs to — drives data isolation.
+  tenantId?: string;
+  tenantName?: string;
+  tenantBpn?: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (usernameOrEmail: string, password: string) => Promise<boolean>;
+  login: (tenantId: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -46,15 +50,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = useCallback(async (usernameOrEmail: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (tenantId: string, password: string): Promise<boolean> => {
     try {
       const { data } = await axios.post("/api/auth/login", {
-        email: usernameOrEmail.trim(),
+        tenantId: tenantId.trim(),
         password,
       });
       const { token, user: u } = data as {
         token: string;
-        user: { id: string; email: string; name: string; role: "admin" | "operator" | "viewer" };
+        user: {
+          id: string; email: string; name: string; role: "admin" | "operator" | "viewer";
+          tenantId?: string; tenantName?: string; tenantBpn?: string;
+        };
       };
       const authUser: AuthUser = {
         id: u.id,
@@ -63,6 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: u.role,
         email: u.email,
         token,
+        tenantId: u.tenantId,
+        tenantName: u.tenantName,
+        tenantBpn: u.tenantBpn,
       };
       setUser(authUser);
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(authUser));

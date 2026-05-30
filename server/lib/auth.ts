@@ -11,6 +11,8 @@ export interface TokenPayload {
   email: string;
   role: Role;
   name?: string;
+  /** Tenant (organization) the user belongs to. Drives data isolation. */
+  tenantId?: string;
 }
 
 // Dev에서도 매 시작마다 다른 random secret 생성 (이전: 고정 dev secret → 위험)
@@ -58,6 +60,13 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
   return bcrypt.compare(plain, hash);
 }
 
+// 로그인 타이밍 사이드채널 완화: 존재하지 않는 테넌트/사용자도 실제 비교와 동일한
+// bcrypt 비용을 소모하게 해, 응답 시간으로 유효 BPN을 열거하지 못하도록 한다.
+const DUMMY_HASH = bcrypt.hashSync("timing-attack-mitigation-dummy", 10);
+export async function dummyVerify(plain: string): Promise<void> {
+  try { await bcrypt.compare(plain, DUMMY_HASH); } catch { /* ignore */ }
+}
+
 export function signToken(payload: TokenPayload): string {
   return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
 }
@@ -65,7 +74,7 @@ export function signToken(payload: TokenPayload): string {
 export function verifyToken(token: string): TokenPayload {
   const decoded = jwt.verify(token, getJwtSecret());
   if (typeof decoded === "string") throw new Error("Invalid token payload");
-  const { id, email, role, name } = decoded as jwt.JwtPayload & Partial<TokenPayload>;
+  const { id, email, role, name, tenantId } = decoded as jwt.JwtPayload & Partial<TokenPayload>;
   if (!id || !email || !role) throw new Error("Incomplete token payload");
-  return { id, email, role: role as Role, name };
+  return { id, email, role: role as Role, name, tenantId };
 }

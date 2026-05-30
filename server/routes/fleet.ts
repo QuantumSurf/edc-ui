@@ -21,10 +21,10 @@ interface ConnectorKpi {
   transfers: number;
 }
 
-// GET /kpi — aggregate KPI across all connectors in parallel
-router.get("/kpi", async (_req: Request, res: Response, next: NextFunction) => {
+// GET /kpi — aggregate KPI across the tenant's connectors in parallel
+router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const connectors = await listConnectors();
+    const connectors = await listConnectors(req.user?.tenantId);
 
     // Short-circuit: if no connectors registered, return immediately
     if (connectors.length === 0) {

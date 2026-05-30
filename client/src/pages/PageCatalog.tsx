@@ -9,7 +9,7 @@ import { type CatalogOffer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { Card, Badge, SectionHdr } from "@/components/ui-kmx";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { Search, Globe, ArrowRight, Loader2, Building2, Info, Package } from "lucide-react";
+import { Search, Globe, ArrowRight, Loader2, Building2, Info, Package, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
   const [offers, setOffers] = useState<CatalogOffer[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleQuery = async () => {
     if (!url.trim()) {
@@ -39,13 +40,21 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
     }
     if (!connectorId) return;
     setLoading(true);
+    setError(null);
     try {
       const result = await fetchCatalog(url, counterPartyId, connectorId);
       setOffers(result);
       setLoaded(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t.catalog.queryFailed;
+      // EDC가 돌려준 actionable 에러(4xx 검증·SSRF 거부, 5xx 자격증명/구성 실패 등)는
+      // 실제 원인 메시지를 노출, 그 외(전송/내부 마스킹)는 로컬라이즈된 안내 문구를 사용.
+      const e = err as { response?: { status?: number; data?: { error?: string; actionable?: boolean } } };
+      const status = e?.response?.status;
+      const data = e?.response?.data;
+      const showServerMsg = (data?.actionable || (status != null && status < 500)) && typeof data?.error === "string";
+      const msg = showServerMsg ? (data!.error as string) : t.catalog.queryFailed;
       toast.error(msg);
+      setError(msg);
       setOffers([]);
       setLoaded(true);
     } finally {
@@ -133,7 +142,21 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
           </div>
         </div>
 
-        {loaded && (
+        {loaded && error && (
+          <div className="py-10 text-center">
+            <AlertCircle size={28} className="text-rose-500/70 mx-auto mb-2" />
+            <p className="text-sm text-foreground mb-3">{error}</p>
+            <button
+              onClick={handleQuery}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted text-foreground font-medium transition-colors disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+              {t.common.retry}
+            </button>
+          </div>
+        )}
+        {loaded && !error && (
           <CatalogResults offers={offers} onNegotiate={(o) => negMutation.mutate(o)} negotiating={negMutation.isPending} />
         )}
       </Card>

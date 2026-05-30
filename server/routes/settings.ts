@@ -5,6 +5,9 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { getPool } from "../lib/db.js";
 import { requireRole } from "../middleware/auth.js";
 import { getIdentityHubConfig } from "../lib/identityHubConfig.js";
+import { getTenantSetting, setTenantSetting, getTenant, updateTenantBpn, isBpnTaken } from "../lib/tenants.js";
+import { validateDspEndpoint } from "../middleware/validation.js";
+import { writeVaultSecret } from "../lib/platform.js";
 
 const router = Router();
 const writeGuard = requireRole("admin");
@@ -28,19 +31,51 @@ async function setSetting(key: string, value: string): Promise<void> {
   );
 }
 
-// GET /api/system/settings/identity-hub-url
-router.get("/settings/identity-hub-url", async (_req: Request, res: Response, next: NextFunction) => {
+// GET /api/system/settings/tenant — current organization (tenant) info incl. BPN
+router.get("/settings/tenant", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const value = await getSetting("identity_hub_url");
+    const tenantId = req.user?.tenantId;
+    const tenant = tenantId ? await getTenant(tenantId) : undefined;
+    res.json({ name: tenant?.name ?? "", bpn: tenant?.bpn ?? "" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/system/settings/tenant — update the organization BPN (also the login id)
+router.put("/settings/tenant", writeGuard, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) { res.status(403).json({ error: "no-tenant" }); return; }
+    const raw = (req.body?.bpn ?? "") as unknown;
+    if (typeof raw !== "string") { res.status(400).json({ error: "bpn must be string" }); return; }
+    const bpn = raw.trim();
+    if (!bpn) { res.status(400).json({ error: "bpn is required" }); return; }
+    if (bpn.length > MAX_VALUE_LEN) { res.status(400).json({ error: "value too long" }); return; }
+    if (await isBpnTaken(bpn, tenantId)) { res.status(409).json({ error: "bpn-already-in-use" }); return; }
+    const updated = await updateTenantBpn(tenantId, bpn);
+    res.json({ name: updated?.name ?? "", bpn: updated?.bpn ?? bpn });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/system/settings/identity-hub-url (per-tenant)
+router.get("/settings/identity-hub-url", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    const value = tenantId ? await getTenantSetting(tenantId, "identity_hub_url") : "";
     res.json({ value });
   } catch (error) {
     next(error);
   }
 });
 
-// PUT /api/system/settings/identity-hub-url
+// PUT /api/system/settings/identity-hub-url (per-tenant)
 router.put("/settings/identity-hub-url", writeGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) { res.status(403).json({ error: "no-tenant" }); return; }
     const value = (req.body?.value ?? "") as unknown;
     if (typeof value !== "string") {
       res.status(400).json({ error: "value must be string" });
@@ -50,7 +85,11 @@ router.put("/settings/identity-hub-url", writeGuard, async (req: Request, res: R
       res.status(400).json({ error: "value too long" });
       return;
     }
-    await setSetting("identity_hub_url", value.trim());
+    if (value.trim()) {
+      const ssrfErr = validateDspEndpoint(value.trim());
+      if (ssrfErr) { res.status(400).json({ error: `Rejected URL — ${ssrfErr}` }); return; }
+    }
+    await setTenantSetting(tenantId, "identity_hub_url", value.trim());
     res.json({ value: value.trim() });
   } catch (error) {
     next(error);
@@ -86,6 +125,10 @@ router.put("/settings/vault-config", writeGuard, async (req: Request, res: Respo
       res.status(400).json({ error: "value too long" });
       return;
     }
+    if (url) {
+      const ssrfErr = validateDspEndpoint(url);
+      if (ssrfErr) { res.status(400).json({ error: `Rejected vault url — ${ssrfErr}` }); return; }
+    }
     await setSetting("vault_url", url);
     await setSetting("vault_namespace", namespace);
     if (token.length > 0) await setSetting("vault_token", token.trim());
@@ -99,10 +142,10 @@ router.put("/settings/vault-config", writeGuard, async (req: Request, res: Respo
 // GET /api/system/settings/identity-hub-config
 // Connection config for fetching the participant's own info from the
 // IdentityHub server. The API key VALUE is never returned.
-router.get("/settings/identity-hub-config", async (_req: Request, res: Response, next: NextFunction) => {
+router.get("/settings/identity-hub-config", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Effective values: app_settings overrides, env vars as the baseline.
-    const cfg = await getIdentityHubConfig();
+    // Effective values: per-tenant settings override, env vars as the baseline.
+    const cfg = await getIdentityHubConfig(req.user?.tenantId);
     res.json({ url: cfg.url, participantId: cfg.participantId, hasApiKey: cfg.apiKey.length > 0 });
   } catch (error) {
     next(error);
@@ -114,6 +157,8 @@ router.get("/settings/identity-hub-config", async (_req: Request, res: Response,
 // when a non-empty value is supplied (blank = keep the existing key).
 router.put("/settings/identity-hub-config", writeGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) { res.status(403).json({ error: "no-tenant" }); return; }
     const body = (req.body ?? {}) as { url?: unknown; participantId?: unknown; apiKey?: unknown };
     const url = typeof body.url === "string" ? body.url.trim() : "";
     const participantId = typeof body.participantId === "string" ? body.participantId.trim() : "";
@@ -122,11 +167,23 @@ router.put("/settings/identity-hub-config", writeGuard, async (req: Request, res
       res.status(400).json({ error: "value too long" });
       return;
     }
-    await setSetting("identity_hub_url", url);
-    await setSetting("identity_hub_participant_id", participantId);
-    if (apiKey.length > 0) await setSetting("identity_hub_api_key", apiKey.trim());
-    const savedKey = await getSetting("identity_hub_api_key");
-    res.json({ url, participantId, hasApiKey: savedKey.length > 0 });
+    if (url) {
+      const ssrfErr = validateDspEndpoint(url);
+      if (ssrfErr) { res.status(400).json({ error: `Rejected URL — ${ssrfErr}` }); return; }
+    }
+    await setTenantSetting(tenantId, "identity_hub_url", url);
+    await setTenantSetting(tenantId, "identity_hub_participant_id", participantId);
+    // API 키는 평문 DB 대신 platform-vault에 저장하고 tenant_settings엔 alias만 기록.
+    if (apiKey.length > 0) {
+      const tenant = await getTenant(tenantId);
+      const alias = `ih-apikey-${tenant?.bpn || tenantId}`;
+      await writeVaultSecret(alias, apiKey.trim());
+      await setTenantSetting(tenantId, "identity_hub_api_key_alias", alias);
+      // 레거시 평문이 남아 있으면 제거(이제 vault가 정본).
+      await setTenantSetting(tenantId, "identity_hub_api_key", "");
+    }
+    const cfg = await getIdentityHubConfig(tenantId);
+    res.json({ url, participantId, hasApiKey: cfg.apiKey.length > 0 });
   } catch (error) {
     next(error);
   }

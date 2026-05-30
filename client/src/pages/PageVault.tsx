@@ -3,12 +3,12 @@
 // Falls back to demo data when API is unavailable (e.g. dev without platform compose up).
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Vault, Lock, Copy, Eye, Server, KeyRound, Clock } from "lucide-react";
+import { Vault, Lock, Copy, Eye, Server } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  Card, KpiCard, SectionHdr, Badge, AlertBanner, MonoText, CardTitle,
+  Card, SectionHdr, Badge, AlertBanner, MonoText, CardTitle,
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
 } from "@/components/ui-kmx";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
@@ -204,10 +204,6 @@ export default function PageVault() {
     }
   }, [listQuery.data]);
 
-  const expiringCount = items.filter((i) => i.expiryDays !== null && i.expiryDays <= 30 && i.expiryDays > 0).length;
-  const secretCount = items.filter((i) => i.type !== "key").length;
-  const keyCount = items.filter((i) => i.type === "key").length;
-
   const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(items, 10);
 
   const onCopy = (alias: string) => {
@@ -223,14 +219,6 @@ export default function PageVault() {
       >
         {t.vault.title}
       </SectionHdr>
-
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon={<Vault className="w-[18px] h-[18px] text-violet-600" />} iconBg="bg-violet-50" value={secretCount} label={t.vault.kpiSecrets} />
-        <KpiCard icon={<KeyRound className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={keyCount} label={t.vault.kpiKeys} />
-        <KpiCard icon={<Clock className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={expiringCount} label={t.vault.kpiExpiring} valueColor={expiringCount > 0 ? "text-amber-600" : undefined} />
-        <KpiCard icon={<Server className={`w-[18px] h-[18px] ${backend.sealed ? "text-rose-600" : "text-emerald-600"}`} />} iconBg={backend.sealed ? "bg-rose-50" : "bg-emerald-50"} value={backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed} label={t.vault.kpiSealStatus} valueColor={backend.sealed ? "text-rose-600" : "text-emerald-600"} />
-      </div>
 
       {backend.sealed && (
         <AlertBanner variant="danger">

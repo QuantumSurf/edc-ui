@@ -161,7 +161,10 @@ export async function deleteOffering(id: string, connectorId: string): Promise<v
 
 /* ── Catalog ─────────────────────────────────────────────────── */
 export async function fetchCatalog(dspEndpoint: string, counterPartyId: string, connectorId: string): Promise<CatalogOffer[]> {
-  const { data } = await http.post(`/connectors/${connectorId}/catalog`, { dspEndpoint, counterPartyId });
+  // 카탈로그 조회는 DCP 인증(STS 토큰 발급 + DID 해석 + VC 검증)으로 20~30초 소요될 수 있어
+  // 기본 15초 타임아웃으로는 BFF(60초) 응답 전에 abort된다. BFF 타임아웃보다 약간 길게 설정해
+  // 서버가 돌려주는 실제 EDC 에러(actionable)가 UI에 도달하도록 한다.
+  const { data } = await http.post(`/connectors/${connectorId}/catalog`, { dspEndpoint, counterPartyId }, { timeout: 65_000 });
   return data;
 }
 
@@ -481,6 +484,22 @@ export async function updateIdentityHubConfig(input: {
     participantId: (data?.participantId as string) ?? "",
     hasApiKey: data?.hasApiKey === true,
   };
+}
+
+/* ── Tenant (organization) ───────────────────────────────────── */
+export interface TenantInfo {
+  name: string;
+  bpn: string;
+}
+
+export async function fetchTenantInfo(): Promise<TenantInfo> {
+  const { data } = await http.get(`/system/settings/tenant`);
+  return { name: (data?.name as string) ?? "", bpn: (data?.bpn as string) ?? "" };
+}
+
+export async function updateTenantBpn(bpn: string): Promise<TenantInfo> {
+  const { data } = await http.put(`/system/settings/tenant`, { bpn });
+  return { name: (data?.name as string) ?? "", bpn: (data?.bpn as string) ?? bpn };
 }
 
 export interface IdentityHubCredential {

@@ -6,10 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
 import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge, FormField, inputBase } from "@/components/ui-kmx";
-import { ChevronLeft, User, Bell, Monitor, Info, Fingerprint, Loader2, Settings, Vault } from "lucide-react";
+import { ChevronLeft, User, Bell, Monitor, Info, Fingerprint, Loader2, Settings, Vault, Building2 } from "lucide-react";
 import {
   fetchSystemInfo, fetchIdentityHubConfig, updateIdentityHubConfig,
-  fetchVaultConfig, updateVaultConfig,
+  fetchVaultConfig, updateVaultConfig, fetchTenantInfo, updateTenantBpn,
 } from "@/services/api";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
@@ -119,6 +119,12 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
           </div>
         </Card>
 
+        {/* ── Organization (Tenant) ───────────────────────────── */}
+        <Card title={<CardTitle icon={<Building2 className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.organization}</span></CardTitle>}>
+          <p className="text-[11px] text-muted-foreground mb-3">{t.settings.orgBpnDesc}</p>
+          <OrgBpnSetting />
+        </Card>
+
         {/* ── Identity Hub Server ─────────────────────────────── */}
         <Card title={<CardTitle icon={<Fingerprint className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.integration}</span></CardTitle>}>
           <p className="text-[11px] text-muted-foreground mb-3">{t.settings.identityHubServerDesc}</p>
@@ -132,6 +138,70 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
         </Card>
       </div>
     </>
+  );
+}
+
+/* ─── Organization BPN (admin only) ──────────────────────────── */
+// The org's BPN is the tenant's identifier — also the login id, and the BPN
+// applied to every connector registered under this organization.
+function OrgBpnSetting() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const canEdit = user?.role === "admin";
+  const [bpn, setBpn] = useState("");
+  const [original, setOriginal] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchTenantInfo()
+      .then((info) => { setBpn(info.bpn); setOriginal(info.bpn); })
+      .catch((e) => toast.error((e as Error).message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const dirty = bpn.trim() !== original && bpn.trim().length > 0;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const next = await updateTenantBpn(bpn.trim());
+      setBpn(next.bpn);
+      setOriginal(next.bpn);
+      toast.success(t.settings.orgBpnSaved);
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg === "bpn-already-in-use" ? t.settings.orgBpnTaken : (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <FormField label={t.settings.orgBpn} hint={t.settings.orgBpnHint}>
+        <input
+          value={bpn}
+          onChange={(e) => setBpn(e.target.value)}
+          placeholder="BPNL000000000000"
+          disabled={loading || !canEdit}
+          className={`${inputBase} mono`}
+        />
+      </FormField>
+      <RoleGate permission="connector:write">
+        <div className="flex justify-end">
+          <button
+            onClick={save}
+            disabled={saving || loading || !dirty}
+            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+          >
+            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+            {t.settings.save}
+          </button>
+        </div>
+      </RoleGate>
+    </div>
   );
 }
 

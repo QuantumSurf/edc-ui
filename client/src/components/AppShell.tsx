@@ -205,7 +205,7 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
         {onToggle && (
           <button
             onClick={onToggle}
-            title={collapsed ? "펼치기" : "접기"}
+            title={collapsed ? t.common.expand : t.common.collapse}
             className="hidden lg:flex items-center justify-center w-5 h-5 rounded transition-colors"
             style={{ color: "oklch(0.60 0.06 240)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
@@ -432,6 +432,9 @@ function Topbar() {
           </div>
           <div className="hidden sm:block leading-tight">
             <p className="text-xs font-semibold text-foreground">{user?.username ?? "user"}</p>
+            {user?.tenantBpn && (
+              <p className="mono text-[10px] text-muted-foreground leading-tight" title={user.tenantName}>{user.tenantBpn}</p>
+            )}
           </div>
           <span className="text-[11px] px-1.5 py-0.5 rounded font-medium border bg-primary/10 text-primary border-primary/30 capitalize">
             {roleLabel}
@@ -494,6 +497,7 @@ function BottomTabBar() {
 
 /* ─── Navigation Loading Dialog ─────────────────────────────── */
 function NavigationLoadingDialog() {
+  const { t } = useI18n();
   const navigating = useConnectorStore((s) => s.navigating);
   const connector = useConnectorStore((s) => s.connector);
   const isFetching = useIsFetching();
@@ -514,10 +518,10 @@ function NavigationLoadingDialog() {
           {connector ? (
             <>
               <span className="text-[15px] font-semibold text-foreground">{connector.name}</span>
-              <span className="text-[12px] text-muted-foreground">데이터 로딩 중...</span>
+              <span className="text-[12px] text-muted-foreground">{t.common.loadingData}</span>
             </>
           ) : (
-            <span className="text-[15px] font-semibold text-foreground">로딩 중...</span>
+            <span className="text-[15px] font-semibold text-foreground">{t.common.loading}</span>
           )}
         </div>
         {/* Progress bar */}

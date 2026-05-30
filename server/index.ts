@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { validateConnectorId } from "./middleware/validation.js";
+import { requireConnectorOwnership } from "./middleware/tenant.js";
 import { apiRateLimit } from "./middleware/rateLimit.js";
 import { initDb } from "./lib/db.js";
 import { startNotificationGenerator } from "./lib/notificationGenerator.js";
@@ -82,6 +83,8 @@ async function startServer() {
 
   // Connector ID validation
   app.use("/api/connectors/:id", validateConnectorId);
+  // Tenant isolation: the user's tenant must own the connector (covers all sub-routes)
+  app.use("/api/connectors/:id", requireConnectorOwnership);
 
   // ── API Routes ────────────────────────────────────────────────
   app.use("/api/connectors", connectorsRouter);

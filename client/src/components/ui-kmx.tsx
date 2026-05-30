@@ -346,7 +346,7 @@ interface FormFieldProps {
 export function FormField({ label, children, required, hint }: FormFieldProps) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[12px] font-medium text-foreground/70">
+      <label className="text-[12px] font-medium text-foreground">
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
       </label>
       {children}

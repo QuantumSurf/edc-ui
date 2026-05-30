@@ -25,6 +25,7 @@ const ALIAS_PREFIX_ALLOWLIST = [
   "dataplane-public-key",
   "sts-client-secret",
   "consumer-sts-client-secret",
+  "ih-apikey-",  // per-tenant IdentityHub API key (vault-referenced)
   // EDC-managed aliases — actual prefix varies by extension; cover both forms.
   "edc:",
   "edc-",

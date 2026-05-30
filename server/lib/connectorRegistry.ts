@@ -15,6 +15,7 @@ export interface ConnectorEntry {
   dcpVersion: string;
   did?: string;
   identityHubUrl?: string;
+  tenantId?: string;
   createdAt: string;
 }
 
@@ -32,12 +33,16 @@ function rowToEntry(row: Record<string, unknown>): ConnectorEntry {
     dcpVersion: row.dcp_version as string,
     did: (row.did as string) ?? undefined,
     identityHubUrl: (row.identity_hub_url as string) ?? undefined,
+    tenantId: (row.tenant_id as string) ?? undefined,
     createdAt: (row.created_at as Date).toISOString(),
   };
 }
 
-export async function listConnectors(): Promise<ConnectorEntry[]> {
-  const { rows } = await getPool().query("SELECT * FROM connectors ORDER BY created_at");
+/** List connectors for a tenant. Pass undefined to list all (internal/migration use only). */
+export async function listConnectors(tenantId?: string): Promise<ConnectorEntry[]> {
+  const { rows } = tenantId
+    ? await getPool().query("SELECT * FROM connectors WHERE tenant_id = $1 ORDER BY created_at", [tenantId])
+    : await getPool().query("SELECT * FROM connectors ORDER BY created_at");
   return rows.map(rowToEntry);
 }
 
@@ -47,22 +52,23 @@ export async function getConnector(id: string): Promise<ConnectorEntry | undefin
 }
 
 export async function registerConnector(
-  entry: Omit<ConnectorEntry, "id" | "createdAt">,
+  entry: Omit<ConnectorEntry, "id" | "createdAt" | "tenantId">,
+  tenantId: string,
 ): Promise<ConnectorEntry> {
   // Generate ID: env-NN (next sequence number)
   const { rows: countRows } = await getPool().query("SELECT COUNT(*)::int AS cnt FROM connectors");
   const id = `${entry.env.toLowerCase()}-${String(countRows[0].cnt + 1).padStart(2, "0")}`;
 
   const sql = `
-    INSERT INTO connectors (id, name, bpn, management_url, dsp_endpoint, api_key, env, roles, dcp_version, did, identity_hub_url)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    INSERT INTO connectors (id, name, bpn, management_url, dsp_endpoint, api_key, env, roles, dcp_version, did, identity_hub_url, tenant_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *
   `;
 
   const { rows } = await getPool().query(sql, [
     id, entry.name, entry.bpn, entry.managementUrl, entry.dspEndpoint,
     entry.apiKey, entry.env, entry.roles, entry.dcpVersion,
-    entry.did ?? null, entry.identityHubUrl ?? null,
+    entry.did ?? null, entry.identityHubUrl ?? null, tenantId,
   ]);
 
   return rowToEntry(rows[0]);

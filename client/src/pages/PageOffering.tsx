@@ -9,7 +9,7 @@ import { useI18n } from "@/i18n";
 import { fetchOfferings, fetchAssets, fetchPolicies, fetchNegotiations, createOffering, updateOffering, deleteOffering } from "@/services";
 import { type Asset, type Policy, type Offering } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
   Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField, JsonTreeView,
@@ -71,6 +71,19 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
     setTab(next);
   };
 
+  // Close the wizard slide panel and clear edit/duplicate context
+  const closeWizard = () => {
+    setWizardDirty(false);
+    setEditTarget(null);
+    setDuplicateSource(null);
+    setTab("list");
+  };
+  // Close request from backdrop / Esc / cancel — guard unsaved changes
+  const requestCloseWizard = () => {
+    if (wizardDirty) { setPendingTabSwitch("list"); return; }
+    closeWizard();
+  };
+
   const filtered = offerings.filter(
     (o) =>
       (o.id ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -99,35 +112,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
         }
       >{t.offerings.title}</SectionHdr>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border -mt-1">
-        <button
-          onClick={() => switchTab("list")}
-          className={`px-4 py-2 text-[12px] border-b-2 transition-colors -mb-px ${
-            tab === "list"
-              ? "border-primary text-primary font-medium"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {t.offerings.list}
-        </button>
-        <RoleGate permission="resource:write">
-          <button
-            onClick={() => switchTab("wizard")}
-            className={`px-4 py-2 text-[12px] border-b-2 transition-colors -mb-px ${
-              tab === "wizard"
-                ? "border-primary text-primary font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.offerings.wizard}
-          </button>
-        </RoleGate>
-      </div>
-
-      {tab === "list" && (
-        <>
-          {/* Search */}
+      {/* Search */}
           <div className="flex gap-2">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -216,7 +201,9 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <MonoText className="!text-[12px] !font-normal text-foreground truncate block max-w-[220px]" title={o.asset}>{o.asset || "—"}</MonoText>
+                          <span title={o.asset} className="block max-w-[220px]">
+                            <MonoText className="!text-[12px] !font-normal text-foreground truncate block">{o.asset || "—"}</MonoText>
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="purple" className="!font-normal max-w-full"><span className="truncate">{o.access || "—"}</span></Badge>
@@ -266,12 +253,10 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
             )}
           </div>
           )}
-        </>
-      )}
-
-      {tab === "wizard" && connectorId && (
+      {connectorId && (
         <OfferingWizard
           key={(editTarget?.id ?? "") + "|" + (duplicateSource?.id ?? "") + "|" + (editTarget ? "e" : duplicateSource ? "d" : "n")}
+          open={tab === "wizard"}
           assets={assets}
           policies={policies}
           connectorId={connectorId}
@@ -279,8 +264,8 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
           editTarget={editTarget}
           duplicateSource={duplicateSource}
           onDirtyChange={setWizardDirty}
-          onDone={() => { setWizardDirty(false); setEditTarget(null); setDuplicateSource(null); setTab("list"); }}
-          onCancel={() => { setWizardDirty(false); setEditTarget(null); setDuplicateSource(null); setTab("list"); }}
+          onDone={closeWizard}
+          onCancel={requestCloseWizard}
         />
       )}
 
@@ -296,7 +281,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
         tone="warn"
         cancelLabel={t.common.stay}
         confirmLabel={t.common.leave}
-        onConfirm={() => { if (pendingTabSwitch) { setWizardDirty(false); setTab(pendingTabSwitch); setPendingTabSwitch(null); } }}
+        onConfirm={() => { setPendingTabSwitch(null); closeWizard(); }}
       />
 
       {detailTarget && (
@@ -512,6 +497,7 @@ function OfferingCard({ offering: o }: { offering: Offering }) {
 
 /* ─── Offering Creation Wizard (spec 4.4 — 4 steps) ─────────── */
 function OfferingWizard({
+  open,
   assets,
   policies,
   connectorId,
@@ -522,6 +508,7 @@ function OfferingWizard({
   onCancel,
   onDirtyChange,
 }: {
+  open: boolean;
   assets: Asset[];
   policies: Policy[];
   connectorId: string;
@@ -563,6 +550,9 @@ function OfferingWizard({
 
   // Reset dirty flag when target changes
   useEffect(() => { onDirtyChange?.(false); }, [editTarget?.id, duplicateSource?.id, onDirtyChange]);
+
+  // Restart at the first step each time the panel opens
+  useEffect(() => { if (open) setStep(0); }, [open]);
 
   const markDirty = () => { onDirtyChange?.(true); };
 
@@ -625,30 +615,37 @@ function OfferingWizard({
   };
 
   return (
-    <Card
-      title={<CardTitle icon={<Wand2 className="w-4 h-4 text-primary" />}>{isEdit ? t.offerings.editWizard : duplicateSource ? t.offerings.duplicateWizard : t.offerings.createWizard}</CardTitle>}
-      actions={onCancel ? (
+    <SlidePanel open={open} onClose={onCancel ?? (() => {})} className="max-w-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-[13px] font-semibold text-foreground truncate">
+            {isEdit ? t.offerings.editWizard : duplicateSource ? t.offerings.duplicateWizard : t.offerings.createWizard}
+          </span>
+        </div>
         <button
           onClick={onCancel}
-          className="text-[11px] px-2 py-1 rounded border border-border hover:bg-muted text-muted-foreground"
+          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+          aria-label={t.common.close}
         >
-          {t.common.cancel}
+          <X className="w-4 h-4" />
         </button>
-      ) : undefined}
-    >
-      {/* Stepper: horizontal on sm+, text on mobile */}
-      <div className="hidden sm:block">
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-w-0">
+        {/* Stepper */}
         <Stepper steps={steps} current={step} />
-      </div>
-      <div className="sm:hidden text-[12px] text-muted-foreground mb-3 font-medium">
-        {t.offerings.stepMobile(step + 1, steps.length, steps[step])}
-      </div>
+        <div className="sm:hidden text-[12px] text-muted-foreground font-medium">
+          {t.offerings.stepMobile(step + 1, steps.length, steps[step])}
+        </div>
 
       {/* Step 1: Asset Selection */}
       {step === 0 && (
         <div className="space-y-3">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground">{t.offerings.step1}</div>
+            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step1}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
 
@@ -722,7 +719,7 @@ function OfferingWizard({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button
               onClick={() => setStep(1)}
               disabled={selAssets.length === 0}
@@ -738,7 +735,7 @@ function OfferingWizard({
       {step === 1 && (
         <div className="space-y-3">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground">{t.offerings.step2}</div>
+            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step2}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <div className="bg-sky-50 border border-sky-200 rounded-md px-3 py-2 text-[11px] text-sky-800">
@@ -765,7 +762,7 @@ function OfferingWizard({
               />
             </>
           )}
-          <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button
               onClick={() => setStep(0)}
               className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
@@ -787,7 +784,7 @@ function OfferingWizard({
       {step === 2 && (
         <div className="space-y-3">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground">{t.offerings.step3}</div>
+            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step3}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <div className="bg-violet-50 border border-violet-200 rounded-md px-3 py-2 text-[11px] text-violet-800">
@@ -814,7 +811,7 @@ function OfferingWizard({
               />
             </>
           )}
-          <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button
               onClick={() => setStep(1)}
               className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
@@ -836,7 +833,7 @@ function OfferingWizard({
       {step === 3 && (
         <div className="space-y-4">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground">{t.offerings.step4}</div>
+            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step4}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <FormField label={t.offerings.offeringId} required>
@@ -895,7 +892,7 @@ function OfferingWizard({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button
               onClick={() => setStep(2)}
               className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
@@ -912,7 +909,8 @@ function OfferingWizard({
           </div>
         </div>
       )}
-    </Card>
+      </div>
+    </SlidePanel>
   );
 }
 

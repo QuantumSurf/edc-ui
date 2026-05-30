@@ -4,6 +4,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import axios from "axios";
 import { getIdentityHubConfig } from "../lib/identityHubConfig.js";
+import { validateDspEndpoint } from "../middleware/validation.js";
 
 const router = Router();
 const TIMEOUT_MS = 5000;
@@ -36,9 +37,9 @@ function buildHealthUrl(baseUrl: string): string {
 }
 
 // GET /api/identity-hub/health — probe IdentityHub health
-router.get("/health", async (_req: Request, res: Response, next: NextFunction) => {
+router.get("/health", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { url: baseUrl } = await getIdentityHubConfig();
+    const { url: baseUrl } = await getIdentityHubConfig(req.user?.tenantId);
     if (!baseUrl) {
       const body: HealthResponse = {
         status: "unconfigured",
@@ -55,6 +56,16 @@ router.get("/health", async (_req: Request, res: Response, next: NextFunction) =
       return;
     }
 
+    // SSRF 방어: 저장/환경값이 사설·내부·메타데이터 주소면 외부 요청을 보내지 않음.
+    const ssrfErr = validateDspEndpoint(baseUrl);
+    if (ssrfErr) {
+      res.json({
+        status: "down", baseUrl, endpointUrl: "", latencyMs: null,
+        checkedAt: new Date().toISOString(), isSystemHealthy: null,
+        components: [], httpStatus: null, error: `Rejected URL — ${ssrfErr}`,
+      } satisfies HealthResponse);
+      return;
+    }
     const endpointUrl = buildHealthUrl(baseUrl);
     const startedAt = Date.now();
     try {
@@ -146,17 +157,27 @@ function mapCredential(raw: unknown): CredentialSummary {
 // The Identity Management API runs on a separate port from the default/health
 // API. kmx-ih layout: default :8181 (host :28181) → Identity API :8182 (:28182).
 function toIdentityApiBase(url: string): string {
-  return url
-    .replace(/\/+$/, "")
-    .replace(/:8181(?=\/|$)/, ":8182")
-    .replace(/:28181(?=\/|$)/, ":28182");
+  try {
+    const u = new URL(url);
+    // 기본/health 포트 → Identity API 포트로 스왑
+    if (u.port === "8181") u.port = "8182";
+    else if (u.port === "28181") u.port = "28182";
+    // origin만 반환 — 경로(/api/identity/v1alpha/...)는 호출부가 부여하므로
+    // cfg.url의 '/api' 같은 suffix를 떼어 '/api/api/...' 중복을 방지.
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return url
+      .replace(/\/+$/, "")
+      .replace(/:8181(?=\/|$)/, ":8182")
+      .replace(/:28181(?=\/|$)/, ":28182");
+  }
 }
 
 // GET /api/identity-hub/participant — fetch the participant's own identity
 // info (DID + verifiable credentials) from the configured IdentityHub server.
-router.get("/participant", async (_req: Request, res: Response, next: NextFunction) => {
+router.get("/participant", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const cfg = await getIdentityHubConfig();
+    const cfg = await getIdentityHubConfig(req.user?.tenantId);
     const body: ParticipantResponse = {
       configured: Boolean(cfg.url && cfg.participantId),
       participantId: cfg.participantId,
@@ -170,17 +191,24 @@ router.get("/participant", async (_req: Request, res: Response, next: NextFuncti
       res.json(body);
       return;
     }
-    // Tractus-X IdentityHub Identity Management API (port 8182). Credentials
-    // are retrieved via a POST "query" with the participant id used as-is in
-    // the path; the API key authenticates via the X-Api-Key header.
+    // SSRF 방어: 구성된 URL이 사설·내부·메타데이터 주소면 외부 요청을 보내지 않음.
+    const ssrfErr = validateDspEndpoint(cfg.url);
+    if (ssrfErr) {
+      body.credentialError = `Rejected URL — ${ssrfErr}`;
+      res.json(body);
+      return;
+    }
+    // Tractus-X IdentityHub Identity Management API (port 8182). Credentials are
+    // listed via GET /v1alpha/participants/{participantContextId}/credentials.
+    // EDC IdentityHub의 participant context id는 participantId의 base64url 인코딩이며,
+    // 인증은 X-Api-Key 헤더(해당 참가자의 API 토큰)로 한다.
     const base = toIdentityApiBase(cfg.url);
-    const idPath = encodeURIComponent(cfg.participantId);
+    const idPath = Buffer.from(cfg.participantId).toString("base64url");
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (cfg.apiKey) headers["x-api-key"] = cfg.apiKey;
     try {
-      const { data, status } = await axios.post(
+      const { data, status } = await axios.get(
         `${base}/api/identity/v1alpha/participants/${idPath}/credentials`,
-        {},
         { headers, timeout: TIMEOUT_MS, validateStatus: () => true },
       );
       if (status >= 200 && status < 300 && Array.isArray(data)) {

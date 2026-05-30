@@ -40,6 +40,10 @@ const ko = {
     stay: "취소",
     rowsPerPage: "페이지당 행 수",
     digitalTwinRegistry: "디지털 트윈 레지스트리",
+    loadingData: "데이터 로딩 중...",
+    expand: "펼치기",
+    collapse: "접기",
+    downloadJson: "JSON 다운로드",
   },
 
   // ── Navigation ──
@@ -152,7 +156,7 @@ const ko = {
   // ── Assets ──
   assets: {
     title: "자산",
-    createWizard: "자산 생성 마법사",
+    createWizard: "자산 생성",
     list: "자산 목록",
     wizard: "생성 마법사 (3단계)",
     searchPlaceholder: "자산 ID 또는 유형 검색...",
@@ -225,7 +229,7 @@ const ko = {
   // ── Policies ──
   policies: {
     title: "정책",
-    createOdrl: "ODRL 정책 생성",
+    createOdrl: "정책 생성",
     list: "정책 목록",
     builder: "ODRL 빌더",
     policyId: "정책 ID",
@@ -296,7 +300,7 @@ const ko = {
   // ── Offerings ──
   offerings: {
     title: "계약",
-    createWizard: "계약 생성 마법사",
+    createWizard: "계약 생성",
     list: "계약 목록",
     wizard: "생성 마법사 (4단계)",
     searchPlaceholder: "계약 ID 또는 자산 검색...",
@@ -701,9 +705,9 @@ const ko = {
   login: {
     signIn: "로그인",
     subtitle: "대시보드에 접근하려면 자격 증명을 입력하세요",
-    username: "사용자 이름",
+    username: "테넌트 ID (BPN)",
     password: "비밀번호",
-    invalidCredentials: "사용자 이름 또는 비밀번호가 올바르지 않습니다",
+    invalidCredentials: "테넌트 ID 또는 비밀번호가 올바르지 않습니다",
     signingIn: "로그인 중...",
     demoAccounts: "데모 계정",
     admin: "관리자",
@@ -729,7 +733,8 @@ const ko = {
     onboarding: "신규 커넥터 온보딩",
     basicInfo: "기본 정보",
     connectorName: "커넥터 이름",
-    participantBpn: "참여자  ID (BPN)",
+    participantBpn: "참여자 ID (BPN)",
+    bpnFromSettings: "설정 화면의 조직 BPN이 자동 적용됩니다. 변경하려면 설정에서 수정하세요.",
     endpoints: "엔드포인트",
     managementUrl: "Management API URL",
     dspEndpoint: "DSP 엔드포인트  URL",
@@ -744,6 +749,7 @@ const ko = {
     envStg: "스테이징",
     envDev: "개발",
     dcpVersion: "DCP 버전",
+    dcpLegacy: "(레거시)",
     dcpTrust: "DCP / 신뢰 체계",
     did: "DID",
     identityHubUrl: "Identity Hub URL",
@@ -794,6 +800,12 @@ const ko = {
     identityHubApiKeySet: "●●●●●●●● (저장됨 — 변경 시에만 입력)",
     identityHubApiKeyUnset: "API 키 입력",
     identityHubConfigSaved: "분산 신원 서버 설정이 저장되었습니다.",
+    organization: "조직",
+    orgBpn: "조직 BPN",
+    orgBpnDesc: "이 조직(테넌트)의 BPN입니다. 로그인 ID이자, 커넥터 등록 시 사용되는 BPN입니다.",
+    orgBpnHint: "변경하면 다음 로그인부터 새 BPN으로 로그인해야 합니다.",
+    orgBpnSaved: "조직 BPN이 저장되었습니다.",
+    orgBpnTaken: "이미 다른 조직이 사용 중인 BPN입니다.",
     vaultServer: "Vault 서버",
     vaultServerDesc: "Vault 서버에서 시크릿·키 정보를 가져오기 위한 연결 설정",
     vaultUrl: "Vault 서버 주소",

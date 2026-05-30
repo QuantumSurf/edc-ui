@@ -8,9 +8,9 @@ import { fetchAssets, fetchAssetById, deleteAsset, createAsset, updateAsset, fet
 import { type Asset } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField,
+  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField, JsonTreeView,
 } from "@/components/ui-kmx";
-import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, RefreshCw, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,6 +61,19 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
     setTab(next);
   };
 
+  // Close the wizard slide panel and clear edit/duplicate context
+  const closeWizard = () => {
+    setWizardDirty(false);
+    setEditTarget(null);
+    setDuplicateSource(null);
+    setTab("list");
+  };
+  // Close request from backdrop / Esc / cancel — guard unsaved changes
+  const requestCloseWizard = () => {
+    if (wizardDirty) { setPendingTabSwitch("list"); return; }
+    closeWizard();
+  };
+
   const filtered = assets.filter((a) => {
     const matchesSearch =
       (a.id ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -93,35 +106,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
         }
       >{t.assets.title}</SectionHdr>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border -mt-1">
-        <button
-          onClick={() => switchTab("list")}
-          className={`px-4 py-2 text-[12px] border-b-2 transition-colors -mb-px ${
-            tab === "list"
-              ? "border-primary text-primary font-medium"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {t.assets.list}
-        </button>
-        <RoleGate permission="resource:write">
-          <button
-            onClick={() => switchTab("wizard")}
-            className={`px-4 py-2 text-[12px] border-b-2 transition-colors -mb-px ${
-              tab === "wizard"
-                ? "border-primary text-primary font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.assets.wizard}
-          </button>
-        </RoleGate>
-      </div>
-
-      {tab === "list" && (
-        <>
-          {/* Search & Filter */}
+      {/* Search & Filter */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -284,20 +269,16 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
             )}
           </div>
           )}
-        </>
-      )}
-
-      {tab === "wizard" && (
-        <AssetWizard
-          key={(editTarget?.id ?? "") + "|" + (duplicateSource?.id ?? "") + "|" + (editTarget ? "e" : duplicateSource ? "d" : "n")}
-          connectorId={connectorId}
-          editTarget={editTarget}
-          duplicateSource={duplicateSource}
-          onDirtyChange={setWizardDirty}
-          onDone={() => { setWizardDirty(false); setEditTarget(null); setDuplicateSource(null); setTab("list"); }}
-          onCancel={() => { setWizardDirty(false); setEditTarget(null); setDuplicateSource(null); setTab("list"); }}
-        />
-      )}
+      <AssetWizard
+        key={(editTarget?.id ?? "") + "|" + (duplicateSource?.id ?? "") + "|" + (editTarget ? "e" : duplicateSource ? "d" : "n")}
+        open={tab === "wizard"}
+        connectorId={connectorId}
+        editTarget={editTarget}
+        duplicateSource={duplicateSource}
+        onDirtyChange={setWizardDirty}
+        onDone={closeWizard}
+        onCancel={requestCloseWizard}
+      />
 
       {/* JSON Viewer */}
       {jsonTarget && <AssetJsonDialog asset={jsonTarget} onClose={() => setJsonTarget(null)} />}
@@ -311,7 +292,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
         tone="warn"
         cancelLabel={t.common.stay}
         confirmLabel={t.common.leave}
-        onConfirm={() => { if (pendingTabSwitch) { setWizardDirty(false); setTab(pendingTabSwitch); setPendingTabSwitch(null); } }}
+        onConfirm={() => { setPendingTabSwitch(null); closeWizard(); }}
       />
 
       {/* Detail Sheet */}
@@ -614,7 +595,7 @@ function extractDomain(url: string): string {
 }
 
 /* ─── Asset Creation Wizard (spec 4.2.2 — 3 steps) ──────────── */
-function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCancel, onDirtyChange }: { connectorId?: string; editTarget?: Asset | null; duplicateSource?: Asset | null; onDone: () => void; onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void }) {
+function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, onCancel, onDirtyChange }: { open: boolean; connectorId?: string; editTarget?: Asset | null; duplicateSource?: Asset | null; onDone: () => void; onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
@@ -660,6 +641,9 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
   // Reset dirty flag whenever target changes
   useEffect(() => { onDirtyChange?.(false); }, [editTarget?.id, duplicateSource?.id, onDirtyChange]);
 
+  // Restart at the first step each time the panel opens
+  useEffect(() => { if (open) setStep(0); }, [open]);
+
   const markDirty = () => { onDirtyChange?.(true); };
 
   // Stricter ID validation (URL-unsafe chars + length)
@@ -703,43 +687,50 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
     return true;
   };
 
-  const dataAddressJson = JSON.stringify({
+  const dataAddressObj = {
     "@type": addrType,
     baseUrl,
     proxyPath,
     proxyQueryParams: proxyQuery,
     authCode: `{{${authCode}}}`,
     contentType,
-  }, null, 2);
+  };
 
   return (
-    <Card
-      title={<CardTitle icon={<Wand2 className="w-4 h-4 text-primary" />}>{isEdit ? t.assets.editWizard : duplicateSource ? t.assets.duplicateWizard : t.assets.createWizard}</CardTitle>}
-      actions={onCancel ? (
+    <SlidePanel open={open} onClose={onCancel ?? (() => {})} className="max-w-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-[13px] font-semibold text-foreground truncate">
+            {isEdit ? t.assets.editWizard : duplicateSource ? t.assets.duplicateWizard : t.assets.createWizard}
+          </span>
+        </div>
         <button
           onClick={onCancel}
-          className="text-[11px] px-2 py-1 rounded border border-border hover:bg-muted text-muted-foreground"
+          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+          aria-label={t.common.close}
         >
-          {t.common.cancel}
+          <X className="w-4 h-4" />
         </button>
-      ) : undefined}
-    >
-      {/* Stepper: horizontal on md+, vertical text on mobile (spec 3.3.3) */}
-      <div className="hidden sm:block">
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-w-0">
+        {/* Stepper */}
         <Stepper steps={steps} current={step} icons={[<FileText />, <Server />, <Tags />]} />
-      </div>
-      <div className="sm:hidden text-[12px] text-muted-foreground mb-3 font-medium">
-        {t.assets.stepMobile(step + 1, steps.length, steps[step])}
-      </div>
+        <div className="sm:hidden text-[12px] text-muted-foreground font-medium">
+          {t.assets.stepMobile(step + 1, steps.length, steps[step])}
+        </div>
 
       {/* Step 1: Basic Info */}
       {step === 0 && (
         <div className="space-y-4">
           <div className="mb-4">
-            <div className="text-[12px] font-semibold text-muted-foreground">{t.assets.step1}</div>
+            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.step1}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <FormField label={t.assets.assetId} required>
               <input
                 value={assetId}
@@ -782,7 +773,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             </FormField>
           </div>
           {/* Wizard nav: right-aligned on md+, sticky bottom on mobile (spec 3.3.3) */}
-          <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button
               disabled={checkingId}
               onClick={async () => { if (await validateStep1()) setStep(1); }}
@@ -798,10 +789,10 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
       {step === 1 && (
         <div className="space-y-4">
           <div className="mb-4">
-            <div className="text-[12px] font-semibold text-muted-foreground">{t.assets.step2}</div>
+            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.step2}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <FormField label={t.assets.dataAddressType} required>
               <select value={addrType} onChange={(e) => { setAddrType(e.target.value); markDirty(); }}
                 className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
@@ -849,9 +840,9 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
           </div>
           <div>
             <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t.assets.dataAddressPreview}</div>
-            <pre className="mono text-[12px] bg-slate-900 text-slate-300 rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed">{dataAddressJson}</pre>
+            <JsonTreeView data={dataAddressObj} />
           </div>
-          <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button onClick={() => setStep(0)} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">
               {t.common.prev}
             </button>
@@ -869,10 +860,10 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
       {step === 2 && (
         <div className="space-y-4">
           <div className="mb-4">
-            <div className="text-[12px] font-semibold text-muted-foreground">{t.assets.step3}</div>
+            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.step3}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <FormField label="aas-semantics:semanticId">
               <input value={semanticId} onChange={(e) => { setSemanticId(e.target.value); markDirty(); }}
                 placeholder="urn:samm:io.catenax...."
@@ -892,7 +883,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
             <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">
               {t.assets.privateProps}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <FormField label="kmx:aasId">
                 <input value={aasId} onChange={(e) => { setAasId(e.target.value); markDirty(); }} placeholder="urn:uuid:..."
                   className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
@@ -947,7 +938,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
               </div>
             )}
           </div>
-          <div className="flex justify-end gap-2 pt-2 sm:static fixed bottom-14 left-0 right-0 sm:bg-transparent bg-card sm:p-0 p-3 sm:border-0 border-t border-border z-30">
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button onClick={() => setStep(1)} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">
               {t.common.prev}
             </button>
@@ -1004,6 +995,7 @@ function AssetWizard({ connectorId, editTarget, duplicateSource, onDone, onCance
           </div>
         </div>
       )}
-    </Card>
+      </div>
+    </SlidePanel>
   );
 }

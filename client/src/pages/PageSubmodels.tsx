@@ -44,15 +44,15 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
+  return d.toLocaleString(locale === "ko" ? "ko-KR" : "en-US");
 }
 
 export default function PageSubmodels() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [detailUrn, setDetailUrn] = useState<string | null>(null);
@@ -214,7 +214,7 @@ export default function PageSubmodels() {
                   <span className="text-[12px] font-normal text-muted-foreground">{formatBytes(m.contentBytes)}</span>
                 </div>
                 <div className="hidden xl:block min-w-0">
-                  <span className="text-[12px] font-normal text-muted-foreground truncate block">{formatDate(m.updatedAt)}</span>
+                  <span className="text-[12px] font-normal text-muted-foreground truncate block">{formatDate(m.updatedAt, locale)}</span>
                 </div>
               </ListRow>
             ))
@@ -289,7 +289,7 @@ function SemanticModelDetailDialog({
   onEdit: () => void;
   onDelete: (summary: SemanticModelSummary) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [model, setModel] = useState<SemanticModel | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -357,8 +357,8 @@ function SemanticModelDetailDialog({
             {model.descriptionEn && (
               <DetailRow label={t.submodels.form.descriptionEn} value={model.descriptionEn} />
             )}
-            <DetailRow label="Created" value={formatDate(model.createdAt)} />
-            <DetailRow label="Updated" value={formatDate(model.updatedAt)} />
+            <DetailRow label="Created" value={formatDate(model.createdAt, locale)} />
+            <DetailRow label="Updated" value={formatDate(model.updatedAt, locale)} />
 
             <div className="pt-2 border-t border-border min-w-0">
               <div className="flex items-center justify-between mb-1">

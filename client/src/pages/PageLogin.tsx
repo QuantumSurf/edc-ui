@@ -51,6 +51,7 @@ export default function PageLogin() {
                   id="kmx-login-username"
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); setError(false); }}
+                  placeholder="BPNL000000000000"
                   autoComplete="username"
                   className="w-full pl-10 pr-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-colors"
                 />
@@ -93,19 +94,19 @@ export default function PageLogin() {
           {/* Demo accounts hint */}
           <div className="mt-5 pt-4 border-t border-slate-200">
             <p className="text-[11px] text-slate-500 mb-2 font-medium uppercase tracking-wide">{t.login.demoAccounts}</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
-                { user: "admin", role: t.login.admin },
-                { user: "operator", role: t.login.operator },
-                { user: "viewer", role: t.login.viewer },
-              ].map(({ user, role }) => (
+                { bpn: "BPNL000000000PRD", pw: "0000", role: t.login.admin },
+                { bpn: "BPNL000000000CON", pw: "0000", role: t.login.operator },
+              ].map(({ bpn, pw, role }) => (
                 <button
-                  key={user}
+                  key={bpn}
                   type="button"
-                  onClick={() => { setUsername(user); setPassword(user); setError(false); }}
-                  className="text-[11px] px-2 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors text-slate-600 hover:text-slate-900"
+                  onClick={() => { setUsername(bpn); setPassword(pw); setError(false); }}
+                  className="px-2 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors text-slate-600 hover:text-slate-900 leading-tight"
                 >
-                  {role}
+                  <span className="block text-[11px] font-medium">{role}</span>
+                  <span className="block mono text-[9px] text-slate-400 truncate">{bpn}</span>
                 </button>
               ))}
             </div>

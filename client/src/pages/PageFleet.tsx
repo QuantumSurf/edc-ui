@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
+import { useAuth } from "@/contexts/AuthContext";
+import AddConnectorPanel from "./PageAddConnector";
 
 interface PageFleetProps {
   onSelect: (c: Connector, page?: string) => void;
@@ -39,7 +41,11 @@ function rolesToKey(roles: string[]): string {
 
 export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Add connector slide panel state
+  const [addOpen, setAddOpen] = useState(false);
 
   // Edit dialog state
   const [editTarget, setEditTarget] = useState<Connector | null>(null);
@@ -93,9 +99,12 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
       </div>
 
       {/* Section Header */}
-      <SectionHdr icon={<LayoutGrid className="w-5 h-5 text-primary" />} action={
+      <SectionHdr
+        icon={<LayoutGrid className="w-5 h-5 text-primary" />}
+        breadcrumb={user?.tenantName || undefined}
+        action={
         <RoleGate permission="connector:write">
-          <PrimaryActionButton onClick={() => onNav("/connectors/new")} icon={<PlusCircle className="w-3 h-3" />}>
+          <PrimaryActionButton onClick={() => setAddOpen(true)} icon={<PlusCircle className="w-3 h-3" />}>
             {t.common.addConnector}
           </PrimaryActionButton>
         </RoleGate>
@@ -122,7 +131,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         ))}
         <RoleGate permission="connector:write">
           <button
-            onClick={() => onNav("/connectors/new")}
+            onClick={() => setAddOpen(true)}
             className="bg-card border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-primary/40 hover:bg-primary/5 transition-all group shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           >
             <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:border-primary transition-colors bg-muted">
@@ -133,6 +142,9 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         </RoleGate>
       </div>
       )}
+
+      {/* Add Connector Slide Panel */}
+      <AddConnectorPanel open={addOpen} onClose={() => setAddOpen(false)} />
 
       {/* Edit Dialog */}
       {editTarget && (
@@ -250,7 +262,6 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
 
   // Pre-fill form from connector (note: apiKey is stripped by server, so blank)
   const [name, setName] = useState(connector.name);
-  const [bpn, setBpn] = useState(connector.bpn);
   const [managementUrl, setManagementUrl] = useState((connector as any).managementUrl ?? "");
   const [dspEndpoint, setDspEndpoint] = useState((connector as any).dspEndpoint ?? "");
   const [apiKey, setApiKey] = useState("");
@@ -281,7 +292,7 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
     setSaving(true);
     try {
       const updates: Record<string, unknown> = {
-        name: name.trim(), bpn: bpn.trim(),
+        name: name.trim(),
         managementUrl: managementUrl.trim(), dspEndpoint: dspEndpoint.trim(),
         env, roles: ROLE_MAP[role] ?? ["Provider", "Consumer"],
         dcpVersion, did: did.trim(),
@@ -305,14 +316,9 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField label={t.addConnector.connectorName} required>
-              <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
-            </FormField>
-            <FormField label={t.addConnector.participantBpn} required>
-              <input value={bpn} onChange={(e) => setBpn(e.target.value)} className={`${inputClass} mono`} />
-            </FormField>
-          </div>
+          <FormField label={t.addConnector.connectorName} required>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+          </FormField>
 
           <FormField label={t.addConnector.managementUrl} required>
             <div className="flex gap-2">

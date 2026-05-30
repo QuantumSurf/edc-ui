@@ -7,7 +7,7 @@ import { useI18n } from "@/i18n";
 import { fetchPolicies, createPolicy, updatePolicy, deletePolicy } from "@/services";
 import { type Policy } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
   Card, CardTitle, Badge, MonoText, SectionHdr, FormField, JsonTreeView,
@@ -180,6 +180,19 @@ export default function PagePolicy() {
     setTab(next);
   };
 
+  // Close the builder slide panel and clear edit/duplicate context
+  const closeBuilder = () => {
+    setBuilderDirty(false);
+    setEditTarget(null);
+    setDuplicateSource(null);
+    setTab("list");
+  };
+  // Close request from backdrop / Esc / cancel — guard unsaved changes
+  const requestCloseBuilder = () => {
+    if (builderDirty) { setPendingTabSwitch("list"); return; }
+    closeBuilder();
+  };
+
   const filtered = policies.filter(
     (p) =>
       (p.id ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -203,26 +216,7 @@ export default function PagePolicy() {
         }
       >{t.policies.title}</SectionHdr>
 
-      <div className="flex border-b border-border -mt-1">
-        <button onClick={() => switchTab("list")}
-          className={`px-4 py-2 text-[12px] border-b-2 transition-colors -mb-px ${
-            tab === "list" ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}>
-          {t.policies.list}
-        </button>
-        <RoleGate permission="resource:write">
-          <button onClick={() => switchTab("builder")}
-            className={`px-4 py-2 text-[12px] border-b-2 transition-colors -mb-px ${
-              tab === "builder" ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}>
-            {t.policies.builder}
-          </button>
-        </RoleGate>
-      </div>
-
-      {tab === "list" && (
-        <>
-          {/* Search */}
+      {/* Search */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -279,17 +273,16 @@ export default function PagePolicy() {
               selectedId={detailTarget?.id}
             />
           )}
-        </>
-      )}
-      {tab === "builder" && connectorId && (
+      {connectorId && (
         <ODRLBuilder
           key={(editTarget?.id ?? "") + "|" + (duplicateSource?.id ?? "") + "|" + (editTarget ? "e" : duplicateSource ? "d" : "n")}
+          open={tab === "builder"}
           connectorId={connectorId}
           existingPolicyIds={policies.map((p) => p.id)}
           editTarget={editTarget}
           duplicateSource={duplicateSource}
-          onDone={() => { setBuilderDirty(false); setEditTarget(null); setDuplicateSource(null); setTab("list"); }}
-          onCancel={() => { setBuilderDirty(false); setEditTarget(null); setDuplicateSource(null); setTab("list"); }}
+          onDone={closeBuilder}
+          onCancel={requestCloseBuilder}
           onDirtyChange={setBuilderDirty}
         />
       )}
@@ -306,7 +299,7 @@ export default function PagePolicy() {
         tone="warn"
         cancelLabel={t.common.stay}
         confirmLabel={t.common.leave}
-        onConfirm={() => { if (pendingTabSwitch) { setBuilderDirty(false); setTab(pendingTabSwitch); setPendingTabSwitch(null); } }}
+        onConfirm={() => { setPendingTabSwitch(null); closeBuilder(); }}
       />
 
       {detailTarget && (
@@ -674,7 +667,7 @@ function PolicyDetailSheet({
   );
 }
 
-function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicateSource, onDone, onCancel, onDirtyChange }: { connectorId: string; existingPolicyIds?: string[]; editTarget?: Policy | null; duplicateSource?: Policy | null; onDone: () => void; onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void }) {
+function ODRLBuilder({ open, connectorId, existingPolicyIds = [], editTarget, duplicateSource, onDone, onCancel, onDirtyChange }: { open: boolean; connectorId: string; existingPolicyIds?: string[]; editTarget?: Policy | null; duplicateSource?: Policy | null; onDone: () => void; onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
@@ -780,6 +773,9 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
   // Reset dirty flag when target changes
   useEffect(() => { onDirtyChange?.(false); }, [editTarget?.id, duplicateSource?.id, onDirtyChange]);
 
+  // Default to the builder tab each time the panel opens
+  useEffect(() => { if (open) setMobileTab("builder"); }, [open]);
+
   const markDirty = () => { onDirtyChange?.(true); };
 
   const validatePolicyId = (id: string): string | null => {
@@ -873,7 +869,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
         onChange={(e) => { setJsonText(e.target.value); setJsonError(null); }}
         placeholder={`{\n  "@context": "http://www.w3.org/ns/odrl.jsonld",\n  "@type": "Set",\n  "@id": "kmx-policy-v1",\n  "odrl:permission": [...]\n}`}
         rows={14}
-        className="w-full text-[11px] mono px-3 py-2 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+        className="w-full text-[12px] mono p-4 rounded-xl bg-slate-900 text-slate-300 border border-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary resize-y leading-relaxed"
       />
       {jsonError && (
         <div className="flex items-start gap-1.5 text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1.5">
@@ -955,7 +951,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
         )}
       </FormField>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <FormField label={t.policies.ruleType} required>
           <select
             value={ruleType}
@@ -984,7 +980,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-[12px] font-semibold text-muted-foreground">{t.policies.constraints}</div>
+        <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.policies.constraints}</div>
         {constraints.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-muted-foreground">{t.policies.logicOp}:</span>
@@ -1014,7 +1010,7 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <FormField label={t.policies.leftOperand}>
               <input
                 value={c.leftOperand}
@@ -1068,34 +1064,27 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
     </div>
   );
 
-  const builderTitle = (
-    <CardTitle icon={<Hammer className="w-4 h-4 text-primary" />}>
-      {isEdit ? t.policies.editBuilder : duplicateSource ? t.policies.duplicateBuilder : t.policies.builder}
-    </CardTitle>
-  );
   return (
-    <>
-      {/* Desktop: side-by-side 50% */}
-      <div className="hidden xl:grid xl:grid-cols-2 gap-4">
-        <Card title={builderTitle}>{builderContent}</Card>
-        <Card title={t.policies.jsonPreview}>{jsonPreview}</Card>
+    <SlidePanel open={open} onClose={onCancel ?? onDone} className="max-w-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Hammer className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-[13px] font-semibold text-foreground truncate">
+            {isEdit ? t.policies.editBuilder : duplicateSource ? t.policies.duplicateBuilder : t.policies.builder}
+          </span>
+        </div>
+        <button
+          onClick={onCancel ?? onDone}
+          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Tablet: collapsible */}
-      <div className="hidden md:block xl:hidden">
-        <Card title={builderTitle}>
-          {builderContent}
-          <button onClick={() => setPreviewOpen(!previewOpen)}
-            className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 mt-3 font-medium">
-            <Eye className="w-3 h-3" /> {t.policies.jsonPreview}
-            {previewOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-          {previewOpen && <div className="mt-2">{jsonPreview}</div>}
-        </Card>
-      </div>
-
-      {/* Mobile: tab switch */}
-      <div className="md:hidden">
+      {/* Body: builder ⇄ JSON preview toggle */}
+      <div className="flex-1 overflow-y-auto p-4 min-w-0">
         <div className="flex border-b border-border mb-3">
           {(["builder", "json"] as const).map((tb) => (
             <button key={tb} onClick={() => setMobileTab(tb)}
@@ -1106,8 +1095,8 @@ function ODRLBuilder({ connectorId, existingPolicyIds = [], editTarget, duplicat
             </button>
           ))}
         </div>
-        {mobileTab === "builder" ? <Card>{builderContent}</Card> : <Card>{jsonPreview}</Card>}
+        {mobileTab === "builder" ? builderContent : jsonPreview}
       </div>
-    </>
+    </SlidePanel>
   );
 }

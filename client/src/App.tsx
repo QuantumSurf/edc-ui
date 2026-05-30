@@ -27,7 +27,6 @@ import PageEDR from "./pages/PageEDR";
 import PageInfra from "./pages/PageInfra";
 import PageVault from "./pages/PageVault";
 import PageAudit from "./pages/PageAudit";
-import PageAddConnector from "./pages/PageAddConnector";
 import PageSettings from "./pages/PageSettings";
 import PageShells from "./pages/PageShells";
 import PageSubmodels from "./pages/PageSubmodels";
@@ -162,11 +161,6 @@ function AppRoutes() {
             <PageInfra />
           </>
         )}
-      </Route>
-
-      {/* Connector registration */}
-      <Route path="/connectors/new">
-        <PageAddConnector onNav={nav} />
       </Route>
 
       {/* Settings */}

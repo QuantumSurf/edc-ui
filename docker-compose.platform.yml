@@ -140,7 +140,11 @@ services:
   # ──────────────────────────────────────────────────────────
   # STS Secret Bridge — IH 부트스트랩이 발급하는 client_secret 자동 주입
   # Provider + Consumer 두 BPN 모두 처리 (단일 Vault에 두 alias로 저장).
-  # docker.sock 마운트는 dev 환경 한정.
+  # ⚠ DEV ONLY — 프로덕션 금지:
+  #   - docker.sock 마운트(ro)로 호스트 docker 데몬에 접근(권한 상승 표면) + 상시 실행.
+  #   - Vault 접근에 root 토큰(VAULT_TOKEN=root) 사용.
+  #   - 시크릿을 `docker logs` 평문(KMX_IH_BOOTSTRAP_LOG_SECRETS)에서 추출.
+  #   운영에서는 Vault Agent/Init Container로 시크릿을 직접 주입하고 이 서비스를 제거할 것.
   # ──────────────────────────────────────────────────────────
   platform-sts-bridge:
     image: docker:24-cli
@@ -150,12 +154,16 @@ services:
         condition: service_completed_successfully
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    restart: "no"
+    # 자가복구(self-healing) 사이드카: Vault/IH 재시작으로 시크릿이 사라져도
+    # 누락을 감지해 자동 재주입한다(멱등). 일회성이 아니라 상시 실행.
+    restart: unless-stopped
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        set -e
-        # IH 부트스트랩 완료 대기
+        VADDR=http://127.0.0.1:8200
+        VTOKEN=root
+
+        # IH 부트스트랩 완료 대기 (최초 1회)
         for i in $$(seq 1 60); do
           if docker logs kmx-ih-identityhub 2>&1 | grep -q "Bootstrap complete"; then
             break
@@ -163,27 +171,44 @@ services:
           sleep 2
         done
 
-        # Provider STS secret — alias 'sts-client-secret' (provider EDC 설정과 일치)
-        PROVIDER_SECRET=$$(docker logs kmx-ih-identityhub 2>&1 \
-          | grep "BPNL000000000PRD" \
-          | grep -oE "clientSecret=[A-Za-z0-9+/=_-]+" \
-          | tail -1 | cut -d= -f2)
-        if [ -n "$$PROVIDER_SECRET" ]; then
-          docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=root \
-            kmx-platform-vault vault kv put secret/sts-client-secret content="$$PROVIDER_SECRET" >/dev/null
-          echo "Provider STS secret bridged (alias=sts-client-secret)"
-        fi
+        # alias가 비어 있을 때만 IH 로그에서 client_secret을 추출해 주입(멱등).
+        # 이미 값이 있으면 건너뛰어 불필요한 덮어쓰기를 방지한다.
+        seed_if_missing() {
+          ALIAS=$$1; BPN=$$2
+          if docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-platform-vault \
+               vault kv get -field=content secret/$$ALIAS >/dev/null 2>&1; then
+            return 0
+          fi
+          SECRET=$$(docker logs kmx-ih-identityhub 2>&1 | grep "$$BPN" \
+            | grep -oE "clientSecret=[A-Za-z0-9+/=_-]+" | tail -1 | cut -d= -f2)
+          if [ -n "$$SECRET" ]; then
+            docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-platform-vault \
+              vault kv put secret/$$ALIAS content="$$SECRET" >/dev/null \
+              && echo "STS secret bridged (alias=$$ALIAS, bpn=$$BPN)"
+          fi
+        }
 
-        # Consumer STS secret
-        CONSUMER_SECRET=$$(docker logs kmx-ih-identityhub 2>&1 \
-          | grep "BPNL000000000CSM" \
-          | grep -oE "clientSecret=[A-Za-z0-9+/=_-]+" \
-          | tail -1 | cut -d= -f2)
-        if [ -n "$$CONSUMER_SECRET" ]; then
-          docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=root \
-            kmx-platform-vault vault kv put secret/consumer-sts-client-secret content="$$CONSUMER_SECRET" >/dev/null
-          echo "Consumer STS secret bridged"
-        fi
+        # IdentityHub participant API 키 동기화: IH-vault {BPN}-apikey →
+        # platform-vault ih-apikey-{BPN}. 키는 재부트스트랩마다 회전하므로 매 루프 덮어쓴다.
+        sync_apikey() {
+          BPN=$$1
+          AK=$$(docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-ih-vault \
+                vault kv get -field=content secret/$$BPN-apikey 2>/dev/null)
+          if [ -n "$$AK" ]; then
+            docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-platform-vault \
+              vault kv put secret/ih-apikey-$$BPN content="$$AK" >/dev/null \
+              && echo "IH apikey synced (alias=ih-apikey-$$BPN)"
+          fi
+        }
+
+        # 30초마다 누락 점검 후 재주입 (Vault/IH 재시작에도 자동 복구)
+        while true; do
+          seed_if_missing sts-client-secret BPNL000000000PRD
+          seed_if_missing consumer-sts-client-secret BPNL000000000CSM
+          sync_apikey BPNL000000000PRD
+          sync_apikey BPNL000000000CSM
+          sleep 30
+        done
     networks:
       - kmx-ih_default
 

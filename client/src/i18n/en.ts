@@ -41,6 +41,10 @@ const en: Translations = {
     stay: "Stay",
     rowsPerPage: "Rows per page",
     digitalTwinRegistry: "Digital Twin Registry",
+    loadingData: "Loading data...",
+    expand: "Expand",
+    collapse: "Collapse",
+    downloadJson: "Download JSON",
   },
 
   nav: {
@@ -149,7 +153,7 @@ const en: Translations = {
 
   assets: {
     title: "Assets",
-    createWizard: "Create Asset Wizard",
+    createWizard: "Create Asset",
     list: "Asset List",
     wizard: "Creation Wizard (3 Steps)",
     searchPlaceholder: "Search asset ID or type...",
@@ -221,7 +225,7 @@ const en: Translations = {
 
   policies: {
     title: "Policies",
-    createOdrl: "Create ODRL Policy",
+    createOdrl: "Create Policy",
     list: "Policy List",
     builder: "ODRL Builder",
     policyId: "Policy ID",
@@ -274,10 +278,10 @@ const en: Translations = {
       "prohibit-third-country-transfer": "Prohibit data transfer to specific countries (prohibition + transfer).",
       "usage-purpose-dtr": "Allow use only for Digital Twin Registry purposes.",
     } as Record<string, string>,
-    offeringRef: (n: number) => `${n} offerings`,
+    offeringRef: (n: number) => `${n} Contracts`,
     deleteBlockedByOffering: "Cannot delete a policy that is linked to an offering.",
     searchPlaceholder: "Search policy ID or constraints...",
-    col: { id: "Policy ID / Summary", action: "Action", constraint: "Constraints", offeringRef: "Offering Ref", created: "Created" },
+    col: { id: "Policy ID / Summary", action: "Action", constraint: "Constraints", offeringRef: "Contract Ref.", created: "Created" },
     actionUse: "Permission: Use",
     sectionBasic: "Basic Info",
     sectionConstraints: "ODRL Constraints",
@@ -291,8 +295,8 @@ const en: Translations = {
 
   offerings: {
     title: "Contracts",
-    createWizard: "Create Offering Wizard",
-    list: "Offering List",
+    createWizard: "Create Contract",
+    list: "Contract List",
     wizard: "Creation Wizard (4 Steps)",
     searchPlaceholder: "Search offering ID or asset...",
     offeringIdRequired: "Offering ID is required.",
@@ -687,9 +691,9 @@ const en: Translations = {
   login: {
     signIn: "Sign in",
     subtitle: "Enter your credentials to access the dashboard",
-    username: "Username",
+    username: "Tenant ID (BPN)",
     password: "Password",
-    invalidCredentials: "Invalid username or password",
+    invalidCredentials: "Invalid tenant ID or password",
     signingIn: "Signing in...",
     demoAccounts: "Demo Accounts",
     admin: "Admin",
@@ -714,6 +718,7 @@ const en: Translations = {
     basicInfo: "Basic Info",
     connectorName: "Connector Name",
     participantBpn: "Participant ID (BPN)",
+    bpnFromSettings: "The organization BPN from Settings is applied automatically. Edit it in Settings to change.",
     endpoints: "Endpoints",
     managementUrl: "Management API URL",
     dspEndpoint: "DSP Endpoint URL",
@@ -728,6 +733,7 @@ const en: Translations = {
     envStg: "Staging",
     envDev: "Development",
     dcpVersion: "DCP Version",
+    dcpLegacy: "(legacy)",
     dcpTrust: "DCP / Trust Framework",
     did: "DID",
     identityHubUrl: "Identity Hub URL",
@@ -777,6 +783,12 @@ const en: Translations = {
     identityHubApiKeySet: "●●●●●●●● (saved — enter only to change)",
     identityHubApiKeyUnset: "Enter API key",
     identityHubConfigSaved: "Identity Hub server settings saved.",
+    organization: "Organization",
+    orgBpn: "Organization BPN",
+    orgBpnDesc: "This organization's (tenant's) BPN. It is your login ID and the BPN applied when registering connectors.",
+    orgBpnHint: "Changing it means you must sign in with the new BPN from next login.",
+    orgBpnSaved: "Organization BPN saved.",
+    orgBpnTaken: "That BPN is already used by another organization.",
     vaultServer: "Vault Server",
     vaultServerDesc: "Connection settings to fetch secret/key info from the Vault server",
     vaultUrl: "Vault Server URL",

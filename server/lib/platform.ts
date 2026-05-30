@@ -60,6 +60,22 @@ export async function getVaultUrl(): Promise<string> {
   return (await readVaultConfig()).url;
 }
 
+/* ─── Vault secret value access (KV v2) ──────────────────────────
+ * 시크릿 '값'을 다루는 내부용 헬퍼. API 응답으로 노출하지 말 것.
+ * KV v2 경로: 값은 secret/data/{alias}, field 컨벤션은 `content`.
+ */
+export async function readVaultSecret(alias: string): Promise<string> {
+  const vault = await getVaultClient();
+  const { data } = await vault.get(`/v1/secret/data/${encodeURIComponent(alias)}`);
+  const inner = (data as { data?: { data?: Record<string, unknown> } })?.data?.data ?? {};
+  return String(inner.content ?? "");
+}
+
+export async function writeVaultSecret(alias: string, value: string): Promise<void> {
+  const vault = await getVaultClient();
+  await vault.post(`/v1/secret/data/${encodeURIComponent(alias)}`, { data: { content: value } });
+}
+
 /* ─── Platform PG Pool (read-only stats) ─────────────────────── */
 
 const PLATFORM_PG_URL =

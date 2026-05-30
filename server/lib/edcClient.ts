@@ -12,11 +12,16 @@ export interface EdcClientConfig {
 export class EdcApiError extends Error {
   status: number;
   detail: string;
-  constructor(status: number, detail: string) {
+  /** EDC가 응답 본문으로 돌려준 애플리케이션 레벨 에러인지 여부.
+   *  true면 detail은 EDC 자체 메시지(자격증명/검증 실패 등)이므로 관리자에게 노출해도 안전.
+   *  false면 전송/내부 실패(내부 호스트 포함 가능)이므로 errorHandler에서 마스킹 대상. */
+  fromEdcResponse: boolean;
+  constructor(status: number, detail: string, fromEdcResponse = false) {
     super(`EDC API Error (${status}): ${detail}`);
     this.name = "EdcApiError";
     this.status = status;
     this.detail = detail;
+    this.fromEdcResponse = fromEdcResponse;
   }
 }
 
@@ -47,7 +52,7 @@ export function createEdcClient(config: EdcClientConfig): AxiosInstance {
         } else {
           detail = error.message;
         }
-        throw new EdcApiError(error.response.status, detail);
+        throw new EdcApiError(error.response.status, detail, true);
       }
       if (error.code === "ECONNREFUSED" || error.code === "ECONNABORTED") {
         throw new EdcApiError(503, `Connector unreachable: ${error.message}`);

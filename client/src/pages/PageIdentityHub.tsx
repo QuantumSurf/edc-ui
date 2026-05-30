@@ -215,7 +215,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
 
 /* ─── Health monitor card ─────────────────────────────────────── */
 function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { data, isFetching, isError, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["identity-hub-health"],
     queryFn: fetchIdentityHubHealth,
@@ -249,7 +249,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Metric label={t.identityHub.httpStatus} value={data?.httpStatus != null ? String(data.httpStatus) : "—"} />
           <Metric label={t.identityHub.latency} value={data?.latencyMs != null ? `${data.latencyMs} ms` : "—"} />
-          <Metric label={t.identityHub.checkedAt} value={formatTs(data?.checkedAt ?? new Date(dataUpdatedAt).toISOString())} />
+          <Metric label={t.identityHub.checkedAt} value={formatTs(data?.checkedAt ?? new Date(dataUpdatedAt).toISOString(), locale)} />
         </div>
 
         <div className="pt-2 border-t border-border">
@@ -314,9 +314,9 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatTs(iso: string): string {
+function formatTs(iso: string, locale: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleTimeString();
+  return d.toLocaleTimeString(locale === "ko" ? "ko-KR" : "en-US");
 }
