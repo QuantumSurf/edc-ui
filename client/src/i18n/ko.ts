@@ -453,6 +453,7 @@ const ko = {
     noInflight: "진행 중인 전송이 없습니다.",
     noCompleted: "완료된 전송이 없습니다.",
     transferFailedToast: (id: string, asset: string) => `전송 실패: ${id} (asset: ${asset})`,
+    edrPendingHint: "EDR 미발급 — 데이터플레인 미가용이거나 EDR 만료/대기 중일 수 있습니다. 데이터플레인 상태를 확인하거나 전송을 다시 시작하세요.",
     filterAll: "전체",
     dateFrom: "시작일",
     dateTo: "종료일",

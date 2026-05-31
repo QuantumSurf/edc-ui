@@ -445,6 +445,7 @@ const en: Translations = {
     noInflight: "No in-flight transfers.",
     noCompleted: "No completed transfers.",
     transferFailedToast: (id: string, asset: string) => `Transfer failed: ${id} (asset: ${asset})`,
+    edrPendingHint: "No EDR issued — the data plane may be unavailable or the EDR expired/pending. Check the data plane or restart the transfer.",
     filterAll: "All",
     dateFrom: "From",
     dateTo: "To",

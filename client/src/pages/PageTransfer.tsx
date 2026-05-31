@@ -5,19 +5,19 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { useI18n } from "@/i18n";
-import { fetchTransfers, startTransfer, completeTransfer, terminateTransfer, fetchTransferData, deleteAllTransfers } from "@/services";
+import { fetchTransfers, startTransfer, completeTransfer, terminateTransfer, fetchTransferData, deleteAllTransfers, fetchEDRs } from "@/services";
 import { SINK_TYPES, type Transfer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, KpiCard, StateBadge, MonoText, SectionHdr, Badge, FormField,
+  Card, StateBadge, MonoText, SectionHdr, Badge, FormField,
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, JsonTreeView, inputBase,
 } from "@/components/ui-kmx";
 
 const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_1fr_1fr_84px]";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Send, ArrowRightLeft, Clock, HardDrive, CheckCircle, XCircle, Download, Trash2, FileText } from "lucide-react";
+import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
 
@@ -148,6 +148,23 @@ export default function PageTransfer() {
     },
   });
 
+  // 활성 EDR 집합(tpId 12자 prefix). STARTED인데 EDR이 없으면 데이터플레인 미가용/대기 신호.
+  const { data: edrs = [] } = useQuery({
+    queryKey: ["edrs", connectorId],
+    queryFn: () => fetchEDRs(connectorId!),
+    enabled: !!connectorId,
+    // transfers 폴링과 동일하게 inflight일 때만 자주 갱신
+    refetchInterval: transfers.some((tr) => tr.state < 1200) ? 3000 : false,
+  });
+  const activeEdrTps = useMemo(
+    () => new Set(edrs.filter((e) => e.left !== 0).map((e) => e.tpId)),
+    [edrs],
+  );
+  // STARTED인데 (아직 데이터 미수신: size "—") + 활성 EDR 없음 → 데이터플레인 미가용/EDR 대기.
+  // 이미 fetch해 size가 기록된 전송은 EDR이 만료돼도 정상이므로 힌트 제외(오탐 방지).
+  const startedNoEdr = (tr: Transfer) =>
+    tr.name === "STARTED" && tr.size === "—" && !activeEdrTps.has(tr.id.slice(0, 12));
+
   /* ── toast on TERMINATED (신규 실패만, 기존 상태 제외) ─────── */
   useEffect(() => {
     if (transfers.length === 0) return;
@@ -173,24 +190,6 @@ export default function PageTransfer() {
       }
     });
   }, [transfers]);
-
-  /* ── derived data ───────────────────────────────────────────── */
-  const completedCount = transfers.filter((tr: Transfer) => tr.state >= 1200).length;
-  const inflightCount  = transfers.filter((tr: Transfer) => tr.state < 1200).length;
-
-  const totalVolume = transfers
-    .filter((tr: Transfer) => tr.size !== "—")
-    .reduce((sum: number, tr: Transfer) => {
-      const m = tr.size.match(/([\d.]+)\s*MB/);
-      return sum + (m ? parseFloat(m[1]) : 0);
-    }, 0);
-  const durations = transfers
-    .filter((tr: Transfer) => tr.t !== "—")
-    .map((tr: Transfer) => parseFloat(tr.t));
-  const avgDuration =
-    durations.length > 0
-      ? (durations.reduce((a: number, b: number) => a + b, 0) / durations.length).toFixed(1)
-      : "—";
 
   const rows = useMemo(() => {
     const filtered = stateFilter === "ALL" ? transfers : transfers.filter((tr) => tr.name === stateFilter);
@@ -314,13 +313,6 @@ export default function PageTransfer() {
       )}
       <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.transfers.title}</SectionHdr>
 
-      {/* ── KPI row ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={inflightCount} label={t.transfers.inflight} valueColor="text-sky-600" />
-        <KpiCard icon={<CheckCircle className="w-[18px] h-[18px] text-emerald-600" />} iconBg="bg-emerald-50" value={completedCount} label={t.transfers.completed} valueColor="text-emerald-600" />
-        <KpiCard icon={<HardDrive className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={`${totalVolume.toFixed(1)} MB`} label={t.transfers.totalVolume} />
-        <KpiCard icon={<Clock className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={avgDuration === "—" ? "—" : `${avgDuration}s`} label={t.transfers.avgDuration} valueColor="text-amber-600" />
-      </div>
 
       {/* ── Filter — fl-aggregator TasksPage style ───────────── */}
       <div className="flex flex-wrap items-center gap-1.5">
@@ -382,8 +374,13 @@ export default function PageTransfer() {
                 <div>
                   <MonoText className="!text-[12px] !font-normal text-primary group-hover:text-primary/80">{tr.id.slice(0, 12)}</MonoText>
                 </div>
-                <div>
+                <div className="flex items-center gap-1">
                   <StateBadge name={tr.name} />
+                  {startedNoEdr(tr) && (
+                    <span title={t.transfers.edrPendingHint} className="inline-flex items-center text-amber-600">
+                      <AlertTriangle className="w-3 h-3" />
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-0">
                   <MonoText className="!text-[12px] !font-normal block truncate">{tr.asset}</MonoText>
@@ -450,6 +447,11 @@ export default function PageTransfer() {
                   <MonoText className="text-[11px]">{tr.id.slice(0, 12)}</MonoText>
                   <div className="flex items-center gap-2">
                     <StateBadge name={tr.name} />
+                    {startedNoEdr(tr) && (
+                      <span title={t.transfers.edrPendingHint} className="inline-flex items-center text-amber-600">
+                        <AlertTriangle className="w-3 h-3" />
+                      </span>
+                    )}
                     {tr.name === "STARTED" && (
                       <div className="flex gap-1">
                         <button onClick={() => handleFetch(tr.id, tr.asset)} title={t.transfers.fetchData}
