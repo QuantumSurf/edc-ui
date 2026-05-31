@@ -17,6 +17,25 @@ import { validateDspEndpoint } from "../middleware/validation.js";
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
 
+/**
+ * EDR endpoint(신뢰된 provider 데이터플레인 URL)에 선택적 하위 경로/쿼리를 안전하게 덧붙인다.
+ * 절대 URL / protocol-relative(`//`) 는 호스트 변조 우려로 거부(null 반환).
+ * 프록시 자산(DTR 등)을 하위 경로로 조회하기 위함.
+ */
+function appendProxyPath(endpoint: string, path?: unknown, query?: unknown): string | null {
+  let url = endpoint;
+  if (typeof path === "string" && path.trim()) {
+    const rel = path.trim();
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(rel) || rel.startsWith("//")) return null;
+    url = endpoint.replace(/\/+$/, "") + (rel.startsWith("/") ? rel : `/${rel}`);
+  }
+  if (typeof query === "string" && query.trim()) {
+    const q = query.trim().replace(/^[?&]+/, "");
+    if (q) url += (url.includes("?") ? "&" : "?") + q;
+  }
+  return url;
+}
+
 async function resolveConnector(id: string) {
   const conn = await getConnector(id);
   if (!conn) throw new Error(`Connector ${id} not found`);
@@ -161,9 +180,18 @@ router.post("/:id/transfers/:tpId/fetch", async (req: Request, res: Response, ne
       return;
     }
 
+    // 프록시 자산(예: DTR cx-taxo:DigitalTwinRegistry, proxyPath=true)은 EDR endpoint
+    // 루트가 아니라 하위 경로로 조회해야 데이터가 나온다(루트 pull은 빈 응답 → size=—).
+    // 선택적 path/query를 EDR endpoint에 안전하게 덧붙인다.
+    const targetUrl = appendProxyPath(endpoint, req.body?.path, req.body?.query);
+    if (targetUrl === null) {
+      res.status(400).json({ error: "path must be a relative sub-path (no scheme/host)" });
+      return;
+    }
+
     // 2. Provider Data Plane에서 실제 데이터 Pull — 소요시간 측정
     const fetchStart = Date.now();
-    const dataRes = await axios.get(endpoint, {
+    const dataRes = await axios.get(targetUrl, {
       headers: { Authorization: `Bearer ${token}` },
       responseType: "arraybuffer",
       timeout: 30_000,

@@ -8,13 +8,13 @@ import { fetchEDRs, fetchEDRStats } from "@/services";
 import { type EDR, type EDRStats } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  Card, KpiCard, Badge, AlertBanner, MonoText, ProgressBar, SectionHdr, CardTitle,
+  Card, Badge, AlertBanner, MonoText, ProgressBar, SectionHdr, CardTitle,
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
 } from "@/components/ui-kmx";
 
 const EDR_COLS = "grid-cols-[170px_1.7fr_90px_1.5fr_1.3fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
-import { Copy, Shield, Trash2, AlertTriangle, Key, Clock } from "lucide-react";
+import { Copy, Shield, Key, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 function maskToken(token: string) {
@@ -47,20 +47,9 @@ export default function PageEDR() {
     refetchInterval: 30_000,
   });
 
-  const expiringCount = edrs.filter((e) => e.left >= 0 && e.left < 60).length;
-  const activeCount = edrs.filter((e) => e.left !== 0).length;
-
   return (
     <>
       <SectionHdr icon={<Key className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.edr.title}</SectionHdr>
-
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={activeCount} label={t.edr.activeEdr} />
-        <KpiCard icon={<AlertTriangle className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={expiringCount} label={t.edr.expiringSoon} valueColor="text-amber-600" />
-        <KpiCard icon={<Trash2 className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={stats.todayGcDeleted} label={t.edr.todayGcDeleted} />
-        <KpiCard icon={<AlertTriangle className="w-[18px] h-[18px] text-rose-600" />} iconBg="bg-rose-50" value={stats.gcErrors} label={t.edr.gcErrors} valueColor={stats.gcErrors > 0 ? "text-rose-600" : undefined} />
-      </div>
 
       {alert && stats.nearestExpiry && stats.nearestExpiry.left < 60 && (
         <AlertBanner variant="warn" onClose={() => setAlert(false)}>

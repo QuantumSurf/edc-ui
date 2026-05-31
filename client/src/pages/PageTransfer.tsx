@@ -5,19 +5,19 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { useI18n } from "@/i18n";
-import { fetchTransfers, startTransfer, completeTransfer, terminateTransfer, fetchTransferData, deleteAllTransfers } from "@/services";
+import { fetchTransfers, startTransfer, completeTransfer, terminateTransfer, fetchTransferData, deleteAllTransfers, fetchEDRs } from "@/services";
 import { SINK_TYPES, type Transfer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, KpiCard, StateBadge, MonoText, SectionHdr, Badge, FormField,
+  Card, StateBadge, MonoText, SectionHdr, Badge, FormField,
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, JsonTreeView, inputBase,
 } from "@/components/ui-kmx";
 
 const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_1fr_1fr_84px]";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Send, ArrowRightLeft, Clock, HardDrive, CheckCircle, XCircle, Download, Trash2, FileText } from "lucide-react";
+import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
 
@@ -31,14 +31,20 @@ type StateFilter = typeof ALL_STATE_FILTERS[number];
 interface DataViewerProps {
   tpId: string;
   asset: string;
+  path: string;
   data: unknown;
   sizeBytes: number;
   contentType: string;
+  onRequery: (path: string) => void;
   onClose: () => void;
 }
 
-function DataViewer({ tpId, asset, data, sizeBytes, contentType, onClose }: DataViewerProps) {
+function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery, onClose }: DataViewerProps) {
   const { t } = useI18n();
+  // 프록시 자산(DTR 등)은 하위 경로로 조회 — 경로 바를 통해 다른 경로 재조회 가능.
+  const isProxyAsset = asset.startsWith("dtr-") || !!path;
+  const [pathInput, setPathInput] = useState(path);
+  useEffect(() => setPathInput(path), [path]);
   const isJson = contentType.includes("json") || (typeof data === "object" && data !== null);
   const formatted = isJson
     ? JSON.stringify(data, null, 2)
@@ -82,6 +88,24 @@ function DataViewer({ tpId, asset, data, sizeBytes, contentType, onClose }: Data
             </button>
           </div>
         </DialogHeader>
+        {isProxyAsset && (
+          <div className="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2 flex-shrink-0">
+            <span className="text-[11px] text-muted-foreground flex-shrink-0">{t.transfers.proxyPath}</span>
+            <input
+              className="flex-1 min-w-0 mono text-[12px] px-2 py-1 border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="/shell-descriptors"
+              value={pathInput}
+              onChange={(e) => setPathInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onRequery(pathInput); }}
+            />
+            <button
+              onClick={() => onRequery(pathInput)}
+              className="text-[12px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium flex-shrink-0"
+            >
+              {t.transfers.queryPath}
+            </button>
+          </div>
+        )}
         <div className="overflow-auto flex-1 p-4 min-h-0">
           {isJson ? (
             <JsonTreeView data={data} />
@@ -121,7 +145,7 @@ export default function PageTransfer() {
   const [submitting, setSubmitting] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateFilter>("ALL");
   const [dataViewer, setDataViewer] = useState<{
-    tpId: string; asset: string; data: unknown; sizeBytes: number; contentType: string;
+    tpId: string; asset: string; path: string; data: unknown; sizeBytes: number; contentType: string;
   } | null>(null);
 
   // Track IDs we already toasted so we don't re-fire
@@ -148,6 +172,23 @@ export default function PageTransfer() {
     },
   });
 
+  // 활성 EDR 집합(tpId 12자 prefix). STARTED인데 EDR이 없으면 데이터플레인 미가용/대기 신호.
+  const { data: edrs = [] } = useQuery({
+    queryKey: ["edrs", connectorId],
+    queryFn: () => fetchEDRs(connectorId!),
+    enabled: !!connectorId,
+    // transfers 폴링과 동일하게 inflight일 때만 자주 갱신
+    refetchInterval: transfers.some((tr) => tr.state < 1200) ? 3000 : false,
+  });
+  const activeEdrTps = useMemo(
+    () => new Set(edrs.filter((e) => e.left !== 0).map((e) => e.tpId)),
+    [edrs],
+  );
+  // STARTED인데 (아직 데이터 미수신: size "—") + 활성 EDR 없음 → 데이터플레인 미가용/EDR 대기.
+  // 이미 fetch해 size가 기록된 전송은 EDR이 만료돼도 정상이므로 힌트 제외(오탐 방지).
+  const startedNoEdr = (tr: Transfer) =>
+    tr.name === "STARTED" && tr.size === "—" && !activeEdrTps.has(tr.id.slice(0, 12));
+
   /* ── toast on TERMINATED (신규 실패만, 기존 상태 제외) ─────── */
   useEffect(() => {
     if (transfers.length === 0) return;
@@ -173,24 +214,6 @@ export default function PageTransfer() {
       }
     });
   }, [transfers]);
-
-  /* ── derived data ───────────────────────────────────────────── */
-  const completedCount = transfers.filter((tr: Transfer) => tr.state >= 1200).length;
-  const inflightCount  = transfers.filter((tr: Transfer) => tr.state < 1200).length;
-
-  const totalVolume = transfers
-    .filter((tr: Transfer) => tr.size !== "—")
-    .reduce((sum: number, tr: Transfer) => {
-      const m = tr.size.match(/([\d.]+)\s*MB/);
-      return sum + (m ? parseFloat(m[1]) : 0);
-    }, 0);
-  const durations = transfers
-    .filter((tr: Transfer) => tr.t !== "—")
-    .map((tr: Transfer) => parseFloat(tr.t));
-  const avgDuration =
-    durations.length > 0
-      ? (durations.reduce((a: number, b: number) => a + b, 0) / durations.length).toFixed(1)
-      : "—";
 
   const rows = useMemo(() => {
     const filtered = stateFilter === "ALL" ? transfers : transfers.filter((tr) => tr.name === stateFilter);
@@ -233,12 +256,14 @@ export default function PageTransfer() {
     }
   }
 
-  async function handleFetch(tpId: string, asset: string) {
+  async function handleFetch(tpId: string, asset: string, path?: string) {
     if (!connectorId) return;
+    // 프록시 자산(DTR)은 루트 pull이 비므로 하위 경로로 조회 — 기본 /shell-descriptors.
+    const effectivePath = path !== undefined ? path : (asset.startsWith("dtr-") ? "/shell-descriptors" : "");
     try {
-      const result = await fetchTransferData(tpId, connectorId);
+      const result = await fetchTransferData(tpId, connectorId, effectivePath || undefined);
       // 모달 표시
-      setDataViewer({ tpId, asset, data: result.data, sizeBytes: result.sizeBytes, contentType: result.contentType });
+      setDataViewer({ tpId, asset, path: effectivePath, data: result.data, sizeBytes: result.sizeBytes, contentType: result.contentType });
       queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
     } catch {
       toast.error(t.transfers.fetchFailed);
@@ -306,21 +331,16 @@ export default function PageTransfer() {
         <DataViewer
           tpId={dataViewer.tpId}
           asset={dataViewer.asset}
+          path={dataViewer.path}
           data={dataViewer.data}
           sizeBytes={dataViewer.sizeBytes}
           contentType={dataViewer.contentType}
+          onRequery={(p) => handleFetch(dataViewer.tpId, dataViewer.asset, p)}
           onClose={() => setDataViewer(null)}
         />
       )}
       <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.transfers.title}</SectionHdr>
 
-      {/* ── KPI row ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={inflightCount} label={t.transfers.inflight} valueColor="text-sky-600" />
-        <KpiCard icon={<CheckCircle className="w-[18px] h-[18px] text-emerald-600" />} iconBg="bg-emerald-50" value={completedCount} label={t.transfers.completed} valueColor="text-emerald-600" />
-        <KpiCard icon={<HardDrive className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={`${totalVolume.toFixed(1)} MB`} label={t.transfers.totalVolume} />
-        <KpiCard icon={<Clock className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={avgDuration === "—" ? "—" : `${avgDuration}s`} label={t.transfers.avgDuration} valueColor="text-amber-600" />
-      </div>
 
       {/* ── Filter — fl-aggregator TasksPage style ───────────── */}
       <div className="flex flex-wrap items-center gap-1.5">
@@ -382,8 +402,13 @@ export default function PageTransfer() {
                 <div>
                   <MonoText className="!text-[12px] !font-normal text-primary group-hover:text-primary/80">{tr.id.slice(0, 12)}</MonoText>
                 </div>
-                <div>
+                <div className="flex items-center gap-1">
                   <StateBadge name={tr.name} />
+                  {startedNoEdr(tr) && (
+                    <span title={t.transfers.edrPendingHint} className="inline-flex items-center text-amber-600">
+                      <AlertTriangle className="w-3 h-3" />
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-0">
                   <MonoText className="!text-[12px] !font-normal block truncate">{tr.asset}</MonoText>
@@ -450,6 +475,11 @@ export default function PageTransfer() {
                   <MonoText className="text-[11px]">{tr.id.slice(0, 12)}</MonoText>
                   <div className="flex items-center gap-2">
                     <StateBadge name={tr.name} />
+                    {startedNoEdr(tr) && (
+                      <span title={t.transfers.edrPendingHint} className="inline-flex items-center text-amber-600">
+                        <AlertTriangle className="w-3 h-3" />
+                      </span>
+                    )}
                     {tr.name === "STARTED" && (
                       <div className="flex gap-1">
                         <button onClick={() => handleFetch(tr.id, tr.asset)} title={t.transfers.fetchData}
