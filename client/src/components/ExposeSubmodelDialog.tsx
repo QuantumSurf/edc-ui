@@ -8,11 +8,11 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { createAsset, createOffering, fetchPolicies, fetchShellRaw, updateSubmodel } from "@/services";
+import { fetchConnectors, createAsset, createOffering, fetchPolicies, fetchShellRaw, updateSubmodel } from "@/services";
 import { rawSubmodelToInput, submodelInputToBody, newEndpoint } from "@/components/SubmodelForm";
 import { FormField } from "@/components/ui-kmx";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Share2, AlertCircle } from "lucide-react";
+import { SlidePanel } from "@/components/DetailDeleteDialogs";
+import { Loader2, Share2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
 export interface ExposeTarget {
@@ -35,10 +35,10 @@ export function ExposeSubmodelDialog({
   onDone: () => void;
 }) {
   const { t } = useI18n();
-  const connector = useConnectorStore((s) => s.connector);
-  const connectorId = connector?.id;
+  const storeConnector = useConnectorStore((s) => s.connector);
   const open = !!target;
 
+  const [connectorId, setConnectorId] = useState("");
   const [assetId, setAssetId] = useState("");
   const [dataSourceUrl, setDataSourceUrl] = useState("");
   const [dataPlaneHref, setDataPlaneHref] = useState("");
@@ -46,7 +46,14 @@ export function ExposeSubmodelDialog({
   const [contractPolicyId, setContractPolicyId] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Reset form whenever a new submodel is targeted.
+  const { data: connectors = [] } = useQuery({
+    queryKey: ["connectors"],
+    queryFn: fetchConnectors,
+    enabled: open,
+  });
+  const connector = connectors.find((c) => c.id === connectorId);
+
+  // Reset whenever a new submodel is targeted.
   useEffect(() => {
     if (target) {
       setAssetId(target.submodelId);
@@ -54,16 +61,20 @@ export function ExposeSubmodelDialog({
       setDataPlaneHref("");
       setAccessPolicyId("");
       setContractPolicyId("");
+      setConnectorId(storeConnector?.id ?? "");
     }
-  }, [target]);
+  }, [target, storeConnector?.id]);
+
+  useEffect(() => {
+    if (open && !connectorId && connectors.length > 0) setConnectorId(connectors[0].id);
+  }, [open, connectorId, connectors]);
 
   const { data: policies = [], isLoading: polLoading } = useQuery({
     queryKey: ["policies", connectorId],
-    queryFn: () => fetchPolicies(connectorId!),
+    queryFn: () => fetchPolicies(connectorId),
     enabled: open && !!connectorId,
   });
 
-  // Default the policy selects to the first available policy.
   useEffect(() => {
     if (policies.length > 0) {
       setAccessPolicyId((prev) => prev || policies[0].id);
@@ -73,14 +84,10 @@ export function ExposeSubmodelDialog({
 
   const handleSubmit = async () => {
     if (!target) return;
-    if (!connectorId) {
-      toast.error(t.twins.expose.noConnector);
-      return;
-    }
-    if (!assetId.trim() || !dataSourceUrl.trim() || !accessPolicyId || !contractPolicyId) {
-      toast.error(t.twins.expose.requiredFields);
-      return;
-    }
+    if (!connectorId) { toast.error(t.twins.expose.needConnector); return; }
+    if (!assetId.trim()) { toast.error(t.twins.expose.requiredFields); return; }
+    if (!dataSourceUrl.trim()) { toast.error(t.twins.expose.needDataSource); return; }
+    if (!accessPolicyId || !contractPolicyId) { toast.error(t.twins.expose.needPolicies); return; }
     const aid = assetId.trim();
     setBusy(true);
     try {
@@ -143,27 +150,42 @@ export function ExposeSubmodelDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-[14px]">
-            <Share2 className="w-4 h-4 text-primary" />
-            {t.twins.expose.title}
-          </DialogTitle>
-        </DialogHeader>
+    <SlidePanel open={open} onClose={() => { if (!busy) onClose(); }} className="max-w-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Share2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="font-display text-[14px] font-bold text-foreground truncate">{t.twins.expose.title}</p>
+        </div>
+        <button
+          onClick={onClose}
+          disabled={busy}
+          aria-label={t.common.close}
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 disabled:opacity-50"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-        {!connectorId ? (
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 text-[12px]">
+        <p className="text-muted-foreground leading-snug">{t.twins.expose.desc}</p>
+        {target?.idShort && (
+          <div className="text-[11px] text-muted-foreground">Submodel: <span className="font-medium text-foreground">{target.idShort}</span></div>
+        )}
+
+        {connectors.length === 0 ? (
           <div className="flex items-start gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>{t.twins.expose.noConnector}</span>
+            <span>{t.twins.expose.noConnectors}</span>
           </div>
         ) : (
-          <div className="space-y-2.5 text-[12px]">
-            <p className="text-muted-foreground leading-snug">{t.twins.expose.desc}</p>
-            <div className="text-[11px] text-muted-foreground">
-              {t.twins.expose.connector}: <span className="font-medium text-foreground">{connector?.name}</span>
-              {target?.idShort ? ` · ${target.idShort}` : ""}
-            </div>
+          <>
+            <FormField label={t.twins.expose.selectConnector}>
+              <select className={inputCls} value={connectorId} onChange={(e) => setConnectorId(e.target.value)}>
+                {connectors.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.bpn}</option>)}
+              </select>
+            </FormField>
 
             <FormField label="Asset ID">
               <input className={`${inputCls} mono`} value={assetId} onChange={(e) => setAssetId(e.target.value)} />
@@ -198,27 +220,24 @@ export function ExposeSubmodelDialog({
                 </div>
               </div>
             )}
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                onClick={onClose}
-                disabled={busy}
-                className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-60"
-              >
-                {t.common.cancel}
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={busy || policies.length === 0}
-                className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-60"
-              >
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
-                {busy ? t.twins.expose.submitting : t.twins.expose.submit}
-              </button>
-            </div>
-          </div>
+          </>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <button onClick={onClose} disabled={busy} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-60">
+          {t.common.cancel}
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={busy || connectors.length === 0 || policies.length === 0}
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-60"
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+          {busy ? t.twins.expose.submitting : t.twins.expose.submit}
+        </button>
+      </div>
+    </SlidePanel>
   );
 }

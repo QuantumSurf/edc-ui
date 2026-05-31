@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { createAsset, createOffering, fetchPolicies } from "@/services";
+import { fetchConnectors, createAsset, createOffering, fetchPolicies } from "@/services";
 import { FormField } from "@/components/ui-kmx";
 import { SlidePanel } from "@/components/DetailDeleteDialogs";
 import { Loader2, Share2, AlertCircle, X } from "lucide-react";
@@ -18,7 +18,7 @@ import { toast } from "sonner";
 const inputCls =
   "w-full px-2 py-1.5 text-[12px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary";
 
-const DTR_URL_PLACEHOLDER = "http://platform-dtr:4243/semantics/registry/api/v3";
+const DTR_URL_DEFAULT = "http://platform-dtr:4243/semantics/registry/api/v3";
 
 export function ExposeDtrDialog({
   open,
@@ -30,27 +30,45 @@ export function ExposeDtrDialog({
   onDone: () => void;
 }) {
   const { t } = useI18n();
-  const connector = useConnectorStore((s) => s.connector);
-  const connectorId = connector?.id;
+  const storeConnector = useConnectorStore((s) => s.connector);
 
+  const [connectorId, setConnectorId] = useState("");
   const [assetId, setAssetId] = useState("");
   const [dtrUrl, setDtrUrl] = useState("");
   const [accessPolicyId, setAccessPolicyId] = useState("");
   const [contractPolicyId, setContractPolicyId] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const { data: connectors = [] } = useQuery({
+    queryKey: ["connectors"],
+    queryFn: fetchConnectors,
+    enabled: open,
+  });
+  const connector = connectors.find((c) => c.id === connectorId);
+
+  // Init on open: prefill DTR URL; default connector = store selection or first.
   useEffect(() => {
     if (open) {
-      setAssetId(connector?.bpn ? `dtr-${connector.bpn}` : "digital-twin-registry");
-      setDtrUrl("");
+      setDtrUrl(DTR_URL_DEFAULT);
       setAccessPolicyId("");
       setContractPolicyId("");
+      setConnectorId(storeConnector?.id ?? "");
     }
+  }, [open, storeConnector?.id]);
+
+  // Default connector to the first available once the list loads.
+  useEffect(() => {
+    if (open && !connectorId && connectors.length > 0) setConnectorId(connectors[0].id);
+  }, [open, connectorId, connectors]);
+
+  // Asset ID default tracks the selected connector's BPN.
+  useEffect(() => {
+    if (open) setAssetId(connector?.bpn ? `dtr-${connector.bpn}` : "digital-twin-registry");
   }, [open, connector?.bpn]);
 
   const { data: policies = [], isLoading: polLoading } = useQuery({
     queryKey: ["policies", connectorId],
-    queryFn: () => fetchPolicies(connectorId!),
+    queryFn: () => fetchPolicies(connectorId),
     enabled: open && !!connectorId,
   });
 
@@ -62,19 +80,13 @@ export function ExposeDtrDialog({
   }, [policies]);
 
   const handleSubmit = async () => {
-    if (!connectorId) {
-      toast.error(t.twins.exposeDtr.noConnector);
-      return;
-    }
-    if (!assetId.trim() || !dtrUrl.trim() || !accessPolicyId || !contractPolicyId) {
-      toast.error(t.twins.exposeDtr.requiredFields);
-      return;
-    }
+    if (!connectorId) { toast.error(t.twins.expose.needConnector); return; }
+    if (!assetId.trim()) { toast.error(t.twins.exposeDtr.requiredFields); return; }
+    if (!dtrUrl.trim()) { toast.error(t.twins.exposeDtr.needUrl); return; }
+    if (!accessPolicyId || !contractPolicyId) { toast.error(t.twins.expose.needPolicies); return; }
     const aid = assetId.trim();
     setBusy(true);
     try {
-      // DTR endpoint exposed as a single registry asset. proxyPath/proxyQueryParams
-      // let the consumer query DTR sub-paths (shell-descriptors, lookup) via the data plane.
       await createAsset(
         {
           id: aid,
@@ -110,7 +122,7 @@ export function ExposeDtrDialog({
   };
 
   return (
-    <SlidePanel open={open} onClose={() => { if (!busy) onClose(); }}>
+    <SlidePanel open={open} onClose={() => { if (!busy) onClose(); }} className="max-w-xl">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -128,24 +140,27 @@ export function ExposeDtrDialog({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {!connectorId ? (
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 text-[12px]">
+        <p className="text-muted-foreground leading-snug">{t.twins.exposeDtr.desc}</p>
+
+        {connectors.length === 0 ? (
           <div className="flex items-start gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>{t.twins.exposeDtr.noConnector}</span>
+            <span>{t.twins.expose.noConnectors}</span>
           </div>
         ) : (
-          <div className="space-y-2.5 text-[12px]">
-            <p className="text-muted-foreground leading-snug">{t.twins.exposeDtr.desc}</p>
-            <div className="text-[11px] text-muted-foreground">
-              {t.twins.expose.connector}: <span className="font-medium text-foreground">{connector?.name}</span>
-            </div>
+          <>
+            <FormField label={t.twins.expose.selectConnector}>
+              <select className={inputCls} value={connectorId} onChange={(e) => setConnectorId(e.target.value)}>
+                {connectors.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.bpn}</option>)}
+              </select>
+            </FormField>
 
             <FormField label="Asset ID">
               <input className={`${inputCls} mono`} value={assetId} onChange={(e) => setAssetId(e.target.value)} />
             </FormField>
             <FormField label={t.twins.exposeDtr.dtrUrl} hint={t.twins.exposeDtr.dtrUrlHint}>
-              <input className={`${inputCls} mono`} placeholder={DTR_URL_PLACEHOLDER} value={dtrUrl} onChange={(e) => setDtrUrl(e.target.value)} />
+              <input className={`${inputCls} mono`} placeholder={DTR_URL_DEFAULT} value={dtrUrl} onChange={(e) => setDtrUrl(e.target.value)} />
             </FormField>
 
             {policies.length === 0 && !polLoading ? (
@@ -171,26 +186,24 @@ export function ExposeDtrDialog({
                 </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
       {/* Footer */}
-      {connectorId && (
-        <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
-          <button onClick={onClose} disabled={busy} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-60">
-            {t.common.cancel}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={busy || policies.length === 0}
-            className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-60"
-          >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
-            {busy ? t.twins.exposeDtr.submitting : t.twins.exposeDtr.submit}
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <button onClick={onClose} disabled={busy} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-60">
+          {t.common.cancel}
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={busy || connectors.length === 0 || policies.length === 0}
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-60"
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+          {busy ? t.twins.exposeDtr.submitting : t.twins.exposeDtr.submit}
+        </button>
+      </div>
     </SlidePanel>
   );
 }
