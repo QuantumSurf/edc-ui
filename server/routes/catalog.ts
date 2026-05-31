@@ -117,12 +117,21 @@ router.post("/:id/catalog", requireRole("admin", "operator", "viewer"), async (r
       normalizedDspEndpoint = `${normalizedDspEndpoint}/2025-1`;
     }
 
+    // counterPartyId 보정: 이 값은 발급되는 STS 토큰의 audience로 쓰인다. provider의
+    // 전체 DID여야 하며, 맨 BPN(예: BPNL000000000PRD)을 그대로 쓰면 audience 불일치로
+    // provider가 opaque "CatalogError 401 Unauthorized"를 반환한다. BPN 형태면 이
+    // 데이터스페이스 규약(did:web:identityhub:participants:<BPN>)으로 정규화한다.
+    let normalizedCounterPartyId = String(counterPartyId).trim();
+    if (!/^did:/i.test(normalizedCounterPartyId) && /^BPNL[0-9A-Z]+$/i.test(normalizedCounterPartyId)) {
+      normalizedCounterPartyId = `did:web:identityhub:participants:${normalizedCounterPartyId}`;
+    }
+
     // Build proper CatalogRequest JSON-LD
     const catalogRequest = {
       "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
       "@type": "CatalogRequest",
       "counterPartyAddress": normalizedDspEndpoint,
-      "counterPartyId": counterPartyId,
+      "counterPartyId": normalizedCounterPartyId,
       "protocol": DSP_PROTOCOL,
     };
 

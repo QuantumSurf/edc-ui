@@ -171,20 +171,18 @@ services:
           sleep 2
         done
 
-        # alias가 비어 있을 때만 IH 로그에서 client_secret을 추출해 주입(멱등).
-        # 이미 값이 있으면 건너뛰어 불필요한 덮어쓰기를 방지한다.
-        seed_if_missing() {
+        # STS client_secret 동기화: IH-vault {BPN}-sts-client-secret →
+        # platform-vault {ALIAS}. client_secret은 재부트스트랩(down -v)마다 회전하므로
+        # 매 루프 덮어쓴다(누락 시에만 주입하면 회전 후 stale → CatalogError 401).
+        # IH 로그 추출 대신 IH-vault 권위 소스를 사용해 로그 로테이션에도 안전.
+        sync_sts_secret() {
           ALIAS=$$1; BPN=$$2
-          if docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-platform-vault \
-               vault kv get -field=content secret/$$ALIAS >/dev/null 2>&1; then
-            return 0
-          fi
-          SECRET=$$(docker logs kmx-ih-identityhub 2>&1 | grep "$$BPN" \
-            | grep -oE "clientSecret=[A-Za-z0-9+/=_-]+" | tail -1 | cut -d= -f2)
-          if [ -n "$$SECRET" ]; then
+          S=$$(docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-ih-vault \
+                vault kv get -field=content secret/$$BPN-sts-client-secret 2>/dev/null)
+          if [ -n "$$S" ]; then
             docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-platform-vault \
-              vault kv put secret/$$ALIAS content="$$SECRET" >/dev/null \
-              && echo "STS secret bridged (alias=$$ALIAS, bpn=$$BPN)"
+              vault kv put secret/$$ALIAS content="$$S" >/dev/null \
+              && echo "STS secret synced (alias=$$ALIAS)"
           fi
         }
 
@@ -203,8 +201,8 @@ services:
 
         # 30초마다 누락 점검 후 재주입 (Vault/IH 재시작에도 자동 복구)
         while true; do
-          seed_if_missing sts-client-secret BPNL000000000PRD
-          seed_if_missing consumer-sts-client-secret BPNL000000000CSM
+          sync_sts_secret sts-client-secret BPNL000000000PRD
+          sync_sts_secret consumer-sts-client-secret BPNL000000000CSM
           sync_apikey BPNL000000000PRD
           sync_apikey BPNL000000000CSM
           sleep 30
