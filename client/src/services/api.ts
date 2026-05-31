@@ -222,9 +222,14 @@ export async function deleteAllTransfers(connectorId: string): Promise<{ deleted
 
 export async function fetchTransferData(
   tpId: string,
-  connectorId: string
+  connectorId: string,
+  path?: string
 ): Promise<{ data: unknown; sizeBytes: number; contentType: string }> {
-  const { data } = await http.post(`/connectors/${connectorId}/transfers/${tpId}/fetch`, {});
+  // path: 프록시 자산(DTR 등)을 하위 경로로 조회 (예: "/shell-descriptors"). 일반 자산은 생략.
+  const { data } = await http.post(
+    `/connectors/${connectorId}/transfers/${tpId}/fetch`,
+    path ? { path } : {}
+  );
   return data;
 }
 

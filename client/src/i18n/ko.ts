@@ -467,6 +467,8 @@ const ko = {
     fetchData: "데이터 조회",
     fetchSuccess: (size: string) => `데이터 조회 완료 (${size})`,
     fetchFailed: "데이터 조회 실패 (EDR 만료 또는 연결 오류)",
+    proxyPath: "프록시 경로",
+    queryPath: "조회",
     completeConfirm: "이 전송을 완료 처리합니까?",
     terminateConfirm: "이 전송을 강제 종료합니까?",
     completeSuccess: "전송이 완료 처리되었습니다.",

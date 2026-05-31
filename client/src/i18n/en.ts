@@ -459,6 +459,8 @@ const en: Translations = {
     fetchData: "Fetch Data",
     fetchSuccess: (size: string) => `Data fetched successfully (${size})`,
     fetchFailed: "Fetch failed (EDR expired or connection error)",
+    proxyPath: "Proxy path",
+    queryPath: "Query",
     completeConfirm: "Mark this transfer as completed?",
     terminateConfirm: "Terminate this transfer?",
     completeSuccess: "Transfer marked as completed.",

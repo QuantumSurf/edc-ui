@@ -31,14 +31,20 @@ type StateFilter = typeof ALL_STATE_FILTERS[number];
 interface DataViewerProps {
   tpId: string;
   asset: string;
+  path: string;
   data: unknown;
   sizeBytes: number;
   contentType: string;
+  onRequery: (path: string) => void;
   onClose: () => void;
 }
 
-function DataViewer({ tpId, asset, data, sizeBytes, contentType, onClose }: DataViewerProps) {
+function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery, onClose }: DataViewerProps) {
   const { t } = useI18n();
+  // 프록시 자산(DTR 등)은 하위 경로로 조회 — 경로 바를 통해 다른 경로 재조회 가능.
+  const isProxyAsset = asset.startsWith("dtr-") || !!path;
+  const [pathInput, setPathInput] = useState(path);
+  useEffect(() => setPathInput(path), [path]);
   const isJson = contentType.includes("json") || (typeof data === "object" && data !== null);
   const formatted = isJson
     ? JSON.stringify(data, null, 2)
@@ -82,6 +88,24 @@ function DataViewer({ tpId, asset, data, sizeBytes, contentType, onClose }: Data
             </button>
           </div>
         </DialogHeader>
+        {isProxyAsset && (
+          <div className="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2 flex-shrink-0">
+            <span className="text-[11px] text-muted-foreground flex-shrink-0">{t.transfers.proxyPath}</span>
+            <input
+              className="flex-1 min-w-0 mono text-[12px] px-2 py-1 border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="/shell-descriptors"
+              value={pathInput}
+              onChange={(e) => setPathInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onRequery(pathInput); }}
+            />
+            <button
+              onClick={() => onRequery(pathInput)}
+              className="text-[12px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium flex-shrink-0"
+            >
+              {t.transfers.queryPath}
+            </button>
+          </div>
+        )}
         <div className="overflow-auto flex-1 p-4 min-h-0">
           {isJson ? (
             <JsonTreeView data={data} />
@@ -121,7 +145,7 @@ export default function PageTransfer() {
   const [submitting, setSubmitting] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateFilter>("ALL");
   const [dataViewer, setDataViewer] = useState<{
-    tpId: string; asset: string; data: unknown; sizeBytes: number; contentType: string;
+    tpId: string; asset: string; path: string; data: unknown; sizeBytes: number; contentType: string;
   } | null>(null);
 
   // Track IDs we already toasted so we don't re-fire
@@ -232,12 +256,14 @@ export default function PageTransfer() {
     }
   }
 
-  async function handleFetch(tpId: string, asset: string) {
+  async function handleFetch(tpId: string, asset: string, path?: string) {
     if (!connectorId) return;
+    // 프록시 자산(DTR)은 루트 pull이 비므로 하위 경로로 조회 — 기본 /shell-descriptors.
+    const effectivePath = path !== undefined ? path : (asset.startsWith("dtr-") ? "/shell-descriptors" : "");
     try {
-      const result = await fetchTransferData(tpId, connectorId);
+      const result = await fetchTransferData(tpId, connectorId, effectivePath || undefined);
       // 모달 표시
-      setDataViewer({ tpId, asset, data: result.data, sizeBytes: result.sizeBytes, contentType: result.contentType });
+      setDataViewer({ tpId, asset, path: effectivePath, data: result.data, sizeBytes: result.sizeBytes, contentType: result.contentType });
       queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
     } catch {
       toast.error(t.transfers.fetchFailed);
@@ -305,9 +331,11 @@ export default function PageTransfer() {
         <DataViewer
           tpId={dataViewer.tpId}
           asset={dataViewer.asset}
+          path={dataViewer.path}
           data={dataViewer.data}
           sizeBytes={dataViewer.sizeBytes}
           contentType={dataViewer.contentType}
+          onRequery={(p) => handleFetch(dataViewer.tpId, dataViewer.asset, p)}
           onClose={() => setDataViewer(null)}
         />
       )}
