@@ -11,8 +11,8 @@ import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { createAsset, createOffering, fetchPolicies } from "@/services";
 import { FormField } from "@/components/ui-kmx";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Share2, AlertCircle } from "lucide-react";
+import { SlidePanel } from "@/components/DetailDeleteDialogs";
+import { Loader2, Share2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
 const inputCls =
@@ -110,15 +110,25 @@ export function ExposeDtrDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-[14px]">
-            <Share2 className="w-4 h-4 text-primary" />
-            {t.twins.exposeDtr.title}
-          </DialogTitle>
-        </DialogHeader>
+    <SlidePanel open={open} onClose={() => { if (!busy) onClose(); }}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Share2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="font-display text-[14px] font-bold text-foreground truncate">{t.twins.exposeDtr.title}</p>
+        </div>
+        <button
+          onClick={onClose}
+          disabled={busy}
+          aria-label={t.common.close}
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 disabled:opacity-50"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
         {!connectorId ? (
           <div className="flex items-start gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -161,23 +171,26 @@ export function ExposeDtrDialog({
                 </div>
               </div>
             )}
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button onClick={onClose} disabled={busy} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-60">
-                {t.common.cancel}
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={busy || policies.length === 0}
-                className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-60"
-              >
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
-                {busy ? t.twins.exposeDtr.submitting : t.twins.exposeDtr.submit}
-              </button>
-            </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {/* Footer */}
+      {connectorId && (
+        <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+          <button onClick={onClose} disabled={busy} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-60">
+            {t.common.cancel}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={busy || policies.length === 0}
+            className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+            {busy ? t.twins.exposeDtr.submitting : t.twins.exposeDtr.submit}
+          </button>
+        </div>
+      )}
+    </SlidePanel>
   );
 }
