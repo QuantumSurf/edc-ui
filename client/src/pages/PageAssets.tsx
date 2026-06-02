@@ -8,11 +8,12 @@ import { fetchAssets, fetchAssetById, deleteAsset, createAsset, updateAsset, fet
 import { type Asset } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField, JsonTreeView,
+  Card, CardTitle, Badge, SectionHdr, Stepper, FormField, JsonTreeView, PrimaryActionButton,
+  inputBase, ListError, ListEmpty,
 } from "@/components/ui-kmx";
-import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel } from "@/components/DetailDeleteDialogs";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel, InfoCard } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, RefreshCw, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List } from "lucide-react";
+import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
@@ -95,13 +96,9 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
         breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
         action={
           <RoleGate permission="resource:write">
-            <button
-              onClick={() => switchTab("wizard")}
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors"
-            >
-              <PlusCircle className="w-3 h-3" />
+            <PrimaryActionButton onClick={() => switchTab("wizard")} icon={<PlusCircle className="w-3 h-3" />}>
               {t.assets.createWizard}
-            </button>
+            </PrimaryActionButton>
           </RoleGate>
         }
       >{t.assets.title}</SectionHdr>
@@ -109,14 +106,24 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
       {/* Search & Filter */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
                 placeholder={t.assets.searchPlaceholder}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                aria-label={t.assets.searchPlaceholder}
+                className={`${inputBase} pl-8 pr-8`}
               />
+              {search && (
+                <button
+                  onClick={() => { setSearch(""); setCurrentPage(1); }}
+                  aria-label={t.common.clear ?? "Clear"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
             {/* Offering filter chips */}
             <div className="flex items-center gap-1">
@@ -125,7 +132,8 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                 <button
                   key={f}
                   onClick={() => { setOfferingFilter(f); setCurrentPage(1); }}
-                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                  aria-pressed={offeringFilter === f}
+                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                     offeringFilter === f
                       ? "bg-primary text-primary-foreground border-primary font-medium"
                       : "border-border text-muted-foreground hover:bg-muted"
@@ -150,20 +158,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
           {/* Error state */}
           {!isLoading && isError && (
             <Card>
-              <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <div className="flex items-center gap-2 text-rose-600">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="text-[13px] font-medium">{t.common.loadFailed}</span>
-                </div>
-                <button
-                  onClick={() => refetch()}
-                  disabled={isFetching}
-                  className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted text-foreground/80 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
-                  {t.common.retry}
-                </button>
-              </div>
+              <ListError onRetry={() => refetch()} fetching={isFetching} />
             </Card>
           )}
 
@@ -171,7 +166,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
           {!isLoading && !isError && (
           <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+              <span className="font-display text-[14px] font-bold text-foreground flex items-center gap-2 truncate">
                 <List className="w-4 h-4 text-primary" />
                 {t.assets.list}
               </span>
@@ -192,14 +187,17 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                     <tr
                       key={a.id}
                       onClick={() => setDetailTarget(a)}
-                      className={`table-row-hover cursor-pointer group ${detailTarget?.id === a.id ? "bg-primary/5" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(a); } }}
+                      className={`table-row-hover cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${detailTarget?.id === a.id ? "bg-primary/5" : ""}`}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="min-w-0">
-                            <div className="text-xs font-medium text-primary group-hover:text-primary/80 truncate">{a.name || a.id}</div>
+                            <div className="text-xs font-bold text-primary truncate">{a.name || a.id}</div>
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <MonoText className="!text-[12px] !font-normal text-foreground truncate block">{a.id}</MonoText>
+                              <span className="text-xs text-foreground truncate block">{a.id}</span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(a.id); toast.success(t.common.copied); }}
                                 className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
@@ -214,7 +212,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                       <td className="px-4 py-3"><AssetTypeBadge type={a.type} /></td>
                       <td className="px-4 py-3 hidden xl:table-cell">
                         {a.sem ? (
-                          <MonoText className="!text-[12px] !font-normal text-foreground truncate block max-w-[250px]">{a.sem}</MonoText>
+                          <span className="text-xs text-foreground truncate block max-w-[250px]">{a.sem}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground italic">{t.assets.notSet}</span>
                         )}
@@ -242,7 +240,9 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                 </tbody>
               </table>
               {filtered.length === 0 && (
-                <EmptyAssets onCreateClick={() => switchTab("wizard")} />
+                assets.length === 0
+                  ? <EmptyAssets onCreateClick={() => switchTab("wizard")} />
+                  : <ListEmpty icon={<Search />} message={t.common.noResults} />
               )}
               {totalItems > 0 && (
                 <DataTablePagination
@@ -265,7 +265,9 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
               <div key={a.id} onClick={() => setDetailTarget(a)} className="cursor-pointer"><AssetCard asset={a} /></div>
             ))}
             {filtered.length === 0 && (
-              <EmptyAssets onCreateClick={() => switchTab("wizard")} />
+              assets.length === 0
+                ? <EmptyAssets onCreateClick={() => switchTab("wizard")} />
+                : <ListEmpty icon={<Search />} message={t.common.noResults} />
             )}
           </div>
           )}
@@ -327,15 +329,6 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
 /* ─── Asset Detail Sheet (IssuancePolicies-style) ────────────── */
 type ShellLookup = { id: string; idShort?: string } | null | undefined;
 
-function InfoCard({ label, value, span, mono }: { label: string; value: React.ReactNode; span?: boolean; mono?: boolean }) {
-  return (
-    <div className={cn("bg-slate-50 rounded-lg border border-slate-100 px-3 py-2", span && "md:col-span-2")}>
-      <p className="text-slate-500">{label}</p>
-      <p className={cn("text-slate-700 mt-0.5 break-all", mono && "mono")}>{value || "—"}</p>
-    </div>
-  );
-}
-
 function AssetDetailSheet({
   target, shellLookup, isShellLooking,
   onClose, onEdit, onDuplicate, onShowJson, onDelete, deleteDisabledReason,
@@ -381,25 +374,21 @@ function AssetDetailSheet({
       />
       <aside
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-white flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl",
           entered ? "translate-x-0" : "translate-x-full",
         )}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
+        <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
-            <h2 className="text-base font-semibold text-slate-900 truncate">{target.name || target.id}</h2>
+            <h2 className="text-[15px] font-semibold text-foreground truncate">{target.name || target.id}</h2>
             <AssetTypeBadge type={target.type} />
-            <span className={cn(
-              "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border",
-              target.offered ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
-            )}>
-              <span className={cn("w-1.5 h-1.5 rounded-full", target.offered ? "bg-emerald-500" : "bg-gray-300")} />
+            <Badge variant={target.offered ? "green" : "gray"} pulse={target.offered}>
               {target.offered ? t.assets.registered : t.assets.unregistered}
-            </span>
+            </Badge>
             <button
               onClick={onClose}
-              className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label={t.common.close}
             >
               <X size={16} />
@@ -410,9 +399,9 @@ function AssetDetailSheet({
         {/* Body */}
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.sectionBasic}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.assets.sectionBasic}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InfoCard label={t.assets.col.id} value={target.id} span mono />
+              <InfoCard label={t.assets.col.id} value={target.id} span mono copyable={target.id} />
               <InfoCard label={t.assets.col.name} value={target.name} />
               <InfoCard label={t.assets.col.type} value={target.type} />
               <InfoCard label={t.assets.description} value={target.description} span />
@@ -420,25 +409,25 @@ function AssetDetailSheet({
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.sectionDataSource}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.assets.sectionDataSource}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <InfoCard label={t.assets.sourceType} value={target.dataAddressType} />
-              <InfoCard label={t.assets.sourceUrl} value={target.baseUrl} span mono />
+              <InfoCard label={t.assets.sourceUrl} value={target.baseUrl} span mono copyable={target.baseUrl || undefined} />
             </div>
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.sectionMeta}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.assets.sectionMeta}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InfoCard label={t.assets.col.semanticId} value={target.sem} span mono />
-              <InfoCard label="kmx:aasId" value={target.aasId} span mono />
+              <InfoCard label={t.assets.col.semanticId} value={target.sem} span mono copyable={target.sem || undefined} />
+              <InfoCard label="kmx:aasId" value={target.aasId} span mono copyable={target.aasId || undefined} />
               <InfoCard label={t.common.digitalTwinRegistry} value={dtrValue} span />
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-shrink-0">
+        <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
@@ -447,25 +436,25 @@ function AssetDetailSheet({
           )}
           {!onDelete && deleteDisabledReason && (
             <button disabled title={deleteDisabledReason}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 cursor-not-allowed rounded-md">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground/40 cursor-not-allowed rounded-md">
               <Trash2 size={13} /> {t.common.delete}
             </button>
           )}
           <button onClick={onShowJson}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
             <Code size={13} /> JSON
           </button>
           <button onClick={onDuplicate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
             <Files size={13} /> {t.common.duplicate}
           </button>
           <div className="flex-1" />
           <button onClick={onEdit}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
             <Pencil size={13} /> {t.common.edit}
           </button>
           <button onClick={onClose}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-border text-foreground rounded-lg hover:bg-muted transition-colors">
             <X size={13} /> {t.common.close}
           </button>
         </div>
@@ -549,8 +538,8 @@ function AssetCard({ asset: a }: { asset: Asset }) {
     <div className="bg-card rounded-xl p-3.5 shadow-sm border border-border hover:shadow-md transition-shadow">
       <div className="flex items-start gap-2.5 mb-2">
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-semibold text-foreground truncate">{a.name || a.id}</div>
-          <MonoText className="text-[11px] text-muted-foreground truncate block">{a.id}</MonoText>
+          <div className="text-xs font-bold text-primary truncate">{a.name || a.id}</div>
+          <span className="text-xs text-foreground truncate block">{a.id}</span>
         </div>
         <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(a.id); toast.success(t.common.copied); }}>
           <Copy className="w-3 h-3 text-muted-foreground" />
@@ -571,7 +560,7 @@ function AssetCard({ asset: a }: { asset: Asset }) {
           </div>
         )}
       </div>
-      {a.sem && <MonoText className="text-[11px] text-muted-foreground mt-1.5 block truncate">{a.sem}</MonoText>}
+      {a.sem && <span className="text-xs text-foreground mt-1.5 block truncate">{a.sem}</span>}
     </div>
   );
 }
@@ -702,7 +691,7 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
-          <span className="text-[13px] font-semibold text-foreground truncate">
+          <span className="text-[15px] font-semibold text-foreground truncate">
             {isEdit ? t.assets.editWizard : duplicateSource ? t.assets.duplicateWizard : t.assets.createWizard}
           </span>
         </div>
@@ -727,18 +716,21 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
       {step === 0 && (
         <div className="space-y-4">
           <div className="mb-4">
-            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.step1}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.assets.step1}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <div className="grid grid-cols-1 gap-4">
-            <FormField label={t.assets.assetId} required>
-              <input
-                value={assetId}
-                onChange={(e) => { setAssetId(e.target.value); setIdError(null); markDirty(); }}
-                disabled={isEdit}
-                title={isEdit ? t.assets.idImmutable : undefined}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
-              />
+            <FormField label={t.assets.assetId} required hint={isEdit ? t.assets.idImmutable : undefined}>
+              <div className="relative">
+                {isEdit && <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />}
+                <input
+                  value={assetId}
+                  onChange={(e) => { setAssetId(e.target.value); setIdError(null); markDirty(); }}
+                  disabled={isEdit}
+                  title={isEdit ? t.assets.idImmutable : undefined}
+                  className={cn(inputBase, "mono", isEdit && "pl-8")}
+                />
+              </div>
               {idError && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
                   <AlertCircle className="w-3 h-3" /> {idError}
@@ -749,7 +741,7 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
               <select
                 value={dctType}
                 onChange={(e) => { setDctType(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                className={inputBase}
               >
                 <option value="cx-taxo:SubmodelBundle">cx-taxo:SubmodelBundle</option>
                 <option value="cx-taxo:DigitalTwinRegistry">cx-taxo:DigitalTwinRegistry</option>
@@ -761,14 +753,14 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
               <input
                 value={label}
                 onChange={(e) => { setLabel(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                className={inputBase}
               />
             </FormField>
             <FormField label="cx-common:version">
               <input
                 value={version}
                 onChange={(e) => { setVersion(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                className={inputBase}
               />
             </FormField>
           </div>
@@ -789,13 +781,13 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
       {step === 1 && (
         <div className="space-y-4">
           <div className="mb-4">
-            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.step2}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.assets.step2}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <div className="grid grid-cols-1 gap-4">
             <FormField label={t.assets.dataAddressType} required>
               <select value={addrType} onChange={(e) => { setAddrType(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
+                className={inputBase}>
                 <option>HttpData</option>
                 <option>AmazonS3</option>
                 <option>AzureStorage</option>
@@ -803,7 +795,7 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
             </FormField>
             <FormField label={t.assets.baseUrlLabel} required>
               <input value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                className={`${inputBase} mono`} />
               {baseUrl && !baseUrl.startsWith("https://") && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
                   <AlertCircle className="w-3 h-3" /> {t.assets.httpsRequired}
@@ -812,14 +804,14 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
             </FormField>
             <FormField label={t.assets.proxyPath}>
               <select value={proxyPath} onChange={(e) => { setProxyPath(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
+                className={inputBase}>
                 <option>true</option>
                 <option>false</option>
               </select>
             </FormField>
             <FormField label={t.assets.authCodeLabel} required>
               <input value={authCode} onChange={(e) => { setAuthCode(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                className={`${inputBase} mono`} />
               {authCode && !authCode.startsWith("edc:key") && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-amber-600">
                   <AlertCircle className="w-3 h-3" /> {t.assets.authCodeHint}
@@ -828,14 +820,14 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
             </FormField>
             <FormField label={t.assets.proxyQueryParams}>
               <select value={proxyQuery} onChange={(e) => { setProxyQuery(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary">
+                className={inputBase}>
                 <option>true</option>
                 <option>false</option>
               </select>
             </FormField>
             <FormField label={t.assets.contentTypeLabel}>
               <input value={contentType} onChange={(e) => { setContentType(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary" />
+                className={inputBase} />
             </FormField>
           </div>
           <div>
@@ -860,14 +852,14 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
       {step === 2 && (
         <div className="space-y-4">
           <div className="mb-4">
-            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.assets.step3}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.assets.step3}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <div className="grid grid-cols-1 gap-4">
             <FormField label="aas-semantics:semanticId">
               <input value={semanticId} onChange={(e) => { setSemanticId(e.target.value); markDirty(); }}
                 placeholder="urn:samm:io.catenax...."
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                className={`${inputBase} mono`} />
               {semanticId && semanticId.startsWith("urn:samm:") && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-emerald-600">
                   <CheckCircle2 className="w-3 h-3" /> {t.assets.urnConfirmed}
@@ -876,7 +868,7 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
             </FormField>
             <FormField label="kmx:aasVersion">
               <input value={aasVersion} onChange={(e) => { setAasVersion(e.target.value); markDirty(); }}
-                className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary" />
+                className={inputBase} />
             </FormField>
           </div>
           <div className="bg-muted rounded-md p-3">
@@ -886,11 +878,11 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
             <div className="grid grid-cols-1 gap-4">
               <FormField label="kmx:aasId">
                 <input value={aasId} onChange={(e) => { setAasId(e.target.value); markDirty(); }} placeholder="urn:uuid:..."
-                  className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                  className={`${inputBase} mono`} />
               </FormField>
               <FormField label="kmx:submodelId">
                 <input value={submodelId} onChange={(e) => { setSubmodelId(e.target.value); markDirty(); }} placeholder="urn:uuid:..."
-                  className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono" />
+                  className={`${inputBase} mono`} />
               </FormField>
             </div>
           </div>
@@ -918,13 +910,13 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
                       value={p.key}
                       onChange={(e) => updateCustomProp(idx, "key", e.target.value)}
                       placeholder={t.assets.propKey}
-                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
+                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary mono"
                     />
                     <input
                       value={p.value}
                       onChange={(e) => updateCustomProp(idx, "value", e.target.value)}
                       placeholder={t.assets.propValue}
-                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="flex-1 text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     <button
                       onClick={() => removeCustomProp(idx)}

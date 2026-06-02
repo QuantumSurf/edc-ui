@@ -188,8 +188,9 @@ async function seedDb(): Promise<void> {
 
   type SeedRole = "admin" | "operator" | "viewer";
   const seeds: Array<{ email: string; name: string; role: SeedRole; envKey: string }> = [
-    { email: "admin@kmx.io",    name: "Admin User",   role: "admin",    envKey: "SEED_ADMIN_PASSWORD" },
-    { email: "operator@kmx.io", name: "Ops Engineer", role: "operator", envKey: "SEED_OPERATOR_PASSWORD" },
+    { email: "admin@kmx.io",    name: "Admin User",   role: "admin", envKey: "SEED_ADMIN_PASSWORD" },
+    // 데모 편의: 이용자(소비자, BPNL000000000CON) 계정도 admin 권한으로 로그인.
+    { email: "operator@kmx.io", name: "Ops Engineer", role: "admin", envKey: "SEED_OPERATOR_PASSWORD" },
   ];
 
   const printedCreds: Array<{ email: string; password: string }> = [];
@@ -272,6 +273,9 @@ async function migrateTenants(): Promise<void> {
     const tid = await ensureTenant(name, bpn);
     await pool.query(`UPDATE users SET tenant_id = $1 WHERE id = $2`, [tid, u.id]);
   }
+
+  // 4) 데모 편의: 이용자(소비자) 계정을 admin 권한으로 승격 (이미 시드된 DB에도 반영, 멱등).
+  await pool.query(`UPDATE users SET role = 'admin' WHERE email = 'operator@kmx.io' AND role <> 'admin'`);
 }
 
 /**

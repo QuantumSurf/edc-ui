@@ -155,7 +155,7 @@ export function ExposeSubmodelDialog({
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Share2 className="w-4 h-4 text-primary flex-shrink-0" />
-          <p className="font-display text-[14px] font-bold text-foreground truncate">{t.twins.expose.title}</p>
+          <p className="text-[15px] font-semibold text-foreground truncate">{t.twins.expose.title}</p>
         </div>
         <button
           onClick={onClose}

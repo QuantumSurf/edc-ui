@@ -9,7 +9,7 @@ import {
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/i18n";
-import { Loader2, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, Files, Code, Download, X, FileJson, ChevronsRight } from "lucide-react";
+import { Loader2, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, Files, Code, Download, X, FileJson, ChevronsRight, Search, ListTree } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { MonoText, JsonTreeView } from "@/components/ui-kmx";
@@ -63,6 +63,7 @@ const BADGE_STYLES: Record<string, string> = {
 };
 
 function FieldValue({ field, idx, copied, onCopy, inCard }: { field: DetailField; idx: string; copied: string | null; onCopy: (text: string, key: string) => void; inCard?: boolean }) {
+  const { t } = useI18n();
   // Collapsible JSON tree (existing JSON viewer style)
   if (field.json !== undefined) {
     return <JsonTreeView data={field.json} className="max-h-[280px]" />;
@@ -78,6 +79,7 @@ function FieldValue({ field, idx, copied, onCopy, inCard }: { field: DetailField
         {field.copyable && (
           <button
             onClick={() => onCopy(String(field.value), idx)}
+            aria-label={t.common.copy}
             className="absolute top-2 right-2 p-1 rounded-md bg-card border border-border opacity-0 group-hover/pre:opacity-100 transition-opacity"
           >
             {copied === idx
@@ -97,13 +99,14 @@ function FieldValue({ field, idx, copied, onCopy, inCard }: { field: DetailField
           {field.badge.text}
         </span>
       ) : (
-        <span className={`text-[12px] text-foreground leading-relaxed font-normal ${field.mono ? (inCard ? "mono break-all" : "mono bg-muted/30 px-2 py-1 rounded text-[12px] text-foreground break-all border border-border") : ""}`}>
+        <span className={`text-xs text-foreground leading-relaxed ${field.mono ? "break-all" : ""}`}>
           {field.value || <span className="text-muted-foreground/60 italic">N/A</span>}
         </span>
       )}
       {field.copyable && field.value && (
         <button
           onClick={() => onCopy(String(field.value), idx)}
+          aria-label={t.common.copy}
           className="flex-shrink-0 p-0.5 rounded hover:bg-muted transition-colors"
         >
           {copied === idx
@@ -276,7 +279,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
           <div className="flex items-center gap-2 min-w-0">
             {icon && <span className="flex items-center flex-shrink-0">{icon}</span>}
             <div className="min-w-0">
-              <p className="text-base font-semibold text-foreground truncate">{title}</p>
+              <p className="text-[15px] font-semibold text-foreground truncate">{title}</p>
               {subtitle && (
                 <p className={cn("text-[11px] text-muted-foreground truncate mt-0.5", subtitleMono && "mono")}>{subtitle}</p>
               )}
@@ -301,19 +304,22 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
                     <ChevronsRight className="w-3.5 h-3.5 text-primary" />{section.title}
                   </h4>
                   <div className="space-y-2.5">
-                    {section.fields.map((f, fi) => (
-                      f.pre || f.json !== undefined ? (
+                    {section.fields.map((f, fi) => {
+                      const isBlock = f.pre || f.json !== undefined;
+                      // 빈 값 일반 필드는 렌더 생략 (배지/블록 필드는 유지)
+                      if (!isBlock && !f.badge && (f.value === null || f.value === undefined || f.value === "")) return null;
+                      return isBlock ? (
                         <div key={fi} className="flex flex-col gap-1">
                           <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{f.label}</span>
                           <FieldValue field={f} idx={`${si}-${fi}`} copied={copied} onCopy={handleCopy} />
                         </div>
                       ) : (
-                        <div key={fi} className="bg-muted/30 rounded-lg border border-border px-3 py-2">
+                        <div key={fi} className="border-b border-border/60 pb-2.5">
                           <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">{f.label}</p>
                           <FieldValue field={f} idx={`${si}-${fi}`} copied={copied} onCopy={handleCopy} inCard />
                         </div>
-                      )
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -358,7 +364,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
           )}
           <div className="flex-1" />
           <button onClick={onClose}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-border text-foreground rounded-lg hover:bg-muted transition-colors">
             <X className="w-3.5 h-3.5" /> {t.common.close}
           </button>
           {onEdit && (
@@ -414,6 +420,61 @@ export function SlidePanel({ open, onClose, children, className }: {
         {children}
       </aside>
     </>
+  );
+}
+
+/* ─── Detail Sheet primitives (계약 협상 상세 스타일) ─────────────── */
+// 슬라이드 상세 시트에서 쓰는 슬레이트 카드 그리드 + 섹션 헤더.
+// PageNegotiation 상세 시트와 동일 스타일을 다른 상세화면에서 재사용한다.
+export function InfoCard({ label, value, span, mono, copyable }: {
+  label: string;
+  value: React.ReactNode;
+  span?: boolean;
+  mono?: boolean;
+  copyable?: string;
+}) {
+  const { t } = useI18n();
+  // 빈 값 필드는 렌더링하지 않는다 (덩그러니 "—" 표시 방지)
+  if (value === null || value === undefined || value === "" || value === "—") return null;
+  return (
+    <div className={cn("border-b border-border/60 pb-2.5", span && "md:col-span-2")}>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="flex items-start gap-1.5 mt-1">
+        <div className="text-xs text-foreground break-all flex-1 leading-relaxed">{value}</div>
+        {copyable && (
+          <button
+            onClick={() => { navigator.clipboard.writeText(copyable); toast.success(t.common.copied); }}
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+            aria-label={t.common.copy}
+          >
+            <Copy size={12} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function DetailSection({ title, tone = "sky", action, children }: {
+  title: string;
+  tone?: "sky" | "rose";
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className={cn(
+          "text-[11px] font-bold uppercase tracking-wide flex items-center gap-1",
+          tone === "rose" ? "text-rose-600" : "text-muted-foreground",
+        )}>
+          <ChevronsRight className={cn("w-3.5 h-3.5", tone === "rose" ? "text-rose-500" : "text-primary")} />
+          {title}
+        </p>
+        {action}
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -532,11 +593,22 @@ interface JsonViewerDialogProps {
   json: string;
   /** Filename for download (without extension); defaults to subtitle or "resource" */
   downloadName?: string;
+  /** 비동기 로딩 중이면 스피너 표시 */
+  loading?: boolean;
 }
 
-export function JsonViewerDialog({ open, onClose, title, subtitle, json, downloadName }: JsonViewerDialogProps) {
+export function JsonViewerDialog({ open, onClose, title, subtitle, json, downloadName, loading }: JsonViewerDialogProps) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<"tree" | "raw">("tree");
+  const [search, setSearch] = useState("");
+  const [baseCollapsed, setBaseCollapsed] = useState(false);
+  const [resetToken, setResetToken] = useState(0);
+
+  let parsed: unknown;
+  let parsedOk = false;
+  try { parsed = JSON.parse(json); parsedOk = true; } catch { parsedOk = false; }
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(json);
@@ -555,42 +627,87 @@ export function JsonViewerDialog({ open, onClose, title, subtitle, json, downloa
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  const expandAll = () => { setBaseCollapsed(false); setResetToken((n) => n + 1); };
+  const collapseAll = () => { setBaseCollapsed(true); setResetToken((n) => n + 1); };
+
+  const segBtn = (active: boolean) =>
+    cn("inline-flex items-center gap-1 text-[11px] px-2 py-1 transition-colors",
+      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted");
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileJson className="w-4 h-4 text-blue-500" />
             {title}
           </DialogTitle>
           {subtitle && (
-            <MonoText className="!text-[12px] !font-normal text-muted-foreground break-all">{subtitle}</MonoText>
+            <p className="text-sm text-muted-foreground break-all mt-1">{subtitle}</p>
           )}
         </DialogHeader>
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          {(() => {
-            try {
-              return <JsonTreeView data={JSON.parse(json)} className="flex-1 min-h-0" />;
-            } catch {
-              return (
-                <pre className="flex-1 min-h-0 overflow-auto bg-slate-900 text-slate-300 rounded-lg p-3 text-[12px] mono leading-relaxed whitespace-pre-wrap">
-                  {json}
-                </pre>
-              );
-            }
-          })()}
+
+        {/* Toolbar: 트리/원문 토글 · 모두 펼치기/접기 · 검색 */}
+        {!loading && parsedOk && (
+          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+            <div className="flex rounded-md border border-border overflow-hidden flex-shrink-0">
+              <button onClick={() => setMode("tree")} className={segBtn(mode === "tree")}>
+                <ListTree className="w-3 h-3" /> {t.common.viewTree}
+              </button>
+              <button onClick={() => setMode("raw")} className={cn(segBtn(mode === "raw"), "border-l border-border")}>
+                <Code className="w-3 h-3" /> {t.common.viewRaw}
+              </button>
+            </div>
+            {mode === "tree" && (
+              <>
+                <button onClick={expandAll} className="text-[11px] px-2 py-1 rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0">
+                  {t.common.expandAll}
+                </button>
+                <button onClick={collapseAll} className="text-[11px] px-2 py-1 rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0">
+                  {t.common.collapseAll}
+                </button>
+                <div className="relative flex-1 min-w-[140px]">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t.common.jsonSearch}
+                    className="w-full pl-7 pr-2 py-1 text-[11px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col mt-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-[13px]">{t.common.loading}</span>
+            </div>
+          ) : mode === "raw" || !parsedOk ? (
+            <pre className="flex-1 min-h-0 overflow-auto bg-slate-900 text-slate-300 rounded-lg p-3 text-[12px] mono leading-relaxed whitespace-pre-wrap">
+              {json}
+            </pre>
+          ) : (
+            <JsonTreeView data={parsed} className="flex-1 min-h-0" search={search} baseCollapsed={baseCollapsed} resetToken={resetToken} />
+          )}
         </div>
-        <div className="flex justify-end gap-2 pt-3 border-t border-border">
+
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border flex-shrink-0">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
+            disabled={loading || !json}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           >
             {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
             {copied ? t.common.copied : t.common.copy}
           </button>
           <button
             onClick={handleDownload}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
+            disabled={loading || !json}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           >
             <Download className="w-3 h-3" />
             {t.common.downloadJson ?? "Download"}
@@ -608,9 +725,13 @@ interface DeleteDialogProps {
   itemName: string;
   onConfirm: () => Promise<void>;
   queryKeys: string[][];
+  /** 식별자(예: URN/ID)를 description 아래 mono 줄로 표시 */
+  subtitle?: string;
+  /** 성공 토스트 문구(미지정 시 t.common.deleted) */
+  successMessage?: string;
 }
 
-export function DeleteConfirmDialog({ open, onClose, itemName, onConfirm, queryKeys }: DeleteDialogProps) {
+export function DeleteConfirmDialog({ open, onClose, itemName, onConfirm, queryKeys, subtitle, successMessage }: DeleteDialogProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
@@ -620,7 +741,7 @@ export function DeleteConfirmDialog({ open, onClose, itemName, onConfirm, queryK
     try {
       await onConfirm();
       queryKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
-      toast.success(t.common.deleted);
+      toast.success(successMessage ?? t.common.deleted);
       onClose();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Delete failed");
@@ -630,14 +751,14 @@ export function DeleteConfirmDialog({ open, onClose, itemName, onConfirm, queryK
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <AlertDialog open={open} onOpenChange={(o) => !o && !deleting && onClose()}>
       <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-rose-600" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <AlertDialogTitle className="font-display text-[15px]">{t.common.confirmDelete}</AlertDialogTitle>
               <AlertDialogDescription className="text-[12px] mt-0.5">
                 {t.common.confirmDeleteDesc(itemName)}
@@ -645,14 +766,17 @@ export function DeleteConfirmDialog({ open, onClose, itemName, onConfirm, queryK
             </div>
           </div>
         </AlertDialogHeader>
+        {subtitle && (
+          <MonoText className="text-[12px] font-normal text-foreground/60 break-all block mt-1">{subtitle}</MonoText>
+        )}
         <div className="flex justify-end gap-2 mt-3">
-          <AlertDialogCancel disabled={deleting} className="text-[12px] px-4">
+          <AlertDialogCancel disabled={deleting} className="text-[12px] px-4 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary">
             {t.common.cancel}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             disabled={deleting}
-            className="bg-red-600 hover:bg-red-700 text-white text-[12px] px-4"
+            className="bg-rose-600 hover:bg-rose-700 text-white text-[12px] px-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
           >
             {deleting && <Loader2 className="w-3 h-3 animate-spin mr-1.5" />}
             {t.common.delete}

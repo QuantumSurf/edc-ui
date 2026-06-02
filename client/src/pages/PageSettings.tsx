@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
-import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge, FormField, inputBase } from "@/components/ui-kmx";
+import { Card, SectionHdr, Badge, CardTitle, QuietButton, DataSourceBadge, FormField, inputBase, ListError, AlertBanner, PrimaryActionButton } from "@/components/ui-kmx";
 import { ChevronLeft, User, Bell, Monitor, Info, Fingerprint, Loader2, Settings, Vault, Building2 } from "lucide-react";
 import {
   fetchSystemInfo, fetchIdentityHubConfig, updateIdentityHubConfig,
@@ -22,7 +22,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
   const { t } = useI18n();
   const { locale, setLocale } = useI18n();
   const { user } = useAuth();
-  const { data: sysInfo } = useQuery({
+  const { data: sysInfo, isError: sysError, refetch: sysRefetch, isFetching: sysFetching } = useQuery({
     queryKey: ["system-info"],
     queryFn: fetchSystemInfo,
     staleTime: 60_000,
@@ -39,6 +39,8 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
         {t.nav.settings}
       </SectionHdr>
 
+      {/* ── 개인 환경설정 ───────────────────────────────────────── */}
+      <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-1">{t.settings.personalGroup}</h2>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* ── Appearance ──────────────────────────────────────── */}
         <Card title={<CardTitle icon={<Monitor className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.settings.appearance}</span></CardTitle>}>
@@ -49,12 +51,14 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
                 <div className="text-[13px] font-medium text-foreground">{t.settings.language}</div>
                 <div className="text-[11px] text-muted-foreground">{t.settings.languageDesc}</div>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1" role="group" aria-label={t.settings.language}>
                 {(Object.keys(LOCALES) as Locale[]).map((loc) => (
                   <button
                     key={loc}
                     onClick={() => setLocale(loc)}
-                    className={`flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg border transition-colors ${
+                    aria-label={LOCALES[loc].label}
+                    aria-pressed={locale === loc}
+                    className={`flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                       locale === loc
                         ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-medium"
                         : "border-border hover:bg-muted text-muted-foreground"
@@ -93,14 +97,21 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
             <ToggleRow storageKey="notify.connectorHealth" label={t.settings.connectorHealth} desc={t.settings.connectorHealthDesc} defaultOn />
           </div>
         </Card>
+      </div>
 
+      {/* ── 조직·시스템 설정 ─────────────────────────────────────── */}
+      <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4">{t.settings.systemGroup}</h2>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* ── System Info ─────────────────────────────────────── */}
         <Card title={
           <CardTitle
             icon={<Info className="w-3.5 h-3.5 text-blue-500" />}
-            badge={<DataSourceBadge mode={sysInfo ? "live" : "demo"} />}
+            badge={sysError ? undefined : <DataSourceBadge mode={sysInfo ? "live" : "demo"} />}
           ><span className="font-bold">{t.settings.systemInfo}</span></CardTitle>
         }>
+          {sysError ? (
+            <ListError onRetry={() => sysRefetch()} fetching={sysFetching} />
+          ) : (
           <div className="space-y-3">
             <ProfileRow label="Connector Hub" value={sysInfo?.connectorHub ?? "—"} />
             <ProfileRow label="EDC Runtime" value={sysInfo?.edcRuntime ?? "—"} />
@@ -117,6 +128,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
               </Badge>
             } />
           </div>
+          )}
         </Card>
 
         {/* ── Organization (Tenant) ───────────────────────────── */}
@@ -141,6 +153,43 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
   );
 }
 
+/* ─── Helper: read-only notice (non-admin) ───────────────────── */
+function ReadOnlyNotice() {
+  const { t } = useI18n();
+  return (
+    <div className="mb-3">
+      <AlertBanner variant="info">{t.settings.readOnlyNotice}</AlertBanner>
+    </div>
+  );
+}
+
+/* ─── Helper: setting footer (discard + save, admin only) ─────── */
+function SettingFooter({ dirty, saving, onSave, onDiscard }: {
+  dirty: boolean; saving: boolean; onSave: () => void; onDiscard: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <RoleGate permission="connector:write">
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onDiscard}
+          disabled={saving || !dirty}
+          className="text-[11px] px-2.5 py-1 rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          {t.settings.discard}
+        </button>
+        <PrimaryActionButton
+          onClick={onSave}
+          disabled={saving || !dirty}
+          icon={saving ? <Loader2 className="w-3 h-3 animate-spin" /> : undefined}
+        >
+          {t.settings.save}
+        </PrimaryActionButton>
+      </div>
+    </RoleGate>
+  );
+}
+
 /* ─── Organization BPN (admin only) ──────────────────────────── */
 // The org's BPN is the tenant's identifier — also the login id, and the BPN
 // applied to every connector registered under this organization.
@@ -151,15 +200,18 @@ function OrgBpnSetting() {
   const [bpn, setBpn] = useState("");
   const [original, setOriginal] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const reload = () => {
     setLoading(true);
+    setLoadError(false);
     fetchTenantInfo()
       .then((info) => { setBpn(info.bpn); setOriginal(info.bpn); })
-      .catch((e) => toast.error((e as Error).message))
+      .catch((e) => { setLoadError(true); toast.error((e as Error).message); })
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(reload, []);
 
   const dirty = bpn.trim() !== original && bpn.trim().length > 0;
 
@@ -178,8 +230,11 @@ function OrgBpnSetting() {
     }
   };
 
+  if (loadError && !loading) return <ListError onRetry={reload} fetching={loading} />;
+
   return (
     <div className="space-y-3">
+      {!canEdit && <ReadOnlyNotice />}
       <FormField label={t.settings.orgBpn} hint={t.settings.orgBpnHint}>
         <input
           value={bpn}
@@ -189,18 +244,7 @@ function OrgBpnSetting() {
           className={`${inputBase} mono`}
         />
       </FormField>
-      <RoleGate permission="connector:write">
-        <div className="flex justify-end">
-          <button
-            onClick={save}
-            disabled={saving || loading || !dirty}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
-          >
-            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-            {t.settings.save}
-          </button>
-        </div>
-      </RoleGate>
+      <SettingFooter dirty={dirty} saving={saving || loading} onSave={save} onDiscard={() => setBpn(original)} />
     </div>
   );
 }
@@ -218,10 +262,12 @@ function IdentityHubConfigSetting() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [original, setOriginal] = useState({ url: "", participantId: "" });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const reload = () => {
     setLoading(true);
+    setLoadError(false);
     fetchIdentityHubConfig()
       .then((c) => {
         setUrl(c.url);
@@ -229,11 +275,18 @@ function IdentityHubConfigSetting() {
         setHasApiKey(c.hasApiKey);
         setOriginal({ url: c.url, participantId: c.participantId });
       })
-      .catch((e) => toast.error((e as Error).message))
+      .catch((e) => { setLoadError(true); toast.error((e as Error).message); })
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(reload, []);
 
   const dirty = url !== original.url || participantId !== original.participantId || apiKey.length > 0;
+
+  const discard = () => {
+    setUrl(original.url);
+    setParticipantId(original.participantId);
+    setApiKey("");
+  };
 
   const save = async () => {
     setSaving(true);
@@ -254,8 +307,11 @@ function IdentityHubConfigSetting() {
 
   const inputCls = `${inputBase} mono`;
 
+  if (loadError && !loading) return <ListError onRetry={reload} fetching={loading} />;
+
   return (
     <div className="space-y-3">
+      {!canEdit && <ReadOnlyNotice />}
       <FormField label={t.settings.identityHubUrl} hint={t.settings.identityHubUrlDesc}>
         <input
           value={url}
@@ -273,6 +329,12 @@ function IdentityHubConfigSetting() {
           disabled={loading || !canEdit}
           className={inputCls}
         />
+        {/* 맨 BPN은 서버에서 카탈로그/DSP 요청 시 DID로 정규화됨 — 커넥터 DID와 동일 참가자임을 표시(표시 전용) */}
+        {/^BPNL[0-9A-Z]+$/i.test(participantId.trim()) && (
+          <p className="text-[10px] text-muted-foreground mt-1 break-all">
+            {t.settings.didPreviewLabel} <span className="mono">did:web:identityhub:participants:{participantId.trim()}</span>
+          </p>
+        )}
       </FormField>
       <FormField label={t.settings.identityHubApiKey} hint={t.settings.identityHubApiKeyDesc}>
         <input
@@ -285,18 +347,7 @@ function IdentityHubConfigSetting() {
           className={inputCls}
         />
       </FormField>
-      <RoleGate permission="connector:write">
-        <div className="flex justify-end">
-          <button
-            onClick={save}
-            disabled={saving || loading || !dirty}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
-          >
-            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-            {t.settings.save}
-          </button>
-        </div>
-      </RoleGate>
+      <SettingFooter dirty={dirty} saving={saving || loading} onSave={save} onDiscard={discard} />
     </div>
   );
 }
@@ -312,10 +363,12 @@ function VaultConfigSetting() {
   const [hasToken, setHasToken] = useState(false);
   const [original, setOriginal] = useState({ url: "", namespace: "" });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const reload = () => {
     setLoading(true);
+    setLoadError(false);
     fetchVaultConfig()
       .then((c) => {
         setUrl(c.url);
@@ -323,11 +376,18 @@ function VaultConfigSetting() {
         setHasToken(c.hasToken);
         setOriginal({ url: c.url, namespace: c.namespace });
       })
-      .catch((e) => toast.error((e as Error).message))
+      .catch((e) => { setLoadError(true); toast.error((e as Error).message); })
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(reload, []);
 
   const dirty = url !== original.url || namespace !== original.namespace || token.length > 0;
+
+  const discard = () => {
+    setUrl(original.url);
+    setNamespace(original.namespace);
+    setToken("");
+  };
 
   const save = async () => {
     setSaving(true);
@@ -348,8 +408,11 @@ function VaultConfigSetting() {
 
   const inputCls = `${inputBase} mono`;
 
+  if (loadError && !loading) return <ListError onRetry={reload} fetching={loading} />;
+
   return (
     <div className="space-y-3">
+      {!canEdit && <ReadOnlyNotice />}
       <FormField label={t.settings.vaultUrl} hint={t.settings.vaultUrlDesc}>
         <input
           value={url}
@@ -379,18 +442,7 @@ function VaultConfigSetting() {
           className={inputCls}
         />
       </FormField>
-      <RoleGate permission="connector:write">
-        <div className="flex justify-end">
-          <button
-            onClick={save}
-            disabled={saving || loading || !dirty}
-            className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
-          >
-            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-            {t.settings.save}
-          </button>
-        </div>
-      </RoleGate>
+      <SettingFooter dirty={dirty} saving={saving || loading} onSave={save} onDiscard={discard} />
     </div>
   );
 }

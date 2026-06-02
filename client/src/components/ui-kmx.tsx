@@ -2,8 +2,9 @@
 // Design: Admin Console style | Dark navy sidebar + white cards + light gray bg
 
 import { cn } from "@/lib/utils";
-import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight, ChevronDown, List } from "lucide-react";
+import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight, ChevronDown, List, RefreshCw } from "lucide-react";
 import React from "react";
+import { useI18n } from "@/i18n";
 
 /* ─── Badge ─────────────────────────────────────────────────── */
 type BadgeVariant = "green" | "blue" | "teal" | "amber" | "red" | "purple" | "gray" | "outline" | "sky";
@@ -91,11 +92,24 @@ interface KpiCardProps {
   trend?: "up" | "down" | "neutral";
   iconColor?: string;
   loading?: boolean;
+  /** 클릭 가능 KPI(딥링크) — 지정 시 카드가 버튼 시맨틱을 가짐 */
+  onClick?: () => void;
+  ariaLabel?: string;
 }
 
-export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon, iconBg, trend, iconColor, loading }: KpiCardProps) {
+export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon, iconBg, trend, iconColor, loading, onClick, ariaLabel }: KpiCardProps) {
   return (
-    <div className="bg-card rounded-xl p-5 flex flex-col gap-2 shadow-sm border border-border hover:shadow-md transition-shadow">
+    <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? ariaLabel : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      className={cn(
+        "bg-card rounded-xl p-5 flex flex-col gap-2 shadow-sm border border-border hover:shadow-md transition-shadow",
+        onClick && "cursor-pointer hover:border-primary/40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {icon && (
@@ -104,7 +118,7 @@ export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon
             </div>
           )}
           {title && (
-            <span className="font-display text-[13px] font-bold text-foreground truncate">{title}</span>
+            <span className="font-display text-[14px] font-bold text-foreground truncate">{title}</span>
           )}
         </div>
         {trend && (
@@ -155,7 +169,7 @@ export function ServiceCard({ name, desc, status, icon }: ServiceCardProps) {
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="font-display text-[15px] font-semibold text-foreground">{name}</div>
+        <div className="font-display text-[14px] font-semibold text-foreground">{name}</div>
         <div className="text-[12px] text-muted-foreground mt-0.5">{desc}</div>
         <div className={cn("flex items-center gap-1.5 mt-1.5 text-[12px] font-medium", cls)}>
           <span className={cn("w-1.5 h-1.5 rounded-full", dot)} />
@@ -209,14 +223,14 @@ export function SectionHdr({ children, action, breadcrumb, icon }: SectionHdrPro
   return (
     <div className="mb-1">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
           {icon}
           {children}
         </h1>
         {action}
       </div>
       {breadcrumb && (
-        <div className="text-[12px] text-muted-foreground mt-1">{breadcrumb}</div>
+        <div className="text-sm text-muted-foreground mt-1">{breadcrumb}</div>
       )}
       <div className="h-px bg-border mt-1.5" />
     </div>
@@ -237,7 +251,7 @@ export function Card({ title, children, actions, className, noPad }: CardProps) 
     <div className={cn("bg-card rounded-xl overflow-hidden shadow-sm border border-border", className)}>
       {title && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <span className="font-display text-[13px] font-bold text-foreground/80">{title}</span>
+          <span className="font-display text-[14px] font-bold text-foreground">{title}</span>
           {actions && <div className="flex items-center gap-1.5">{actions}</div>}
         </div>
       )}
@@ -344,14 +358,15 @@ interface FormFieldProps {
 }
 
 export function FormField({ label, children, required, hint }: FormFieldProps) {
+  // 바깥을 <label>로 감싸 컨트롤과 암시적 연결(WCAG 1.3.1). 내부 라벨 텍스트는 span(중첩 label 회피).
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-[12px] font-medium text-foreground">
+    <label className="flex flex-col gap-1">
+      <span className="text-[12px] font-medium text-foreground">
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
-      </label>
+      </span>
       {children}
-      {hint && <p className="text-[10px] text-muted-foreground leading-snug">{hint}</p>}
-    </div>
+      {hint && <span className="block text-[10px] text-muted-foreground leading-snug">{hint}</span>}
+    </label>
   );
 }
 
@@ -360,7 +375,7 @@ export function FormField({ label, children, required, hint }: FormFieldProps) {
 // so font, color, size, and focus behavior stay consistent across screens.
 // Append " mono" for code-like values and " flex-1" etc. as needed.
 export const inputBase =
-  "w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed transition-colors";
+  "w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed transition-colors";
 
 /* ─── Env Badge ──────────────────────────────────────────────── */
 export function EnvBadge({ env }: { env: string }) {
@@ -416,7 +431,7 @@ export function PrimaryActionButton({ onClick, icon, children, className, type =
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed",
+        "flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed",
         className,
       )}
     >
@@ -437,7 +452,7 @@ export function ViewAllLink({ onClick, children, className }: ViewAllLinkProps) 
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-0.5 text-[11px] text-blue-500 hover:text-blue-700 transition-colors",
+        "flex items-center gap-0.5 text-[11px] text-blue-500 hover:text-blue-700 transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
         className,
       )}
     >
@@ -486,7 +501,7 @@ export function ListCard({ title, icon, iconColor, actions, children, className 
   return (
     <div className={cn("rounded-xl border border-border bg-card overflow-hidden shadow-sm", className)}>
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-        <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+        <span className="font-display text-[14px] font-bold text-foreground flex items-center gap-2 truncate">
           {icon ?? <List className={cn("w-4 h-4", iconColor ?? "text-primary")} />}
           {title}
         </span>
@@ -557,46 +572,85 @@ export function ListEmpty({ icon, message }: { icon?: React.ReactNode; message: 
   );
 }
 
+/* ─── List Error (fetch 실패 + 재시도) ───────────────────────────── */
+// 리스트/패널 조회 실패 시 일관된 에러 + 재시도 UI. 자산/정책의 인라인 패턴을 공용화.
+export function ListError({ onRetry, fetching, message }: { onRetry: () => void; fetching?: boolean; message?: React.ReactNode }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-12 gap-3">
+      <div className="flex items-center gap-2 text-rose-600">
+        <AlertCircle className="w-4 h-4" />
+        <span className="text-[13px] font-medium">{message ?? t.common.loadFailed}</span>
+      </div>
+      <button
+        onClick={onRetry}
+        disabled={fetching}
+        className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted text-foreground/80 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+      >
+        <RefreshCw className={`w-3 h-3 ${fetching ? "animate-spin" : ""}`} />
+        {t.common.retry}
+      </button>
+    </div>
+  );
+}
+
 /* ─── JSON Tree Viewer ──────────────────────────────────────────
    Syntax-highlighted, collapsible JSON tree (kmx-identityhub
    DID-document card style). Nodes are expanded by default; click a
    chevron to collapse. */
-export function JsonTreeView({ data, className }: { data: unknown; className?: string }) {
-  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
+export function JsonTreeView({ data, className, search, baseCollapsed = false, resetToken }: {
+  data: unknown; className?: string; search?: string; baseCollapsed?: boolean; resetToken?: number;
+}) {
+  // 노드별 펼침 override (key→open). baseCollapsed 가 기본값, override 가 우선. resetToken 변경 시 초기화.
+  const [overrides, setOverrides] = React.useState<Map<string, boolean>>(new Map());
+  React.useEffect(() => { setOverrides(new Map()); }, [resetToken]);
 
+  const q = (search ?? "").trim().toLowerCase();
+  const isOpen = (key: string) => (q ? true : overrides.has(key) ? !!overrides.get(key) : !baseCollapsed);
   const toggle = (key: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setOverrides((prev) => { const next = new Map(prev); next.set(key, !isOpen(key)); return next; });
+
+  // 검색어 하이라이트 (대소문자 무시)
+  const hl = (text: string): React.ReactNode => {
+    if (!q) return text;
+    const lower = text.toLowerCase();
+    if (!lower.includes(q)) return text;
+    const out: React.ReactNode[] = [];
+    let from = 0, idx = 0;
+    while ((idx = lower.indexOf(q, from)) !== -1) {
+      if (idx > from) out.push(text.slice(from, idx));
+      out.push(<mark key={idx} className="bg-amber-400/30 text-amber-200 rounded-sm">{text.slice(idx, idx + q.length)}</mark>);
+      from = idx + q.length;
+    }
+    if (from < text.length) out.push(text.slice(from));
+    return out;
+  };
 
   const renderValue = (value: unknown, key: string, indent: number): React.ReactNode => {
     if (Array.isArray(value)) {
-      const isOpen = !collapsed.has(key);
+      const open = isOpen(key);
       return (
-        <span>
+        <span className="block">
           <button onClick={() => toggle(key)} className="text-slate-400 hover:text-slate-200 transition-colors">
-            {isOpen ? <ChevronDown size={10} className="inline" /> : <ChevronRight size={10} className="inline" />}
+            {open ? <ChevronDown size={10} className="inline" /> : <ChevronRight size={10} className="inline" />}
           </button>
           {" ["}
-          {isOpen ? (
+          {open ? (
             <>
               {value.map((item, i) => (
-                <div key={i} style={{ paddingLeft: `${(indent + 1) * 16}px` }}>
+                <div key={i} style={{ paddingLeft: "16px" }}>
                   {typeof item === "object" && item !== null ? (
-                    <span>
+                    <span className="block">
                       {"{"}
                       {Object.entries(item as object).map(([k, v], j, arr) => (
-                        <div key={k} style={{ paddingLeft: `${(indent + 2) * 16}px` }}>
-                          <span className="text-violet-400">"{k}"</span>
+                        <div key={k} style={{ paddingLeft: "16px" }}>
+                          <span className="text-violet-400">"{hl(k)}"</span>
                           <span className="text-slate-400">: </span>
                           {renderValue(v, `${key}.${i}.${k}`, indent + 2)}
                           {j < arr.length - 1 && <span className="text-slate-500">,</span>}
                         </div>
                       ))}
-                      <div style={{ paddingLeft: `${(indent + 1) * 16}px` }}>
+                      <div>
                         {"}"}{i < value.length - 1 && <span className="text-slate-500">,</span>}
                       </div>
                     </span>
@@ -608,7 +662,7 @@ export function JsonTreeView({ data, className }: { data: unknown; className?: s
                   )}
                 </div>
               ))}
-              <div style={{ paddingLeft: `${indent * 16}px` }}>]</div>
+              <div>]</div>
             </>
           ) : (
             <span className="text-slate-500"> {value.length} items ]</span>
@@ -617,25 +671,25 @@ export function JsonTreeView({ data, className }: { data: unknown; className?: s
       );
     }
     if (typeof value === "object" && value !== null) {
-      const isOpen = !collapsed.has(key);
+      const open = isOpen(key);
       const entries = Object.entries(value);
       return (
-        <span>
+        <span className="block">
           <button onClick={() => toggle(key)} className="text-slate-400 hover:text-slate-200 transition-colors">
-            {isOpen ? <ChevronDown size={10} className="inline" /> : <ChevronRight size={10} className="inline" />}
+            {open ? <ChevronDown size={10} className="inline" /> : <ChevronRight size={10} className="inline" />}
           </button>
           {" {"}
-          {isOpen ? (
+          {open ? (
             <>
               {entries.map(([k, v], j) => (
-                <div key={k} style={{ paddingLeft: `${(indent + 1) * 16}px` }}>
-                  <span className="text-violet-400">"{k}"</span>
+                <div key={k} style={{ paddingLeft: "16px" }}>
+                  <span className="text-violet-400">"{hl(k)}"</span>
                   <span className="text-slate-400">: </span>
                   {renderValue(v, `${key}.${k}`, indent + 1)}
                   {j < entries.length - 1 && <span className="text-slate-500">,</span>}
                 </div>
               ))}
-              <div style={{ paddingLeft: `${indent * 16}px` }}>{"}"}</div>
+              <div>{"}"}</div>
             </>
           ) : (
             <span className="text-slate-500"> {entries.length} keys {"}"}</span>
@@ -643,21 +697,23 @@ export function JsonTreeView({ data, className }: { data: unknown; className?: s
         </span>
       );
     }
-    if (typeof value === "string") return <span className="text-emerald-400">"{value}"</span>;
+    if (typeof value === "string") return <span className="text-emerald-400 break-all">"{hl(value)}"</span>;
     if (value === null) return <span className="text-slate-500">null</span>;
-    return <span className="text-amber-400">{String(value)}</span>;
+    return <span className="text-amber-400">{hl(String(value))}</span>;
   };
 
-  const wrapCls = cn("bg-slate-900 rounded-xl p-4 font-mono text-[12px] text-slate-300 overflow-auto", className);
+  // overflow-wrap:anywhere(상속) → 긴 URN 등이 줄바꿈되고 inline 구조의 min-content 폭도 축소되어
+  // 좁은 다이얼로그에서 가로 스크롤/값 잘림이 사라진다. 세로만 스크롤.
+  const wrapCls = cn("bg-slate-900 rounded-xl p-4 font-mono text-[12px] text-slate-300 overflow-x-hidden overflow-y-auto [overflow-wrap:anywhere]", className);
 
   if (data === null || typeof data !== "object") {
     return (
       <div className={wrapCls}>
         {typeof data === "string"
-          ? <span className="text-emerald-400">"{data}"</span>
+          ? <span className="text-emerald-400 break-all">"{hl(data)}"</span>
           : data === null
             ? <span className="text-slate-500">null</span>
-            : <span className="text-amber-400">{String(data)}</span>}
+            : <span className="text-amber-400">{hl(String(data))}</span>}
       </div>
     );
   }
@@ -667,7 +723,7 @@ export function JsonTreeView({ data, className }: { data: unknown; className?: s
       <span className="text-blue-400">{"{"}</span>
       {Object.entries(data).map(([key, value], i, arr) => (
         <div key={key} style={{ paddingLeft: "16px" }}>
-          <span className="text-violet-400">"{key}"</span>
+          <span className="text-violet-400">"{hl(key)}"</span>
           <span className="text-slate-400">: </span>
           {renderValue(value, key, 1)}
           {i < arr.length - 1 && <span className="text-slate-500">,</span>}

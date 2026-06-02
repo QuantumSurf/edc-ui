@@ -126,7 +126,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Plug className="w-4 h-4 text-blue-500 flex-shrink-0" />
-          <span className="text-[13px] font-semibold text-foreground truncate">{t.addConnector.register}</span>
+          <span className="text-[15px] font-semibold text-foreground truncate">{t.addConnector.register}</span>
         </div>
         <button
           onClick={onClose}

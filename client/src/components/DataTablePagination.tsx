@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 interface DataTablePaginationProps {
   totalItems: number;
@@ -24,6 +25,7 @@ export function DataTablePagination({
   pageSizeOptions = [10, 25, 50],
   rowsPerPageLabel = "페이지당 행 수",
 }: DataTablePaginationProps) {
+  const { t } = useI18n();
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
@@ -54,8 +56,9 @@ export function DataTablePagination({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
+            aria-label={t.common.prev}
             className={cn(
-              "p-1.5 rounded-md border transition-colors",
+              "p-1.5 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
               currentPage <= 1
                 ? "border-border text-muted-foreground/40 cursor-not-allowed"
                 : "border-border text-foreground/70 hover:bg-muted"
@@ -69,8 +72,9 @@ export function DataTablePagination({
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
+            aria-label={t.common.next}
             className={cn(
-              "p-1.5 rounded-md border transition-colors",
+              "p-1.5 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
               currentPage >= totalPages
                 ? "border-border text-muted-foreground/40 cursor-not-allowed"
                 : "border-border text-foreground/70 hover:bg-muted"

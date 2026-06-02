@@ -11,7 +11,7 @@ const QUERY_KEY = ["notifications"] as const;
 export function useNotifications() {
   const queryClient = useQueryClient();
 
-  const { data: notifications = [] } = useQuery({
+  const { data: notifications = [], isError, refetch, isFetching } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchNotifications,
     refetchInterval: 30_000, // 30초마다 폴링
@@ -88,6 +88,9 @@ export function useNotifications() {
   return {
     notifications,
     unreadCount,
+    isError,
+    refetch,
+    isFetching,
     markRead:   (id: string) => markReadMutation.mutate(id),
     markAllRead: () => markAllReadMutation.mutate(),
     dismiss:    (id: string) => dismissMutation.mutate(id),

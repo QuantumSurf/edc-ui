@@ -13,7 +13,7 @@ import {
 const AUDIT_COLS = "grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
 import { DetailPanel } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { Activity, Download, Search, ScrollText, Calendar, Filter, X } from "lucide-react";
+import { Activity, Download, Search, ScrollText, Calendar, Filter, X, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 /* ─── Types ──────────────────────────────────────────────────── */
@@ -121,15 +121,15 @@ const CAT_VARIANT: Record<AuditCategory, "blue" | "teal" | "purple" | "amber" | 
 };
 
 function severityBadge(sev: AuditSeverity, t: ReturnType<typeof useI18n>["t"]) {
-  if (sev === "CRITICAL") return <Badge variant="red">{t.audit.severityCritical}</Badge>;
-  if (sev === "WARN")     return <Badge variant="amber">{t.audit.severityWarn}</Badge>;
+  if (sev === "CRITICAL") return <Badge variant="red"><AlertTriangle className="w-3 h-3" />{t.audit.severityCritical}</Badge>;
+  if (sev === "WARN")     return <Badge variant="amber"><AlertTriangle className="w-3 h-3" />{t.audit.severityWarn}</Badge>;
   return <Badge variant="gray">{t.audit.severityInfo}</Badge>;
 }
 
 function resultBadge(r: AuditResult, t: ReturnType<typeof useI18n>["t"]) {
   return r === "SUCCESS"
-    ? <Badge variant="green">{t.audit.resultSuccess}</Badge>
-    : <Badge variant="red">{t.audit.resultFailure}</Badge>;
+    ? <Badge variant="green"><CheckCircle2 className="w-3 h-3" />{t.audit.resultSuccess}</Badge>
+    : <Badge variant="red"><XCircle className="w-3 h-3" />{t.audit.resultFailure}</Badge>;
 }
 
 function withinRange(iso: string, range: "ALL" | "1D" | "7D" | "30D") {
@@ -237,7 +237,7 @@ export default function PageAudit() {
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               aria-label={t.common.clear ?? "Clear"}
             >
               <X className="w-3.5 h-3.5" />
@@ -255,7 +255,7 @@ export default function PageAudit() {
         <button
           onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
           disabled={filtered.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1"
         >
           <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
         </button>
@@ -331,29 +331,34 @@ export default function PageAudit() {
               <ListColLabel className="hidden xl:block">{t.audit.col.ip}</ListColLabel>
             </ListHeaderRow>
             {paginatedData.map((e) => (
-              <ListRow key={e.id} cols={AUDIT_COLS} onClick={() => setSelected(e)}>
+              <ListRow
+                key={e.id}
+                cols={AUDIT_COLS}
+                onClick={() => setSelected(e)}
+                className={e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30" : undefined}
+              >
                 <div>
-                  <MonoText className="!text-[12px] !font-normal">{formatTs(e.timestamp)}</MonoText>
+                  <span className="text-xs text-foreground" title={new Date(e.timestamp).toLocaleString()}>{formatTs(e.timestamp)}</span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-normal text-foreground truncate">{e.actor}</p>
+                  <p className="text-xs text-foreground truncate">{e.actor}</p>
                   <p className="text-[11px] text-muted-foreground">{e.actorRole}</p>
                 </div>
                 <div className="min-w-0">
-                  <MonoText className="!text-[12px] !font-normal block truncate !text-primary">{e.action}</MonoText>
+                  <span className="text-xs font-bold text-primary block truncate">{e.action}</span>
                   <p className="text-[11px] text-muted-foreground truncate">{e.message}</p>
                 </div>
                 <div>
-                  <Badge variant={CAT_VARIANT[e.category]}>{e.category}</Badge>
+                  <Badge variant={CAT_VARIANT[e.category]}>{catLabel[e.category]}</Badge>
                 </div>
                 <div className="hidden lg:block min-w-0">
-                  <MonoText className="!text-[12px] !font-normal block truncate">{e.target}</MonoText>
+                  <span className="text-xs text-foreground block truncate">{e.target}</span>
                   <p className="text-[11px] font-normal text-muted-foreground">{e.targetType}</p>
                 </div>
                 <div>{resultBadge(e.result, t)}</div>
                 <div className="hidden xl:block">{severityBadge(e.severity, t)}</div>
                 <div className="hidden xl:block">
-                  <MonoText className="!text-[12px] !font-normal">{e.ip}</MonoText>
+                  <span className="text-xs text-foreground">{e.ip}</span>
                 </div>
               </ListRow>
             ))}
@@ -385,19 +390,21 @@ export default function PageAudit() {
               role="button"
               tabIndex={0}
               onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelected(e); } }}
-              className="bg-card rounded-xl p-3 shadow-sm border border-border active:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              className={`bg-card rounded-xl p-3 shadow-sm border border-border border-l-2 active:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
+                e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30" : "border-l-transparent"
+              }`}
             >
               <div className="flex items-center justify-between gap-2 mb-1">
-                <Badge variant={CAT_VARIANT[e.category]}>{e.category}</Badge>
+                <Badge variant={CAT_VARIANT[e.category]}>{catLabel[e.category]}</Badge>
                 <div className="flex items-center gap-1">
                   {resultBadge(e.result, t)}
                   {severityBadge(e.severity, t)}
                 </div>
               </div>
-              <MonoText className="text-[13px] font-normal block !text-primary">{e.action}</MonoText>
+              <span className="text-xs font-bold text-primary block">{e.action}</span>
               <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{e.message}</p>
               <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                <MonoText className="text-[11px] font-normal">{formatTs(e.timestamp)}</MonoText>
+                <span title={new Date(e.timestamp).toLocaleString()}><MonoText className="text-[11px] font-normal">{formatTs(e.timestamp)}</MonoText></span>
                 <span className="font-normal">{e.actor}</span>
               </div>
             </div>
@@ -427,7 +434,6 @@ export default function PageAudit() {
           open={!!selected}
           onClose={() => setSelected(null)}
           title={t.audit.detailTitle}
-          subtitle={selected.id}
           sections={[
             {
               title: t.audit.field.timestamp,
@@ -435,7 +441,7 @@ export default function PageAudit() {
                 { label: t.audit.field.eventId, value: selected.id, mono: true, copyable: true },
                 { label: t.audit.field.timestamp, value: formatTs(selected.timestamp), mono: true },
                 { label: t.audit.field.requestId, value: selected.requestId, mono: true, copyable: true },
-                { label: t.audit.field.category, value: selected.category, badge: { text: selected.category, variant: CAT_VARIANT[selected.category] === "sky" ? "blue" : (CAT_VARIANT[selected.category] as "blue" | "green" | "amber" | "gray" | "red" | "purple") } },
+                { label: t.audit.field.category, value: catLabel[selected.category], badge: { text: catLabel[selected.category], variant: CAT_VARIANT[selected.category] === "sky" ? "blue" : (CAT_VARIANT[selected.category] as "blue" | "green" | "amber" | "gray" | "red" | "purple") } },
               ],
             },
             {
@@ -456,13 +462,13 @@ export default function PageAudit() {
                 {
                   label: t.audit.field.result,
                   value: selected.result === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure,
-                  badge: { text: selected.result, variant: selected.result === "SUCCESS" ? "green" : "red" },
+                  badge: { text: selected.result === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure, variant: selected.result === "SUCCESS" ? "green" : "red" },
                 },
                 {
                   label: t.audit.field.severity,
-                  value: selected.severity,
+                  value: selected.severity === "CRITICAL" ? t.audit.severityCritical : selected.severity === "WARN" ? t.audit.severityWarn : t.audit.severityInfo,
                   badge: {
-                    text: selected.severity,
+                    text: selected.severity === "CRITICAL" ? t.audit.severityCritical : selected.severity === "WARN" ? t.audit.severityWarn : t.audit.severityInfo,
                     variant: selected.severity === "CRITICAL" ? "red" : selected.severity === "WARN" ? "amber" : "gray",
                   },
                 },
@@ -488,7 +494,8 @@ function FilterPill({ active, onClick, children }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+      aria-pressed={active}
+      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
         active
           ? "bg-primary text-primary-foreground border-primary"
           : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
@@ -503,7 +510,8 @@ function RangeBtn({ active, onClick, children }: { active: boolean; onClick: () 
   return (
     <button
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+      aria-pressed={active}
+      className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
         active
           ? "bg-primary/10 text-primary border-primary/30"
           : "bg-card border-border text-muted-foreground hover:text-foreground"

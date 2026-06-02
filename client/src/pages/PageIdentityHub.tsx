@@ -186,7 +186,20 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
             {data.credentialError ? (
               <div className="flex items-start gap-2 text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded px-2 py-1.5">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                <span className="flex-1 min-w-0 break-all">{t.identityHub.credentialFetchFailed}: {data.credentialError}</span>
+                <span className="flex-1 min-w-0 break-all">
+                  {t.identityHub.credentialFetchFailed}: {data.credentialError}
+                  {/(\b401\b|unauthor)/i.test(data.credentialError) && (
+                    <>
+                      <span className="block mt-0.5 text-rose-600/80">{t.identityHub.credentialAuthHint}</span>
+                      <button
+                        onClick={() => onNav("/settings")}
+                        className="mt-1.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                      >
+                        <SettingsIcon className="w-3 h-3" /> {t.identityHub.goToSettings}
+                      </button>
+                    </>
+                  )}
+                </span>
               </div>
             ) : data.credentials.length === 0 ? (
               <p className="text-[12px] text-muted-foreground py-2">{t.identityHub.noCredentials}</p>

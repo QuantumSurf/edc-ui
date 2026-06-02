@@ -3,13 +3,13 @@
 // Falls back to demo data when API is unavailable (e.g. dev without platform compose up).
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Vault, Lock, Copy, Eye, Server } from "lucide-react";
+import { Vault, Lock, Copy, Eye, EyeOff, Server, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  Card, SectionHdr, Badge, AlertBanner, MonoText, CardTitle,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  Card, SectionHdr, Badge, AlertBanner, MonoText, CardTitle, inputBase,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError,
 } from "@/components/ui-kmx";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 
@@ -59,9 +59,10 @@ interface VaultBackendInfo {
   autoRotation: boolean;
 }
 
+// 마스킹은 실제 시크릿 바이트를 노출하지 않는다 — 길이만 대략 힌트한 점(•) 표시.
 function maskValue(v: string) {
-  if (!v || v.length <= 12) return v || "—";
-  return v.slice(0, 10) + "…";
+  if (!v) return "—";
+  return "•".repeat(Math.min(12, Math.max(6, v.length)));
 }
 
 function makeDemoData(connectorId: string): { backend: VaultBackendInfo; items: VaultItem[] } {
@@ -158,6 +159,8 @@ export default function PageVault() {
   const [backend, setBackend] = useState<VaultBackendInfo>(initial.backend);
   const [items, setItems] = useState<VaultItem[]>(initial.items);
   const [revealed, setRevealed] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"ALL" | VaultItemType>("ALL");
 
   // ── Live data from /api/platform/vault (graceful fallback to demo) ──
   const statusQuery = useQuery<VaultStatus>({
@@ -204,12 +207,33 @@ export default function PageVault() {
     }
   }, [listQuery.data]);
 
-  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(items, 10);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter((it) => {
+      if (typeFilter !== "ALL" && it.type !== typeFilter) return false;
+      if (q && !it.alias.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [items, search, typeFilter]);
+
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+
+  // 필터 변경 시 항상 1페이지부터 보이도록 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, typeFilter, setCurrentPage]);
 
   const onCopy = (alias: string) => {
     navigator.clipboard.writeText(alias);
     toast.success(t.vault.aliasCopied);
   };
+
+  const TYPE_FILTERS: Array<{ key: "ALL" | VaultItemType; label: string }> = [
+    { key: "ALL", label: t.vault.typeAll },
+    { key: "key", label: t.vault.typeKey },
+    { key: "secret", label: t.vault.typeSecret },
+    { key: "certificate", label: t.vault.typeCertificate },
+  ];
 
   return (
     <>
@@ -237,7 +261,7 @@ export default function PageVault() {
           <span className="font-bold">{t.vault.backendInfo}</span>
         </CardTitle>
       }>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="space-y-3">
           {[
             [t.vault.field.backend, backend.backend, false],
             [t.vault.field.version, backend.version, false],
@@ -251,23 +275,67 @@ export default function PageVault() {
               true,
             ],
           ].map(([k, v, asTitle]) => (
-            <div key={k as string} className="bg-muted/30 border border-border rounded p-2.5 min-w-0">
-              <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">{k}</div>
-              <div className={asTitle
-                ? "text-[12px] font-normal text-foreground/90 break-all"
-                : "mono text-[12px] font-normal text-foreground/80 break-all"}>{v}</div>
+            <div key={k as string} className="flex items-center justify-between gap-3 py-1.5 border-b border-border last:border-0">
+              <span className="text-[12px] text-muted-foreground flex-shrink-0">{k}</span>
+              <span className={`text-[12px] text-foreground font-normal text-right break-all ${asTitle ? "" : "mono"}`}>{v}</span>
             </div>
           ))}
         </div>
       </Card>
 
+      {/* Search + type filter */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.vault.searchPlaceholder}
+            aria-label={t.vault.searchPlaceholder}
+            className={`${inputBase} pl-8 pr-8`}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              aria-label={t.common.clear ?? "Clear"}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-medium text-muted-foreground">{t.vault.filterType}</span>
+          {TYPE_FILTERS.map((tf) => (
+            <button
+              key={tf.key}
+              onClick={() => setTypeFilter(tf.key)}
+              aria-pressed={typeFilter === tf.key}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
+                typeFilter === tf.key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+              }`}
+            >
+              {tf.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Desktop list */}
       <ListCard
-        title={t.vault.listTitle}        actions={<span className="text-[11px] text-muted-foreground">{t.vault.masked}</span>}
+        title={t.vault.listTitle}
+        actions={<span className="text-[11px] text-muted-foreground">{t.vault.masked}</span>}
         className="hidden md:block"
       >
-        {items.length === 0 ? (
+        {listQuery.isError && items.length === 0 ? (
+          <ListError onRetry={() => listQuery.refetch()} fetching={listQuery.isFetching} />
+        ) : items.length === 0 ? (
           <ListEmpty icon={<Vault />} message={t.vault.noItems} />
+        ) : filtered.length === 0 ? (
+          <ListEmpty icon={<Search />} message={t.vault.noSearchResults} />
         ) : (
           <>
             <ListHeaderRow cols={VAULT_COLS}>
@@ -284,7 +352,7 @@ export default function PageVault() {
                 <ListRow key={it.alias} cols={VAULT_COLS}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <MonoText className="!text-[12px] !font-normal !text-primary truncate">{it.alias}</MonoText>
+                      <span className="text-xs font-bold text-primary truncate">{it.alias}</span>
                       <button
                         onClick={() => onCopy(it.alias)}
                         title={t.vault.copyAlias}
@@ -307,11 +375,11 @@ export default function PageVault() {
                           </MonoText>
                           <button
                             onClick={() => setRevealed(isRevealed ? null : it.alias)}
-                            title={t.vault.revealValue}
-                            aria-label={t.vault.revealValue}
+                            title={isRevealed ? t.vault.hideValue : t.vault.revealValue}
+                            aria-label={isRevealed ? t.vault.hideValue : t.vault.revealValue}
                             className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
                           >
-                            <Eye className="w-3 h-3 text-muted-foreground" />
+                            {isRevealed ? <EyeOff className="w-3 h-3 text-muted-foreground" /> : <Eye className="w-3 h-3 text-muted-foreground" />}
                           </button>
                         </>
                       )}
@@ -319,10 +387,10 @@ export default function PageVault() {
                   </div>
                   <div>{typeBadge(it.type, t)}</div>
                   <div>
-                    <MonoText className="!text-[12px] !font-normal">{it.algorithm}</MonoText>
+                    <span className="text-xs text-foreground">{it.algorithm}</span>
                   </div>
-                  <div className="hidden lg:block text-[12px] font-normal text-muted-foreground">{it.created}</div>
-                  <div className="hidden xl:block text-[12px] font-normal text-muted-foreground">{it.lastUsed}</div>
+                  <div className="hidden lg:block text-xs text-foreground" title={it.created}>{it.created}</div>
+                  <div className="hidden xl:block text-xs text-foreground" title={it.lastUsed}>{it.lastUsed}</div>
                   <div>{expiryBadge(it.expiryDays, t)}</div>
                 </ListRow>
               );
@@ -343,8 +411,12 @@ export default function PageVault() {
 
       {/* Mobile stack */}
       <div className="md:hidden flex flex-col gap-3">
-        {items.length === 0 ? (
+        {listQuery.isError && items.length === 0 ? (
+          <ListError onRetry={() => listQuery.refetch()} fetching={listQuery.isFetching} />
+        ) : items.length === 0 ? (
           <div className="py-6 text-center text-[13px] text-muted-foreground">{t.vault.noItems}</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-6 text-center text-[13px] text-muted-foreground">{t.vault.noSearchResults}</div>
         ) : (
           paginatedData.map((it) => {
             const isRevealed = revealed === it.alias;
@@ -353,11 +425,11 @@ export default function PageVault() {
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-1 min-w-0">
                     <Vault className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    <MonoText className="!text-[12px] !font-normal !text-primary truncate">{it.alias}</MonoText>
+                    <span className="text-xs font-bold text-primary truncate">{it.alias}</span>
                   </div>
                   {typeBadge(it.type, t)}
                 </div>
-                <div className="text-[11px] text-muted-foreground mb-1">{it.algorithm}</div>
+                <div className="text-xs text-foreground mb-1">{it.algorithm}</div>
                 <div className="flex items-center gap-1 mb-2">
                   {it.serverManaged ? (
                     <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/80 truncate">
@@ -369,14 +441,20 @@ export default function PageVault() {
                       <MonoText className="text-[11px] text-muted-foreground/80 truncate">
                         {isRevealed ? it.value : maskValue(it.value)}
                       </MonoText>
-                      <button onClick={() => setRevealed(isRevealed ? null : it.alias)} className="opacity-60">
-                        <Eye className="w-3 h-3" />
+                      <button
+                        onClick={() => setRevealed(isRevealed ? null : it.alias)}
+                        title={isRevealed ? t.vault.hideValue : t.vault.revealValue}
+                        aria-label={isRevealed ? t.vault.hideValue : t.vault.revealValue}
+                        className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                      >
+                        {isRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                       </button>
                     </>
                   )}
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center justify-between gap-2">
                   {expiryBadge(it.expiryDays, t)}
+                  <span className="text-[11px] text-muted-foreground" title={it.lastUsed}>{it.lastUsed}</span>
                 </div>
               </div>
             );

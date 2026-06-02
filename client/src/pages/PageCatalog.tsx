@@ -7,9 +7,9 @@ import { useI18n } from "@/i18n";
 import { fetchCatalog, startNegotiation } from "@/services";
 import { type CatalogOffer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Card, Badge, SectionHdr } from "@/components/ui-kmx";
+import { Card, Badge, SectionHdr, CardTitle, inputBase, PrimaryActionButton, ListError, ListEmpty } from "@/components/ui-kmx";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { Search, Globe, ArrowRight, Loader2, Building2, Info, Package, AlertCircle } from "lucide-react";
+import { Search, Globe, ArrowRight, Loader2, Building2, Info, Package } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
@@ -104,57 +104,57 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
         </div>
       )}
 
-      <Card title={t.catalog.queryTitle}>
+      <Card title={<CardTitle icon={<Search className="w-3.5 h-3.5 text-blue-500" />}>{t.catalog.queryTitle}</CardTitle>}>
         <div className="flex flex-col gap-2 mb-4">
           {/* DSP Endpoint */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
-              <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={t.catalog.dspPlaceholder}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
+                aria-label={t.catalog.dspLabel}
+                className={`${inputBase} pl-8 mono`}
               />
             </div>
           </div>
           {/* Counter-party DID */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
-              <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
                 value={counterPartyId}
                 onChange={(e) => setCounterPartyId(e.target.value)}
                 placeholder={t.catalog.bpnPlaceholder}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono"
+                aria-label={t.catalog.bpnLabel}
+                className={`${inputBase} pl-8 mono`}
               />
             </div>
-            <button
+            <PrimaryActionButton
               onClick={handleQuery}
               disabled={loading || !connectorId}
-              className="flex items-center justify-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60 sm:w-auto w-full"
+              icon={loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+              className="justify-center sm:w-auto w-full text-[12px] px-3 py-1.5"
             >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
               {loading ? t.catalog.querying : t.catalog.query}
-            </button>
+            </PrimaryActionButton>
           </div>
+          {/* 맨 BPN 입력 시 서버 정규화(DID) 미리보기 — 설정 participantId 힌트와 동일 형식 */}
+          {/^BPNL[0-9A-Z]+$/i.test(counterPartyId.trim()) && (
+            <p className="text-[10px] text-muted-foreground break-all -mt-1">
+              → <span className="mono">did:web:identityhub:participants:{counterPartyId.trim()}</span>
+            </p>
+          )}
         </div>
 
+        {!loaded && !error && (
+          <ListEmpty icon={<Search />} message={t.catalog.initialHint} />
+        )}
         {loaded && error && (
-          <div className="py-10 text-center">
-            <AlertCircle size={28} className="text-rose-500/70 mx-auto mb-2" />
-            <p className="text-sm text-foreground mb-3">{error}</p>
-            <button
-              onClick={handleQuery}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted text-foreground font-medium transition-colors disabled:opacity-60"
-            >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-              {t.common.retry}
-            </button>
-          </div>
+          <ListError onRetry={handleQuery} fetching={loading} message={error} />
         )}
         {loaded && !error && (
           <CatalogResults offers={offers} onNegotiate={(o) => negMutation.mutate(o)} negotiating={negMutation.isPending} />
@@ -212,7 +212,7 @@ function CatalogResults({ offers, onNegotiate, negotiating }: { offers: CatalogO
                       <button
                         onClick={() => onNegotiate(o)}
                         disabled={negotiating}
-                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60"
+                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
                       >
                         {t.catalog.startNegotiation} <ArrowRight className="w-3 h-3" />
                       </button>
@@ -223,10 +223,7 @@ function CatalogResults({ offers, onNegotiate, negotiating }: { offers: CatalogO
             </tbody>
           </table>
           {offers.length === 0 && (
-            <div className="py-12 text-center">
-              <Package size={32} className="text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">{t.common.noResults}</p>
-            </div>
+            <ListEmpty icon={<Package />} message={t.common.noResults} />
           )}
           {totalItems > 0 && (
             <DataTablePagination
@@ -256,7 +253,7 @@ function CatalogResults({ offers, onNegotiate, negotiating }: { offers: CatalogO
               <button
                 onClick={() => onNegotiate(o)}
                 disabled={negotiating}
-                className={cn("w-full inline-flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors", negotiating && "opacity-60")}
+                className={cn("w-full inline-flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1", negotiating && "opacity-60")}
               >
                 {t.catalog.startNegotiation} <ArrowRight className="w-3 h-3" />
               </button>

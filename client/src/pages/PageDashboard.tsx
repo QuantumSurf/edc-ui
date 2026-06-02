@@ -5,7 +5,7 @@ import { type Connector } from "@/lib/data";
 import { useI18n } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNegotiations, fetchTransfers, fetchTrend } from "@/services";
-import { Card, StateBadge, MonoText, SectionHdr, KpiCard, CardTitle, ViewAllLink } from "@/components/ui-kmx";
+import { Card, StateBadge, MonoText, SectionHdr, KpiCard, CardTitle, ViewAllLink, ListError, ListEmpty } from "@/components/ui-kmx";
 import { Package, ArrowRightLeft, Activity, TrendingUp, LayoutDashboard, FileText } from "lucide-react";
 import { useMemo } from "react";
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
@@ -28,14 +28,16 @@ interface PageDashboardProps {
 export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   const { t } = useI18n();
 
-  const { data: negotiations = [] } = useQuery({
+  const { data: negotiations = [], isError: negError, refetch: negRefetch, isFetching: negFetching } = useQuery({
     queryKey: ["negotiations", conn.id],
     queryFn: () => fetchNegotiations(conn.id),
+    refetchInterval: 30_000,
   });
 
-  const { data: transfers = [] } = useQuery({
+  const { data: transfers = [], isError: transfersError, refetch: transfersRefetch, isFetching: transfersFetching } = useQuery({
     queryKey: ["transfers", conn.id],
     queryFn: () => fetchTransfers(conn.id),
+    refetchInterval: 30_000,
   });
 
   const { data: trendData = [] } = useQuery({
@@ -80,15 +82,19 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
           title={t.dashboard.assets}
           sub={t.dashboard.includingOfferings}
           trend="up"
+          onClick={() => onNav(`/connectors/${conn.id}/assets`)}
+          ariaLabel={`${t.dashboard.assets} ${conn.assets}`}
         />
         <KpiCard
           icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />}
           iconBg="bg-sky-50"
-          value={transfers.length}
+          value={transfersError ? "—" : transfers.length}
           title={t.dashboard.dataTransfers}
           sub={t.dashboard.completedInProgress(transferStats.done, transferStats.active)}
           valueColor="text-sky-600"
           trend="up"
+          onClick={() => onNav(`/connectors/${conn.id}/transfer`)}
+          ariaLabel={t.dashboard.dataTransfers}
         />
       </div>
 
@@ -152,6 +158,11 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
         title={<CardTitle icon={<FileText className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.dashboard.recentNegotiations}</span></CardTitle>}
         actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/negotiation`)}>{t.dashboard.viewAll}</ViewAllLink>}
       >
+        {negError ? (
+          <ListError onRetry={() => negRefetch()} fetching={negFetching} />
+        ) : negotiations.length === 0 ? (
+          <ListEmpty icon={<FileText />} message={t.dashboard.noResults} />
+        ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full">
             <thead className="bg-muted/50 border-b border-border">
@@ -162,21 +173,18 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {negotiations.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-6 text-center !text-[12px] text-muted-foreground">{t.dashboard.noResults}</td>
-                </tr>
-              ) : negotiations.slice(0, 4).map((n) => (
+              {negotiations.slice(0, 4).map((n) => (
                 <tr key={n?.id ?? Math.random()} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{(n?.id ?? "").slice(0, 12)}</MonoText></td>
+                  <td className="px-4 py-3"><span className="text-xs font-bold text-primary truncate">{(n?.id ?? "").slice(0, 12)}</span></td>
                   <td className="px-4 py-3"><StateBadge name={n?.name ?? ""} /></td>
-                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{n?.peer ?? ""}</MonoText></td>
-                  <td className="px-4 py-3 !text-[12px] font-normal text-muted-foreground">{n?.ts ?? ""}</td>
+                  <td className="px-4 py-3"><span className="text-xs text-foreground truncate block">{n?.peer ?? ""}</span></td>
+                  <td className="px-4 py-3"><span className="text-xs text-foreground" title={n?.ts ?? ""}>{n?.ts ?? ""}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        )}
       </Card>
 
       {/* Recent Transfers */}
@@ -184,6 +192,11 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
         title={<CardTitle icon={<ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />}><span className="font-bold">{t.dashboard.recentTransfers}</span></CardTitle>}
         actions={<ViewAllLink onClick={() => onNav(`/connectors/${conn.id}/transfer`)}>{t.dashboard.viewAll}</ViewAllLink>}
       >
+        {transfersError ? (
+          <ListError onRetry={() => transfersRefetch()} fetching={transfersFetching} />
+        ) : transfers.length === 0 ? (
+          <ListEmpty icon={<ArrowRightLeft />} message={t.dashboard.noResults} />
+        ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full">
             <thead className="bg-muted/50 border-b border-border">
@@ -194,23 +207,20 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {transfers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-6 text-center !text-[12px] text-muted-foreground">{t.dashboard.noResults}</td>
-                </tr>
-              ) : transfers.slice(0, 4).map((tr) => (
+              {transfers.slice(0, 4).map((tr) => (
                 <tr key={tr?.id ?? Math.random()} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{(tr?.id ?? "").slice(0, 12)}</MonoText></td>
+                  <td className="px-4 py-3"><span className="text-xs font-bold text-primary truncate">{(tr?.id ?? "").slice(0, 12)}</span></td>
                   <td className="px-4 py-3"><StateBadge name={tr?.name ?? ""} /></td>
-                  <td className="px-4 py-3"><MonoText className="!text-[12px] !font-normal">{tr?.asset ?? ""}</MonoText></td>
-                  <td className="px-4 py-3 !text-[12px] text-muted-foreground">{tr?.size ?? ""}</td>
-                  <td className="px-4 py-3 !text-[12px] text-muted-foreground">{tr?.t ?? ""}</td>
-                  <td className="px-4 py-3 !text-[12px] text-muted-foreground">{tr?.ts ?? ""}</td>
+                  <td className="px-4 py-3"><span className="text-xs text-foreground truncate block">{tr?.asset ?? ""}</span></td>
+                  <td className="px-4 py-3"><span className="text-xs text-foreground">{tr?.size ?? ""}</span></td>
+                  <td className="px-4 py-3"><span className="text-xs text-foreground">{tr?.t ?? ""}</span></td>
+                  <td className="px-4 py-3"><span className="text-xs text-foreground" title={tr?.ts ?? ""}>{tr?.ts ?? ""}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        )}
       </Card>
     </>
   );

@@ -8,18 +8,19 @@ import { fetchEDRs, fetchEDRStats } from "@/services";
 import { type EDR, type EDRStats } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  Card, Badge, AlertBanner, MonoText, ProgressBar, SectionHdr, CardTitle,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  Card, Badge, AlertBanner, ProgressBar, SectionHdr, CardTitle,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError,
 } from "@/components/ui-kmx";
 
-const EDR_COLS = "grid-cols-[170px_1.7fr_90px_1.5fr_1.3fr_120px]";
+const EDR_COLS = "grid-cols-[170px_1.2fr_2.2fr_1.3fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import { Copy, Shield, Key, Clock } from "lucide-react";
 import { toast } from "sonner";
 
+// 마스킹은 토큰 실제 바이트를 노출하지 않는다 — 길이만 대략 힌트한 점(•) 표시.
 function maskToken(token: string) {
-  if (!token || token.length <= 12) return token || "—";
-  return token.slice(0, 10) + "...";
+  if (!token) return "—";
+  return "•".repeat(Math.min(12, Math.max(6, token.length)));
 }
 
 export default function PageEDR() {
@@ -29,7 +30,7 @@ export default function PageEDR() {
   const [alert, setAlert] = useState(true);
   const [confirmCopy, setConfirmCopy] = useState<string | null>(null);
 
-  const { data: edrs = [] } = useQuery({
+  const { data: edrs = [], isError, refetch, isFetching } = useQuery({
     queryKey: ["edrs", connectorId],
     queryFn: () => fetchEDRs(connectorId!),
     enabled: !!connectorId,
@@ -74,18 +75,20 @@ export default function PageEDR() {
 
       {/* EDR List — Desktop */}
       <ListCard
-        title={t.edr.listTitle}        actions={<span className="text-[12px] text-muted-foreground">{t.edr.authCodeMasked}</span>}
+        title={t.edr.listTitle}
+        actions={<span className="text-[11px] text-muted-foreground">{t.edr.authCodeMasked}</span>}
         className="hidden md:block"
       >
-        {edrs.length === 0 ? (
+        {isError ? (
+          <ListError onRetry={() => refetch()} fetching={isFetching} />
+        ) : edrs.length === 0 ? (
           <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
         ) : (
           <>
             <ListHeaderRow cols={EDR_COLS}>
               <ListColLabel>{t.edr.col.id}</ListColLabel>
               <ListColLabel>{t.edr.col.remaining}</ListColLabel>
-              <ListColLabel>{t.edr.col.provider}</ListColLabel>
-              <ListColLabel className="hidden lg:block">{t.edr.col.endpoint}</ListColLabel>
+              <ListColLabel>{t.edr.col.provider} / {t.edr.col.endpoint}</ListColLabel>
               <ListColLabel className="hidden xl:block">{t.edr.col.authCode}</ListColLabel>
               <ListColLabel>{t.edr.col.status}</ListColLabel>
             </ListHeaderRow>
@@ -98,8 +101,10 @@ export default function PageEDR() {
 
       {/* Mobile: Card Stack */}
       <div className="md:hidden flex flex-col gap-3">
-        {edrs.length === 0 ? (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">{t.dashboard.noResults}</div>
+        {isError ? (
+          <ListError onRetry={() => refetch()} fetching={isFetching} />
+        ) : edrs.length === 0 ? (
+          <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
         ) : edrs.map((e) => (
           <EDRCard key={e.tpId} edr={e} onCopyAuth={(token) => setConfirmCopy(token)} />
         ))}
@@ -144,8 +149,8 @@ function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) 
   return (
     <ListRow cols={EDR_COLS}>
       <div className="min-w-0">
-        <MonoText className="!text-[12px] !font-normal block truncate">{e.tpId}</MonoText>
-        <div className="text-[11px] font-normal text-muted-foreground truncate">{e.asset}</div>
+        <span className="text-xs font-bold text-primary block truncate">{e.tpId}</span>
+        <div className="text-xs text-foreground truncate">{e.asset}</div>
       </div>
       <div className="min-w-0">
         <div className="flex justify-end text-[12px] mb-1">
@@ -155,16 +160,15 @@ function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) 
         </div>
         <ProgressBar value={pct} colorClass={colorClass} />
       </div>
-      <div>
-        <MonoText className="!text-[12px] !font-normal">{e.prov}</MonoText>
-      </div>
-      <div className="hidden lg:block min-w-0">
+      <div className="min-w-0 space-y-0.5">
+        <span className="text-xs text-foreground truncate block" title={e.prov}>{e.prov}</span>
         <div className="flex items-center gap-1 min-w-0">
-          <MonoText className="!text-[12px] !font-normal truncate">{e.endpoint || "—"}</MonoText>
+          <span className="text-xs text-muted-foreground truncate" title={e.endpoint || ""}>{e.endpoint || "—"}</span>
           {e.endpoint && (
             <button
               onClick={() => { navigator.clipboard.writeText(e.endpoint!); toast.success(t.edr.endpointCopied); }}
-              className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0"
+              className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+              aria-label={t.edr.endpoint}
             >
               <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
             </button>
@@ -173,9 +177,13 @@ function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) 
       </div>
       <div className="hidden xl:block">
         <div className="flex items-center gap-1">
-          <MonoText className="!text-[12px] !font-normal">{maskToken(e.authCode ?? "")}</MonoText>
+          <span className="text-xs text-foreground">{maskToken(e.authCode ?? "")}</span>
           {e.authCode && (
-            <button onClick={() => onCopyAuth(e.authCode!)} className="opacity-60 hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onCopyAuth(e.authCode!)}
+              aria-label={t.edr.copyAuthCode}
+              className="opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+            >
               <Copy className="w-3 h-3 text-muted-foreground" />
             </button>
           )}
@@ -202,12 +210,12 @@ function EDRCard({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string)
   return (
     <div className="bg-card rounded-xl p-3 shadow-sm border border-border">
       <div className="flex items-center justify-between mb-2">
-        <MonoText className="text-[12px] font-medium">{e.tpId}</MonoText>
+        <span className="text-xs font-bold text-primary">{e.tpId}</span>
         <Badge variant={isCritical ? "red" : isWarn ? "amber" : "green"}>
           {isCritical ? t.edr.critical : isWarn ? t.edr.expiring : t.edr.active}
         </Badge>
       </div>
-      <div className="text-[11px] text-muted-foreground mb-2">{e.asset} · {e.prov}</div>
+      <div className="text-xs text-foreground mb-2">{e.asset} · {e.prov}</div>
       <div className="flex items-center gap-2 text-[11px] mb-1">
         <span className="text-muted-foreground">{t.edr.remaining}</span>
         <span className={`font-medium ${isCritical ? "text-rose-600 animate-pulse" : isWarn ? "text-amber-600" : ""}`}>
@@ -217,7 +225,7 @@ function EDRCard({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string)
       <ProgressBar value={pct} colorClass={colorClass} />
       {e.authCode && (
         <div className="flex items-center gap-2 mt-2">
-          <button onClick={() => onCopyAuth(e.authCode!)} className="text-[11px] text-primary hover:text-primary/80 font-medium flex items-center gap-1">
+          <button onClick={() => onCopyAuth(e.authCode!)} className="text-[11px] text-primary hover:text-primary/80 font-medium flex items-center gap-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded">
             <Copy className="w-3 h-3" /> {t.edr.copyAuthCode}
           </button>
         </div>

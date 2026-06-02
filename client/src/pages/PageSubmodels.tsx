@@ -1,6 +1,6 @@
 // Connector Hub — Semantic Models (Tractus-X SAMM, local Postgres CRUD)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import {
@@ -9,26 +9,22 @@ import {
 } from "@/services";
 import type { SemanticModel, SemanticModelStatus, SemanticModelSummary } from "@/lib/data";
 import {
-  Card, Badge, MonoText, SectionHdr, FormField,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  Card, Badge, SectionHdr, FormField, PrimaryActionButton, inputBase,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError,
 } from "@/components/ui-kmx";
 
 const SUBMODEL_COLS = "grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { SlidePanel } from "@/components/DetailDeleteDialogs";
+import { SlidePanel, InfoCard, DetailSection, DeleteConfirmDialog } from "@/components/DetailDeleteDialogs";
 import { RoleGate } from "@/components/RoleGate";
+import { cn } from "@/lib/utils";
+import { SammTree } from "@/components/SammTree";
+import { parseSammAspect } from "@/lib/samm";
 import {
-  Layers, Search, RefreshCw, Loader2, AlertCircle,
-  PlusCircle, Pencil, Trash2, Copy, Download, Shapes, X,
+  Layers, Search, RefreshCw, Loader2, AlertCircle, CheckCircle2,
+  PlusCircle, Pencil, Trash2, Copy, Download, Shapes, X, Lock,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
 
 const STATUSES: SemanticModelStatus[] = ["DRAFT", "RELEASED", "STANDARDIZED", "DEPRECATED"];
 const STATUS_VARIANT: Record<SemanticModelStatus, "gray" | "blue" | "green" | "amber"> = {
@@ -85,17 +81,6 @@ export default function PageSubmodels() {
 
   const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
 
-  const onDeleted = async () => {
-    if (!deleteTarget) return;
-    try {
-      await deleteSemanticModel(deleteTarget.urn);
-      toast.success(t.submodels.msg.deleted(deleteTarget.name));
-      setDeleteTarget(null);
-      qc.invalidateQueries({ queryKey: ["semantic-models"] });
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
 
   return (
     <>
@@ -107,19 +92,18 @@ export default function PageSubmodels() {
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border border-border hover:bg-muted disabled:opacity-50"
+              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border border-border hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             >
               <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
               {t.submodels.refresh}
             </button>
             <RoleGate permission="resource:write">
-              <button
+              <PrimaryActionButton
                 onClick={() => { setEditorMode("create"); setEditorUrn(null); setEditorOpen(true); }}
-                className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                icon={<PlusCircle className="w-3 h-3" />}
               >
-                <PlusCircle className="w-3 h-3" />
                 {t.submodels.create}
-              </button>
+              </PrimaryActionButton>
             </RoleGate>
           </div>
         }
@@ -136,7 +120,8 @@ export default function PageSubmodels() {
             placeholder={t.submodels.searchPlaceholder}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+            aria-label={t.submodels.searchPlaceholder}
+            className={`${inputBase} pl-8`}
           />
         </div>
       </div>
@@ -152,28 +137,13 @@ export default function PageSubmodels() {
 
       {!isLoading && isError && (
         <Card>
-          <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <div className="flex items-center gap-2 text-rose-600">
-              <AlertCircle className="w-4 h-4" />
-              <span className="text-[13px] font-medium">{t.common.loadFailed}</span>
-            </div>
-            <button
-              onClick={() => refetch()}
-              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted"
-            >
-              <RefreshCw className="w-3 h-3" />
-              {t.common.retry}
-            </button>
-          </div>
+          <ListError onRetry={() => refetch()} fetching={isFetching} />
         </Card>
       )}
 
       {!isLoading && !isError && items.length === 0 && (
         <Card>
-          <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
-            <Layers className="w-6 h-6" />
-            <span className="text-[13px]">{t.submodels.empty}</span>
-          </div>
+          <ListEmpty icon={<Layers />} message={t.submodels.empty} />
         </Card>
       )}
 
@@ -196,25 +166,25 @@ export default function PageSubmodels() {
             paginatedData.map((m) => (
               <ListRow key={m.urn} cols={SUBMODEL_COLS} onClick={() => setDetailUrn(m.urn)}>
                 <div className="min-w-0">
-                  <span className="text-[12px] font-medium text-primary group-hover:text-primary/80 truncate block">{m.name}</span>
+                  <span className="text-xs font-bold text-primary truncate block">{m.name}</span>
                 </div>
                 <div className="min-w-0">
-                  <MonoText className="!text-[12px] !font-normal text-muted-foreground truncate block">{m.urn}</MonoText>
+                  <span className="text-xs text-foreground truncate block">{m.urn}</span>
                 </div>
                 <div>
-                  <MonoText className="!text-[12px] !font-normal">{m.version || "—"}</MonoText>
+                  <span className="text-xs text-foreground">{m.version || "—"}</span>
                 </div>
                 <div>
                   <Badge variant={STATUS_VARIANT[m.status]}>{m.status}</Badge>
                 </div>
                 <div className="hidden lg:block">
-                  <span className="text-[12px] font-normal">{m.modelType}</span>
+                  <span className="text-xs text-foreground">{m.modelType}</span>
                 </div>
                 <div className="hidden xl:block">
-                  <span className="text-[12px] font-normal text-muted-foreground">{formatBytes(m.contentBytes)}</span>
+                  <span className="text-xs text-foreground">{formatBytes(m.contentBytes)}</span>
                 </div>
                 <div className="hidden xl:block min-w-0">
-                  <span className="text-[12px] font-normal text-muted-foreground truncate block">{formatDate(m.updatedAt, locale)}</span>
+                  <span className="text-xs text-foreground truncate block" title={formatDate(m.updatedAt, locale)}>{formatDate(m.updatedAt, locale)}</span>
                 </div>
               </ListRow>
             ))
@@ -256,26 +226,15 @@ export default function PageSubmodels() {
       />
 
       {/* Delete confirm */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t.submodels.delete.title}</AlertDialogTitle>
-            <AlertDialogDescription>{t.submodels.delete.message}</AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteTarget && (
-            <div className="text-[12px] text-muted-foreground">
-              <div><strong className="text-foreground">{deleteTarget.name}</strong></div>
-              <MonoText className="!text-[11px] block break-all">{deleteTarget.urn}</MonoText>
-            </div>
-          )}
-          <div className="flex justify-end gap-2 mt-4">
-            <AlertDialogCancel>{t.submodels.form.cancel}</AlertDialogCancel>
-            <AlertDialogAction onClick={onDeleted} className="bg-rose-600 hover:bg-rose-700">
-              {t.common.delete}
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        itemName={deleteTarget?.name ?? ""}
+        subtitle={deleteTarget?.urn}
+        onConfirm={async () => { if (deleteTarget) await deleteSemanticModel(deleteTarget.urn); }}
+        queryKeys={[["semantic-models"]]}
+        successMessage={deleteTarget ? t.submodels.msg.deleted(deleteTarget.name) : undefined}
+      />
     </>
   );
 }
@@ -292,6 +251,9 @@ function SemanticModelDetailDialog({
   const { t, locale } = useI18n();
   const [model, setModel] = useState<SemanticModel | null>(null);
   const [loading, setLoading] = useState(false);
+  const [contentView, setContentView] = useState<"tree" | "raw">("tree");
+  // SAMM 본문을 구조 트리로 파싱(실패 시 null → 원문 폴백)
+  const aspect = useMemo(() => parseSammAspect(model?.content ?? ""), [model?.content]);
 
   useEffect(() => {
     if (!urn) { setModel(null); return; }
@@ -322,133 +284,138 @@ function SemanticModelDetailDialog({
   };
 
   return (
-    <SlidePanel open={!!urn} onClose={onClose}>
+    <SlidePanel open={!!urn} onClose={onClose} className="sm:max-w-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="px-5 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 flex-wrap pr-8">
           <Layers className="w-4 h-4 text-violet-500 flex-shrink-0" />
-          <p className="font-display text-[14px] font-bold text-foreground truncate">{model?.name ?? t.submodels.detail.title}</p>
+          <h2 className="text-[15px] font-semibold text-foreground truncate">{model?.name ?? t.submodels.detail.title}</h2>
           {model && <Badge variant={STATUS_VARIANT[model.status]}>{model.status}</Badge>}
+          <button
+            onClick={onClose}
+            className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label={t.common.close}
+          >
+            <X size={16} />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-          aria-label={t.common.close}
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
-      {/* Content */}
+      {/* Body */}
       {loading || !model ? (
         <div className="flex-1 flex items-center justify-center py-10 gap-2 text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />
           <span className="text-[13px]">{t.common.loading}</span>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-3 text-[12px] min-w-0">
-            <DetailRow label="URN" value={model.urn} mono onCopy={(s) => copy(s, t.submodels.detail.copyUrn)} />
-            <DetailRow label={t.submodels.col.version} value={model.version || "—"} mono />
-            <DetailRow label={t.submodels.col.modelType} value={model.modelType} />
-            {model.descriptionKo && (
-              <DetailRow label={t.submodels.form.descriptionKo} value={model.descriptionKo} />
-            )}
-            {model.descriptionEn && (
-              <DetailRow label={t.submodels.form.descriptionEn} value={model.descriptionEn} />
-            )}
-            <DetailRow label="Created" value={formatDate(model.createdAt, locale)} />
-            <DetailRow label="Updated" value={formatDate(model.updatedAt, locale)} />
-
-            <div className="pt-2 border-t border-border min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  {t.submodels.detail.content}
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => copy(model.content)}
-                    disabled={!model.content}
-                    className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted disabled:opacity-50"
-                  >
-                    <Copy className="w-3 h-3" />
-                    {t.submodels.detail.copyContent}
-                  </button>
-                  <button
-                    onClick={downloadContent}
-                    disabled={!model.content}
-                    className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted disabled:opacity-50"
-                  >
-                    <Download className="w-3 h-3" />
-                    {t.submodels.detail.downloadContent}
-                  </button>
-                </div>
-              </div>
-              {model.content ? (
-                <pre className="max-h-[40vh] overflow-auto bg-muted/40 border border-border rounded p-3 text-[11px] mono leading-relaxed whitespace-pre">
-                  {model.content}
-                </pre>
-              ) : (
-                <div className="text-[12px] text-muted-foreground py-4 text-center">
-                  {t.submodels.detail.noContent}
-                </div>
-              )}
+        <div className="flex-1 overflow-auto p-5 space-y-5 text-xs">
+          {/* 기본 정보 */}
+          <DetailSection title={t.submodels.detail.title}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <InfoCard label="URN" value={model.urn} span mono copyable={model.urn} />
+              <InfoCard label={t.submodels.col.version} value={model.version || "—"} mono />
+              <InfoCard label={t.submodels.col.modelType} value={model.modelType} />
+              <InfoCard label={t.submodels.col.created} value={formatDate(model.createdAt, locale)} />
+              <InfoCard label={t.submodels.col.updated} value={formatDate(model.updatedAt, locale)} />
+              {model.descriptionKo && <InfoCard label={t.submodels.form.descriptionKo} value={model.descriptionKo} span />}
+              {model.descriptionEn && <InfoCard label={t.submodels.form.descriptionEn} value={model.descriptionEn} span />}
             </div>
-          </div>
+          </DetailSection>
+
+          {/* Content */}
+          <DetailSection
+            title={t.submodels.detail.content}
+            action={
+              <div className="flex items-center gap-1">
+                {aspect && (
+                  <div className="flex rounded-md border border-border overflow-hidden mr-1">
+                    <button
+                      onClick={() => setContentView("tree")}
+                      aria-pressed={contentView === "tree"}
+                      className={cn("text-[11px] px-2 py-0.5 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", contentView === "tree" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
+                    >
+                      {t.submodels.detail.viewTree}
+                    </button>
+                    <button
+                      onClick={() => setContentView("raw")}
+                      aria-pressed={contentView === "raw"}
+                      className={cn("text-[11px] px-2 py-0.5 border-l border-border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", contentView === "raw" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
+                    >
+                      {t.submodels.detail.viewRaw}
+                    </button>
+                  </div>
+                )}
+                <button
+                  onClick={() => copy(model.content)}
+                  disabled={!model.content}
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                >
+                  <Copy className="w-3 h-3" /> {t.submodels.detail.copyContent}
+                </button>
+                <button
+                  onClick={downloadContent}
+                  disabled={!model.content}
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                >
+                  <Download className="w-3 h-3" /> {t.submodels.detail.downloadContent}
+                </button>
+              </div>
+            }
+          >
+            {model.content ? (
+              aspect && contentView === "tree" ? (
+                <SammTree aspect={aspect} />
+              ) : (
+                <>
+                  {!aspect && (
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] text-amber-600">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      {t.submodels.detail.parseFailed}
+                    </div>
+                  )}
+                  <pre className="max-h-[40vh] overflow-auto bg-muted/30 border border-border rounded-lg p-3 text-[11px] mono leading-relaxed whitespace-pre text-foreground">
+                    {model.content}
+                  </pre>
+                </>
+              )
+            ) : (
+              <div className="text-[12px] text-muted-foreground py-4 text-center">{t.submodels.detail.noContent}</div>
+            )}
+          </DetailSection>
         </div>
-        )}
+      )}
 
       {/* Footer */}
-      <RoleGate permission="resource:write">
-          <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
-            <button
-              onClick={onEdit}
-              disabled={!model}
-              className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50"
-            >
-              <Pencil className="w-3 h-3" />
-              {t.common.edit}
-            </button>
-            <button
-              onClick={() => model && onDelete({
-                urn: model.urn, name: model.name, version: model.version, status: model.status,
-                modelType: model.modelType, descriptionKo: model.descriptionKo, descriptionEn: model.descriptionEn,
-                contentBytes: model.content?.length ?? 0, createdAt: model.createdAt, updatedAt: model.updatedAt,
-              })}
-              disabled={!model}
-              className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-            >
-              <Trash2 className="w-3 h-3" />
-              {t.common.delete}
-            </button>
-          </div>
-        </RoleGate>
-    </SlidePanel>
-  );
-}
-
-function DetailRow({ label, value, mono, onCopy }: {
-  label: string; value: string; mono?: boolean; onCopy?: (s: string) => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className="min-w-0">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
-      <div className="flex items-start gap-2 group min-w-0">
-        {mono
-          ? <MonoText className="!text-[12px] !font-normal break-all flex-1 min-w-0">{value || "—"}</MonoText>
-          : <span className="flex-1 break-words min-w-0">{value || "—"}</span>}
-        {onCopy && value && (
+      <div className="px-5 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
+        <RoleGate permission="resource:write">
           <button
-            onClick={() => onCopy(value)}
-            className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
-            aria-label={t.common.copy ?? "Copy"}
+            onClick={onEdit}
+            disabled={!model}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           >
-            <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+            <Pencil size={13} /> {t.common.edit}
           </button>
-        )}
+          <button
+            onClick={() => model && onDelete({
+              urn: model.urn, name: model.name, version: model.version, status: model.status,
+              modelType: model.modelType, descriptionKo: model.descriptionKo, descriptionEn: model.descriptionEn,
+              contentBytes: model.content?.length ?? 0, createdAt: model.createdAt, updatedAt: model.updatedAt,
+            })}
+            disabled={!model}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
+          >
+            <Trash2 size={13} /> {t.common.delete}
+          </button>
+        </RoleGate>
+        <div className="flex-1" />
+        <button
+          onClick={onClose}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors"
+        >
+          <X size={13} /> {t.common.close}
+        </button>
       </div>
-    </div>
+    </SlidePanel>
   );
 }
 
@@ -473,6 +440,9 @@ function SemanticModelEditorDialog({
   const [descriptionEn, setDescriptionEn] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // 입력 TTL의 구조 인식 여부 — 정보성 피드백(저장은 막지 않음)
+  const editAspect = useMemo(() => (content.trim() ? parseSammAspect(content) : null), [content]);
 
   const reset = () => {
     setUrn(""); setName(""); setVersion(""); setStatus("DRAFT"); setModelType("SAMM");
@@ -548,7 +518,7 @@ function SemanticModelEditorDialog({
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <PlusCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
-          <p className="font-display text-[14px] font-bold text-foreground truncate">
+          <p className="text-[15px] font-semibold text-foreground truncate">
             {mode === "edit" ? t.submodels.edit : t.submodels.create}
           </p>
         </div>
@@ -569,21 +539,24 @@ function SemanticModelEditorDialog({
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-3 min-w-0">
-            <FormField label={t.submodels.form.urn} required hint={t.submodels.form.urnHint}>
-              <input
-                value={urn}
-                onChange={(e) => setUrn(e.target.value)}
-                disabled={mode === "edit"}
-                placeholder="urn:samm:io.catenax.pcf:7.0.0#Pcf"
-                className="w-full px-2.5 py-1.5 text-[12px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed"
-              />
+            <FormField label={t.submodels.form.urn} required hint={mode === "edit" ? t.submodels.urnImmutable : t.submodels.form.urnHint}>
+              <div className="relative">
+                {mode === "edit" && <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />}
+                <input
+                  value={urn}
+                  onChange={(e) => setUrn(e.target.value)}
+                  disabled={mode === "edit"}
+                  placeholder="urn:samm:io.catenax.pcf:7.0.0#Pcf"
+                  className={cn(inputBase, "mono", mode === "edit" && "pl-8")}
+                />
+              </div>
             </FormField>
             <FormField label={t.submodels.form.name} required>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Pcf"
-                className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                className={inputBase}
               />
             </FormField>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0">
@@ -592,14 +565,14 @@ function SemanticModelEditorDialog({
                   value={version}
                   onChange={(e) => setVersion(e.target.value)}
                   placeholder="7.0.0"
-                  className="w-full px-2.5 py-1.5 text-[12px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                  className={`${inputBase} mono`}
                 />
               </FormField>
               <FormField label={t.submodels.form.status}>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as SemanticModelStatus)}
-                  className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className={inputBase}
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>{s}</option>
@@ -610,7 +583,7 @@ function SemanticModelEditorDialog({
                 <input
                   value={modelType}
                   onChange={(e) => setModelType(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                  className={inputBase}
                 />
               </FormField>
             </div>
@@ -619,7 +592,7 @@ function SemanticModelEditorDialog({
                 value={descriptionKo}
                 onChange={(e) => setDescriptionKo(e.target.value)}
                 lang="ko"
-                className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                className={inputBase}
               />
             </FormField>
             <FormField label={t.submodels.form.descriptionEn}>
@@ -627,7 +600,7 @@ function SemanticModelEditorDialog({
                 value={descriptionEn}
                 onChange={(e) => setDescriptionEn(e.target.value)}
                 lang="en"
-                className="w-full px-2.5 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                className={inputBase}
               />
             </FormField>
             <FormField label={t.submodels.form.content} hint={t.submodels.form.contentHint}>
@@ -637,11 +610,24 @@ function SemanticModelEditorDialog({
                 rows={14}
                 spellCheck={false}
                 placeholder={`@prefix samm: <urn:samm:org.eclipse.esmf.samm:meta-model:2.1.0#> .\n@prefix : <urn:samm:io.catenax.pcf:7.0.0#> .\n\n:Pcf a samm:Aspect ;\n   samm:preferredName "PCF"@en ;\n   samm:properties ( ) ;\n   samm:operations ( ) .\n`}
-                className="w-full px-2 py-1.5 text-[11px] mono border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary whitespace-pre overflow-auto"
+                className={`${inputBase} mono !text-[11px] whitespace-pre overflow-auto`}
                 style={{ resize: "vertical" }}
               />
-              <div className="text-[10px] text-muted-foreground text-right">
-                {formatBytes(new Blob([content]).size)} / 256 KB
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                {content.trim() ? (
+                  editAspect ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" /> {t.submodels.form.structureOk}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-600">
+                      <AlertCircle className="w-3 h-3" /> {t.submodels.form.structureUnparsed}
+                    </span>
+                  )
+                ) : <span />}
+                <span className="text-[10px] text-muted-foreground">
+                  {formatBytes(new Blob([content]).size)} / 256 KB
+                </span>
               </div>
             </FormField>
           </div>
@@ -651,18 +637,17 @@ function SemanticModelEditorDialog({
       <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
         <button
           onClick={() => { reset(); onClose(); }}
-          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted"
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
           {t.submodels.form.cancel}
         </button>
-        <button
+        <PrimaryActionButton
           onClick={submit}
           disabled={submitting || loading}
-          className="flex items-center gap-1 text-[12px] px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          icon={submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : undefined}
         >
-          {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
           {mode === "edit" ? t.submodels.form.update : t.submodels.form.submit}
-        </button>
+        </PrimaryActionButton>
       </div>
     </SlidePanel>
   );

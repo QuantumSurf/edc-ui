@@ -9,10 +9,10 @@ import { type Negotiation } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, StateBadge, MonoText, SectionHdr, ListEmpty,
+  Card, StateBadge, SectionHdr, ListEmpty, ListError, inputBase,
 } from "@/components/ui-kmx";
-import { ConfirmActionDialog, JsonViewerDialog } from "@/components/DetailDeleteDialogs";
-import { FileText, AlertCircle, Copy, XCircle, Search, Loader2, RefreshCw, Clock, Package, X, ChevronsRight, Code, Send, List } from "lucide-react";
+import { ConfirmActionDialog, JsonViewerDialog, InfoCard } from "@/components/DetailDeleteDialogs";
+import { FileText, AlertCircle, Copy, XCircle, Search, Loader2, Clock, X, ChevronsRight, Code, Send, List, Check } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
@@ -159,7 +159,8 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
             placeholder={t.negotiations.searchPlaceholder}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+            aria-label={t.negotiations.searchPlaceholder}
+            className={`${inputBase} pl-8`}
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -167,7 +168,8 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
             <button
               key={f}
               onClick={() => { setFilter(f); setCurrentPage(1); }}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
+              aria-pressed={filter === f}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                 filter === f
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -183,7 +185,8 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
             <button
               key={r.value}
               onClick={() => { setTimeRange(r.value); setCurrentPage(1); }}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
+              aria-pressed={timeRange === r.value}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                 timeRange === r.value
                   ? "bg-foreground text-background border-foreground shadow-sm"
                   : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -212,20 +215,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
           {/* Error state */}
           {!isLoading && isError && (
             <Card>
-              <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <div className="flex items-center gap-2 text-rose-600">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="text-[13px] font-medium">{t.common.loadFailed}</span>
-                </div>
-                <button
-                  onClick={() => refetch()}
-                  disabled={isFetching}
-                  className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted text-foreground/80 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
-                  {t.common.retry}
-                </button>
-              </div>
+              <ListError onRetry={() => refetch()} fetching={isFetching} />
             </Card>
           )}
 
@@ -234,7 +224,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
           {/* Desktop/Tablet: Table — asset-list style */}
           <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+              <span className="font-display text-[14px] font-bold text-foreground flex items-center gap-2 truncate">
                 <List className="w-4 h-4 text-primary" />
                 {t.negotiations.listTitle}
               </span>
@@ -253,11 +243,11 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {paginatedData.map((n) => (
-                    <tr key={n.id} className="table-row-hover group cursor-pointer" onClick={() => setDetailTarget(n)}>
+                    <tr key={n.id} className="table-row-hover group cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary" onClick={() => setDetailTarget(n)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(n); } }}>
                       <td className="px-4 py-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
-                            <MonoText className="!text-[12px] !font-normal truncate text-primary group-hover:text-primary/80">{n.id}</MonoText>
+                            <span className="text-xs text-foreground truncate">{n.id}</span>
                             <button
                               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }}
                               className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
@@ -267,26 +257,27 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                             </button>
                           </div>
                           {n.assetId ? (
-                            <MonoText className="!text-[12px] !font-normal block truncate">{n.assetId}</MonoText>
+                            <span className="text-xs font-bold text-primary block truncate">{n.assetId}</span>
                           ) : (
-                            <div className="text-[12px] font-normal text-muted-foreground/50">—</div>
+                            <div className="text-xs text-muted-foreground/50">—</div>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3"><StateBadge name={n.name} /></td>
                       <td className="px-4 py-3">
-                        <MonoText className="!text-[12px] !font-normal block truncate max-w-[240px]">{n.peer}</MonoText>
+                        <span className="text-xs text-foreground block break-all">{n.peer}</span>
                       </td>
-                      <td className="px-4 py-3 text-[12px] font-normal text-muted-foreground">{n.t}</td>
-                      <td className="px-4 py-3 text-[12px] font-normal text-muted-foreground whitespace-nowrap">{n.ts}</td>
+                      <td className="px-4 py-3"><span className="text-xs text-foreground">{n.t}</span></td>
+                      <td className="px-4 py-3 whitespace-nowrap"><span className="text-xs text-foreground" title={n.ts}>{n.ts}</span></td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           {n.name === "FINALIZED" && (
                             <RoleGate permission="transaction:write">
                               <button
                                 onClick={() => handleTransferStart(n)}
-                                className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap"
+                                className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
                               >
+                                <Send className="w-3 h-3" />
                                 {t.negotiations.startTransfer}
                               </button>
                             </RoleGate>
@@ -294,8 +285,9 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                           {n.name === "TERMINATED" && (
                             <button
                               onClick={() => handleTerminatedDetail(n)}
-                              className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap"
+                              className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
                             >
+                              <AlertCircle className="w-3 h-3" />
                               {t.negotiations.errorDetail}
                             </button>
                           )}
@@ -317,10 +309,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                 </tbody>
               </table>
               {rows.length === 0 && (
-                <div className="py-12 text-center">
-                  <Package size={32} className="text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t.negotiations.noResults}</p>
-                </div>
+                <ListEmpty icon={<FileText />} message={t.negotiations.noResults} />
               )}
               {totalItems > 0 && (
                 <DataTablePagination
@@ -386,27 +375,6 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
 }
 
 /* ─── Detail Sheet (asset-style card grid) ───────────────────── */
-function InfoCard({ label, value, span, mono, copyable }: { label: string; value: React.ReactNode; span?: boolean; mono?: boolean; copyable?: string }) {
-  const { t } = useI18n();
-  return (
-    <div className={cn("bg-slate-50 rounded-lg border border-slate-100 px-3 py-2", span && "md:col-span-2")}>
-      <p className="text-slate-500">{label}</p>
-      <div className="flex items-start gap-1.5 mt-0.5">
-        <p className={cn("text-slate-700 break-all flex-1", mono && "mono")}>{value || "—"}</p>
-        {copyable && (
-          <button
-            onClick={() => { navigator.clipboard.writeText(copyable); toast.success(t.common.copied); }}
-            className="flex-shrink-0 text-slate-400 hover:text-slate-700 transition-colors mt-0.5"
-            aria-label={t.common.copy}
-          >
-            <Copy size={12} />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function NegotiationDetailSheet({
   target, onClose, onShowJson, onTransfer, onTerminate,
 }: {
@@ -441,22 +409,32 @@ function NegotiationDetailSheet({
       />
       <aside
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-white flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl",
           entered ? "translate-x-0" : "translate-x-full",
         )}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
-          <div className="flex items-center gap-2 flex-wrap pr-8">
-            <h2 className="text-base font-semibold text-slate-900 truncate mono">{target.id}</h2>
+        <div className="px-6 py-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2 pr-8">
+            <h2 className="text-[15px] font-semibold text-foreground truncate">{t.negotiations.title}</h2>
             <StateBadge name={target.name} />
-            <span className="text-[11px] font-mono text-slate-400">{target.state}</span>
             <button
               onClick={onClose}
-              className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0"
               aria-label={t.common.close}
             >
               <X size={16} />
+            </button>
+          </div>
+          {/* UUID는 보조 식별자 줄로 강등 (복사 가능) */}
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-[11px] mono text-muted-foreground truncate">{target.id}</span>
+            <button
+              onClick={() => { navigator.clipboard.writeText(target.id); toast.success(t.common.copied); }}
+              className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors"
+              aria-label={t.common.copy}
+            >
+              <Copy size={11} />
             </button>
           </div>
         </div>
@@ -465,18 +443,17 @@ function NegotiationDetailSheet({
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
           {/* Timeline */}
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.negotiations.sectionTimeline}</p>
-            <div className="bg-slate-50 rounded-lg border border-slate-100 px-3 py-3">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.negotiations.sectionTimeline}</p>
+            <div className="bg-muted/30 rounded-lg border border-border px-3 py-3">
               <StateTimeline current={target.state} terminated={terminated} />
             </div>
           </div>
 
           {/* Basic */}
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.negotiations.sectionBasic}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.negotiations.sectionBasic}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InfoCard label={t.negotiations.col.id} value={target.id} span mono copyable={target.id} />
-              <InfoCard label={t.negotiations.col.state} value={`${target.name} (${target.state})`} />
+              <InfoCard label={t.negotiations.col.state} value={target.name} />
               <InfoCard label={t.negotiations.col.peer} value={target.peer} mono copyable={target.peer} />
               <InfoCard label={t.negotiations.col.duration} value={target.t} />
               <InfoCard label={t.negotiations.col.time} value={target.ts} />
@@ -485,7 +462,7 @@ function NegotiationDetailSheet({
 
           {/* References */}
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.negotiations.sectionRefs}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.negotiations.sectionRefs}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <InfoCard label={t.negotiations.col.asset} value={target.assetId} span mono copyable={target.assetId || undefined} />
               <InfoCard label={t.negotiations.agreementId} value={target.agreementId} span mono copyable={target.agreementId || undefined} />
@@ -496,18 +473,18 @@ function NegotiationDetailSheet({
           {/* Error */}
           {target.errorDetail && (
             <div>
-              <p className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-rose-500" />{t.negotiations.errorDetail}</p>
+              <p className="text-[11px] font-bold text-rose-600 uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-rose-500" />{t.negotiations.errorDetail}</p>
               <div className="bg-rose-50 rounded-lg border border-rose-100 px-3 py-2">
-                <p className="text-rose-700 break-all">{target.errorDetail}</p>
+                <p className="text-xs text-rose-700 break-all">{target.errorDetail}</p>
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-shrink-0">
+        <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
           <button onClick={onShowJson}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
             <Code size={13} /> JSON
           </button>
           <div className="flex-1" />
@@ -528,7 +505,7 @@ function NegotiationDetailSheet({
             </RoleGate>
           )}
           <button onClick={onClose}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-border text-foreground rounded-lg hover:bg-muted transition-colors">
             <X size={13} /> {t.common.close}
           </button>
         </div>
@@ -559,6 +536,7 @@ function StateTimeline({ current, terminated }: { current: number; terminated: b
         const isCurrent = current === s.code && !terminated;
         const isLast = idx === TIMELINE_STATES.length - 1 && !terminated;
         const failed = terminated && termIdx >= 0 && idx >= termIdx;
+        const completed = reached && !isCurrent && !failed;
         const dotClass = failed
           ? "bg-rose-500 border-rose-500"
           : reached
@@ -580,12 +558,13 @@ function StateTimeline({ current, terminated }: { current: number; terminated: b
         return (
           <div key={s.code} className="flex gap-2.5">
             <div className="flex flex-col items-center">
-              <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 mt-0.5 ${dotClass}`} />
+              <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${dotClass}`}>
+                {completed && <Check className="w-2 h-2 text-white" strokeWidth={4} />}
+              </div>
               {!isLast && <div className={`w-0.5 flex-1 min-h-[14px] ${lineClass}`} />}
             </div>
             <div className={isLast ? "" : "pb-3"}>
               <span className={`text-[12px] tracking-wide ${labelClass}`}>{s.name}</span>
-              <span className="text-[10px] font-mono text-muted-foreground/60 ml-1.5">{s.code}</span>
             </div>
           </div>
         );
@@ -653,21 +632,21 @@ function NegotiationCard({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <StateBadge name={n.name} />
-          <MonoText className="text-[11px]">{n.id.slice(0, 12)}</MonoText>
+          <span className="text-xs text-foreground">{n.id.slice(0, 12)}</span>
         </div>
         <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(n.id); toast.success(t.common.copied); }} aria-label={t.common.copy ?? "Copy"}>
           <Copy className="w-3 h-3 text-muted-foreground" />
         </button>
       </div>
-      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-        <MonoText className="text-[11px]">{n.peer}</MonoText>
-        <span>{n.t}</span>
-        <span className="ml-auto">{n.ts}</span>
+      <div className="flex items-center gap-3 text-xs text-foreground">
+        <span className="text-xs text-foreground break-all min-w-0">{n.peer}</span>
+        <span className="text-xs text-foreground">{n.t}</span>
+        <span className="text-xs text-foreground ml-auto">{n.ts}</span>
       </div>
       {n.assetId && (
-        <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-          <span className="uppercase tracking-wide text-[11px]">{t.negotiations.col.asset}:</span>
-          <MonoText className="text-[11px]">{n.assetId}</MonoText>
+        <div className="mt-1 flex items-center gap-1 text-xs text-foreground">
+          <span className="uppercase tracking-wide text-[11px] text-muted-foreground">{t.negotiations.col.asset}:</span>
+          <span className="text-xs font-bold text-primary truncate">{n.assetId}</span>
         </div>
       )}
       {n.name === "FINALIZED" && (

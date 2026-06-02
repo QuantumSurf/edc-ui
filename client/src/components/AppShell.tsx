@@ -3,7 +3,7 @@
 // Tablet: drawer sidebar + main
 // Mobile: full width + bottom Tab Bar (5 tabs)
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { useLocation } from "wouter";
@@ -206,7 +206,9 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
           <button
             onClick={onToggle}
             title={collapsed ? t.common.expand : t.common.collapse}
-            className="hidden lg:flex items-center justify-center w-5 h-5 rounded transition-colors"
+            aria-label={collapsed ? t.common.expand : t.common.collapse}
+            aria-expanded={!collapsed}
+            className="hidden lg:flex items-center justify-center w-5 h-5 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
             style={{ color: "oklch(0.60 0.06 240)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "oklch(0.60 0.06 240)"; }}
@@ -220,7 +222,7 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
       <ConnectorSelectorCard collapsed={collapsed} />
 
       {/* Nav Items */}
-      <nav className={cn("flex-1 overflow-y-auto py-3 px-2", collapsed && "px-2")}>
+      <nav aria-label={t.nav.primary} className={cn("flex-1 overflow-y-auto py-3 px-2", collapsed && "px-2")}>
         <div className="space-y-3">
         {groups.map((group, gi) => {
           const GroupIcon = group.Icon;
@@ -231,7 +233,8 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.key)}
-                  className="w-full flex items-center gap-1.5 text-[11px] uppercase tracking-widest px-2 mb-2 font-semibold transition-colors"
+                  aria-expanded={!isGroupCollapsed}
+                  className="w-full flex items-center gap-1.5 text-[11px] uppercase tracking-widest px-2 mb-2 font-semibold transition-colors rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70"
                   style={{ color: "oklch(0.58 0.08 240)" }}
                 >
                   {GroupIcon && <GroupIcon size={14} style={{ color: "oklch(0.62 0.08 240)" }} />}
@@ -250,8 +253,10 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
                       key={it.path}
                       onClick={() => handleNav(it.path)}
                       title={collapsed ? it.label : undefined}
+                      aria-label={collapsed ? it.label : undefined}
+                      aria-current={isActive ? "page" : undefined}
                       className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150 text-left relative",
+                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150 text-left relative focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70",
                         collapsed && "lg:justify-center lg:px-0",
                       )}
                       style={
@@ -305,8 +310,9 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
         <button
           onClick={() => openNotifications(true)}
           title={collapsed ? t.nav.notifications : undefined}
+          aria-label={unreadCount > 0 ? t.notifications.unreadCount(unreadCount) : t.nav.notifications}
           className={cn(
-            "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors relative",
+            "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70",
             collapsed && "lg:justify-center lg:px-0"
           )}
           style={{ color: "oklch(0.65 0.05 240)" }}
@@ -327,7 +333,8 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
         <button
           onClick={() => handleNav("/settings")}
           title={collapsed ? t.nav.settings : undefined}
-          className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors", collapsed && "lg:justify-center lg:px-0")}
+          aria-label={collapsed ? t.nav.settings : undefined}
+          className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70", collapsed && "lg:justify-center lg:px-0")}
           style={{ color: "oklch(0.65 0.05 240)" }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.38 0.10 240 / 0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "oklch(0.65 0.05 240)"; }}
@@ -338,7 +345,8 @@ function Sidebar({ className, style, collapsed, onToggle }: { className?: string
         <button
           onClick={logout}
           title={collapsed ? t.nav.signOut : undefined}
-          className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors", collapsed && "lg:justify-center lg:px-0")}
+          aria-label={collapsed ? t.nav.signOut : undefined}
+          className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70", collapsed && "lg:justify-center lg:px-0")}
           style={{ color: "oklch(0.65 0.05 240)" }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.38 0.10 240 / 0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "oklch(0.80 0.18 27)"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "oklch(0.65 0.05 240)"; }}
@@ -373,14 +381,16 @@ function Topbar() {
     const normalized = it.path.replace(/^\/connectors\/__id__/, "");
     if (!normalized) return location === it.path || location === "/";
     return locSuffix === normalized || locSuffix.startsWith(normalized + "/") || location === it.path;
-  })?.label;
+  })?.label
+    // 설정은 nav 그룹이 아닌 독립 버튼이라 allItems에 없음 → 폴백으로 라벨 부여
+    ?? (location === "/settings" ? t.nav.settings : undefined);
 
   const roleLabel = user?.role ?? "User";
 
   return (
     <header className="h-12 flex items-center gap-3 px-4 border-b border-border bg-card flex-shrink-0 shadow-sm">
       {/* Mobile menu */}
-      <button onClick={() => setDrawerOpen(true)} className="lg:hidden p-1 rounded hover:bg-muted transition-colors">
+      <button onClick={() => setDrawerOpen(true)} aria-label={t.common.menu} className="lg:hidden p-1 rounded hover:bg-muted transition-colors">
         <Menu className="w-4 h-4 text-muted-foreground" />
       </button>
 
@@ -447,6 +457,7 @@ function Topbar() {
 
 /* ─── Bottom Tab Bar (Mobile < 640px) ────────────────────────── */
 function BottomTabBar() {
+  const { t } = useI18n();
   const [location, navigate] = useLocation();
   const connector = useConnectorStore((s) => s.connector);
   const setDrawerOpen = useConnectorStore((s) => s.setDrawerOpen);
@@ -468,7 +479,7 @@ function BottomTabBar() {
   };
 
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border flex items-center justify-around h-14 px-1 safe-area-bottom">
+    <nav aria-label={t.common.menu} className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border flex items-center justify-around h-14 px-1 safe-area-bottom">
       {tabs.map(({ pathSuffix, label, Icon }) => {
         const active = isActive(pathSuffix);
         return (
@@ -481,8 +492,9 @@ function BottomTabBar() {
                 navigate(getPath(pathSuffix));
               }
             }}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-lg transition-colors",
+              "flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
               active ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
             )}
           >
@@ -544,6 +556,14 @@ export function AppShell({ children }: AppShellProps) {
   const { t } = useI18n();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // 모바일 드로어 ESC로 닫기
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawerOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen, setDrawerOpen]);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <NavigationLoadingDialog />
@@ -562,13 +582,22 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Mobile/Tablet Drawer */}
-      <div className={cn(
-        "fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col lg:hidden transition-transform duration-200",
-        drawerOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.common.menu}
+        className={cn(
+          "fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col lg:hidden transition-transform duration-200",
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         <div className="flex items-center justify-between px-4 h-11 bg-card border-b border-border">
           <span className="font-display font-semibold text-sm">{t.common.appName}</span>
-          <button onClick={() => setDrawerOpen(false)}>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            aria-label={t.common.close}
+            className="rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>

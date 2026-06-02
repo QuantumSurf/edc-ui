@@ -9,12 +9,13 @@ import { useI18n } from "@/i18n";
 import { fetchOfferings, fetchAssets, fetchPolicies, fetchNegotiations, createOffering, updateOffering, deleteOffering } from "@/services";
 import { type Asset, type Policy, type Offering } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel } from "@/components/DetailDeleteDialogs";
+import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel, InfoCard } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField, JsonTreeView,
+  Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField, JsonTreeView, PrimaryActionButton,
+  inputBase, ListError, ListEmpty,
 } from "@/components/ui-kmx";
-import { PlusCircle, Copy, Search, Loader2, RefreshCw, AlertCircle, Database, Shield, X, Code, CheckCircle2, FileSignature, Wand2, Pencil, Files, Trash2, ChevronsRight, List } from "lucide-react";
+import { PlusCircle, Copy, Search, Loader2, AlertCircle, Database, Shield, X, Code, CheckCircle2, FileSignature, Wand2, Pencil, Files, Trash2, ChevronsRight, List, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
@@ -101,13 +102,9 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
         breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
         action={
           <RoleGate permission="resource:write">
-            <button
-              onClick={() => switchTab("wizard")}
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors"
-            >
-              <PlusCircle className="w-3 h-3" />
+            <PrimaryActionButton onClick={() => switchTab("wizard")} icon={<PlusCircle className="w-3 h-3" />}>
               {t.offerings.createWizard}
-            </button>
+            </PrimaryActionButton>
           </RoleGate>
         }
       >{t.offerings.title}</SectionHdr>
@@ -115,14 +112,24 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
       {/* Search */}
           <div className="flex gap-2">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
                 placeholder={t.offerings.searchPlaceholder}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                aria-label={t.offerings.searchPlaceholder}
+                className={`${inputBase} pl-8 pr-8`}
               />
+              {search && (
+                <button
+                  onClick={() => { setSearch(""); setCurrentPage(1); }}
+                  aria-label={t.common.clear ?? "Clear"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -139,20 +146,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
           {/* Error state */}
           {!isLoading && isError && (
             <Card>
-              <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <div className="flex items-center gap-2 text-rose-600">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="text-[13px] font-medium">{t.common.loadFailed}</span>
-                </div>
-                <button
-                  onClick={() => refetch()}
-                  disabled={isFetching}
-                  className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted text-foreground/80 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
-                  {t.common.retry}
-                </button>
-              </div>
+              <ListError onRetry={() => refetch()} fetching={isFetching} />
             </Card>
           )}
 
@@ -160,7 +154,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
           {!isLoading && !isError && (
           <div className="hidden md:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+              <span className="font-display text-[14px] font-bold text-foreground flex items-center gap-2 truncate">
                 <List className="w-4 h-4 text-primary" />
                 {t.offerings.list}
               </span>
@@ -183,12 +177,15 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                       <tr
                         key={o.id}
                         onClick={() => setDetailTarget(o)}
-                        className={cn("table-row-hover cursor-pointer group", detailTarget?.id === o.id && "bg-primary/5")}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(o); } }}
+                        className={cn("table-row-hover cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", detailTarget?.id === o.id && "bg-primary/5")}
                       >
                         <td className="px-4 py-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <MonoText className="!text-[12px] font-medium !text-primary group-hover:text-primary/80 truncate block">{o.id}</MonoText>
+                              <span className="text-xs font-bold text-primary truncate block">{o.id}</span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(o.id); toast.success(t.common.copied); }}
                                 className="opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
@@ -202,7 +199,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                         </td>
                         <td className="px-4 py-3">
                           <span title={o.asset} className="block max-w-[220px]">
-                            <MonoText className="!text-[12px] !font-normal text-foreground truncate block">{o.asset || "—"}</MonoText>
+                            <span className="text-xs text-foreground truncate block">{o.asset || "—"}</span>
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -223,10 +220,9 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                 </tbody>
               </table>
               {filtered.length === 0 && (
-                <div className="py-12 text-center">
-                  <Database size={32} className="text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t.common.noResults}</p>
-                </div>
+                offerings.length === 0
+                  ? <EmptyOfferings onCreateClick={() => switchTab("wizard")} />
+                  : <ListEmpty icon={<Search />} message={t.common.noResults} />
               )}
               {totalItems > 0 && (
                 <DataTablePagination
@@ -249,7 +245,9 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
               <div key={o.id} onClick={() => setDetailTarget(o)} className="cursor-pointer"><OfferingCard offering={o} /></div>
             ))}
             {filtered.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground text-[12px]">{t.common.noResults}</div>
+              offerings.length === 0
+                ? <EmptyOfferings onCreateClick={() => switchTab("wizard")} />
+                : <ListEmpty icon={<Search />} message={t.common.noResults} />
             )}
           </div>
           )}
@@ -312,15 +310,6 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
 }
 
 /* ─── Offering Detail Sheet (asset-style) ────────────────────── */
-function InfoCard({ label, value, span, mono }: { label: string; value: React.ReactNode; span?: boolean; mono?: boolean }) {
-  return (
-    <div className={cn("bg-slate-50 rounded-lg border border-slate-100 px-3 py-2", span && "md:col-span-2")}>
-      <p className="text-slate-500">{label}</p>
-      <p className={cn("text-slate-700 mt-0.5 break-all", mono && "mono")}>{value || "—"}</p>
-    </div>
-  );
-}
-
 function OfferingDetailSheet({
   target, policies, negotiations,
   onClose, onEdit, onDuplicate, onShowJson, onDelete, deleteDisabledReason,
@@ -365,24 +354,24 @@ function OfferingDetailSheet({
       />
       <aside
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-white flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl",
           entered ? "translate-x-0" : "translate-x-full",
         )}
       >
-        <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
+        <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
-            <h2 className="text-base font-semibold text-slate-900 truncate">{target.id}</h2>
+            <h2 className="text-[15px] font-semibold text-foreground truncate">{target.id}</h2>
             <Badge variant="purple" className="!font-normal">{t.offerings.assetCount(assetIds.length)}</Badge>
             <span className={cn(
               "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border",
-              target.cnt > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
+              target.cnt > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-muted text-muted-foreground border-border"
             )}>
-              <span className={cn("w-1.5 h-1.5 rounded-full", target.cnt > 0 ? "bg-emerald-500" : "bg-slate-300")} />
+              <span className={cn("w-1.5 h-1.5 rounded-full", target.cnt > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
               {t.offerings.contractCount}: {target.cnt}
             </span>
             <button
               onClick={onClose}
-              className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label={t.common.close}
             >
               <X size={16} />
@@ -392,20 +381,20 @@ function OfferingDetailSheet({
 
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.col.asset}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.col.asset}</p>
             <div className="grid grid-cols-1 gap-3">
               {assetIds.length === 0 ? (
-                <InfoCard label={t.assets.col.id} value="—" />
+                <p className="text-[11px] text-muted-foreground/60 italic">{t.assets.notSet}</p>
               ) : assetIds.map((id, i) => (
-                <InfoCard key={id} label={assetIds.length > 1 ? `#${i + 1}` : t.assets.col.id} value={id} mono />
+                <InfoCard key={id} label={assetIds.length > 1 ? `#${i + 1}` : t.assets.col.id} value={id} mono copyable={id} />
               ))}
             </div>
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.col.access}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.col.access}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InfoCard label={t.policies.col.id} value={target.access} span mono />
+              <InfoCard label={t.policies.col.id} value={target.access} span mono copyable={target.access || undefined} />
               {accessDeleted ? (
                 <InfoCard label={t.offerings.policyStatus} value={t.offerings.policyDeleted} span />
               ) : (
@@ -415,9 +404,9 @@ function OfferingDetailSheet({
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.col.contract}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.col.contract}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InfoCard label={t.policies.col.id} value={target.contract} span mono />
+              <InfoCard label={t.policies.col.id} value={target.contract} span mono copyable={target.contract || undefined} />
               {contractDeleted ? (
                 <InfoCard label={t.offerings.policyStatus} value={t.offerings.policyDeleted} span />
               ) : (
@@ -428,7 +417,7 @@ function OfferingDetailSheet({
 
           {relatedNegs.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.relatedNegotiations}</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.relatedNegotiations}</p>
               <div className="grid grid-cols-1 gap-3">
                 {relatedNegs.map((n) => (
                   <InfoCard key={n.id} label={n.name || "—"} value={`${n.id.slice(0, 12)}…  ·  ${n.peer}  ·  ${n.ts}`} mono />
@@ -438,7 +427,7 @@ function OfferingDetailSheet({
           )}
         </div>
 
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-shrink-0">
+        <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
@@ -447,25 +436,25 @@ function OfferingDetailSheet({
           )}
           {!onDelete && deleteDisabledReason && (
             <button disabled title={deleteDisabledReason}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 cursor-not-allowed rounded-md">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground/40 cursor-not-allowed rounded-md">
               <Trash2 size={13} /> {t.common.delete}
             </button>
           )}
           <button onClick={onShowJson}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
             <Code size={13} /> JSON
           </button>
           <button onClick={onDuplicate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
             <Files size={13} /> {t.common.duplicate}
           </button>
           <div className="flex-1" />
           <button onClick={onEdit}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
             <Pencil size={13} /> {t.common.edit}
           </button>
           <button onClick={onClose}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-border text-foreground rounded-lg hover:bg-muted transition-colors">
             <X size={13} /> {t.common.close}
           </button>
         </div>
@@ -475,17 +464,39 @@ function OfferingDetailSheet({
 }
 
 /* ─── Offering Card (Mobile) ─────────────────────────────────── */
+function EmptyOfferings({ onCreateClick }: { onCreateClick: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+        <FileSignature className="w-7 h-7 text-blue-400" />
+      </div>
+      <p className="text-[15px] font-semibold text-foreground/80 mb-1">{t.offerings.emptyTitle}</p>
+      <p className="text-[12px] text-muted-foreground mb-4 max-w-[280px]">{t.offerings.emptyDesc}</p>
+      <RoleGate permission="resource:write">
+        <button
+          onClick={onCreateClick}
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+        >
+          <PlusCircle className="w-3.5 h-3.5" />
+          {t.offerings.createWizard}
+        </button>
+      </RoleGate>
+    </div>
+  );
+}
+
 function OfferingCard({ offering: o }: { offering: Offering }) {
   const { t } = useI18n();
   return (
     <div className="bg-card rounded-xl p-3 shadow-sm border border-border">
       <div className="flex items-center justify-between mb-2">
-        <MonoText className="text-[12px] font-medium">{o.id}</MonoText>
+        <span className="text-xs font-bold text-primary">{o.id}</span>
         <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(o.id); toast.success(t.common.copied); }}>
           <Copy className="w-3 h-3 text-muted-foreground" />
         </button>
       </div>
-      <div className="text-[12px] text-foreground/80 mb-1.5">{o.asset || "—"}</div>
+      <div className="text-xs text-foreground mb-1.5">{o.asset || "—"}</div>
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         <Badge variant="purple" className="text-[11px]">{o.access || "—"}</Badge>
         <Badge variant="purple" className="text-[11px]">{o.contract || "—"}</Badge>
@@ -620,7 +631,7 @@ function OfferingWizard({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
-          <span className="text-[13px] font-semibold text-foreground truncate">
+          <span className="text-[15px] font-semibold text-foreground truncate">
             {isEdit ? t.offerings.editWizard : duplicateSource ? t.offerings.duplicateWizard : t.offerings.createWizard}
           </span>
         </div>
@@ -645,7 +656,7 @@ function OfferingWizard({
       {step === 0 && (
         <div className="space-y-3">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step1}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.step1}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
 
@@ -676,7 +687,7 @@ function OfferingWizard({
                 placeholder={t.offerings.searchAssetPlaceholder}
                 value={assetSearch}
                 onChange={(e) => setAssetSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                className={`${inputBase} pl-8`}
               />
             </div>
           )}
@@ -735,7 +746,7 @@ function OfferingWizard({
       {step === 1 && (
         <div className="space-y-3">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step2}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.step2}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <div className="bg-sky-50 border border-sky-200 rounded-md px-3 py-2 text-[11px] text-sky-800">
@@ -752,7 +763,7 @@ function OfferingWizard({
                   placeholder={t.offerings.searchPolicyPlaceholder}
                   value={policySearch}
                   onChange={(e) => setPolicySearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                  className={`${inputBase} pl-8`}
                 />
               </div>
               <PolicySelector
@@ -784,7 +795,7 @@ function OfferingWizard({
       {step === 2 && (
         <div className="space-y-3">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step3}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.step3}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
           <div className="bg-violet-50 border border-violet-200 rounded-md px-3 py-2 text-[11px] text-violet-800">
@@ -801,7 +812,7 @@ function OfferingWizard({
                   placeholder={t.offerings.searchPolicyPlaceholder}
                   value={policySearch}
                   onChange={(e) => setPolicySearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                  className={`${inputBase} pl-8`}
                 />
               </div>
               <PolicySelector
@@ -833,18 +844,21 @@ function OfferingWizard({
       {step === 3 && (
         <div className="space-y-4">
           <div className="mb-1">
-            <div className="text-[12px] font-semibold text-muted-foreground flex items-center gap-1"><ChevronsRight size={12} className="text-sky-600" />{t.offerings.step4}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.step4}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
-          <FormField label={t.offerings.offeringId} required>
-            <input
-              value={offeringId}
-              onChange={(e) => { setOfferingId(e.target.value); setOfferingIdError(null); markDirty(); }}
-              placeholder="cd-id"
-              disabled={isEdit}
-              title={isEdit ? t.offerings.idImmutable : undefined}
-              className="w-full text-[12px] px-2.5 py-1.5 border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary mono disabled:opacity-60 disabled:cursor-not-allowed"
-            />
+          <FormField label={t.offerings.offeringId} required hint={isEdit ? t.offerings.idImmutable : undefined}>
+            <div className="relative">
+              {isEdit && <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />}
+              <input
+                value={offeringId}
+                onChange={(e) => { setOfferingId(e.target.value); setOfferingIdError(null); markDirty(); }}
+                placeholder="cd-id"
+                disabled={isEdit}
+                title={isEdit ? t.offerings.idImmutable : undefined}
+                className={cn(inputBase, "mono", isEdit && "pl-8")}
+              />
+            </div>
             {offeringIdError && (
               <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
                 <AlertCircle className="w-3 h-3" /> {offeringIdError}

@@ -57,20 +57,20 @@ function AppRoutes() {
   const setNavigating = useConnectorStore((s) => s.setNavigating);
 
   const nav = (path: string) => navigate(path);
-  const selectAndGo = (c: import("@/lib/data").Connector) => {
+  const selectAndGo = (c: import("@/lib/data").Connector, page?: string) => {
     selectConnector(c);
     setNavigating(true);
-    navigate(`/connectors/${c.id}/dashboard`);
+    navigate(`/connectors/${c.id}/${page ?? "dashboard"}`);
   };
 
   return (
     <Switch>
       {/* Fleet Overview (Home) */}
       <Route path="/">
-        <PageFleet onSelect={(c) => selectAndGo(c)} onNav={nav} />
+        <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
       </Route>
       <Route path="/fleet">
-        <PageFleet onSelect={(c) => selectAndGo(c)} onNav={nav} />
+        <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
       </Route>
 
       {/* Connector-scoped pages */}
@@ -170,7 +170,7 @@ function AppRoutes() {
 
       {/* Fallback */}
       <Route>
-        <PageFleet onSelect={(c) => selectAndGo(c)} onNav={nav} />
+        <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
       </Route>
     </Switch>
   );

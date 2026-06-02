@@ -10,14 +10,14 @@ import { SINK_TYPES, type Transfer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import {
-  Card, StateBadge, MonoText, SectionHdr, Badge, FormField,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, JsonTreeView, inputBase,
+  Card, StateBadge, SectionHdr, Badge, FormField,
+  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError, JsonTreeView, inputBase,
 } from "@/components/ui-kmx";
 
-const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_1fr_1fr_84px]";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px_280px]";
+import { SlidePanel } from "@/components/DetailDeleteDialogs";
 import { toast } from "sonner";
-import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle } from "lucide-react";
+import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
 
@@ -67,56 +67,68 @@ function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery
   }
 
   return (
-    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden flex flex-col max-h-[80vh]">
-        <DialogHeader className="px-4 py-3 border-b border-border flex-row items-center justify-between gap-2 space-y-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-            <DialogTitle className="font-display text-[13px] font-semibold truncate">{t.transfers.dataViewerTitle}</DialogTitle>
-            <span className="text-[11px] text-muted-foreground font-mono truncate">{tpId.slice(0, 12)}</span>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-[11px] text-muted-foreground hidden sm:inline">{asset}</span>
-            <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{sizeLabel}</span>
-            <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{contentType.split(";")[0]}</span>
-            <button
-              onClick={handleDownload}
-              title={t.transfers.saveAsFile}
-              className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </DialogHeader>
-        {isProxyAsset && (
-          <div className="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2 flex-shrink-0">
-            <span className="text-[11px] text-muted-foreground flex-shrink-0">{t.transfers.proxyPath}</span>
-            <input
-              className="flex-1 min-w-0 mono text-[12px] px-2 py-1 border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="/shell-descriptors"
-              value={pathInput}
-              onChange={(e) => setPathInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") onRequery(pathInput); }}
-            />
-            <button
-              onClick={() => onRequery(pathInput)}
-              className="text-[12px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium flex-shrink-0"
-            >
-              {t.transfers.queryPath}
-            </button>
-          </div>
-        )}
-        <div className="overflow-auto flex-1 p-4 min-h-0">
-          {isJson ? (
-            <JsonTreeView data={data} />
-          ) : (
-            <pre className="mono text-[12px] bg-muted text-foreground rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed break-all border border-border">
-              {formatted}
-            </pre>
-          )}
+    <SlidePanel open={true} onClose={onClose} className="max-w-2xl">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="text-[15px] font-semibold text-foreground truncate">{t.transfers.dataViewerTitle}</p>
+          <span className="text-[11px] text-muted-foreground font-mono truncate">{tpId.slice(0, 12)}</span>
         </div>
-      </DialogContent>
-    </Dialog>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{sizeLabel}</span>
+          <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hidden sm:inline">{contentType.split(";")[0]}</span>
+          <button
+            onClick={handleDownload}
+            title={t.transfers.saveAsFile}
+            className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onClose}
+            aria-label={t.common.close}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Asset subtitle */}
+      <div className="px-4 py-1.5 border-b border-border text-[11px] text-muted-foreground font-mono truncate flex-shrink-0">{asset}</div>
+
+      {/* Proxy path bar (DTR 등 프록시 자산) */}
+      {isProxyAsset && (
+        <div className="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2 flex-shrink-0">
+          <span className="text-[11px] text-muted-foreground flex-shrink-0">{t.transfers.proxyPath}</span>
+          <input
+            className="flex-1 min-w-0 mono text-[12px] px-2 py-1 border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="/shell-descriptors"
+            value={pathInput}
+            onChange={(e) => setPathInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") onRequery(pathInput); }}
+          />
+          <button
+            onClick={() => onRequery(pathInput)}
+            className="text-[12px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium flex-shrink-0"
+          >
+            {t.transfers.queryPath}
+          </button>
+        </div>
+      )}
+
+      {/* Body */}
+      <div className="overflow-auto flex-1 p-4 min-h-0">
+        {isJson ? (
+          <JsonTreeView data={data} />
+        ) : (
+          <pre className="mono text-[12px] bg-muted text-foreground rounded-lg p-3 overflow-auto whitespace-pre-wrap leading-relaxed break-all border border-border">
+            {formatted}
+          </pre>
+        )}
+      </div>
+    </SlidePanel>
   );
 }
 
@@ -161,7 +173,7 @@ export default function PageTransfer() {
   const initializedRef = useRef(false);
 
   /* ── query with conditional polling ─────────────────────────── */
-  const { data: transfers = [] } = useQuery({
+  const { data: transfers = [], isError, refetch, isFetching } = useQuery({
     queryKey: ["transfers", connectorId],
     queryFn: () => fetchTransfers(connectorId!),
     enabled: !!connectorId,
@@ -389,9 +401,11 @@ export default function PageTransfer() {
               <ListColLabel>{t.transfers.col.duration}</ListColLabel>
               <ListColLabel>{t.transfers.col.startedAt}</ListColLabel>
               <ListColLabel>{t.transfers.col.completedAt}</ListColLabel>
-              <ListColLabel>{""}</ListColLabel>
+              <ListColLabel>{t.transfers.col.action}</ListColLabel>
             </ListHeaderRow>
-            {rows.length === 0 ? (
+            {isError && rows.length === 0 ? (
+              <ListError onRetry={() => refetch()} fetching={isFetching} />
+            ) : rows.length === 0 ? (
               <ListEmpty
                 icon={<ArrowRightLeft />}
                 message={stateFilter !== "ALL" ? t.transfers.noFilterResults : t.transfers.noInflight}
@@ -400,7 +414,7 @@ export default function PageTransfer() {
               paginatedData.map((tr) => (
               <ListRow key={tr.id} cols={TRANSFER_COLS}>
                 <div>
-                  <MonoText className="!text-[12px] !font-normal text-primary group-hover:text-primary/80">{tr.id.slice(0, 12)}</MonoText>
+                  <span className="text-xs font-bold text-primary">{tr.id.slice(0, 12)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <StateBadge name={tr.name} />
@@ -411,40 +425,40 @@ export default function PageTransfer() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <MonoText className="!text-[12px] !font-normal block truncate">{tr.asset}</MonoText>
+                  <span className="text-xs text-foreground block truncate">{tr.asset}</span>
                 </div>
                 <div>
                   <Badge variant={tr.transferType === "PULL" ? "sky" : tr.transferType === "PUSH" ? "purple" : "gray"}>{tr.transferType ?? "—"}</Badge>
                 </div>
-                <div className="text-[12px] font-normal text-muted-foreground">{tr.size}</div>
-                <div className="text-[12px] font-normal text-muted-foreground">{tr.t}</div>
-                <div className="text-[12px] font-normal text-muted-foreground truncate">{tr.startedAt ?? "—"}</div>
-                <div className="text-[12px] font-normal text-muted-foreground truncate">{tr.completedAt ?? "—"}</div>
+                <div className="text-xs text-foreground">{tr.size}</div>
+                <div className="text-xs text-foreground">{tr.t}</div>
+                <div className="text-xs text-foreground truncate">{tr.startedAt ?? "—"}</div>
+                <div className="text-xs text-foreground truncate">{tr.completedAt ?? "—"}</div>
                 {/* 액션: STARTED → Fetch·완료·종료 */}
                 <div>
                   {tr.name === "STARTED" && (
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       <button
                         onClick={() => handleFetch(tr.id, tr.asset)}
                         title={t.transfers.fetchData}
-                        className="p-1 rounded hover:bg-blue-100 text-blue-500 transition-colors"
+                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-blue-100 text-blue-500 font-medium transition-colors whitespace-nowrap"
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-3.5 h-3.5" /> {t.transfers.fetchData}
                       </button>
                       <RoleGate permission="transaction:write">
                         <button
                           onClick={() => handleComplete(tr.id)}
                           title={t.transfers.completeTransfer}
-                          className="p-1 rounded hover:bg-emerald-100 text-emerald-600 transition-colors"
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-emerald-100 text-emerald-600 font-medium transition-colors whitespace-nowrap"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" />
+                          <CheckCircle className="w-3.5 h-3.5" /> {t.transfers.completeTransfer}
                         </button>
                         <button
                           onClick={() => handleTerminate(tr.id)}
                           title={t.transfers.terminateTransfer}
-                          className="p-1 rounded hover:bg-red-100 text-red-500 transition-colors"
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-red-100 text-red-500 font-medium transition-colors whitespace-nowrap"
                         >
-                          <XCircle className="w-3.5 h-3.5" />
+                          <XCircle className="w-3.5 h-3.5" /> {t.transfers.terminateTransfer}
                         </button>
                       </RoleGate>
                     </div>
@@ -472,7 +486,7 @@ export default function PageTransfer() {
                 className="rounded-lg border border-border p-4 bg-muted/20 space-y-1.5"
               >
                 <div className="flex items-center justify-between">
-                  <MonoText className="text-[11px]">{tr.id.slice(0, 12)}</MonoText>
+                  <span className="text-xs font-bold text-primary">{tr.id.slice(0, 12)}</span>
                   <div className="flex items-center gap-2">
                     <StateBadge name={tr.name} />
                     {startedNoEdr(tr) && (
@@ -494,11 +508,11 @@ export default function PageTransfer() {
                     )}
                   </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-[11px]">
                   <span className="font-medium text-foreground/70">{t.transfers.col.assetId}:</span>{" "}
-                  {tr.asset}
+                  <span className="text-xs text-foreground">{tr.asset}</span>
                 </div>
-                <div className="flex gap-3 text-[11px] text-muted-foreground">
+                <div className="flex gap-3 text-xs text-foreground">
                   <span>{tr.size}</span>
                   <span>{tr.t}</span>
                   <span>{tr.ts}</span>

@@ -1,4 +1,5 @@
 // KMX EDC — Notification Panel (Sheet slide-over from right)
+import { useState } from "react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
 } from "@/components/ui/sheet";
@@ -6,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useNotifications } from "@/hooks/useNotifications";
 import { type NotificationItem } from "@/services/api";
+import { ListError } from "@/components/ui-kmx";
+import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import { useI18n } from "@/i18n";
 import { useLocation } from "wouter";
 import {
@@ -44,9 +47,18 @@ export default function NotificationPanel() {
   const [, navigate] = useLocation();
   const panelOpen = useNotificationStore((s) => s.panelOpen);
   const setPanelOpen = useNotificationStore((s) => s.setPanelOpen);
-  const { notifications: allNotifications, unreadCount, markRead, markAllRead, dismiss, clearAll } = useNotifications();
-  const notifications = allNotifications.filter((n) => !n.read);
+  const {
+    notifications: allNotifications, unreadCount, isError, refetch, isFetching,
+    markRead, markAllRead, dismiss, clearAll,
+  } = useNotifications();
   const timeAgo = useTimeAgo();
+
+  // 표시 필터 — 기본 "전체"(이력 유지). 읽어도 전체 탭에선 사라지지 않음.
+  const [tab, setTab] = useState<"all" | "unread">("all");
+  const shown = tab === "unread" ? allNotifications.filter((n) => !n.read) : allNotifications;
+
+  // 전체 삭제 확인 다이얼로그
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const handleClick = (n: NotificationItem) => {
     markRead(n.id);
@@ -56,13 +68,18 @@ export default function NotificationPanel() {
     }
   };
 
+  const TABS: Array<{ key: "all" | "unread"; label: string }> = [
+    { key: "all", label: t.notifications.tabAll },
+    { key: "unread", label: t.notifications.tabUnread },
+  ];
+
   return (
     <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
       <SheetContent side="right" className="w-[360px] sm:w-[400px] p-0 flex flex-col">
         {/* Header */}
         <SheetHeader className="px-4 py-3 border-b border-border flex-shrink-0">
           {/* Sheet의 우상단 X 닫기 아이콘과 겹치지 않도록 우측 padding(pr-8) 부여 */}
-          <SheetTitle className="flex items-center gap-2 text-[15px] pr-8">
+          <SheetTitle className="flex items-center gap-2 text-[15px] font-semibold text-foreground pr-8">
             <Bell className="w-4 h-4" />
             {t.notifications.title}
             {unreadCount > 0 && (
@@ -71,34 +88,65 @@ export default function NotificationPanel() {
               </span>
             )}
           </SheetTitle>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors mt-1.5 self-start"
-            >
-              <CheckCheck className="w-3 h-3" />
-              {t.notifications.markAllRead}
-            </button>
-          )}
+
+          <div className="flex items-center justify-between gap-2 mt-2">
+            {/* 전체 / 안읽음 필터 탭 */}
+            <div className="flex gap-1" role="tablist" aria-label={t.notifications.title}>
+              {TABS.map((tb) => (
+                <button
+                  key={tb.key}
+                  role="tab"
+                  aria-selected={tab === tb.key}
+                  onClick={() => setTab(tb.key)}
+                  className={cn(
+                    "text-[11px] px-2.5 py-1 rounded-md border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+                    tab === tb.key
+                      ? "border-primary/40 bg-primary/10 text-primary font-medium"
+                      : "border-border text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {tb.label}
+                  {tb.key === "unread" && unreadCount > 0 && ` (${unreadCount})`}
+                </button>
+              ))}
+            </div>
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllRead}
+                className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+              >
+                <CheckCheck className="w-3 h-3" />
+                {t.notifications.markAllRead}
+              </button>
+            )}
+          </div>
         </SheetHeader>
 
         {/* Notification List */}
         <ScrollArea className="flex-1">
-          {notifications.length === 0 ? (
+          {isError && allNotifications.length === 0 ? (
+            <ListError onRetry={() => refetch()} fetching={isFetching} />
+          ) : shown.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Bell className="w-10 h-10 opacity-20 mb-3" />
-              <span className="text-[12px]">{t.notifications.empty}</span>
+              <span className="text-[12px]">{tab === "unread" ? t.notifications.emptyUnread : t.notifications.empty}</span>
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map((n) => {
+              {shown.map((n) => {
                 const { Icon, color, bg } = TYPE_CONFIG[n.type];
                 return (
                   <div
                     key={n.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleClick(n)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(n); }
+                    }}
+                    aria-label={`${n.title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
                     className={cn(
-                      "flex gap-3 px-4 py-3 transition-colors cursor-pointer hover:bg-muted/50",
+                      "flex gap-3 px-4 py-3 transition-colors cursor-pointer hover:bg-muted/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
                       !n.read && "border-l-2 border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/10"
                     )}
                   >
@@ -111,18 +159,20 @@ export default function NotificationPanel() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <span className={cn("text-[12px] text-foreground truncate", !n.read && "font-semibold")}>
+                          {!n.read && <span className="sr-only">{t.notifications.unreadLabel}: </span>}
                           {n.title}
                         </span>
                         <button
                           onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}
-                          className="text-muted-foreground hover:text-foreground transition-opacity flex-shrink-0 opacity-40 hover:opacity-100"
+                          aria-label={t.notifications.dismiss}
+                          className="text-muted-foreground hover:text-foreground transition-opacity flex-shrink-0 opacity-40 hover:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[11px] text-muted-foreground/60">{timeAgo(n.timestamp)}</span>
+                        <span className="text-[11px] text-muted-foreground/60" title={new Date(n.timestamp).toLocaleString()}>{timeAgo(n.timestamp)}</span>
                         <span className="text-[11px] text-muted-foreground/40">
                           {t.notifications.sources[n.source as keyof typeof t.notifications.sources] ?? n.source}
                         </span>
@@ -136,11 +186,11 @@ export default function NotificationPanel() {
         </ScrollArea>
 
         {/* Footer */}
-        {notifications.length > 0 && (
+        {allNotifications.length > 0 && (
           <SheetFooter className="px-4 py-2 border-t border-border flex-shrink-0">
             <button
-              onClick={clearAll}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-rose-600 transition-colors mx-auto"
+              onClick={() => setConfirmClear(true)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-rose-600 transition-colors mx-auto focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
             >
               <Trash2 className="w-3 h-3" />
               {t.notifications.clearAll}
@@ -148,6 +198,17 @@ export default function NotificationPanel() {
           </SheetFooter>
         )}
       </SheetContent>
+
+      {/* 전체 삭제 확인 */}
+      <ConfirmActionDialog
+        open={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        tone="danger"
+        title={t.notifications.clearAllConfirmTitle}
+        description={t.notifications.clearAllConfirmDesc}
+        confirmLabel={t.notifications.clearAll}
+        onConfirm={() => { clearAll(); setConfirmClear(false); }}
+      />
     </Sheet>
   );
 }

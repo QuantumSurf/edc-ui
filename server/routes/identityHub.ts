@@ -214,7 +214,11 @@ router.get("/participant", async (req: Request, res: Response, next: NextFunctio
       if (status >= 200 && status < 300 && Array.isArray(data)) {
         body.credentials = data.map(mapCredential);
       } else {
-        body.credentialError = `http ${status}`;
+        // IdentityHub의 오류 본문을 함께 노출 → 401(API 키 불일치) vs 403/404(participant 컨텍스트 ID 경로) 구분에 도움.
+        let detail = "";
+        try { detail = typeof data === "string" ? data : JSON.stringify(data); } catch { /* ignore */ }
+        if (detail === "{}" || detail === "[]" || detail === "null") detail = "";
+        body.credentialError = `http ${status}${detail ? ` — ${detail.slice(0, 300)}` : ""}`;
       }
     } catch (e) {
       body.credentialError = (e as Error).message;
