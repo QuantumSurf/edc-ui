@@ -571,7 +571,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Desktop Sidebar (lg+) */}
       <Sidebar
         className="hidden lg:flex"
-        style={{ width: sidebarCollapsed ? 56 : 224, minWidth: sidebarCollapsed ? 56 : 224, maxWidth: sidebarCollapsed ? 56 : 224 }}
+        style={{ width: sidebarCollapsed ? 56 : 240, minWidth: sidebarCollapsed ? 56 : 240, maxWidth: sidebarCollapsed ? 56 : 240 }}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
       />
@@ -608,7 +608,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar />
         <main className="flex-1 overflow-y-auto bg-background">
-          <div className="p-3 sm:p-4 xl:p-5 flex flex-col gap-4 min-h-full page-enter pb-20 sm:pb-4">
+          <div className="p-4 sm:p-6 flex flex-col gap-5 min-h-full page-enter pb-20 sm:pb-6">
             {children}
           </div>
         </main>

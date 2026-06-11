@@ -50,7 +50,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-display: 'Space Grotesk', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-display: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-body: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
@@ -120,15 +121,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-    font-feature-settings: "cv11" 1, "ss01" 1, "tnum" 1;
-    font-size: 14px;
-    line-height: 1.55;
-    font-weight: 500;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    @apply bg-background text-foreground font-sans;
   }
   .mono, code, pre, .font-mono {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -164,7 +157,7 @@
     .container { padding-left: 1.5rem; padding-right: 1.5rem; }
   }
   @media (min-width: 1024px) {
-    .container { padding-left: 2rem; padding-right: 2rem; max-width: 1440px; }
+    .container { padding-left: 2rem; padding-right: 2rem; max-width: 1280px; }
   }
 
   /* Mono text for IDs, hashes, DIDs */
@@ -244,7 +237,7 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--muted);
+  background: var(--sidebar);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
@@ -264,64 +257,14 @@
 .glow-amber   { box-shadow: 0 0 8px oklch(0.78 0.15 85 / 0.3); }
 .glow-red     { box-shadow: 0 0 8px oklch(0.60 0.22 25 / 0.3); }
 
-/* ── List Table styling — matched to kmx-identityhub-ui Trust Anchors ──
-   Pattern (per-cell):
-     <p class="text-sm font-semibold text-foreground">PrimaryName</p>
-     <p class="mono text-[12px] text-muted-foreground">id-or-secondary</p>
-   Header (th): text-[12px] font-semibold uppercase tracking-wider muted
-   Cell padding: px-4 py-3
-   These rules are unlayered to win over Tailwind 4 utilities layer. */
-
-/* Header */
-table thead th {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: oklch(0.42 0.04 240);
-}
-
-/* Body cell base — primary text size/color/weight (sm semibold dark slate) */
-table tbody td {
-  font-size: 13px;
-  color: oklch(0.20 0.03 240);
-}
-
-/* Bump tiny inline labels (badges/chips) inside cells for legibility */
-table td .text-\[11px\],
-table th .text-\[11px\] {
-  font-size: 12px;
-}
-
-/* Mono in tables — secondary identifier style (slate-500-equivalent) */
-table td .mono,
-table th .mono {
-  font-size: 13px;
-  letter-spacing: 0;
-  font-weight: 500;
-  color: oklch(0.42 0.04 240);
-  -webkit-font-smoothing: subpixel-antialiased;
-}
-
-/* Mono PROMOTED to primary (when no separate name above) — stays visible */
-table td .mono.font-semibold,
-table td .mono.font-medium {
-  font-size: 13px;
-  font-weight: 600;
-  color: oklch(0.20 0.03 240);
-}
-
-/* Description / secondary plain text */
-table td .text-muted-foreground,
-table th .text-muted-foreground,
-table td .text-foreground\/70,
-table td .text-foreground\/80 {
-  color: oklch(0.42 0.04 240) !important;
-  font-size: 13px;
-}
-
-/* Action buttons in last column — slightly muted, identityhub style */
-table td button {
-  font-size: 12px;
-  font-weight: 500;
+/* 접근성: 모션 최소화 선호 시 애니메이션·전환을 무력화 (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

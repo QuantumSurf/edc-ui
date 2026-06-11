@@ -2,23 +2,25 @@
 // Design: Admin Console style | Dark navy sidebar + white cards + light gray bg
 
 import { cn } from "@/lib/utils";
-import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight, ChevronDown, List, RefreshCw } from "lucide-react";
+import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight, ChevronDown, List, RefreshCw, ArrowUpRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import React from "react";
 import { useI18n } from "@/i18n";
 
 /* ─── Badge ─────────────────────────────────────────────────── */
+// fl-aggregator StatusBadge 스타일: 흰 배경 + 색상 점(dot) + 색상 텍스트/테두리.
+// 진행 중 상태는 pulse로 점이 깜빡인다. outline은 점 없는 escape hatch(아이콘 children용).
 type BadgeVariant = "green" | "blue" | "teal" | "amber" | "red" | "purple" | "gray" | "outline" | "sky";
 
-const BADGE_STYLES: Record<BadgeVariant, string> = {
-  sky:     "bg-sky-50 text-sky-700 border-sky-200",
-  green:   "bg-emerald-50 text-emerald-700 border-emerald-200",
-  blue:    "bg-blue-50 text-blue-700 border-blue-200",
-  teal:    "bg-teal-50 text-teal-700 border-teal-200",
-  amber:   "bg-amber-50 text-amber-700 border-amber-200",
-  red:     "bg-rose-50 text-rose-700 border-rose-200",
-  purple:  "bg-violet-50 text-violet-700 border-violet-200",
-  gray:    "bg-slate-50 text-slate-600 border-slate-200",
-  outline: "bg-transparent text-foreground border-border",
+const BADGE_STYLES: Record<BadgeVariant, { text: string; border: string; dot?: string }> = {
+  sky:     { text: "text-blue-700",    border: "border-blue-200",    dot: "bg-blue-500"    },
+  green:   { text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
+  blue:    { text: "text-blue-700",    border: "border-blue-200",    dot: "bg-blue-500"    },
+  teal:    { text: "text-teal-700",    border: "border-teal-200",    dot: "bg-teal-500"    },
+  amber:   { text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-500"   },
+  red:     { text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500"     },
+  purple:  { text: "text-purple-700",  border: "border-purple-200",  dot: "bg-purple-500"  },
+  gray:    { text: "text-slate-600",   border: "border-slate-200",   dot: "bg-slate-400"   },
+  outline: { text: "text-foreground",  border: "border-border" },
 };
 
 interface BadgeProps {
@@ -29,13 +31,15 @@ interface BadgeProps {
 }
 
 export function Badge({ children, variant = "gray", className, pulse }: BadgeProps) {
+  const { text, border, dot } = BADGE_STYLES[variant];
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border whitespace-nowrap",
-      BADGE_STYLES[variant],
-      pulse && "status-pulse",
+      "inline-flex items-center rounded border font-normal whitespace-nowrap bg-white text-[11px] px-2 py-0.5 gap-1.5",
+      text,
+      border,
       className
     )}>
+      {dot && <span className={cn("w-2 h-2 rounded-full flex-shrink-0", dot, pulse && "status-pulse")} />}
       {children}
     </span>
   );
@@ -63,19 +67,15 @@ export function StateBadge({ name }: { name: string }) {
 }
 
 /* ─── Status Pill ────────────────────────────────────────────── */
+// Badge에 위임 — 점/색상은 variant 매핑으로 일원화 (fl-aggregator 스타일).
 export function StatusPill({ status = "down" }: { status?: "up" | "warn" | "down" }) {
-  const map = {
-    up:   { dot: "bg-emerald-500", label: "UP",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    warn: { dot: "bg-amber-500",   label: "WARN", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-    down: { dot: "bg-rose-500",    label: "DOWN", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+  const map: Record<string, { variant: BadgeVariant; label: string; pulse?: boolean }> = {
+    up:   { variant: "green", label: "UP" },
+    warn: { variant: "amber", label: "WARN", pulse: true },
+    down: { variant: "red",   label: "DOWN" },
   };
-  const { dot, label, cls } = map[status] ?? map.down;
-  return (
-    <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border", cls)}>
-      <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot, status === "warn" && "status-pulse")} />
-      {label}
-    </span>
-  );
+  const { variant, label, pulse } = map[status] ?? map.down;
+  return <Badge variant={variant} pulse={pulse}>{label}</Badge>;
 }
 
 /* ─── KPI Card — large number style (matching image) ─────────── */
@@ -98,6 +98,8 @@ interface KpiCardProps {
 }
 
 export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon, iconBg, trend, iconColor, loading, onClick, ariaLabel }: KpiCardProps) {
+  // fl-aggregator KpiCard 구조: p-4 / gap-2.5 / 아이콘 박스 옆 라벨 / text-3xl tabular-nums.
+  // onClick(딥링크) 시 우측 상단 ArrowUpRight 인디케이터 — trend가 있으면 trend 표시 우선.
   return (
     <div
       onClick={onClick}
@@ -106,37 +108,39 @@ export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon
       aria-label={onClick ? ariaLabel : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       className={cn(
-        "bg-card rounded-xl p-5 flex flex-col gap-2 shadow-sm border border-border hover:shadow-md transition-shadow",
-        onClick && "cursor-pointer hover:border-primary/40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+        "bg-card rounded-xl border border-border shadow-sm p-4 flex flex-col gap-2.5",
+        onClick && "group cursor-pointer transition-all hover:shadow-md hover:border-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 min-w-0">
           {icon && (
-            <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", iconBg ?? iconColor ?? "bg-blue-50")}>
+            <span className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", iconBg ?? iconColor ?? "bg-blue-50")}>
               {icon}
-            </div>
+            </span>
           )}
-          {title && (
-            <span className="font-display text-[14px] font-bold text-foreground truncate">{title}</span>
+          {(title || label) && (
+            <span className="text-[12px] text-muted-foreground font-medium truncate">{title ?? label}</span>
           )}
-        </div>
-        {trend && (
+        </span>
+        {trend ? (
           <TrendingUp className={cn(
             "w-4 h-4 flex-shrink-0",
             trend === "up" ? "text-emerald-500" : trend === "down" ? "text-rose-500" : "text-muted-foreground"
           )} />
-        )}
+        ) : onClick ? (
+          <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+        ) : null}
       </div>
       {loading ? (
-        <div className="h-9 w-16 bg-muted animate-pulse rounded mt-1" />
+        <div className="h-9 w-16 bg-muted animate-pulse rounded" />
       ) : (
-        <div className={cn("font-display text-3xl font-bold kpi-value leading-none mt-1", valueColor ?? colorClass ?? "text-foreground")}>
+        <div className={cn("text-3xl font-bold tabular-nums leading-none", valueColor ?? colorClass ?? "text-foreground")}>
           {value}
         </div>
       )}
-      {label && <div className="text-[13px] font-medium text-foreground/80">{label}</div>}
-      {sub && <div className="text-[12px] text-muted-foreground">{sub}</div>}
+      {title && label && <div className="text-[13px] font-medium text-foreground/80">{label}</div>}
+      {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}
     </div>
   );
 }
@@ -220,19 +224,20 @@ interface SectionHdrProps {
 }
 
 export function SectionHdr({ children, action, breadcrumb, icon }: SectionHdrProps) {
+  // fl-aggregator 페이지 헤더: 제목+서브타이틀 좌측, 액션 우측, 하단 보더.
+  // 아이콘은 w-5 h-5 text-primary로 정규화(호출부의 다양한 크기·색 통일).
   return (
-    <div className="mb-1">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
+    <div className="flex items-start justify-between gap-4 flex-wrap pb-1.5 border-b border-border">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:text-primary">
           {icon}
           {children}
         </h1>
-        {action}
+        {breadcrumb && (
+          <p className="text-sm text-muted-foreground mt-1">{breadcrumb}</p>
+        )}
       </div>
-      {breadcrumb && (
-        <div className="text-sm text-muted-foreground mt-1">{breadcrumb}</div>
-      )}
-      <div className="h-px bg-border mt-1.5" />
+      {action}
     </div>
   );
 }
@@ -250,8 +255,8 @@ export function Card({ title, children, actions, className, noPad }: CardProps) 
   return (
     <div className={cn("bg-card rounded-xl overflow-hidden shadow-sm border border-border", className)}>
       {title && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <span className="font-display text-[14px] font-bold text-foreground">{title}</span>
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
+          <span className="font-display text-[15px] font-bold text-foreground">{title}</span>
           {actions && <div className="flex items-center gap-1.5">{actions}</div>}
         </div>
       )}
@@ -431,7 +436,7 @@ export function PrimaryActionButton({ onClick, icon, children, className, type =
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap",
         className,
       )}
     >
@@ -452,7 +457,7 @@ export function ViewAllLink({ onClick, children, className }: ViewAllLinkProps) 
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-0.5 text-[11px] text-blue-500 hover:text-blue-700 transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+        "flex items-center gap-0.5 text-xs text-primary hover:underline transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
         className,
       )}
     >
@@ -474,7 +479,7 @@ export function QuietButton({ onClick, icon, children, className }: QuietButtonP
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors",
+        "flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors",
         className,
       )}
     >
@@ -482,6 +487,71 @@ export function QuietButton({ onClick, icon, children, className }: QuietButtonP
       {children}
     </button>
   );
+}
+
+/* ─── Sortable Table Header (fl-aggregator 이식) ──────────────── */
+// <th aria-sort> + 정렬 인디케이터(ArrowUpDown/Up/Down). useSort와 세트로 사용.
+// 헤더 셀 패딩은 내부 버튼이 가지므로 th는 p-0 — 기존 px-4 py-3 th와 시각 동일.
+export type SortOrder = "asc" | "desc" | null;
+
+export function SortHeader({
+  label, sortKey, currentKey, currentOrder, onClick, align = "left",
+}: {
+  label: string; sortKey: string;
+  currentKey: string | null; currentOrder: SortOrder;
+  onClick: (key: string) => void;
+  align?: "left" | "right" | "center";
+}) {
+  const isSorted = currentKey === sortKey;
+  const Icon = !isSorted ? ArrowUpDown : currentOrder === "asc" ? ArrowUp : ArrowDown;
+  const ariaSort: React.AriaAttributes["aria-sort"] =
+    isSorted ? (currentOrder === "asc" ? "ascending" : "descending") : "none";
+  return (
+    <th
+      aria-sort={ariaSort}
+      className={cn(
+        "!text-[12px] whitespace-nowrap font-bold text-foreground p-0",
+        align === "right" && "text-right",
+        align === "center" && "text-center",
+        align === "left" && "text-left",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onClick(sortKey)}
+        className={cn(
+          "w-full px-4 py-3 inline-flex items-center gap-1 cursor-pointer select-none hover:bg-muted/70 transition-colors",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70",
+          align === "right" && "justify-end",
+          align === "center" && "justify-center",
+        )}
+      >
+        {label}
+        <Icon className={cn("w-3 h-3 flex-shrink-0", isSorted ? "text-primary" : "text-muted-foreground/40")} />
+      </button>
+    </th>
+  );
+}
+
+export function useSort<T>(rows: T[], accessors: Record<string, (row: T) => string | number | null | undefined>) {
+  const [sortKey, setSortKey] = React.useState<string | null>(null);
+  const [sortOrder, setSortOrder] = React.useState<SortOrder>(null);
+  const handleSort = (key: string) => {
+    if (sortKey !== key) { setSortKey(key); setSortOrder("asc"); }
+    else if (sortOrder === "asc") setSortOrder("desc");
+    else { setSortKey(null); setSortOrder(null); }
+  };
+  const sorted = (!sortKey || !sortOrder) ? rows : [...rows].sort((a, b) => {
+    const av = accessors[sortKey]?.(a);
+    const bv = accessors[sortKey]?.(b);
+    const dir = sortOrder === "asc" ? 1 : -1;
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+    return String(av).localeCompare(String(bv)) * dir;
+  });
+  return { sorted, sortKey, sortOrder, handleSort };
 }
 
 /* ─── List View (fl-aggregator style) ─────────────────────────── */
@@ -501,7 +571,7 @@ export function ListCard({ title, icon, iconColor, actions, children, className 
   return (
     <div className={cn("rounded-xl border border-border bg-card overflow-hidden shadow-sm", className)}>
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-        <span className="font-display text-[14px] font-bold text-foreground flex items-center gap-2 truncate">
+        <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
           {icon ?? <List className={cn("w-4 h-4", iconColor ?? "text-primary")} />}
           {title}
         </span>

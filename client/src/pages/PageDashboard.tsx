@@ -168,7 +168,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <thead className="bg-muted/50 border-b border-border">
               <tr>
                 {[t.dashboard.col.negId, t.dashboard.col.state, t.dashboard.col.peer, t.dashboard.col.time].map(h => (
-                  <th key={h} className="text-left text-[12px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left text-[12px] font-bold text-foreground px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -202,7 +202,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <thead className="bg-muted/50 border-b border-border">
               <tr>
                 {[t.dashboard.col.transferId, t.dashboard.col.state, t.dashboard.col.assetId, t.dashboard.col.size, t.dashboard.col.duration, t.dashboard.col.time].map(h => (
-                  <th key={h} className="text-left text-[12px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left text-[12px] font-bold text-foreground px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
