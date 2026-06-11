@@ -41,6 +41,10 @@ services:
       - "3003:3001"
     environment:
       - NODE_ENV=production
+      # dev/demo: production 모드이지만 아래 기본값(root/dev DB 비밀번호)을 의도적으로 사용.
+      # 실 운영에서는 이 줄을 제거하고 PLATFORM_VAULT_TOKEN/PLATFORM_DATABASE_URL 을
+      # 실제 값으로 설정할 것 (미설정 시 부팅 거부됨 — server/lib/platform.ts 가드).
+      - ALLOW_INSECURE_DEFAULTS=true
       - PORT=3001
       - DATABASE_URL=postgresql://kmx:${POSTGRES_PASSWORD:-kmx_dev_123}@postgres:5432/kmx_edc
       - EDC_API_KEY=${EDC_API_KEY:-}
