@@ -2,7 +2,7 @@
 // Hybrid source: per-tenant settings (tenant_settings, editable via the Settings
 // UI) take precedence, with environment variables as the per-environment baseline.
 
-import { getTenantSettings } from "./tenants.js";
+import { getTenant, getTenantSettings } from "./tenants.js";
 import { readVaultSecret } from "./platform.js";
 
 const URL_ENV = process.env.IDENTITY_HUB_URL ?? "";
@@ -26,13 +26,22 @@ export async function getIdentityHubConfig(tenantId?: string): Promise<IdentityH
   try {
     const m = tenantId ? await getTenantSettings(tenantId, IDENTITY_HUB_KEYS) : {};
     // apiKey 해석 우선순위: ① vault alias 참조 → platform-vault read
-    //                       ② 레거시 평문 identity_hub_api_key  ③ env
+    //                       ② 관례적 alias ih-apikey-{테넌트 BPN} (sts-bridge가 IH vault에서 미러)
+    //                       ③ 레거시 평문 identity_hub_api_key  ④ env
     let apiKey = "";
     if (m.identity_hub_api_key_alias) {
       try {
         apiKey = await readVaultSecret(m.identity_hub_api_key_alias);
       } catch {
         apiKey = ""; // vault 해석 실패 → 하위 단계로 폴백
+      }
+    }
+    if (!apiKey && tenantId) {
+      try {
+        const tenant = await getTenant(tenantId);
+        if (tenant?.bpn) apiKey = await readVaultSecret(`ih-apikey-${tenant.bpn}`);
+      } catch {
+        apiKey = "";
       }
     }
     if (!apiKey) apiKey = m.identity_hub_api_key || API_KEY_ENV;

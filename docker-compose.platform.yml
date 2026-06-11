@@ -205,6 +205,7 @@ services:
           sync_sts_secret consumer-sts-client-secret BPNL000000000CSM
           sync_apikey BPNL000000000PRD
           sync_apikey BPNL000000000CSM
+          sync_apikey BPNL000000000CON
           sleep 30
         done
     networks:
