@@ -202,9 +202,8 @@ services:
         # 30초마다 누락 점검 후 재주입 (Vault/IH 재시작에도 자동 복구)
         while true; do
           sync_sts_secret sts-client-secret BPNL000000000PRD
-          sync_sts_secret consumer-sts-client-secret BPNL000000000CSM
+          sync_sts_secret consumer-sts-client-secret BPNL000000000CON
           sync_apikey BPNL000000000PRD
-          sync_apikey BPNL000000000CSM
           sync_apikey BPNL000000000CON
           sleep 30
         done
