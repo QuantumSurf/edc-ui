@@ -1,8 +1,14 @@
 // Connector Hub — Main App with routing, TanStack Query, Zustand
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { AppShell } from "./components/AppShell";
+import AppSidebar from "./components/AppSidebar";
+import Topbar from "./components/Topbar";
+import NavigationLoadingDialog from "./components/NavigationLoadingDialog";
+import NotificationPanel from "./components/NotificationPanel";
+import BottomTabBar from "./components/BottomTabBar";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Route, Switch, useLocation } from "wouter";
@@ -176,6 +182,76 @@ function AppRoutes() {
   );
 }
 
+/** App Layout — pcf-exchange-ui 셸 패턴 (사이드바 + 탑바 + 메인) */
+function AppLayout({ children }: { children: React.ReactNode }) {
+  const drawerOpen = useConnectorStore((s) => s.drawerOpen);
+  const setDrawerOpen = useConnectorStore((s) => s.setDrawerOpen);
+  const toggleDrawer = useConnectorStore((s) => s.toggleDrawer);
+
+  // 모바일에서 네비게이션 시 사이드바 자동 닫힘
+  const handleNavigate = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) setDrawerOpen(false);
+  };
+
+  // 모바일 드로어 ESC 로 닫기
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && window.innerWidth < 1024) setDrawerOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen, setDrawerOpen]);
+
+  // 뷰포트 lg(1024) 경계 변화 동기화 — 리사이즈/회전 시 사이드바 상태 정합
+  // (데스크톱=열림, 모바일=닫힘). 미동기화 시 lg+에서 사이드바가 숨거나 모바일에서 오버레이 잔존.
+  useEffect(() => {
+    const onResize = () => setDrawerOpen(window.innerWidth >= 1024);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [setDrawerOpen]);
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      <NavigationLoadingDialog />
+
+      {/* 모바일 backdrop (드로어 열림 시) */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* 사이드바: 모바일=고정 오버레이 드로어 / lg+=in-flow. 닫힘 시 모바일 슬라이드아웃, lg+ 숨김 */}
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 transition-transform duration-200 lg:static lg:z-auto lg:transition-none",
+          drawerOpen ? "translate-x-0" : "-translate-x-full lg:hidden",
+        )}
+      >
+        <AppSidebar onCollapse={() => setDrawerOpen(false)} onNavigate={handleNavigate} />
+      </div>
+
+      {/* 메인 컬럼 */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Topbar onMenuClick={toggleDrawer} />
+        <main className="flex-1 overflow-y-auto bg-background">
+          {/* 모바일/태블릿(<lg)은 하단 탭바 높이만큼 pb-20, 데스크톱은 pb-6 */}
+          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-20 lg:pb-6 flex flex-col gap-5 min-h-full page-enter">
+            {children}
+          </div>
+        </main>
+      </div>
+
+      {/* 모바일/태블릿 하단 탭바 (<lg) */}
+      <BottomTabBar />
+
+      {/* 알림 슬라이드 패널 */}
+      <NotificationPanel />
+    </div>
+  );
+}
+
 /** Show login page or main app based on auth state */
 function AuthGate() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -191,9 +267,9 @@ function AuthGate() {
   if (!isAuthenticated) return <PageLogin />;
 
   return (
-    <AppShell>
+    <AppLayout>
       <AppRoutes />
-    </AppShell>
+    </AppLayout>
   );
 }
 
@@ -209,16 +285,18 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <I18nContext.Provider value={i18n}>
-        <AuthProvider>
-          <QueryClientProvider client={queryClient}>
-            <TooltipProvider>
-              <Toaster position="top-center" richColors expand visibleToasts={3} duration={3000} />
-              <AuthGate />
-            </TooltipProvider>
-          </QueryClientProvider>
-        </AuthProvider>
-      </I18nContext.Provider>
+      <ThemeProvider defaultTheme="light">
+        <I18nContext.Provider value={i18n}>
+          <AuthProvider>
+            <QueryClientProvider client={queryClient}>
+              <TooltipProvider>
+                <Toaster position="top-center" richColors expand visibleToasts={3} duration={3000} />
+                <AuthGate />
+              </TooltipProvider>
+            </QueryClientProvider>
+          </AuthProvider>
+        </I18nContext.Provider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

@@ -18,7 +18,8 @@ interface ConnectorStore {
 
 export const useConnectorStore = create<ConnectorStore>((set) => ({
   connector: null,
-  drawerOpen: false,
+  // 데스크톱(lg+)은 사이드바 기본 열림, 모바일은 닫힘 (pcf 셸 패턴)
+  drawerOpen: typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   navigating: false,
 
   selectConnector: (c) => set({ connector: c }),
