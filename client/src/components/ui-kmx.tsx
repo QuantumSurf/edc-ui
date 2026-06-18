@@ -2,7 +2,7 @@
 // Design: Admin Console style | Dark navy sidebar + white cards + light gray bg
 
 import { cn } from "@/lib/utils";
-import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight, ChevronDown, List, RefreshCw } from "lucide-react";
+import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, ArrowUpRight, Check, ChevronRight, ChevronDown, ChevronUp, ChevronsUpDown, List, RefreshCw } from "lucide-react";
 import React from "react";
 import { useI18n } from "@/i18n";
 
@@ -106,36 +106,38 @@ export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon
       aria-label={onClick ? ariaLabel : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       className={cn(
-        "bg-card rounded-xl p-5 flex flex-col gap-2 shadow-sm border border-border hover:shadow-md transition-shadow",
-        onClick && "cursor-pointer hover:border-primary/40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+        "bg-card rounded-xl border border-border shadow-sm p-4 flex flex-col gap-2.5",
+        onClick && "group cursor-pointer transition-all hover:shadow-md hover:border-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 min-w-0">
           {icon && (
-            <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", iconBg ?? iconColor ?? "bg-blue-50")}>
+            <span className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", iconBg ?? iconColor ?? "bg-blue-50 dark:bg-blue-500/10")}>
               {icon}
-            </div>
+            </span>
           )}
-          {title && (
-            <span className="font-display text-[14px] font-bold text-foreground truncate">{title}</span>
+          {(title || label) && (
+            <span className="text-[12px] text-muted-foreground font-medium truncate">{title ?? label}</span>
           )}
-        </div>
-        {trend && (
+        </span>
+        {trend ? (
           <TrendingUp className={cn(
             "w-4 h-4 flex-shrink-0",
             trend === "up" ? "text-emerald-500" : trend === "down" ? "text-rose-500" : "text-muted-foreground"
           )} />
-        )}
+        ) : onClick ? (
+          <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+        ) : null}
       </div>
       {loading ? (
-        <div className="h-9 w-16 bg-muted animate-pulse rounded mt-1" />
+        <div className="h-9 w-16 bg-muted animate-pulse rounded" />
       ) : (
-        <div className={cn("font-display text-3xl font-bold kpi-value leading-none mt-1", valueColor ?? colorClass ?? "text-foreground")}>
+        <div className={cn("text-3xl font-bold tabular-nums leading-none", valueColor ?? colorClass ?? "text-foreground")}>
           {value}
         </div>
       )}
-      {label && <div className="text-[13px] font-medium text-foreground/80">{label}</div>}
+      {title && label && <div className="text-[13px] font-medium text-foreground/80">{label}</div>}
       {sub && <div className="text-[12px] text-muted-foreground">{sub}</div>}
     </div>
   );
@@ -527,6 +529,76 @@ export function ListHeaderRow({ cols, className, children }: {
 // Header cell label — bold, dark, not uppercase (fl-aggregator style).
 export function ListColLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return <span className={cn("text-[12px] font-bold text-foreground", className)}>{children}</span>;
+}
+
+/* ─── Sortable Header + sort helpers ─────────────────────────────
+ * 목록 컬럼 헤더 클릭으로 정렬. ListColLabel 자리에 그대로 끼워 쓴다.
+ */
+export type SortDir = "asc" | "desc";
+
+export function SortHeader({
+  label, columnKey, activeKey, dir, onSort, className,
+}: {
+  label: React.ReactNode;
+  columnKey: string;
+  activeKey: string | null;
+  dir: SortDir;
+  onSort: (key: string) => void;
+  className?: string;
+}) {
+  const active = activeKey === columnKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(columnKey)}
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={cn(
+        "inline-flex items-center gap-1 text-[12px] font-bold text-foreground hover:text-primary transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+        className,
+      )}
+    >
+      <span className="truncate">{label}</span>
+      {active ? (
+        dir === "asc"
+          ? <ChevronUp className="w-3 h-3 flex-shrink-0 text-primary" />
+          : <ChevronDown className="w-3 h-3 flex-shrink-0 text-primary" />
+      ) : (
+        <ChevronsUpDown className="w-3 h-3 flex-shrink-0 text-muted-foreground/40" />
+      )}
+    </button>
+  );
+}
+
+/** 컬럼 키/방향 상태 + 토글. 같은 키 재클릭 시 asc↔desc 전환. */
+export function useTableSort(initialKey: string | null = null, initialDir: SortDir = "asc") {
+  // 단일 상태 객체 — 순수 업데이터만 사용(StrictMode 이중 호출에도 안전).
+  const [sort, setSort] = React.useState<{ key: string | null; dir: SortDir }>({ key: initialKey, dir: initialDir });
+  const toggleSort = React.useCallback((key: string) => {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  }, []);
+  return { sortKey: sort.key, sortDir: sort.dir, toggleSort };
+}
+
+/** accessor 로 추출한 값으로 정렬한 새 배열을 반환(숫자/날짜/문자 자동 처리, null 후순위). */
+export function sortRows<T>(
+  rows: T[],
+  key: string | null,
+  dir: SortDir,
+  accessor: (row: T, key: string) => string | number | Date | null | undefined,
+): T[] {
+  if (!key) return rows;
+  const sign = dir === "asc" ? 1 : -1;
+  const norm = (v: string | number | Date | null | undefined) =>
+    v instanceof Date ? v.getTime() : v;
+  return [...rows].sort((a, b) => {
+    const va = norm(accessor(a, key));
+    const vb = norm(accessor(b, key));
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * sign;
+    return String(va).localeCompare(String(vb), undefined, { numeric: true }) * sign;
+  });
 }
 
 // Data row. Pass the same `cols` class used by ListHeaderRow.

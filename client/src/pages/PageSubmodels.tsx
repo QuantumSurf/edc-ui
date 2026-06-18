@@ -10,7 +10,8 @@ import {
 import type { SemanticModel, SemanticModelStatus, SemanticModelSummary } from "@/lib/data";
 import {
   Card, Badge, SectionHdr, FormField, PrimaryActionButton, inputBase,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError,
+  ListCard, ListHeaderRow, ListRow, ListEmpty, ListError,
+  SortHeader, useTableSort, sortRows,
 } from "@/components/ui-kmx";
 
 const SUBMODEL_COLS = "grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
@@ -68,7 +69,7 @@ export default function PageSubmodels() {
   });
   const items = data?.items ?? [];
 
-  const filtered = items.filter((m) => {
+  const filtered = useMemo(() => items.filter((m) => {
     const q = search.toLowerCase();
     if (!q) return true;
     return (
@@ -77,9 +78,30 @@ export default function PageSubmodels() {
       (m.descriptionKo ?? "").toLowerCase().includes(q) ||
       (m.descriptionEn ?? "").toLowerCase().includes(q)
     );
-  });
+  }), [items, search]);
 
-  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+  // 컬럼 헤더 클릭 정렬 (기본: 수정일 최신순)
+  const { sortKey, sortDir, toggleSort } = useTableSort("updatedAt", "desc");
+  const sorted = useMemo(
+    () => sortRows(filtered, sortKey, sortDir, (m, k) => {
+      switch (k) {
+        case "name": return m.name;
+        case "urn": return m.urn;
+        case "version": return m.version;
+        case "status": return m.status;
+        case "modelType": return m.modelType;
+        case "size": return m.contentBytes;
+        case "updatedAt": return new Date(m.updatedAt).getTime();
+        default: return undefined;
+      }
+    }),
+    [filtered, sortKey, sortDir],
+  );
+
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(sorted, 10);
+
+  // 정렬 변경 시 1페이지로
+  useEffect(() => { setCurrentPage(1); }, [sortKey, sortDir, setCurrentPage]);
 
 
   return (
@@ -152,13 +174,13 @@ export default function PageSubmodels() {
           title={t.submodels.listTitle}
         >
           <ListHeaderRow cols={SUBMODEL_COLS}>
-            <ListColLabel>{t.submodels.col.name}</ListColLabel>
-            <ListColLabel>{t.submodels.col.urn}</ListColLabel>
-            <ListColLabel>{t.submodels.col.version}</ListColLabel>
-            <ListColLabel>{t.submodels.col.status}</ListColLabel>
-            <ListColLabel className="hidden lg:block">{t.submodels.col.modelType}</ListColLabel>
-            <ListColLabel className="hidden xl:block">{t.submodels.col.size}</ListColLabel>
-            <ListColLabel className="hidden xl:block">{t.submodels.col.updated}</ListColLabel>
+            <SortHeader label={t.submodels.col.name} columnKey="name" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.urn} columnKey="urn" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.version} columnKey="version" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.status} columnKey="status" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.modelType} columnKey="modelType" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden lg:inline-flex" />
+            <SortHeader label={t.submodels.col.size} columnKey="size" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
+            <SortHeader label={t.submodels.col.updated} columnKey="updatedAt" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
           </ListHeaderRow>
           {filtered.length === 0 ? (
             <ListEmpty icon={<Layers />} message={t.submodels.noSearchResults} />

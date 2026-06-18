@@ -7,7 +7,8 @@ import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   SectionHdr, Badge, MonoText,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  ListCard, ListHeaderRow, ListRow, ListEmpty,
+  SortHeader, useTableSort, sortRows,
 } from "@/components/ui-kmx";
 
 const AUDIT_COLS = "grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
@@ -191,12 +192,31 @@ export default function PageAudit() {
     });
   }, [allEvents, search, category, result, severity, range]);
 
-  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+  // 컬럼 헤더 클릭 정렬 (기본: 최신순)
+  const { sortKey, sortDir, toggleSort } = useTableSort("timestamp", "desc");
+  const sorted = useMemo(
+    () => sortRows(filtered, sortKey, sortDir, (e, k) => {
+      switch (k) {
+        case "timestamp": return new Date(e.timestamp).getTime();
+        case "actor": return e.actor;
+        case "action": return e.action;
+        case "category": return e.category;
+        case "target": return e.target;
+        case "result": return e.result;
+        case "severity": return e.severity === "CRITICAL" ? 2 : e.severity === "WARN" ? 1 : 0;
+        case "ip": return e.ip;
+        default: return undefined;
+      }
+    }),
+    [filtered, sortKey, sortDir],
+  );
 
-  // Reset page when filters change so users always see page 1 of new results.
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(sorted, 10);
+
+  // Reset page when filters/sort change so users always see page 1 of new results.
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, category, result, severity, range, setCurrentPage]);
+  }, [search, category, result, severity, range, sortKey, sortDir, setCurrentPage]);
 
   const catLabel: Record<"ALL" | AuditCategory, string> = {
     ALL: t.audit.catAll,
@@ -261,38 +281,44 @@ export default function PageAudit() {
         </button>
       </div>
 
-      {/* Filter Bar 2 — category */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* Filter Bar 2 — category / result / severity (컴팩트 드롭다운으로 정리) */}
+      <div className="flex items-center gap-2.5 flex-wrap">
         <Filter className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-        <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterCategory}</span>
-        <div className="flex gap-1.5 flex-wrap">
-          {CATEGORIES.map((c) => (
-            <FilterPill key={c} active={category === c} onClick={() => setCategory(c)}>
-              {catLabel[c]}
-            </FilterPill>
-          ))}
-        </div>
-      </div>
-
-      {/* Filter Bar 3 — result / severity + clear */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <label className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterCategory}</span>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as "ALL" | AuditCategory)}
+            className="text-[12px] border border-border rounded-md bg-card text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            {CATEGORIES.map((c) => <option key={c} value={c}>{catLabel[c]}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5">
           <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterResult}</span>
-          {(["ALL", "SUCCESS", "FAILURE"] as const).map((r) => (
-            <FilterPill key={r} active={result === r} onClick={() => setResult(r)}>
-              {r === "ALL" ? t.common.all : r === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure}
-            </FilterPill>
-          ))}
-        </div>
-        <span className="text-muted-foreground/40 text-xs">·</span>
-        <div className="flex items-center gap-1.5 flex-wrap">
+          <select
+            value={result}
+            onChange={(e) => setResult(e.target.value as "ALL" | AuditResult)}
+            className="text-[12px] border border-border rounded-md bg-card text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="ALL">{t.common.all}</option>
+            <option value="SUCCESS">{t.audit.resultSuccess}</option>
+            <option value="FAILURE">{t.audit.resultFailure}</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5">
           <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterSeverity}</span>
-          {(["ALL", "INFO", "WARN", "CRITICAL"] as const).map((s) => (
-            <FilterPill key={s} active={severity === s} onClick={() => setSeverity(s)}>
-              {s === "ALL" ? t.common.all : s === "INFO" ? t.audit.severityInfo : s === "WARN" ? t.audit.severityWarn : t.audit.severityCritical}
-            </FilterPill>
-          ))}
-        </div>
+          <select
+            value={severity}
+            onChange={(e) => setSeverity(e.target.value as "ALL" | AuditSeverity)}
+            className="text-[12px] border border-border rounded-md bg-card text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="ALL">{t.common.all}</option>
+            <option value="INFO">{t.audit.severityInfo}</option>
+            <option value="WARN">{t.audit.severityWarn}</option>
+            <option value="CRITICAL">{t.audit.severityCritical}</option>
+          </select>
+        </label>
         {hasActiveFilter && (
           <button
             onClick={() => { setSearch(""); setCategory("ALL"); setResult("ALL"); setSeverity("ALL"); setRange("ALL"); }}
@@ -321,14 +347,14 @@ export default function PageAudit() {
         ) : (
           <>
             <ListHeaderRow cols={AUDIT_COLS}>
-              <ListColLabel>{t.audit.col.timestamp}</ListColLabel>
-              <ListColLabel>{t.audit.col.actor}</ListColLabel>
-              <ListColLabel>{t.audit.col.action}</ListColLabel>
-              <ListColLabel>{t.audit.col.category}</ListColLabel>
-              <ListColLabel className="hidden lg:block">{t.audit.col.target}</ListColLabel>
-              <ListColLabel>{t.audit.col.result}</ListColLabel>
-              <ListColLabel className="hidden xl:block">{t.audit.col.severity}</ListColLabel>
-              <ListColLabel className="hidden xl:block">{t.audit.col.ip}</ListColLabel>
+              <SortHeader label={t.audit.col.timestamp} columnKey="timestamp" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.actor} columnKey="actor" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.action} columnKey="action" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.category} columnKey="category" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.target} columnKey="target" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden lg:inline-flex" />
+              <SortHeader label={t.audit.col.result} columnKey="result" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.severity} columnKey="severity" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
+              <SortHeader label={t.audit.col.ip} columnKey="ip" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
             </ListHeaderRow>
             {paginatedData.map((e) => (
               <ListRow
@@ -490,22 +516,6 @@ export default function PageAudit() {
 }
 
 /* ─── Filter primitives ──────────────────────────────────────── */
-function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
-        active
-          ? "bg-primary text-primary-foreground border-primary"
-          : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 function RangeBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button

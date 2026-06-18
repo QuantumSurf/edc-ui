@@ -80,28 +80,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
 
   return (
     <>
-      {/* KPI 조회 실패 배너 (값은 "—"로 표시되어 오정보 방지) */}
-      {kpiError && (
-        <AlertBanner variant="warn">
-          <span className="inline-flex flex-wrap items-center gap-2">
-            {t.fleet.kpiLoadFailed}
-            <button onClick={() => kpiRefetch()} className="underline underline-offset-2 hover:no-underline font-medium">
-              {t.common.retry}
-            </button>
-          </span>
-        </AlertBanner>
-      )}
-
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-        <KpiCard icon={<Server className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={kpiVal(kpi?.totalConnectors)} label={t.fleet.totalConnectors} loading={kpiLoading} />
-        <KpiCard icon={<CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" />} iconBg="bg-emerald-50" value={kpiVal(kpi?.up)} label={t.fleet.healthy} valueColor="text-emerald-600" loading={kpiLoading} />
-        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={kpiVal(kpi?.warn)} label={t.fleet.warning} sub={t.fleet.needsCheck} valueColor="text-amber-600" loading={kpiLoading} />
-        <KpiCard icon={<XCircle className="w-[18px] h-[18px] text-rose-600" />} iconBg="bg-rose-50" value={kpiVal(kpi?.down)} label={t.fleet.down} valueColor="text-rose-600" loading={kpiLoading} />
-        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={kpiVal(kpi?.totalTransfers)} label={t.fleet.todayTransfers} sub={kpiError ? undefined : t.fleet.assetsRegistered(kpi?.totalAssets ?? 0)} valueColor="text-sky-600" loading={kpiLoading} />
-      </div>
-
-      {/* Section Header */}
+      {/* Section Header (KPI 카드는 이 "커넥터 플릿" 제목 아래에 표시) */}
       <SectionHdr
         icon={<LayoutGrid className="w-5 h-5 text-primary" />}
         breadcrumb={user?.tenantName || undefined}
@@ -114,6 +93,27 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
       }>
         {t.fleet.connectorFleet}
       </SectionHdr>
+
+      {/* KPI 조회 실패 배너 (값은 "—"로 표시되어 오정보 방지) */}
+      {kpiError && (
+        <AlertBanner variant="warn">
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {t.fleet.kpiLoadFailed}
+            <button onClick={() => kpiRefetch()} className="underline underline-offset-2 hover:no-underline font-medium">
+              {t.common.retry}
+            </button>
+          </span>
+        </AlertBanner>
+      )}
+
+      {/* KPI Row — 커넥터 플릿 제목 바로 아래 */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+        <KpiCard icon={<Server className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={kpiVal(kpi?.totalConnectors)} label={t.fleet.totalConnectors} loading={kpiLoading} />
+        <KpiCard icon={<CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" />} iconBg="bg-emerald-50" value={kpiVal(kpi?.up)} label={t.fleet.healthy} valueColor="text-emerald-600" loading={kpiLoading} />
+        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={kpiVal(kpi?.warn)} label={t.fleet.warning} sub={t.fleet.needsCheck} valueColor="text-amber-600" loading={kpiLoading} />
+        <KpiCard icon={<XCircle className="w-[18px] h-[18px] text-rose-600" />} iconBg="bg-rose-50" value={kpiVal(kpi?.down)} label={t.fleet.down} valueColor="text-rose-600" loading={kpiLoading} />
+        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={kpiVal(kpi?.totalTransfers)} label={t.fleet.todayTransfers} sub={kpiError ? undefined : t.fleet.assetsRegistered(kpi?.totalAssets ?? 0)} valueColor="text-sky-600" loading={kpiLoading} />
+      </div>
 
       {/* 검색 (커넥터가 있을 때만) */}
       {!connectorsLoading && !connectorsError && list.length > 0 && (
