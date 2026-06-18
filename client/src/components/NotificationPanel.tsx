@@ -56,6 +56,7 @@ export default function NotificationPanel() {
   const [confirmClear, setConfirmClear] = useState(false);
 
   const counts = {
+    info: allNotifications.filter((n) => n.type === "info").length,
     error: allNotifications.filter((n) => n.type === "error").length,
     warn: allNotifications.filter((n) => n.type === "warn").length,
     success: allNotifications.filter((n) => n.type === "success").length,
@@ -106,7 +107,7 @@ export default function NotificationPanel() {
         <div className="flex flex-col flex-1 min-h-0 px-4 pt-3">
           {/* Filter chips */}
           <div className="flex items-center gap-1.5 mb-3 flex-shrink-0">
-            {(["all", "error", "warn", "success"] as const).map((f) => (
+            {(["all", "info", "warn", "error", "success"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -148,10 +149,33 @@ export default function NotificationPanel() {
           <ScrollArea className="flex-1">
             {isError && allNotifications.length === 0 ? (
               <ListError onRetry={() => refetch()} fetching={isFetching} />
+            ) : allNotifications.length === 0 && isFetching ? (
+              <div className="space-y-3 pb-4 pr-2" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="p-3 rounded-lg border border-border bg-card animate-pulse">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-4 h-4 rounded-full bg-muted mt-0.5" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 w-2/3 bg-muted rounded" />
+                        <div className="h-2.5 w-full bg-muted rounded" />
+                        <div className="h-2.5 w-1/3 bg-muted rounded" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <BellOff className="w-10 h-10 text-sidebar-foreground/40 mb-3" />
                 <p className="text-xs text-sidebar-foreground/70 font-medium">{t.notifications.empty}</p>
+                {filter !== "all" && (
+                  <button
+                    onClick={() => setFilter("all")}
+                    className="mt-2 text-[11px] font-medium text-primary hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                  >
+                    {typeLabel("all")}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-3 pb-4 pr-2">

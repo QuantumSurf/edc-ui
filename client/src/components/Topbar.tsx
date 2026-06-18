@@ -25,7 +25,7 @@ function currentLabel(t: Translations, location: string): string | undefined {
     "/negotiation": t.nav.negotiations,
     "/transfer": t.nav.transfers,
     "/edr": t.nav.edr,
-    "/infra": t.nav.dashboard,
+    "/infra": t.nav.infra,
     "/registry": t.nav.digitalTwins,
     "/submodels": t.nav.submodels,
     "/system/vault": t.nav.vault,
