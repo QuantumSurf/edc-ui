@@ -191,6 +191,7 @@ export default function AppSidebar({
                   type="button"
                   onClick={() => toggleGroup(group.key)}
                   aria-expanded={!groupCollapsed}
+                  aria-controls={`navgrp-${group.key}`}
                   className="w-full flex items-center gap-1.5 text-[11px] uppercase tracking-widest px-2 mb-2 font-semibold transition-colors rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70"
                   style={{ color: C.groupLabel }}
                 >
@@ -200,7 +201,7 @@ export default function AppSidebar({
                     ? <ChevronRight size={12} style={{ color: C.groupIcon }} />
                     : <ChevronDown size={12} style={{ color: C.groupIcon }} />}
                 </button>
-                <div className={cn("space-y-0.5", groupCollapsed && "hidden")}>
+                <div id={`navgrp-${group.key}`} role="group" aria-label={group.label} className={cn("space-y-0.5", groupCollapsed && "hidden")}>
                   {group.items.map((it) => (
                     <SidebarLink
                       key={it.path}

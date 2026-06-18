@@ -56,6 +56,7 @@ export default function ConnectorSelectorCard({ collapsed }: ConnectorSelectorCa
   };
 
   const dotCls = STATUS_DOT_CLS[connector.status] ?? "bg-rose-400";
+  const statusLabel = connector.status === "up" ? t.fleet.healthy : connector.status === "warn" ? t.fleet.warning : t.fleet.down;
 
   return (
     <div className={cn("px-2 pt-3", collapsed && "px-1")}>
@@ -63,13 +64,15 @@ export default function ConnectorSelectorCard({ collapsed }: ConnectorSelectorCa
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            title={collapsed ? `${connector.name} (${connector.bpn})` : undefined}
+            title={collapsed ? `${connector.name} (${connector.bpn}) — ${statusLabel}` : `${statusLabel}`}
+            aria-label={`${connector.name} — ${statusLabel}`}
             className={cn(
               "w-full flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-left",
               collapsed ? "justify-center p-2" : "px-3 py-2"
             )}
           >
-            <span className={cn("w-2 h-2 rounded-full flex-shrink-0", dotCls)} />
+            <span aria-hidden="true" className={cn("w-2 h-2 rounded-full flex-shrink-0", dotCls)} />
+            <span className="sr-only">{statusLabel}</span>
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0">

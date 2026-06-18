@@ -200,12 +200,18 @@ interface AlertBannerProps {
 
 export function AlertBanner({ children, variant = "warn", onClose }: AlertBannerProps) {
   const { bg, border, text, Icon } = ALERT_STYLES[variant];
+  const { t } = useI18n();
   return (
     <div className={cn("flex items-start gap-2.5 px-4 py-3 rounded-xl border text-[12px] shadow-sm", bg, border, text)}>
       <Icon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
       <span className="flex-1">{children}</span>
       {onClose && (
-        <button onClick={onClose} className="opacity-50 hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="opacity-50 hover:opacity-100 transition-opacity rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-current/40"
+        >
           <X className="w-3 h-3" />
         </button>
       )}
