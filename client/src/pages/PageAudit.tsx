@@ -252,7 +252,7 @@ export default function PageAudit() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.audit.searchPlaceholder}
-            className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           {search && (
             <button
@@ -322,7 +322,7 @@ export default function PageAudit() {
         {hasActiveFilter && (
           <button
             onClick={() => { setSearch(""); setCategory("ALL"); setResult("ALL"); setSeverity("ALL"); setRange("ALL"); }}
-            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors"
           >
             <X className="w-3 h-3" />{t.audit.clearFilters}
           </button>
@@ -361,7 +361,7 @@ export default function PageAudit() {
                 key={e.id}
                 cols={AUDIT_COLS}
                 onClick={() => setSelected(e)}
-                className={e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30" : undefined}
+                className={e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30 dark:bg-rose-500/10" : undefined}
               >
                 <div>
                   <span className="text-xs text-foreground" title={new Date(e.timestamp).toLocaleString()}>{formatTs(e.timestamp)}</span>
@@ -417,7 +417,7 @@ export default function PageAudit() {
               tabIndex={0}
               onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelected(e); } }}
               className={`bg-card rounded-xl p-3 shadow-sm border border-border border-l-2 active:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
-                e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30" : "border-l-transparent"
+                e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30 dark:bg-rose-500/10" : "border-l-transparent"
               }`}
             >
               <div className="flex items-center justify-between gap-2 mb-1">

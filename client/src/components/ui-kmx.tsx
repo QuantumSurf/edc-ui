@@ -10,14 +10,14 @@ import { useI18n } from "@/i18n";
 type BadgeVariant = "green" | "blue" | "teal" | "amber" | "red" | "purple" | "gray" | "outline" | "sky";
 
 const BADGE_STYLES: Record<BadgeVariant, string> = {
-  sky:     "bg-sky-50 text-sky-700 border-sky-200",
-  green:   "bg-emerald-50 text-emerald-700 border-emerald-200",
-  blue:    "bg-blue-50 text-blue-700 border-blue-200",
-  teal:    "bg-teal-50 text-teal-700 border-teal-200",
-  amber:   "bg-amber-50 text-amber-700 border-amber-200",
-  red:     "bg-rose-50 text-rose-700 border-rose-200",
-  purple:  "bg-violet-50 text-violet-700 border-violet-200",
-  gray:    "bg-slate-50 text-slate-600 border-slate-200",
+  sky:     "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/30",
+  green:   "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
+  blue:    "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30",
+  teal:    "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-300 dark:border-teal-500/30",
+  amber:   "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30",
+  red:     "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30",
+  purple:  "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/30",
+  gray:    "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/30",
   outline: "bg-transparent text-foreground border-border",
 };
 
@@ -65,9 +65,9 @@ export function StateBadge({ name }: { name: string }) {
 /* ─── Status Pill ────────────────────────────────────────────── */
 export function StatusPill({ status = "down" }: { status?: "up" | "warn" | "down" }) {
   const map = {
-    up:   { dot: "bg-emerald-500", label: "UP",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    warn: { dot: "bg-amber-500",   label: "WARN", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-    down: { dot: "bg-rose-500",    label: "DOWN", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+    up:   { dot: "bg-emerald-500", label: "UP",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30" },
+    warn: { dot: "bg-amber-500",   label: "WARN", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30" },
+    down: { dot: "bg-rose-500",    label: "DOWN", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30" },
   };
   const { dot, label, cls } = map[status] ?? map.down;
   return (
@@ -153,9 +153,9 @@ interface ServiceCardProps {
 
 export function ServiceCard({ name, desc, status, icon }: ServiceCardProps) {
   const statusMap = {
-    healthy:  { dot: "bg-emerald-500", label: "Healthy",  cls: "text-emerald-600" },
-    degraded: { dot: "bg-rose-500",    label: "Degraded", cls: "text-rose-600"    },
-    unknown:  { dot: "bg-amber-500",   label: "Unknown",  cls: "text-amber-600"   },
+    healthy:  { dot: "bg-emerald-500", label: "Healthy",  cls: "text-emerald-600 dark:text-emerald-400" },
+    degraded: { dot: "bg-rose-500",    label: "Degraded", cls: "text-rose-600 dark:text-rose-400"    },
+    unknown:  { dot: "bg-amber-500",   label: "Unknown",  cls: "text-amber-600 dark:text-amber-400"   },
   };
   const { dot, label, cls } = statusMap[status];
   return (
@@ -163,9 +163,9 @@ export function ServiceCard({ name, desc, status, icon }: ServiceCardProps) {
       {icon && (
         <div className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5",
-          status === "healthy"  ? "bg-emerald-50 text-emerald-600" :
-          status === "degraded" ? "bg-rose-50 text-rose-600" :
-                                  "bg-amber-50 text-amber-600"
+          status === "healthy"  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" :
+          status === "degraded" ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400" :
+                                  "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
         )}>
           {icon}
         </div>
@@ -186,10 +186,10 @@ export function ServiceCard({ name, desc, status, icon }: ServiceCardProps) {
 type AlertVariant = "warn" | "info" | "danger" | "success";
 
 const ALERT_STYLES: Record<AlertVariant, { bg: string; border: string; text: string; Icon: React.ElementType }> = {
-  warn:    { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-800",   Icon: AlertTriangle  },
-  info:    { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     Icon: Info           },
-  danger:  { bg: "bg-rose-50",    border: "border-rose-200",    text: "text-rose-800",    Icon: AlertCircle    },
-  success: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800", Icon: CheckCircle2   },
+  warn:    { bg: "bg-amber-50 dark:bg-amber-500/10",     border: "border-amber-200 dark:border-amber-500/30",     text: "text-amber-800 dark:text-amber-200",     Icon: AlertTriangle  },
+  info:    { bg: "bg-sky-50 dark:bg-sky-500/10",         border: "border-sky-200 dark:border-sky-500/30",         text: "text-sky-800 dark:text-sky-200",         Icon: Info           },
+  danger:  { bg: "bg-rose-50 dark:bg-rose-500/10",       border: "border-rose-200 dark:border-rose-500/30",       text: "text-rose-800 dark:text-rose-200",       Icon: AlertCircle    },
+  success: { bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/30", text: "text-emerald-800 dark:text-emerald-200", Icon: CheckCircle2   },
 };
 
 interface AlertBannerProps {
@@ -252,7 +252,7 @@ export function Card({ title, children, actions, className, noPad }: CardProps) 
   return (
     <div className={cn("bg-card rounded-xl overflow-hidden shadow-sm border border-border", className)}>
       {title && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="font-display text-[14px] font-bold text-foreground">{title}</span>
           {actions && <div className="flex items-center gap-1.5">{actions}</div>}
         </div>
@@ -271,7 +271,7 @@ interface StepperProps {
 
 export function Stepper({ steps, current, icons }: StepperProps) {
   return (
-    <div className="flex mb-5 rounded-lg overflow-hidden border border-gray-200">
+    <div className="flex mb-5 rounded-lg overflow-hidden border border-border">
       {steps.map((s, i) => {
         const done = i < current;
         const curr = i === current;
@@ -279,15 +279,15 @@ export function Stepper({ steps, current, icons }: StepperProps) {
           <div
             key={i}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-[11px] font-medium border-r border-gray-200 last:border-r-0 transition-colors",
-              done && "bg-blue-50 text-blue-700",
-              curr && "bg-blue-600 text-white",
-              !done && !curr && "bg-gray-50 text-muted-foreground",
+              "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-[11px] font-medium border-r border-border last:border-r-0 transition-colors",
+              done && "bg-primary/10 text-primary",
+              curr && "bg-primary text-primary-foreground",
+              !done && !curr && "bg-muted text-muted-foreground",
             )}
           >
             {/* Step indicator: checkmark if done */}
             {done && (
-              <span className="w-4.5 h-4.5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <span className="w-4.5 h-4.5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                 <Check className="w-3 h-3 text-white" />
               </span>
             )}
@@ -315,7 +315,7 @@ export function MonoText({ children, className }: { children: React.ReactNode; c
 /* ─── Inline Code ────────────────────────────────────────────── */
 export function InlineCode({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <code className={cn("mono text-[11px] bg-gray-100 px-1.5 py-0.5 rounded text-foreground/80 border border-gray-200", className)}>
+    <code className={cn("mono text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground/80 border border-border", className)}>
       {children}
     </code>
   );
@@ -343,7 +343,7 @@ export function ProgressBar({ value, colorClass, className }: ProgressBarProps) 
 export function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
         <span className="text-xl opacity-40">∅</span>
       </div>
       <p className="text-xs">{message}</p>

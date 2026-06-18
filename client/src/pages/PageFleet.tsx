@@ -108,11 +108,11 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
 
       {/* KPI Row — 커넥터 플릿 제목 바로 아래 */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-        <KpiCard icon={<Server className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={kpiVal(kpi?.totalConnectors)} label={t.fleet.totalConnectors} loading={kpiLoading} />
-        <KpiCard icon={<CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" />} iconBg="bg-emerald-50" value={kpiVal(kpi?.up)} label={t.fleet.healthy} valueColor="text-emerald-600" loading={kpiLoading} />
-        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={kpiVal(kpi?.warn)} label={t.fleet.warning} sub={t.fleet.needsCheck} valueColor="text-amber-600" loading={kpiLoading} />
-        <KpiCard icon={<XCircle className="w-[18px] h-[18px] text-rose-600" />} iconBg="bg-rose-50" value={kpiVal(kpi?.down)} label={t.fleet.down} valueColor="text-rose-600" loading={kpiLoading} />
-        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={kpiVal(kpi?.totalTransfers)} label={t.fleet.todayTransfers} sub={kpiError ? undefined : t.fleet.assetsRegistered(kpi?.totalAssets ?? 0)} valueColor="text-sky-600" loading={kpiLoading} />
+        <KpiCard icon={<Server className="w-[18px] h-[18px] text-blue-600 dark:text-blue-400" />} iconBg="bg-blue-50 dark:bg-blue-500/10" value={kpiVal(kpi?.totalConnectors)} label={t.fleet.totalConnectors} loading={kpiLoading} />
+        <KpiCard icon={<CheckCircle2 className="w-[18px] h-[18px] text-emerald-600 dark:text-emerald-400" />} iconBg="bg-emerald-50 dark:bg-emerald-500/10" value={kpiVal(kpi?.up)} label={t.fleet.healthy} valueColor="text-emerald-600 dark:text-emerald-400" loading={kpiLoading} />
+        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-amber-600 dark:text-amber-400" />} iconBg="bg-amber-50 dark:bg-amber-500/10" value={kpiVal(kpi?.warn)} label={t.fleet.warning} sub={t.fleet.needsCheck} valueColor="text-amber-600 dark:text-amber-400" loading={kpiLoading} />
+        <KpiCard icon={<XCircle className="w-[18px] h-[18px] text-rose-600 dark:text-rose-400" />} iconBg="bg-rose-50 dark:bg-rose-500/10" value={kpiVal(kpi?.down)} label={t.fleet.down} valueColor="text-rose-600 dark:text-rose-400" loading={kpiLoading} />
+        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600 dark:text-sky-400" />} iconBg="bg-sky-50 dark:bg-sky-500/10" value={kpiVal(kpi?.totalTransfers)} label={t.fleet.todayTransfers} sub={kpiError ? undefined : t.fleet.assetsRegistered(kpi?.totalAssets ?? 0)} valueColor="text-sky-600 dark:text-sky-400" loading={kpiLoading} />
       </div>
 
       {/* 검색 (커넥터가 있을 때만) */}
