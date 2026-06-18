@@ -15,6 +15,8 @@ const en: Translations = {
     refresh: "Refresh",
     prev: "← Previous",
     next: "Next →",
+    first: "First",
+    last: "Last",
     close: "Close",
     menu: "Menu",
     copy: "Copy",

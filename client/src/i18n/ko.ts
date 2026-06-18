@@ -14,6 +14,8 @@ const ko = {
     refresh: "새로고침",
     prev: "← 이전",
     next: "다음 →",
+    first: "처음",
+    last: "마지막",
     close: "닫기",
     menu: "메뉴",
     copy: "복사",

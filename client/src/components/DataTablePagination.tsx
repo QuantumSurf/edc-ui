@@ -2,7 +2,7 @@
 // Ported style from kmx-identityhub-ui
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 
@@ -35,6 +35,7 @@ export function DataTablePagination({
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>{rowsPerPageLabel}</span>
         <select
+          aria-label={rowsPerPageLabel}
           className="border border-border rounded-md px-2 py-1 text-[12px] bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           value={pageSize}
           onChange={(e) => {
@@ -49,39 +50,34 @@ export function DataTablePagination({
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          {startItem}–{endItem} of {totalItems}
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {startItem}–{endItem} / {totalItems}
         </span>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1}
-            aria-label={t.common.prev}
-            className={cn(
-              "p-1.5 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-              currentPage <= 1
-                ? "border-border text-muted-foreground/40 cursor-not-allowed"
-                : "border-border text-foreground/70 hover:bg-muted"
-            )}
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <span className="text-xs font-medium text-foreground min-w-[60px] text-center">
-            {currentPage} / {totalPages}
-          </span>
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            aria-label={t.common.next}
-            className={cn(
-              "p-1.5 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-              currentPage >= totalPages
-                ? "border-border text-muted-foreground/40 cursor-not-allowed"
-                : "border-border text-foreground/70 hover:bg-muted"
-            )}
-          >
-            <ChevronRight size={14} />
-          </button>
+          {(() => {
+            const navBtn = "p-1.5 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary";
+            const idle = "border-border text-foreground/70 hover:bg-muted";
+            const off = "border-border text-muted-foreground/40 cursor-not-allowed";
+            return (
+              <>
+                <button onClick={() => onPageChange(1)} disabled={currentPage <= 1} aria-label={t.common.first ?? "First"} className={cn(navBtn, currentPage <= 1 ? off : idle)}>
+                  <ChevronsLeft size={14} />
+                </button>
+                <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage <= 1} aria-label={t.common.prev} className={cn(navBtn, currentPage <= 1 ? off : idle)}>
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs font-medium text-foreground min-w-[60px] text-center tabular-nums">
+                  {currentPage} / {totalPages}
+                </span>
+                <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= totalPages} aria-label={t.common.next} className={cn(navBtn, currentPage >= totalPages ? off : idle)}>
+                  <ChevronRight size={14} />
+                </button>
+                <button onClick={() => onPageChange(totalPages)} disabled={currentPage >= totalPages} aria-label={t.common.last ?? "Last"} className={cn(navBtn, currentPage >= totalPages ? off : idle)}>
+                  <ChevronsRight size={14} />
+                </button>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
