@@ -35,7 +35,7 @@ const en: Translations = {
     deleted: "Deleted successfully",
     addConnector: "Add Connector",
     allSystemsOk: "All systems operational",
-    appName: "EDC Hub",
+    appName: "Connector Hub",
     appSubtitle: "Admin Console",
     saving: "Saving...",
     comingSoon: "Coming soon",
@@ -725,7 +725,7 @@ const en: Translations = {
     admin: "Provider",
     operator: "Consumer",
     viewer: "Viewer",
-    appName: "EDC Hub",
+    appName: "Connector Hub",
     appSubtitle: "Admin Console",
   },
 

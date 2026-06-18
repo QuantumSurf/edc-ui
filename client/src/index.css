@@ -49,9 +49,11 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  /* AAS-Service-Hub / pcf 와 동일한 폰트 토큰 */
+  --font-sans: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
   --font-display: 'Space Grotesk', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-body: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Malgun Gothic', 'Noto Sans KR', monospace;
 }
 
 :root {
@@ -115,25 +117,64 @@
   --sidebar-gradient: linear-gradient(180deg, oklch(0.30 0.09 240) 0%, oklch(0.26 0.09 240) 60%, oklch(0.30 0.09 240) 100%);
 }
 
+/* 다크 모드 — AAS-Service-Hub 딥네이비 팔레트 참고, 블루(hue 240) 정체성 유지.
+   sidebar 토큰은 :root 값(다크 네이비) 그대로 사용. shell-bg/topbar-bg 는 var() 참조라 자동 추종. */
+.dark {
+  --background: oklch(0.17 0.022 240);
+  --foreground: oklch(0.92 0.015 240);
+
+  --card: oklch(0.21 0.028 240);
+  --card-foreground: oklch(0.92 0.015 240);
+  --popover: oklch(0.21 0.028 240);
+  --popover-foreground: oklch(0.92 0.015 240);
+
+  --secondary: oklch(0.26 0.035 240);
+  --secondary-foreground: oklch(0.86 0.02 240);
+
+  --muted: oklch(0.25 0.03 240);
+  --muted-foreground: oklch(0.70 0.03 240);
+
+  --accent: oklch(0.30 0.045 240);
+  --accent-foreground: oklch(0.95 0.012 240);
+
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.36 0.04 240 / 0.65);
+  --input: oklch(0.36 0.04 240 / 0.8);
+  --ring: oklch(0.62 0.20 240);
+
+  --primary: oklch(0.62 0.20 240);
+  --primary-foreground: oklch(0.99 0.005 240);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    @apply bg-background text-foreground font-sans;
+    /* AAS-Service-Hub / pcf 와 동일한 본문 타이포 — 14px / line 1.55 / weight 400 */
     font-feature-settings: "cv11" 1, "ss01" 1, "tnum" 1;
     font-size: 14px;
     line-height: 1.55;
-    font-weight: 500;
+    font-weight: 400;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+    font-weight: 600;
+  }
   .mono, code, pre, .font-mono {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Malgun Gothic', 'Noto Sans KR', monospace;
     font-feature-settings: "tnum" 1, "ss01" 1, "calt" 0;
-    font-weight: 500;
+    font-weight: 400;
+  }
+  input, select, textarea {
+    font-family: inherit;
+    font-weight: 400;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -169,10 +210,10 @@
 
   /* Mono text for IDs, hashes, DIDs */
   .mono {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Malgun Gothic', 'Noto Sans KR', monospace;
     font-size: 0.8125rem;
     letter-spacing: 0;
-    font-weight: 500;
+    font-weight: 400;
     font-feature-settings: "tnum" 1, "ss01" 1, "calt" 0;
     -webkit-font-smoothing: antialiased;
   }
@@ -319,6 +360,23 @@ table td .text-foreground\/80 {
   color: oklch(0.42 0.04 240) !important;
   font-size: 13px;
 }
+
+/* ── 다크 모드 테이블 텍스트 ──────────────────────────────────────
+   위 unlayered 규칙들이 라이트 리터럴 색을 강제하므로(.dark 토큰 무시),
+   같은 unlayered + .dark 접두(더 높은 specificity)로 밝은 토큰값을 덮는다. */
+.dark table thead th { color: oklch(0.70 0.03 240); }
+.dark table tbody td { color: oklch(0.92 0.015 240); }
+.dark table td .mono,
+.dark table th .mono { color: oklch(0.70 0.03 240); }
+.dark table td .mono.font-semibold,
+.dark table td .mono.font-medium { color: oklch(0.92 0.015 240); }
+.dark table td .text-muted-foreground,
+.dark table th .text-muted-foreground,
+.dark table td .text-foreground\/70,
+.dark table td .text-foreground\/80 {
+  color: oklch(0.70 0.03 240) !important;
+}
+.dark .table-row-hover:hover { background-color: oklch(0.30 0.045 240); }
 
 /* Action buttons in last column — slightly muted, identityhub style */
 table td button {
