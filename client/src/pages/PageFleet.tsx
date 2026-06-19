@@ -148,7 +148,15 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         <ListError onRetry={() => connectorsRefetch()} fetching={connectorsFetching} />
       ) : list.length === 0 ? (
         <div className="py-10 flex flex-col items-center gap-4">
-          <ListEmpty icon={<Server />} message={t.fleet.noConnectors} />
+          <ListEmpty
+            icon={<Server />}
+            message={
+              <>
+                <span className="block text-[14px] font-semibold text-foreground mb-1">{t.fleet.noConnectors}</span>
+                <span className="block max-w-md mx-auto">{t.fleet.emptyHelp}</span>
+              </>
+            }
+          />
           <RoleGate permission="connector:write">
             <PrimaryActionButton onClick={() => setAddOpen(true)} icon={<PlusCircle className="w-3 h-3" />}>
               {t.common.addConnector}

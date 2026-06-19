@@ -104,6 +104,7 @@ const en: Translations = {
     assetsRegistered: (n: number) => `${n} assets registered`,
     connectorFleet: "Connector Fleet",
     noConnectors: "No connectors registered.",
+    emptyHelp: "Register an EDC connector to manage assets, policies, catalog and transfers in one place.",
     kpiLoadFailed: "Failed to load summary metrics",
     searchPlaceholder: "Search by connector name or BPN...",
     noSearchResults: "No matching connectors.",

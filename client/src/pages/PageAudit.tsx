@@ -329,6 +329,9 @@ export default function PageAudit() {
         )}
       </div>
 
+      {/* 스크린리더용 결과 개수 통지 (필터 변경 시 갱신) */}
+      <p aria-live="polite" className="sr-only">{`${filtered.length}${locale === "ko" ? "건" : " results"}`}</p>
+
       {/* List — Desktop */}
       <ListCard
         title={t.audit.listTitle}

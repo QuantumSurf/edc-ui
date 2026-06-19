@@ -105,6 +105,7 @@ const ko = {
     assetsRegistered: (n: number) => `자산 ${n}개 등록`,
     connectorFleet: "커넥터 플릿",
     noConnectors: "등록된 커넥터가 없습니다.",
+    emptyHelp: "EDC 커넥터를 등록하면 자산·정책·카탈로그·전송을 한 곳에서 관리할 수 있습니다.",
     kpiLoadFailed: "요약 지표를 불러오지 못했습니다",
     searchPlaceholder: "커넥터 이름 또는 BPN 검색...",
     noSearchResults: "검색 결과가 없습니다.",
