@@ -4,13 +4,17 @@
  * 우측 테마 토글 · 한/영 토글 · 버전 · 알림 벨 · 사용자/역할.
  */
 import { useLocation } from "wouter";
-import { ChevronRight, Bell, Menu, Sun, Moon } from "lucide-react";
+import { ChevronRight, Bell, Menu, Sun, Moon, Settings as SettingsIcon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n, type Translations } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 /** 현재 경로 → 페이지 라벨 (커넥터 종속 경로는 suffix 로 매칭) */
 function currentLabel(t: Translations, location: string): string | undefined {
@@ -38,16 +42,20 @@ function currentLabel(t: Translations, location: string): string | undefined {
 }
 
 export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const togglePanel = useNotificationStore((s) => s.togglePanel);
   const panelOpen = useNotificationStore((s) => s.panelOpen);
   const unreadCount = useUnreadNotificationCount();
 
   const label = currentLabel(t, location);
-  const roleLabel = user?.role ?? "User";
+  const roleLabel =
+    user?.role === "admin" ? t.auth.roleAdmin
+    : user?.role === "operator" ? t.auth.roleOperator
+    : user?.role === "viewer" ? t.auth.roleViewer
+    : (user?.role ?? "User");
 
   return (
     <header className="h-12 flex items-center gap-3 px-4 border-b border-border bg-card flex-shrink-0 shadow-sm">
@@ -117,21 +125,47 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           )}
         </button>
 
-        {/* User info */}
-        <div className="flex items-center gap-2 pl-3 border-l border-border">
-          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-[11px] font-bold">{(user?.name ?? user?.username ?? "U")[0]?.toUpperCase()}</span>
-          </div>
-          <div className="hidden sm:block leading-tight">
-            <p className="text-xs font-semibold text-foreground">{user?.username ?? "user"}</p>
-            {user?.tenantBpn && (
-              <p className="mono text-[10px] text-muted-foreground leading-tight" title={user.tenantName}>{user.tenantBpn}</p>
-            )}
-          </div>
-          <span className="text-[11px] px-1.5 py-0.5 rounded font-medium border bg-primary/10 text-primary border-primary/30 capitalize">
-            {roleLabel}
-          </span>
-        </div>
+        {/* User menu (드롭다운: 설정 / 로그아웃) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={locale === "ko" ? "사용자 메뉴" : "User menu"}
+              className="flex items-center gap-2 pl-3 py-1 border-l border-border hover:bg-muted/40 rounded-r-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-[11px] font-bold">{(user?.name ?? user?.username ?? "U")[0]?.toUpperCase()}</span>
+              </div>
+              <div className="hidden sm:block leading-tight text-left">
+                <p className="text-xs font-semibold text-foreground">{user?.username ?? "user"}</p>
+                {user?.tenantBpn && (
+                  <p className="mono text-[10px] text-muted-foreground leading-tight" title={user.tenantName}>{user.tenantBpn}</p>
+                )}
+              </div>
+              <span className="text-[11px] px-1.5 py-0.5 rounded font-medium border bg-primary/10 text-primary border-primary/30">
+                {roleLabel}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="space-y-0.5">
+              <p className="text-xs font-semibold text-foreground truncate">{user?.name ?? user?.username ?? "user"}</p>
+              {user?.email && <p className="text-[11px] font-normal text-muted-foreground truncate">{user.email}</p>}
+              {user?.tenantName && (
+                <p className="text-[11px] font-normal text-muted-foreground truncate">
+                  {user.tenantName}{user?.tenantBpn ? ` · ${user.tenantBpn}` : ""}
+                </p>
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/settings")} className="gap-2 text-xs">
+              <SettingsIcon className="w-3.5 h-3.5" /> {t.nav.settings}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={logout} className="gap-2 text-xs text-rose-600 focus:text-rose-600">
+              <LogOut className="w-3.5 h-3.5" /> {t.nav.signOut}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
