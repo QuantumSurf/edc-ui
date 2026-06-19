@@ -463,6 +463,7 @@ export default function PageAudit() {
           open={!!selected}
           onClose={() => setSelected(null)}
           title={t.audit.detailTitle}
+          icon={<ScrollText className="w-4 h-4 text-primary" />}
           sections={[
             {
               title: t.audit.field.timestamp,

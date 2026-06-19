@@ -260,11 +260,11 @@ function ShellDetailDialog({
       {/* Header */}
       <div className="px-5 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 flex-wrap pr-8">
-          <Boxes className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <BookMarked className="w-4 h-4 text-primary flex-shrink-0" />
           <h2 className="text-[15px] font-semibold text-foreground truncate">{shell.idShort || t.twins.detail.title}</h2>
           <button
             onClick={onClose}
-            className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label={t.common.close}
           >
             <X size={16} />
@@ -543,7 +543,7 @@ function ShellEditorDialog({
         </div>
         <button
           onClick={() => { reset(); onClose(); }}
-          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
           aria-label={t.common.close}
         >
           <X className="w-4 h-4" />
