@@ -550,14 +550,15 @@ export default function PageTransfer() {
                     )}
                   </div>
                 </div>
-                <div className="text-[11px]">
-                  <span className="font-medium text-foreground/70">{t.transfers.col.assetId}:</span>{" "}
-                  <span className="text-xs text-foreground">{tr.asset}</span>
+                <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                  <span className="font-medium text-foreground/70">{t.transfers.col.assetId}:</span>
+                  <span className="text-xs text-foreground break-all">{tr.asset}</span>
+                  {tr.transferType && tr.transferType !== "—" && <Badge variant="sky">{tr.transferType}</Badge>}
                 </div>
-                <div className="flex gap-3 text-xs text-foreground">
-                  <span>{tr.size}</span>
-                  <span>{tr.t}</span>
-                  <span>{tr.ts}</span>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                  <span>{t.transfers.col.size}: <span className="text-foreground">{tr.size}</span></span>
+                  <span>{t.transfers.col.duration}: <span className="text-foreground">{tr.t}</span></span>
+                  <span>{t.transfers.col.startedAt}: <span className="text-foreground">{tr.startedAt}</span></span>
                 </div>
               </div>
             ))}
