@@ -8,9 +8,11 @@ import { verifyToken, type Role, type TokenPayload } from "../lib/auth.js";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-declare module "express-serve-static-core" {
-  interface Request {
-    user?: TokenPayload;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: TokenPayload;
+    }
   }
 }
 
@@ -58,7 +60,11 @@ export function requireRole(...allowed: Role[]) {
  * requireRole() on individual routes will block writes for those anonymous
  * requests because req.user is not attached.
  */
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export function authMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     if (!IS_PRODUCTION) return next();
