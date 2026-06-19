@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/contexts/AuthContext";
 import { FormField, inputBase } from "@/components/ui-kmx";
-import { SlidePanel } from "@/components/DetailDeleteDialogs";
+import { SlidePanel, ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import { Plug, Loader2, CheckCircle2, XCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { testConnection, registerConnector, fetchTenantInfo } from "@/services";
@@ -42,6 +42,13 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"ok" | "fail" | null>(null);
   const [registering, setRegistering] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+
+  // 미저장 변경 여부 — 입력값이 초기 상태와 다르면 닫기 시 확인을 받는다(BPN은 읽기전용이라 제외).
+  const dirty =
+    Boolean(name.trim() || managementUrl.trim() || dspEndpoint.trim() || apiKey || did.trim()) ||
+    role !== "both" || env !== "PROD" || dcpVersion !== "1.0";
+  const requestClose = () => { if (dirty) setConfirmClose(true); else onClose(); };
 
   // Reset form each time the panel opens. BPN defaults to the user's own
   // organization (tenant) BPN — editable for the rare multi-BPN case.
@@ -59,6 +66,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       setDcpVersion("1.0");
       setDid("");
       setTestResult(null);
+      setConfirmClose(false);
     }
   }, [open]);
 
@@ -121,7 +129,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
   const inputClass = inputBase;
 
   return (
-    <SlidePanel open={open} onClose={onClose} className="max-w-xl">
+    <SlidePanel open={open} onClose={requestClose} className="max-w-xl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -129,7 +137,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
           <span className="text-[15px] font-semibold text-foreground truncate">{t.addConnector.register}</span>
         </div>
         <button
-          onClick={onClose}
+          onClick={requestClose}
           aria-label={t.common.close}
           className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
         >
@@ -272,6 +280,18 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
           {t.addConnector.register}
         </button>
       </div>
+
+      {/* 미저장 변경 가드 */}
+      <ConfirmActionDialog
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        title={t.common.unsavedChanges}
+        description={t.common.unsavedChangesDesc}
+        tone="warn"
+        cancelLabel={t.common.stay}
+        confirmLabel={t.common.leave}
+        onConfirm={() => { setConfirmClose(false); onClose(); }}
+      />
     </SlidePanel>
   );
 }
