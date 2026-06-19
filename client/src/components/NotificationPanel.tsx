@@ -82,10 +82,10 @@ export default function NotificationPanel() {
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={close} aria-hidden="true" />
 
-      {/* Panel — 다크 사이드바 톤. chrome 텍스트는 sidebar-foreground 로 대비 확보(라이트/다크 공통). */}
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-96 max-w-full flex flex-col bg-sidebar text-sidebar-foreground border-l border-sidebar-border shadow-2xl">
+      {/* Panel — aas-service 와 동일하게 테마 추종(라이트=밝은 표면 / 다크=딥네이비). */}
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-96 max-w-full flex flex-col bg-background text-foreground border-l border-border shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-sidebar-border flex-shrink-0">
+        <div className="flex items-center justify-between px-4 h-14 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <BellRing className="w-4 h-4 text-primary" />
             <span className="font-medium text-xs">{t.notifications.title}</span>
@@ -97,7 +97,7 @@ export default function NotificationPanel() {
           </div>
           <button
             onClick={close}
-            className="p-1.5 rounded hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             aria-label={t.common.close}
           >
             <X className="w-4 h-4" />
@@ -115,7 +115,7 @@ export default function NotificationPanel() {
                   "px-2 py-0.5 rounded text-xs font-medium transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
                   filter === f
                     ? "bg-primary text-primary-foreground"
-                    : "bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                    : "bg-muted text-muted-foreground hover:text-foreground",
                 )}
               >
                 {typeLabel(f)} ({f === "all" ? allNotifications.length : counts[f]})
@@ -129,7 +129,7 @@ export default function NotificationPanel() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
                   {t.notifications.markAllRead}
@@ -137,7 +137,7 @@ export default function NotificationPanel() {
               )}
               <button
                 onClick={() => setConfirmClear(true)}
-                className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-rose-400 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 {t.notifications.clearAll}
@@ -166,8 +166,8 @@ export default function NotificationPanel() {
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <BellOff className="w-10 h-10 text-sidebar-foreground/40 mb-3" />
-                <p className="text-xs text-sidebar-foreground/70 font-medium">{t.notifications.empty}</p>
+                <BellOff className="w-10 h-10 text-muted-foreground/50 mb-3" />
+                <p className="text-xs text-muted-foreground font-medium">{t.notifications.empty}</p>
                 {filter !== "all" && (
                   <button
                     onClick={() => setFilter("all")}
