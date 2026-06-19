@@ -761,7 +761,14 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
             </FormField>
           </div>
           {/* Wizard nav: right-aligned on md+, sticky bottom on mobile (spec 3.3.3) */}
-          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
+          <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-border">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-[12px] px-3 py-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mr-auto"
+            >
+              {t.common.cancel}
+            </button>
             <button
               disabled={checkingId}
               onClick={async () => { if (await validateStep1()) setStep(1); }}
@@ -830,7 +837,14 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
             <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t.assets.dataAddressPreview}</div>
             <JsonTreeView data={dataAddressObj} />
           </div>
-          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
+          <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-border">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-[12px] px-3 py-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mr-auto"
+            >
+              {t.common.cancel}
+            </button>
             <button onClick={() => setStep(0)} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">
               {t.common.prev}
             </button>
@@ -926,7 +940,14 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
               </div>
             )}
           </div>
-          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
+          <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-border">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-[12px] px-3 py-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mr-auto"
+            >
+              {t.common.cancel}
+            </button>
             <button onClick={() => setStep(1)} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">
               {t.common.prev}
             </button>
