@@ -157,8 +157,8 @@ export default function AppSidebar({
       <div className="flex items-center py-4 gap-3 px-4 flex-shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
         <img src="/logo.svg" alt="Quantum-X" width="28" height="28" className="w-7 h-7 flex-shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-white leading-tight truncate" style={{ fontFamily: "Inter, sans-serif" }}>Quantum-X</p>
-          <p className="text-[11px] font-semibold leading-tight text-white truncate" style={{ fontFamily: "Inter, sans-serif" }}>{t.common.appName}</p>
+          <p className="text-sm font-semibold text-white leading-tight truncate">Quantum-X</p>
+          <p className="text-[11px] font-semibold leading-tight text-white truncate">{t.common.appName}</p>
         </div>
         {onCollapse && (
           <button

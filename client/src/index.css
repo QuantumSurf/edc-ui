@@ -49,11 +49,11 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-display: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-body: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  /* mono 토큰도 Inter로 — 식별자/코드 표기는 크기·색으로만 구분 (사용자 결정) */
-  --font-mono: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-sans: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-display: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-body: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  /* 전체 맑은 고딕 단일화 — 한글/영문/숫자/코드 혼용 없이 한 서체. 식별자/코드는 크기·색·tnum 으로만 구분 (사용자 결정) */
+  --font-mono: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
 }
 
 :root {
@@ -156,11 +156,11 @@
     @apply bg-background text-foreground font-sans;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
     font-weight: 600;
   }
   .mono, code, pre, .font-mono {
-    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
     font-feature-settings: "tnum" 1, "ss01" 1, "calt" 0;
     font-weight: 400;
   }
@@ -200,9 +200,9 @@
     .container { padding-left: 2rem; padding-right: 2rem; max-width: 1280px; }
   }
 
-  /* ID/해시/DID 표기 — 폰트는 Inter, tnum(고정폭 숫자)으로 식별자 가독 유지 */
+  /* ID/해시/DID 표기 — 맑은 고딕, tnum(고정폭 숫자)으로 식별자 가독 유지 */
   .mono {
-    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
     font-size: 0.8125rem;
     letter-spacing: 0;
     font-weight: 400;
