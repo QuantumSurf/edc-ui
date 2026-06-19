@@ -149,7 +149,31 @@ const catalog = {
   }),
 };
 
-const health = { isSystemHealthy: true, componentResults: [{ component: "mock-edc", isHealthy: true }] };
+const health = {
+  isSystemHealthy: true,
+  componentResults: [
+    { component: "mock-edc", isHealthy: true },
+    { component: "sts-service", isHealthy: true },
+    { component: "did-resolver", isHealthy: true },
+    { component: "credential-store", isHealthy: true },
+  ],
+};
+
+/* ── IdentityHub — 참가자 검증가능 자격증명(VC) ─────────────────── */
+const ihCredentials = [
+  { id: "cred-membership", state: "ISSUED", verifiableCredential: { credential: {
+    id: "urn:uuid:vc-membership-001", type: ["VerifiableCredential", "MembershipCredential"],
+    issuer: { id: "did:web:identityhub:issuer" } } } },
+  { id: "cred-bpn", state: "ISSUED", verifiableCredential: { credential: {
+    id: "urn:uuid:vc-bpn-001", type: ["VerifiableCredential", "BpnCredential"],
+    issuer: { id: "did:web:identityhub:issuer" } } } },
+  { id: "cred-dataex", state: "ISSUED", verifiableCredential: { credential: {
+    id: "urn:uuid:vc-dataex-001", type: ["VerifiableCredential", "DataExchangeGovernanceCredential"],
+    issuer: { id: "did:web:dataspace-authority" } } } },
+  { id: "cred-pcf", state: "ISSUED", verifiableCredential: { credential: {
+    id: "urn:uuid:vc-pcf-001", type: ["VerifiableCredential", "UsagePurposeCredential"],
+    issuer: { id: "did:web:dataspace-authority" } } } },
+];
 
 /* ── Digital Twin Registry (DTR) — shell descriptors ──────────── */
 const dtrShells = [
@@ -265,6 +289,11 @@ const server = http.createServer((req, res) => {
     }
     if (method === "POST" && /\/lookup\/shells$/.test(url)) {
       return send(res, 200, { result: dtrShells.map((s) => s.id) });
+    }
+
+    // IdentityHub Identity API — 참가자 자격증명 목록 (auth 미검사, 데모용)
+    if (method === "GET" && /\/api\/identity\/v1alpha\/participants\/[^/]+\/credentials$/.test(url)) {
+      return send(res, 200, ihCredentials);
     }
 
     // 쓰기/삭제/terminate 등 — 동작이 성공한 것처럼 generic 응답

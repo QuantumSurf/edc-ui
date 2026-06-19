@@ -49,6 +49,11 @@ services:
       - ALLOW_PRIVATE_DSP=true
       # 디지털 트윈 레지스트리도 목 서버로 연결(데모 트윈 표시 + 미가동 500 제거)
       - DTR_BASE_URL=http://mock-edc:8090/semantics/registry
+      # 분산 신원(IdentityHub)도 목 서버로 연결(데모 자격증명/상태 표시).
+      # 테넌트별 DID 는 tenant_settings 시드가 우선, 아래 participant 는 폴백.
+      - IDENTITY_HUB_URL=http://mock-edc:8090
+      - IDENTITY_HUB_PARTICIPANT_ID=did:web:identityhub:participants:BPNL000000000PRD
+      - IDENTITY_HUB_API_KEY=demo-key
       # 데모 로그인 계정 비번 고정(미설정 시 0000)
       - SEED_ADMIN_PASSWORD=0000
       - SEED_OPERATOR_PASSWORD=0000
