@@ -23,7 +23,7 @@ const ROLE_MAP: Record<string, string[]> = {
 };
 
 export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -151,6 +151,19 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
                 className={inputClass}
               />
             </FormField>
+            {/* 조직 BPN — 읽기전용(설정에서 관리). 어떤 조직으로 등록되는지 컨텍스트 제공 */}
+            <FormField
+              label={locale === "ko" ? "조직 BPN" : "Organization BPN"}
+              hint={locale === "ko" ? "설정에서 변경할 수 있습니다." : "Managed in Settings."}
+            >
+              <input
+                value={bpn}
+                readOnly
+                disabled
+                placeholder="BPNL000000000000"
+                className={`${inputClass} mono opacity-70 cursor-not-allowed`}
+              />
+            </FormField>
           </div>
         </div>
 
@@ -166,8 +179,15 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
                   placeholder="https://edc-cp-03.kmx.io/management"
                   className={`${inputClass} mono flex-1`}
                 />
-                {testResult === "ok" && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 self-center" />}
-                {testResult === "fail" && <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 self-center" />}
+                {testResult && (
+                  <span
+                    role="status"
+                    className={`flex items-center gap-1 self-center flex-shrink-0 text-[11px] font-medium ${testResult === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+                  >
+                    {testResult === "ok" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                    {testResult === "ok" ? t.addConnector.testSuccess : t.addConnector.testFail}
+                  </span>
+                )}
               </div>
             </FormField>
             <FormField label={t.addConnector.dspEndpoint} required>
@@ -238,7 +258,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
         <button
           onClick={handleTestConnection}
           disabled={testing || !managementUrl.trim()}
-          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
           {testing && <Loader2 className="w-3 h-3 animate-spin" />}
           {t.addConnector.testConnection}
@@ -246,7 +266,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
         <button
           onClick={handleRegister}
           disabled={registering || !isValid}
-          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
           {registering && <Loader2 className="w-3 h-3 animate-spin" />}
           {t.addConnector.register}
