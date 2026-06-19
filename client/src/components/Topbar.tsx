@@ -4,8 +4,9 @@
  * 우측 테마 토글 · 한/영 토글 · 버전 · 알림 벨 · 사용자/역할.
  */
 import { useLocation } from "wouter";
-import { ChevronRight, Bell, Menu, Sun, Moon, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { ChevronRight, Bell, Menu, Sun, Moon, Search, Settings as SettingsIcon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useConnectorStore } from "@/stores/connectorStore";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n, type Translations } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
@@ -46,6 +47,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const setSearchOpen = useConnectorStore((s) => s.setSearchOpen);
   const togglePanel = useNotificationStore((s) => s.togglePanel);
   const panelOpen = useNotificationStore((s) => s.panelOpen);
   const unreadCount = useUnreadNotificationCount();
@@ -82,6 +84,18 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
+        {/* 글로벌 검색 (Ctrl/Cmd+K) */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          aria-label={t.common.searchTitle}
+          title={t.common.searchTitle}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">{t.common.searchTitle}</span>
+          <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-muted-foreground">Ctrl K</kbd>
+        </button>
+
         {/* 다크/라이트 테마 토글 */}
         <button
           onClick={toggleTheme}

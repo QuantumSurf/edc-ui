@@ -8,6 +8,7 @@ import Topbar from "./components/Topbar";
 import NavigationLoadingDialog from "./components/NavigationLoadingDialog";
 import NotificationPanel from "./components/NotificationPanel";
 import BottomTabBar from "./components/BottomTabBar";
+import GlobalSearch from "./components/GlobalSearch";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -187,6 +188,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const drawerOpen = useConnectorStore((s) => s.drawerOpen);
   const setDrawerOpen = useConnectorStore((s) => s.setDrawerOpen);
   const toggleDrawer = useConnectorStore((s) => s.toggleDrawer);
+  const toggleSearch = useConnectorStore((s) => s.toggleSearch);
 
   // 모바일에서 네비게이션 시 사이드바 자동 닫힘
   const handleNavigate = () => {
@@ -208,6 +210,15 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [setDrawerOpen]);
+
+  // 글로벌 검색 단축키 (Ctrl/Cmd + K)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); toggleSearch(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleSearch]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -248,6 +259,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* 알림 슬라이드 패널 */}
       <NotificationPanel />
+
+      {/* 글로벌 검색 (Ctrl/Cmd+K) */}
+      <GlobalSearch />
     </div>
   );
 }
