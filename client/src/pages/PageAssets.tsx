@@ -101,8 +101,8 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
         }
       >{t.assets.title}</SectionHdr>
 
-      {/* Search & Filter */}
-          <div className="flex items-center gap-2 flex-wrap">
+      {/* Search & Filter — 검색+필터를 한 카드에 그룹화 (pcf 패턴) */}
+          <div className="flex items-center gap-2 flex-wrap bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
@@ -111,7 +111,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 aria-label={t.assets.searchPlaceholder}
-                className={`${inputBase} pl-8 pr-8`}
+                className={`${inputBase} pl-8 pr-8 !bg-background`}
               />
               {search && (
                 <button

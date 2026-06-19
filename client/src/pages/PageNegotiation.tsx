@@ -151,7 +151,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
 
       <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />}>{t.negotiations.title}</SectionHdr>
       {/* ── Search & Filter — fl-aggregator TasksPage style ───── */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-stretch sm:items-center bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
@@ -160,7 +160,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             aria-label={t.negotiations.searchPlaceholder}
-            className={`${inputBase} pl-8`}
+            className={`${inputBase} pl-8 !bg-background`}
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">

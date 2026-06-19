@@ -241,16 +241,17 @@ export default function PageAudit() {
         {t.audit.title}
       </SectionHdr>
 
-      {/* Filter Bar 1 — search + range + export */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[240px] max-w-md">
+      {/* Filter + Search — 검색·필터·기간·내보내기를 한 카드에 인라인 (pcf 패턴) */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
+        {/* 검색 */}
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.audit.searchPlaceholder}
-            className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           {search && (
             <button
@@ -262,32 +263,15 @@ export default function PageAudit() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1.5 ml-auto">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-          {(["ALL", "1D", "7D", "30D"] as const).map((r) => (
-            <RangeBtn key={r} active={range === r} onClick={() => setRange(r)}>
-              {r === "ALL" ? t.audit.rangeAll : r === "1D" ? t.audit.range1d : r === "7D" ? t.audit.range7d : t.audit.range30d}
-            </RangeBtn>
-          ))}
-        </div>
-        <button
-          onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
-          disabled={filtered.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1"
-        >
-          <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
-        </button>
-      </div>
 
-      {/* Filter Bar 2 — category / result / severity (컴팩트 드롭다운으로 정리) */}
-      <div className="flex items-center gap-2.5 flex-wrap">
+        {/* 필터: 카테고리 / 결과 / 심각도 */}
         <Filter className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
         <label className="flex items-center gap-1.5">
           <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterCategory}</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as "ALL" | AuditCategory)}
-            className="text-[12px] border border-border rounded-md bg-card text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
           >
             {CATEGORIES.map((c) => <option key={c} value={c}>{catLabel[c]}</option>)}
           </select>
@@ -297,7 +281,7 @@ export default function PageAudit() {
           <select
             value={result}
             onChange={(e) => setResult(e.target.value as "ALL" | AuditResult)}
-            className="text-[12px] border border-border rounded-md bg-card text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="ALL">{t.common.all}</option>
             <option value="SUCCESS">{t.audit.resultSuccess}</option>
@@ -309,7 +293,7 @@ export default function PageAudit() {
           <select
             value={severity}
             onChange={(e) => setSeverity(e.target.value as "ALL" | AuditSeverity)}
-            className="text-[12px] border border-border rounded-md bg-card text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="ALL">{t.common.all}</option>
             <option value="INFO">{t.audit.severityInfo}</option>
@@ -317,14 +301,35 @@ export default function PageAudit() {
             <option value="CRITICAL">{t.audit.severityCritical}</option>
           </select>
         </label>
-        {hasActiveFilter && (
+
+        {/* 기간 */}
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          {(["ALL", "1D", "7D", "30D"] as const).map((r) => (
+            <RangeBtn key={r} active={range === r} onClick={() => setRange(r)}>
+              {r === "ALL" ? t.audit.rangeAll : r === "1D" ? t.audit.range1d : r === "7D" ? t.audit.range7d : t.audit.range30d}
+            </RangeBtn>
+          ))}
+        </div>
+
+        {/* 우측: 초기화 + 내보내기 */}
+        <div className="flex items-center gap-2 ml-auto">
+          {hasActiveFilter && (
+            <button
+              onClick={() => { setSearch(""); setCategory("ALL"); setResult("ALL"); setSeverity("ALL"); setRange("ALL"); }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors"
+            >
+              <X className="w-3 h-3" />{t.audit.clearFilters}
+            </button>
+          )}
           <button
-            onClick={() => { setSearch(""); setCategory("ALL"); setResult("ALL"); setSeverity("ALL"); setRange("ALL"); }}
-            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors"
+            onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
+            disabled={filtered.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1"
           >
-            <X className="w-3 h-3" />{t.audit.clearFilters}
+            <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
           </button>
-        )}
+        </div>
       </div>
 
       {/* 스크린리더용 결과 개수 통지 (필터 변경 시 갱신) */}
