@@ -227,7 +227,8 @@ interface SectionHdrProps {
   icon?: React.ReactNode;
 }
 
-export function SectionHdr({ children, action, breadcrumb, icon }: SectionHdrProps) {
+export function SectionHdr({ children, action, icon }: SectionHdrProps) {
+  // breadcrumb(예: 'Provider Org') 서브제목은 제거 — 페이지 위치는 상단바 브레드크럼으로 충분.
   return (
     <div className="mb-1">
       <div className="flex items-center justify-between gap-2">
@@ -237,9 +238,6 @@ export function SectionHdr({ children, action, breadcrumb, icon }: SectionHdrPro
         </h1>
         {action}
       </div>
-      {breadcrumb && (
-        <div className="text-sm text-muted-foreground mt-1">{breadcrumb}</div>
-      )}
       <div className="h-px bg-border mt-1.5" />
     </div>
   );
