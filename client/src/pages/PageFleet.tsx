@@ -338,18 +338,11 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
   return (
     <SlidePanel open onClose={onClose} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Pencil className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <LayoutGrid className="w-5 h-5 text-primary flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">{t.fleet.editConnector}</span>
         </div>
-        <button
-          onClick={onClose}
-          aria-label={t.common.close}
-          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Body */}
@@ -401,21 +394,25 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
         </FormField>
       </div>
 
-      {/* Footer */}
-      <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">
+      {/* Footer — 표준: px-5 py-3 bg-muted/20 + h-8 버튼 */}
+      <div className="flex justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
         <button onClick={handleTest} disabled={testing || !managementUrl.trim()}
-          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary">
-          {testing && <Loader2 className="w-3 h-3 animate-spin" />}
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary">
+          {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           {t.addConnector.testConnection}
         </button>
-        <button onClick={onClose} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary">
+        <button onClick={onClose} disabled={saving}
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary">
+          <X className="w-3.5 h-3.5" />
           {t.fleet.cancel}
         </button>
-        <button onClick={handleSave} disabled={saving || !name.trim()}
-          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary">
-          {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+        <PrimaryActionButton
+          onClick={handleSave}
+          disabled={saving || !name.trim()}
+          icon={saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+        >
           {t.fleet.save}
-        </button>
+        </PrimaryActionButton>
       </div>
     </SlidePanel>
   );

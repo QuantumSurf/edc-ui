@@ -4,9 +4,9 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/contexts/AuthContext";
-import { FormField, inputBase } from "@/components/ui-kmx";
+import { FormField, inputBase, PrimaryActionButton } from "@/components/ui-kmx";
 import { SlidePanel } from "@/components/DetailDeleteDialogs";
-import { Plug, Loader2, CheckCircle2, XCircle, X } from "lucide-react";
+import { Plug, Loader2, CheckCircle2, XCircle, X, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { testConnection, registerConnector, fetchTenantInfo } from "@/services";
 import { useQueryClient } from "@tanstack/react-query";
@@ -123,18 +123,11 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
   return (
     <SlidePanel open={open} onClose={onClose} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Plug className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <LayoutGrid className="w-5 h-5 text-primary flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">{t.addConnector.register}</span>
         </div>
-        <button
-          onClick={onClose}
-          aria-label={t.common.close}
-          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Body */}
@@ -233,24 +226,31 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+      {/* Footer — 표준: px-5 py-3 bg-muted/20 + h-8 버튼 */}
+      <div className="flex justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
         <button
           onClick={handleTestConnection}
           disabled={testing || !managementUrl.trim()}
-          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
-          {testing && <Loader2 className="w-3 h-3 animate-spin" />}
+          {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           {t.addConnector.testConnection}
         </button>
         <button
+          onClick={onClose}
+          disabled={registering}
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          <X className="w-3.5 h-3.5" />
+          {t.fleet.cancel}
+        </button>
+        <PrimaryActionButton
           onClick={handleRegister}
           disabled={registering || !isValid}
-          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          icon={registering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
         >
-          {registering && <Loader2 className="w-3 h-3 animate-spin" />}
           {t.addConnector.register}
-        </button>
+        </PrimaryActionButton>
       </div>
     </SlidePanel>
   );

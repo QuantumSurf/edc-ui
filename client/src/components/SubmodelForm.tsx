@@ -1,11 +1,16 @@
 // Shared types, helpers and components for editing a single AAS Submodel
-// Descriptor and rendering its endpoint detail block. Used by both PageShells
-// (multi-submodel editor) and PageSubmodels (single submodel CRUD).
+// Descriptor and rendering its endpoint detail block. UI(SubmodelFormFields,
+// EndpointDetail)는 PageShells에서 사용하고, 매핑 헬퍼(rawSubmodelToInput 등)는
+// ExposeSubmodelDialog에서도 재사용한다.
 
 import { useI18n } from "@/i18n";
-import { FormField, MonoText, Badge } from "@/components/ui-kmx";
-import { X, Copy } from "lucide-react";
+import { FormField, MonoText, Badge, inputBase } from "@/components/ui-kmx";
+import { X, Copy, Plus } from "lucide-react";
 import type { ShellEndpoint } from "@/lib/data";
+
+// 공용 inputBase 기반 — mono 값 입력의 placeholder는 sans로 통일(노출 다이얼로그와 동일 규칙).
+const fieldCls = inputBase;
+const fieldMonoCls = `${inputBase} mono placeholder:font-sans placeholder:font-normal`;
 
 /* ─── Editor input types ─────────────────────────────────────── */
 export interface ProtocolInfoInput {
@@ -171,6 +176,7 @@ export function SubmodelFormFields({
   index,
   showHeader = true,
   showDescription = true,
+  disabled = false,
 }: {
   submodel: SubmodelInput;
   onChange: (next: SubmodelInput) => void;
@@ -178,6 +184,8 @@ export function SubmodelFormFields({
   index?: number;
   showHeader?: boolean;
   showDescription?: boolean;
+  /** 저장(busy) 중 전체 입력 잠금 */
+  disabled?: boolean;
 }) {
   const { t } = useI18n();
   const s = submodel;
@@ -205,13 +213,14 @@ export function SubmodelFormFields({
     <div className="rounded border border-border p-2.5 bg-muted/20 space-y-2 min-w-0">
       {showHeader && (
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
             Submodel{typeof index === "number" ? ` #${index + 1}` : ""}
           </span>
           {onRemove && (
             <button
               onClick={onRemove}
-              className="text-muted-foreground hover:text-rose-600"
+              disabled={disabled}
+              className="text-muted-foreground hover:text-rose-600 disabled:opacity-50"
             >
               <X className="w-3 h-3" />
             </button>
@@ -219,53 +228,67 @@ export function SubmodelFormFields({
         </div>
       )}
 
-      <input
-        placeholder={t.twins.form.subIdShort + " *"}
-        value={s.idShort}
-        onChange={(e) => updateField("idShort", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-      />
-      <input
-        placeholder={t.twins.form.subId + " *"}
-        value={s.id}
-        onChange={(e) => updateField("id", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-      />
-      <input
-        placeholder={t.twins.form.subSemanticId}
-        value={s.semanticId}
-        onChange={(e) => updateField("semanticId", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-      />
+      <FormField label={t.twins.form.subIdShort} required>
+        <input
+          placeholder="MySubmodel"
+          value={s.idShort}
+          disabled={disabled}
+          onChange={(e) => updateField("idShort", e.target.value)}
+          className={fieldCls}
+        />
+      </FormField>
+      <FormField label={t.twins.form.subId} required>
+        <input
+          placeholder="urn:uuid:..."
+          value={s.id}
+          disabled={disabled}
+          onChange={(e) => updateField("id", e.target.value)}
+          className={fieldMonoCls}
+        />
+      </FormField>
+      <FormField label={t.twins.form.subSemanticId}>
+        <input
+          placeholder="urn:samm:io.catenax...."
+          value={s.semanticId}
+          disabled={disabled}
+          onChange={(e) => updateField("semanticId", e.target.value)}
+          className={fieldMonoCls}
+        />
+      </FormField>
 
       {showDescription && (
         <>
-          <input
-            placeholder={t.twins.form.descriptionKo}
-            value={s.descriptionKo}
-            onChange={(e) => updateField("descriptionKo", e.target.value)}
-            lang="ko"
-            className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <input
-            placeholder={t.twins.form.descriptionEn}
-            value={s.descriptionEn}
-            onChange={(e) => updateField("descriptionEn", e.target.value)}
-            lang="en"
-            className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+          <FormField label={t.twins.form.descriptionKo}>
+            <input
+              value={s.descriptionKo}
+              disabled={disabled}
+              onChange={(e) => updateField("descriptionKo", e.target.value)}
+              lang="ko"
+              className={fieldCls}
+            />
+          </FormField>
+          <FormField label={t.twins.form.descriptionEn}>
+            <input
+              value={s.descriptionEn}
+              disabled={disabled}
+              onChange={(e) => updateField("descriptionEn", e.target.value)}
+              lang="en"
+              className={fieldCls}
+            />
+          </FormField>
         </>
       )}
 
       {/* Endpoints */}
       <div className="pt-1.5 border-t border-border">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Endpoint</span>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Endpoint</span>
           <button
             onClick={() => onChange({ ...s, endpoints: [...s.endpoints, newEndpoint()] })}
-            className="text-[10px] text-primary hover:underline"
+            disabled={disabled}
+            className="inline-flex items-center gap-1 h-7 text-[11px] px-2.5 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           >
-            + {t.twins.form.addEndpoint}
+            <Plus className="w-3 h-3" /> {t.twins.form.addEndpoint}
           </button>
         </div>
         <div className="space-y-2">
@@ -275,55 +298,64 @@ export function SubmodelFormFields({
             return (
               <div key={ei} className="rounded border border-border p-2 bg-card space-y-1.5 min-w-0 overflow-hidden">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">Endpoint #{ei + 1}</span>
+                  <span className="text-[11px] text-muted-foreground">Endpoint #{ei + 1}</span>
                   <button
                     onClick={() => onChange({ ...s, endpoints: s.endpoints.filter((_, j) => j !== ei) })}
-                    className="text-muted-foreground hover:text-rose-600"
-                    disabled={s.endpoints.length === 1}
+                    className="text-muted-foreground hover:text-rose-600 disabled:opacity-50"
+                    disabled={s.endpoints.length === 1 || disabled}
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </div>
-                <input
-                  placeholder={t.twins.form.endpointInterface + " (e.g. SUBMODEL-3.0)"}
-                  value={ep.interfaceName}
-                  onChange={(e) => updateEndpoint(ei, { interfaceName: e.target.value })}
-                  className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+                <FormField label={t.twins.form.endpointInterface}>
+                  <input
+                    placeholder="SUBMODEL-3.0"
+                    value={ep.interfaceName}
+                    disabled={disabled}
+                    onChange={(e) => updateEndpoint(ei, { interfaceName: e.target.value })}
+                    className={fieldCls}
+                  />
+                </FormField>
                 {/* Protocol Information */}
                 <div className="pl-2 border-l-2 border-violet-300 space-y-1.5">
-                  <span className="text-[10px] text-violet-600 font-semibold uppercase tracking-wide">Protocol Information</span>
-                  <p className="text-[10px] text-muted-foreground leading-snug">{t.twins.form.dspNote}</p>
+                  <span className="text-[11px] text-violet-600 font-semibold uppercase tracking-wide">Protocol Information</span>
+                  <p className="text-[11px] text-muted-foreground leading-snug">{t.twins.form.dspNote}</p>
 
-                  <FormField label={t.twins.form.endpointHref + " *"} hint={t.twins.form.hrefHint}>
+                  <FormField label={t.twins.form.endpointHref} hint={t.twins.form.hrefHint} required>
                     <input
                       placeholder="https://provider-edc/data-plane/{path}"
                       value={ep.protocolInformation.href}
+                      disabled={disabled}
                       onChange={(e) => updatePi(ei, { href: e.target.value })}
-                      className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                      className={fieldMonoCls}
                     />
                   </FormField>
 
-                  <div className="flex gap-1.5">
-                    <input
-                      placeholder="endpointProtocol"
-                      value={ep.protocolInformation.endpointProtocol}
-                      onChange={(e) => updatePi(ei, { endpointProtocol: e.target.value })}
-                      className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      placeholder="endpointProtocolVersion"
-                      value={ep.protocolInformation.endpointProtocolVersion}
-                      onChange={(e) => updatePi(ei, { endpointProtocolVersion: e.target.value })}
-                      className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <FormField label={t.twins.form.endpointProtocol}>
+                      <input
+                        value={ep.protocolInformation.endpointProtocol}
+                        disabled={disabled}
+                        onChange={(e) => updatePi(ei, { endpointProtocol: e.target.value })}
+                        className={fieldCls}
+                      />
+                    </FormField>
+                    <FormField label={t.twins.form.endpointProtocolVersion}>
+                      <input
+                        value={ep.protocolInformation.endpointProtocolVersion}
+                        disabled={disabled}
+                        onChange={(e) => updatePi(ei, { endpointProtocolVersion: e.target.value })}
+                        className={fieldCls}
+                      />
+                    </FormField>
                   </div>
 
                   <FormField label={t.twins.form.subprotocol} hint={t.twins.form.subprotocolHint}>
                     <select
                       value={ep.protocolInformation.subprotocol}
+                      disabled={disabled}
                       onChange={(e) => updatePi(ei, { subprotocol: e.target.value })}
-                      className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                      className={fieldCls}
                     >
                       <option value="DSP">DSP</option>
                       <option value="">(none)</option>
@@ -336,21 +368,23 @@ export function SubmodelFormFields({
                         <input
                           placeholder="urn:uuid:edc-asset-id"
                           value={ep.protocolInformation.dspAssetId}
+                          disabled={disabled}
                           onChange={(e) => updatePi(ei, { dspAssetId: e.target.value })}
-                          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                          className={fieldMonoCls}
                         />
                       </FormField>
                       <FormField label={t.twins.form.dspEndpoint} hint={t.twins.form.dspEndpointHint}>
                         <input
                           placeholder="https://provider-edc/api/v1/dsp"
                           value={ep.protocolInformation.dspEndpoint}
+                          disabled={disabled}
                           onChange={(e) => updatePi(ei, { dspEndpoint: e.target.value })}
-                          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                          className={fieldMonoCls}
                         />
                       </FormField>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-[11px] text-muted-foreground">
                         <span className="uppercase tracking-wide">{t.twins.form.subprotocolBodyPreview}</span>
-                        <MonoText className="block !text-[10px] !font-normal break-all bg-muted/50 rounded px-1.5 py-1 mt-0.5">
+                        <MonoText className="block !text-[11px] !font-normal break-all bg-muted/50 rounded px-1.5 py-1 mt-0.5">
                           {composedBody || "—"}
                         </MonoText>
                       </div>
@@ -360,8 +394,9 @@ export function SubmodelFormFields({
                       <input
                         placeholder="raw subprotocolBody"
                         value={ep.protocolInformation.subprotocolBodyRaw}
+                        disabled={disabled}
                         onChange={(e) => updatePi(ei, { subprotocolBodyRaw: e.target.value })}
-                        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                        className={fieldMonoCls}
                       />
                     </FormField>
                   )}
@@ -369,8 +404,9 @@ export function SubmodelFormFields({
                   <FormField label={t.twins.form.subprotocolBodyEncoding}>
                     <input
                       value={ep.protocolInformation.subprotocolBodyEncoding}
+                      disabled={disabled}
                       onChange={(e) => updatePi(ei, { subprotocolBodyEncoding: e.target.value })}
-                      className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                      className={fieldCls}
                     />
                   </FormField>
                 </div>
@@ -432,8 +468,9 @@ export function EndpointRow({
   return (
     <div className="flex items-start gap-2 group min-w-0">
       <span className="text-[10px] text-muted-foreground min-w-[110px] flex-shrink-0 pt-0.5">{label}</span>
+      {/* 식별자(mono prop)도 Inter로 렌더 — mono는 줄바꿈 방식(break-all)만 구분 */}
       {mono
-        ? <MonoText className={`!text-[11px] !font-normal break-all flex-1 min-w-0 ${empty ? "text-muted-foreground" : ""}`}>{display}</MonoText>
+        ? <span className={`text-[11px] break-all flex-1 min-w-0 ${empty ? "text-muted-foreground" : ""}`}>{display}</span>
         : <span className={`text-[11px] flex-1 break-words min-w-0 ${empty ? "text-muted-foreground" : ""}`}>{display}</span>}
       {onCopy && value && (
         <button

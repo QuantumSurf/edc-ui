@@ -52,7 +52,8 @@
   --font-sans: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
   --font-display: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
   --font-body: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* mono 토큰도 Inter로 — 식별자/코드 표기는 크기·색으로만 구분 (사용자 결정) */
+  --font-mono: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
 }
 
 :root {
@@ -124,7 +125,7 @@
     @apply bg-background text-foreground font-sans;
   }
   .mono, code, pre, .font-mono {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
     font-feature-settings: "tnum" 1, "ss01" 1, "calt" 0;
     font-weight: 500;
   }
@@ -160,9 +161,9 @@
     .container { padding-left: 2rem; padding-right: 2rem; max-width: 1280px; }
   }
 
-  /* Mono text for IDs, hashes, DIDs */
+  /* ID/해시/DID 표기 — 폰트는 Inter, tnum(고정폭 숫자)으로 식별자 가독 유지 */
   .mono {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
     font-size: 0.8125rem;
     letter-spacing: 0;
     font-weight: 500;

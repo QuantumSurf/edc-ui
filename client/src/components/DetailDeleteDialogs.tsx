@@ -275,7 +275,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 px-6 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             {icon && <span className="flex items-center flex-shrink-0">{icon}</span>}
             <div className="min-w-0">
@@ -285,14 +285,15 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
               )}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            aria-label={t.common.close}
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
+        {/* 닫기 — fl-aggregator 우상단 절대 위치 표준 */}
+        <button
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <X className="size-4" />
+        </button>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
@@ -382,12 +383,15 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
 /* ─── Slide-in Panel shell ───────────────────────────────────── */
 // Generic right-side slide-in container — supply header/content/footer as
 // children. Used by detail views with custom (non field-list) content.
-export function SlidePanel({ open, onClose, children, className }: {
+export function SlidePanel({ open, onClose, children, className, closeDisabled }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
+  /** 저장 등 busy 중 닫기(X·ESC·백드롭) 차단 */
+  closeDisabled?: boolean;
 }) {
+  const { t } = useI18n();
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
@@ -396,10 +400,10 @@ export function SlidePanel({ open, onClose, children, className }: {
   }, []);
 
   useEffect(() => {
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && !closeDisabled) onClose(); };
     document.addEventListener("keydown", onEsc);
     return () => document.removeEventListener("keydown", onEsc);
-  }, [onClose]);
+  }, [onClose, closeDisabled]);
 
   if (!open) return null;
 
@@ -407,7 +411,7 @@ export function SlidePanel({ open, onClose, children, className }: {
     <>
       <div
         className={cn("fixed inset-0 z-40 bg-black/20 transition-opacity duration-200", entered ? "opacity-100" : "opacity-0")}
-        onClick={onClose}
+        onClick={() => { if (!closeDisabled) onClose(); }}
         aria-hidden="true"
       />
       <aside
@@ -418,6 +422,15 @@ export function SlidePanel({ open, onClose, children, className }: {
         )}
       >
         {children}
+        {/* 닫기 — fl-aggregator SheetContent와 동일한 우상단 절대 위치 스타일 */}
+        <button
+          onClick={onClose}
+          disabled={closeDisabled}
+          aria-label={t.common.close}
+          className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <X className="size-4" />
+        </button>
       </aside>
     </>
   );

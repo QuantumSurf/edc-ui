@@ -13,7 +13,8 @@ import {
 } from "@/components/ui-kmx";
 import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel, InfoCard } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List, Lock } from "lucide-react";
+import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List, Lock, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
@@ -180,6 +181,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                     <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden xl:table-cell">{t.assets.col.semanticId}</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.assets.col.offering}</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden lg:table-cell">{t.assets.col.dataSource}</th>
+                    <th className="px-4 py-3 text-right text-[12px] font-bold text-foreground">{t.assets.col.action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -218,12 +220,9 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.offered ? "bg-emerald-500" : "bg-gray-300"}`} />
-                          <span className={`text-xs ${a.offered ? "text-emerald-700" : "text-foreground"}`}>
-                            {a.offered ? t.assets.registered : t.assets.unregistered}
-                          </span>
-                        </div>
+                        <Badge variant={a.offered ? "blue" : "gray"}>
+                          {a.offered ? t.assets.registered : t.assets.unregistered}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         {a.baseUrl ? (
@@ -234,6 +233,36 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <RoleGate permission="resource:write">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                aria-label={t.assets.col.action}
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => { setEditTarget(a); setTab("wizard"); }}>
+                                <Pencil className="w-3.5 h-3.5" /> {t.common.edit}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setDuplicateSource(a); setTab("wizard"); }}>
+                                <Files className="w-3.5 h-3.5" /> {t.common.duplicate}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                disabled={a.offered}
+                                title={a.offered ? t.assets.deleteBlockedByOffering : undefined}
+                                onClick={() => setDeleteTarget(a)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </RoleGate>
                       </td>
                     </tr>
                   ))}
@@ -379,22 +408,24 @@ function AssetDetailSheet({
         )}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2 flex-wrap pr-8">
+        <div className="px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Package className="w-5 h-5 text-primary flex-shrink-0" />
             <h2 className="text-[15px] font-semibold text-foreground truncate">{target.name || target.id}</h2>
             <AssetTypeBadge type={target.type} />
             <Badge variant={target.offered ? "green" : "gray"} pulse={target.offered}>
               {target.offered ? t.assets.registered : t.assets.unregistered}
             </Badge>
-            <button
-              onClick={onClose}
-              className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              aria-label={t.common.close}
-            >
-              <X size={16} />
-            </button>
           </div>
         </div>
+        {/* 닫기 — fl-aggregator 우상단 절대 위치 표준 */}
+        <button
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <X className="size-4" />
+        </button>
 
         {/* Body */}
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
@@ -676,6 +707,51 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
     return true;
   };
 
+  const handleSave = async () => {
+    if (!validateStep3()) return;
+    if (!connectorId) { toast.error(t.assets.noConnector); return; }
+    setSaving(true);
+    try {
+      const customPropsObj = customProps.reduce<Record<string, string>>((acc, p) => {
+        const k = p.key.trim();
+        if (k) acc[k] = p.value;
+        return acc;
+      }, {});
+      const payload = {
+        id: assetId,
+        type: dctType,
+        name: label,
+        ver: version,
+        sem: semanticId || null,
+        dataAddressType: addrType,
+        baseUrl,
+        proxyPath,
+        proxyQueryParams: proxyQuery,
+        authCode,
+        contentType,
+        aasVersion: aasVersion || undefined,
+        aasId: aasId || undefined,
+        submodelId: submodelId || undefined,
+        customProperties: Object.keys(customPropsObj).length > 0 ? customPropsObj : undefined,
+      };
+      if (isEdit) {
+        await updateAsset(assetId, payload as Record<string, unknown>, connectorId);
+      } else {
+        await createAsset(payload, connectorId);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["assets", connectorId] });
+      toast.success(isEdit ? t.assets.updateComplete : t.assets.createComplete);
+      onDone();
+    } catch (err) {
+      const cause =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? (err instanceof Error ? err.message : String(err));
+      toast.error(`${isEdit ? t.assets.updateFailed : t.assets.createFailed}: ${cause}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const dataAddressObj = {
     "@type": addrType,
     baseUrl,
@@ -688,20 +764,13 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
   return (
     <SlidePanel open={open} onClose={onCancel ?? (() => {})} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <Package className="w-5 h-5 text-primary flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">
             {isEdit ? t.assets.editWizard : duplicateSource ? t.assets.duplicateWizard : t.assets.createWizard}
           </span>
         </div>
-        <button
-          onClick={onCancel}
-          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
-          aria-label={t.common.close}
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Body */}
@@ -764,16 +833,6 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
               />
             </FormField>
           </div>
-          {/* Wizard nav: right-aligned on md+, sticky bottom on mobile (spec 3.3.3) */}
-          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
-            <button
-              disabled={checkingId}
-              onClick={async () => { if (await validateStep1()) setStep(1); }}
-              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors w-full sm:w-auto disabled:opacity-50"
-            >
-              {checkingId ? t.common.loading : t.assets.nextDataAddress}
-            </button>
-          </div>
         </div>
       )}
 
@@ -833,17 +892,6 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
           <div>
             <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t.assets.dataAddressPreview}</div>
             <JsonTreeView data={dataAddressObj} />
-          </div>
-          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
-            <button onClick={() => setStep(0)} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">
-              {t.common.prev}
-            </button>
-            <button
-              onClick={() => { if (validateStep2()) setStep(2); }}
-              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors flex-1 sm:flex-initial"
-            >
-              {t.assets.nextAasMeta}
-            </button>
           </div>
         </div>
       )}
@@ -930,63 +978,54 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
               </div>
             )}
           </div>
-          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
-            <button onClick={() => setStep(1)} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">
-              {t.common.prev}
-            </button>
-            <button
-              disabled={saving}
-              onClick={async () => {
-                if (!validateStep3()) return;
-                if (!connectorId) { toast.error(t.assets.noConnector); return; }
-                setSaving(true);
-                try {
-                  const customPropsObj = customProps.reduce<Record<string, string>>((acc, p) => {
-                    const k = p.key.trim();
-                    if (k) acc[k] = p.value;
-                    return acc;
-                  }, {});
-                  const payload = {
-                    id: assetId,
-                    type: dctType,
-                    name: label,
-                    ver: version,
-                    sem: semanticId || null,
-                    dataAddressType: addrType,
-                    baseUrl,
-                    proxyPath,
-                    proxyQueryParams: proxyQuery,
-                    authCode,
-                    contentType,
-                    aasVersion: aasVersion || undefined,
-                    aasId: aasId || undefined,
-                    submodelId: submodelId || undefined,
-                    customProperties: Object.keys(customPropsObj).length > 0 ? customPropsObj : undefined,
-                  };
-                  if (isEdit) {
-                    await updateAsset(assetId, payload as Record<string, unknown>, connectorId);
-                  } else {
-                    await createAsset(payload, connectorId);
-                  }
-                  await queryClient.invalidateQueries({ queryKey: ["assets", connectorId] });
-                  toast.success(isEdit ? t.assets.updateComplete : t.assets.createComplete);
-                  onDone();
-                } catch (err) {
-                  const cause =
-                    (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-                    ?? (err instanceof Error ? err.message : String(err));
-                  toast.error(`${isEdit ? t.assets.updateFailed : t.assets.createFailed}: ${cause}`);
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors flex-1 sm:flex-initial disabled:opacity-50"
-            >
-              {saving ? t.common.saving : isEdit ? t.common.save : t.assets.finish}
-            </button>
-          </div>
         </div>
       )}
+      </div>
+
+      {/* Footer — 단계 네비게이션 (표준: px-5 py-3 border-t bg-muted/20) */}
+      <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          disabled={step === 0 || saving}
+          className="inline-flex items-center justify-center h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          {t.common.prev}
+        </button>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            >
+              <X className="w-3.5 h-3.5" />
+              {t.common.cancel}
+            </button>
+          )}
+          {step === 0 && (
+            <PrimaryActionButton
+              onClick={async () => { if (await validateStep1()) setStep(1); }}
+              disabled={checkingId}
+              icon={checkingId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+            >
+              {t.assets.nextDataAddress}
+            </PrimaryActionButton>
+          )}
+          {step === 1 && (
+            <PrimaryActionButton onClick={() => { if (validateStep2()) setStep(2); }}>
+              {t.assets.nextAasMeta}
+            </PrimaryActionButton>
+          )}
+          {step === 2 && (
+            <PrimaryActionButton
+              onClick={handleSave}
+              disabled={saving}
+              icon={saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+            >
+              {saving ? t.common.saving : isEdit ? t.common.save : t.assets.finish}
+            </PrimaryActionButton>
+          )}
+        </div>
       </div>
     </SlidePanel>
   );

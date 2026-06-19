@@ -10,8 +10,8 @@ import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { fetchConnectors, createAsset, createOffering, fetchPolicies, fetchShellRaw, updateSubmodel } from "@/services";
 import { rawSubmodelToInput, submodelInputToBody, newEndpoint } from "@/components/SubmodelForm";
-import { FormField } from "@/components/ui-kmx";
-import { SlidePanel } from "@/components/DetailDeleteDialogs";
+import { FormField, PrimaryActionButton, inputBase } from "@/components/ui-kmx";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Share2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,8 +22,8 @@ export interface ExposeTarget {
   semanticId: string;
 }
 
-const inputCls =
-  "w-full px-2 py-1.5 text-[12px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary";
+// 공용 inputBase 사용 — mono 값 입력의 placeholder는 카탈로그 브라우저와 동일하게 sans로 통일.
+const inputCls = `${inputBase} placeholder:font-sans placeholder:font-normal`;
 
 export function ExposeSubmodelDialog({
   target,
@@ -75,12 +75,14 @@ export function ExposeSubmodelDialog({
     enabled: open && !!connectorId,
   });
 
+  // 기본 정책 선택 — 재오픈 시 policies가 캐시(fresh)면 배열 참조가 그대로라
+  // [policies]만으로는 재실행되지 않으므로 open도 의존성에 포함한다.
+  // 커넥터 변경 등으로 현재 값이 목록에 없으면 첫 정책으로 되돌린다.
   useEffect(() => {
-    if (policies.length > 0) {
-      setAccessPolicyId((prev) => prev || policies[0].id);
-      setContractPolicyId((prev) => prev || policies[0].id);
-    }
-  }, [policies]);
+    if (!open || policies.length === 0) return;
+    setAccessPolicyId((prev) => policies.some((p) => p.id === prev) ? prev : policies[0].id);
+    setContractPolicyId((prev) => policies.some((p) => p.id === prev) ? prev : policies[0].id);
+  }, [open, policies]);
 
   const handleSubmit = async () => {
     if (!target) return;
@@ -150,12 +152,18 @@ export function ExposeSubmodelDialog({
   };
 
   return (
-    <SlidePanel open={open} onClose={() => { if (!busy) onClose(); }} className="max-w-xl">
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <DialogContent
+        className="max-w-xl p-0 gap-0 overflow-hidden flex flex-col"
+        showCloseButton={false}
+        onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (busy) e.preventDefault(); }}
+      >
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Share2 className="w-4 h-4 text-primary flex-shrink-0" />
-          <p className="text-[15px] font-semibold text-foreground truncate">{t.twins.expose.title}</p>
+          <DialogTitle className="text-[15px] font-semibold text-foreground truncate">{t.twins.expose.title}</DialogTitle>
         </div>
         <button
           onClick={onClose}
@@ -168,10 +176,14 @@ export function ExposeSubmodelDialog({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 text-[12px]">
-        <p className="text-muted-foreground leading-snug">{t.twins.expose.desc}</p>
-        {target?.idShort && (
-          <div className="text-[11px] text-muted-foreground">Submodel: <span className="font-medium text-foreground">{target.idShort}</span></div>
+      <div className="max-h-[60vh] overflow-y-auto px-5 py-4 space-y-3.5 text-[12px]">
+        <DialogDescription className="text-[12px] text-muted-foreground leading-snug">{t.twins.expose.desc}</DialogDescription>
+        {target && (
+          <div className="rounded-md bg-muted/40 border border-border px-3 py-2">
+            <p className="text-[11px] font-semibold text-muted-foreground">Submodel</p>
+            <p className="text-[13px] font-semibold text-foreground truncate">{target.idShort || target.submodelId}</p>
+            <p className="mono text-[11px] text-muted-foreground truncate">{target.submodelId}</p>
+          </div>
         )}
 
         {connectors.length === 0 ? (
@@ -181,20 +193,20 @@ export function ExposeSubmodelDialog({
           </div>
         ) : (
           <>
-            <FormField label={t.twins.expose.selectConnector}>
-              <select className={inputCls} value={connectorId} onChange={(e) => setConnectorId(e.target.value)}>
+            <FormField label={t.twins.expose.selectConnector} required>
+              <select className={inputCls} value={connectorId} disabled={busy} onChange={(e) => setConnectorId(e.target.value)}>
                 {connectors.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.bpn}</option>)}
               </select>
             </FormField>
 
-            <FormField label="Asset ID">
-              <input className={`${inputCls} mono`} value={assetId} onChange={(e) => setAssetId(e.target.value)} />
+            <FormField label="Asset ID" required>
+              <input className={`${inputCls} mono`} value={assetId} disabled={busy} onChange={(e) => setAssetId(e.target.value)} />
             </FormField>
-            <FormField label={t.twins.expose.dataSourceUrl} hint={t.twins.expose.dataSourceHint}>
-              <input className={`${inputCls} mono`} placeholder="https://backend/submodel/data" value={dataSourceUrl} onChange={(e) => setDataSourceUrl(e.target.value)} />
+            <FormField label={t.twins.expose.dataSourceUrl} hint={t.twins.expose.dataSourceHint} required>
+              <input className={`${inputCls} mono`} placeholder="https://backend/submodel/data" value={dataSourceUrl} disabled={busy} onChange={(e) => setDataSourceUrl(e.target.value)} />
             </FormField>
             <FormField label={t.twins.expose.dataPlaneHref} hint={t.twins.expose.dataPlaneHrefHint}>
-              <input className={`${inputCls} mono`} placeholder={dataSourceUrl || "https://provider-dataplane/public/..."} value={dataPlaneHref} onChange={(e) => setDataPlaneHref(e.target.value)} />
+              <input className={`${inputCls} mono`} placeholder={dataSourceUrl || "https://provider-dataplane/public/..."} value={dataPlaneHref} disabled={busy} onChange={(e) => setDataPlaneHref(e.target.value)} />
             </FormField>
 
             {policies.length === 0 && !polLoading ? (
@@ -203,21 +215,17 @@ export function ExposeSubmodelDialog({
                 <span>{t.twins.expose.noPolicies}</span>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <div className="flex-1 min-w-0">
-                  <FormField label={t.twins.expose.accessPolicy}>
-                    <select className={inputCls} value={accessPolicyId} onChange={(e) => setAccessPolicyId(e.target.value)}>
-                      {policies.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
-                    </select>
-                  </FormField>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <FormField label={t.twins.expose.contractPolicy}>
-                    <select className={inputCls} value={contractPolicyId} onChange={(e) => setContractPolicyId(e.target.value)}>
-                      {policies.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
-                    </select>
-                  </FormField>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField label={t.twins.expose.accessPolicy} required>
+                  <select className={inputCls} value={accessPolicyId} disabled={busy} onChange={(e) => setAccessPolicyId(e.target.value)}>
+                    {policies.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
+                  </select>
+                </FormField>
+                <FormField label={t.twins.expose.contractPolicy} required>
+                  <select className={inputCls} value={contractPolicyId} disabled={busy} onChange={(e) => setContractPolicyId(e.target.value)}>
+                    {policies.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
+                  </select>
+                </FormField>
               </div>
             )}
           </>
@@ -225,19 +233,24 @@ export function ExposeSubmodelDialog({
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
-        <button onClick={onClose} disabled={busy} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-60">
+      <div className="flex justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          onClick={onClose}
+          disabled={busy}
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          <X className="w-3.5 h-3.5" />
           {t.common.cancel}
         </button>
-        <button
+        <PrimaryActionButton
           onClick={handleSubmit}
           disabled={busy || connectors.length === 0 || policies.length === 0}
-          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-60"
+          icon={busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
         >
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
           {busy ? t.twins.expose.submitting : t.twins.expose.submit}
-        </button>
+        </PrimaryActionButton>
       </div>
-    </SlidePanel>
+      </DialogContent>
+    </Dialog>
   );
 }

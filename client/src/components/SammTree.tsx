@@ -30,17 +30,17 @@ function Row({ node, depth }: { node: SammNode; depth: number }) {
             {node.optional && <Badge variant="gray">optional</Badge>}
             {node.collection && <Badge variant="purple">{node.collection}</Badge>}
             {node.characteristic && (
-              <span className="text-[11px] mono text-muted-foreground">{node.characteristic}</span>
+              <span className="text-[11px] text-muted-foreground">{node.characteristic}</span>
             )}
             {node.dataType && (
-              <span className="text-[11px] mono text-muted-foreground/70">: {node.dataType}</span>
+              <span className="text-[11px] text-muted-foreground/70">: {node.dataType}</span>
             )}
           </div>
           {node.preferredName && (
             <div className="text-[11px] text-muted-foreground">{node.preferredName}</div>
           )}
           {node.enumValues?.length ? (
-            <div className="text-[10px] mono text-muted-foreground/70 break-all">
+            <div className="text-[10px] text-muted-foreground break-all">
               {node.enumValues.join(" · ")}
             </div>
           ) : null}

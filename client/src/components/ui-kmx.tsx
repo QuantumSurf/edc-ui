@@ -7,20 +7,20 @@ import React from "react";
 import { useI18n } from "@/i18n";
 
 /* ─── Badge ─────────────────────────────────────────────────── */
-// fl-aggregator StatusBadge 스타일: 흰 배경 + 색상 점(dot) + 색상 텍스트/테두리.
-// 진행 중 상태는 pulse로 점이 깜빡인다. outline은 점 없는 escape hatch(아이콘 children용).
+// fl-aggregator 톤의 상태 배지: 흰 배경 + 색상 텍스트/테두리 (색상 점 없음 — 사용자 결정).
+// 진행 중 상태는 pulse로 배지 전체가 깜빡인다.
 type BadgeVariant = "green" | "blue" | "teal" | "amber" | "red" | "purple" | "gray" | "outline" | "sky";
 
-const BADGE_STYLES: Record<BadgeVariant, { text: string; border: string; dot?: string }> = {
-  sky:     { text: "text-blue-700",    border: "border-blue-200",    dot: "bg-blue-500"    },
-  green:   { text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
-  blue:    { text: "text-blue-700",    border: "border-blue-200",    dot: "bg-blue-500"    },
-  teal:    { text: "text-teal-700",    border: "border-teal-200",    dot: "bg-teal-500"    },
-  amber:   { text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-500"   },
-  red:     { text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500"     },
-  purple:  { text: "text-purple-700",  border: "border-purple-200",  dot: "bg-purple-500"  },
-  gray:    { text: "text-slate-600",   border: "border-slate-200",   dot: "bg-slate-400"   },
-  outline: { text: "text-foreground",  border: "border-border" },
+const BADGE_STYLES: Record<BadgeVariant, { text: string; border: string }> = {
+  sky:     { text: "text-blue-700",    border: "border-blue-200"    },
+  green:   { text: "text-emerald-700", border: "border-emerald-200" },
+  blue:    { text: "text-blue-700",    border: "border-blue-200"    },
+  teal:    { text: "text-teal-700",    border: "border-teal-200"    },
+  amber:   { text: "text-amber-700",   border: "border-amber-200"   },
+  red:     { text: "text-red-700",     border: "border-red-200"     },
+  purple:  { text: "text-purple-700",  border: "border-purple-200"  },
+  gray:    { text: "text-slate-600",   border: "border-slate-200"   },
+  outline: { text: "text-foreground",  border: "border-border"      },
 };
 
 interface BadgeProps {
@@ -28,18 +28,20 @@ interface BadgeProps {
   variant?: BadgeVariant;
   className?: string;
   pulse?: boolean;
+  /** @deprecated 점 표시는 제거됨 — 하위 호환용으로만 유지 */
+  dot?: boolean;
 }
 
 export function Badge({ children, variant = "gray", className, pulse }: BadgeProps) {
-  const { text, border, dot } = BADGE_STYLES[variant];
+  const { text, border } = BADGE_STYLES[variant];
   return (
     <span className={cn(
       "inline-flex items-center rounded border font-normal whitespace-nowrap bg-white text-[11px] px-2 py-0.5 gap-1.5",
       text,
       border,
+      pulse && "status-pulse",
       className
     )}>
-      {dot && <span className={cn("w-2 h-2 rounded-full flex-shrink-0", dot, pulse && "status-pulse")} />}
       {children}
     </span>
   );
@@ -370,7 +372,7 @@ export function FormField({ label, children, required, hint }: FormFieldProps) {
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
       </span>
       {children}
-      {hint && <span className="block text-[10px] text-muted-foreground leading-snug">{hint}</span>}
+      {hint && <span className="block text-[11px] text-muted-foreground leading-snug">{hint}</span>}
     </label>
   );
 }

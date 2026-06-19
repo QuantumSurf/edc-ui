@@ -116,7 +116,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={t.catalog.dspPlaceholder}
                 aria-label={t.catalog.dspLabel}
-                className={`${inputBase} pl-8 mono`}
+                className={`${inputBase} pl-8 mono placeholder:font-sans placeholder:font-normal`}
               />
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                 onChange={(e) => setCounterPartyId(e.target.value)}
                 placeholder={t.catalog.bpnPlaceholder}
                 aria-label={t.catalog.bpnLabel}
-                className={`${inputBase} pl-8 mono`}
+                className={`${inputBase} pl-8 mono placeholder:font-sans placeholder:font-normal`}
               />
             </div>
             <PrimaryActionButton

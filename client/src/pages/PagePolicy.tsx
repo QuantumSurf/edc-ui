@@ -13,7 +13,8 @@ import {
   Card, CardTitle, Badge, SectionHdr, FormField, JsonTreeView, PrimaryActionButton,
   inputBase, ListError, ListEmpty,
 } from "@/components/ui-kmx";
-import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, AlertCircle, X, CheckCircle2, Hammer, Pencil, Files, ChevronsRight, List, Lock } from "lucide-react";
+import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, AlertCircle, X, CheckCircle2, Hammer, Pencil, Files, ChevronsRight, List, Lock, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -261,6 +262,9 @@ export default function PagePolicy() {
             <PolicyList
               onSelect={setDetailTarget}
               onCreateClick={() => switchTab("builder")}
+              onEdit={(p) => { setEditTarget(p); setTab("builder"); }}
+              onDuplicate={(p) => { setDuplicateSource(p); setTab("builder"); }}
+              onDelete={(p) => setDeleteTarget(p)}
               policies={paginatedData}
               totalItems={totalItems}
               allCount={policies.length}
@@ -377,11 +381,14 @@ function EmptyPolicies({ onCreateClick }: { onCreateClick: () => void }) {
 }
 
 function PolicyList({
-  policies, onSelect, onCreateClick, totalItems, allCount, currentPage, pageSize, setCurrentPage, setPageSize, selectedId,
+  policies, onSelect, onCreateClick, onEdit, onDuplicate, onDelete, totalItems, allCount, currentPage, pageSize, setCurrentPage, setPageSize, selectedId,
 }: {
   policies: Policy[];
   onSelect?: (p: Policy) => void;
   onCreateClick?: () => void;
+  onEdit?: (p: Policy) => void;
+  onDuplicate?: (p: Policy) => void;
+  onDelete?: (p: Policy) => void;
   totalItems: number;
   allCount: number;
   currentPage: number;
@@ -411,6 +418,7 @@ function PolicyList({
                 <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.col.action}</th>
                 <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.col.constraint}</th>
                 <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.policies.col.offeringRef}</th>
+                <th className="px-4 py-3 text-right text-[12px] font-bold text-foreground">{t.policies.col.rowAction}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -455,12 +463,39 @@ function PolicyList({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", p.offers > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
-                        <span className={cn("text-xs", p.offers > 0 ? "text-emerald-700" : "text-foreground")}>
-                          {t.policies.offeringRef(p.offers)}
-                        </span>
-                      </div>
+                      <Badge variant={p.offers > 0 ? "blue" : "gray"}>
+                        {t.policies.offeringRef(p.offers)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <RoleGate permission="resource:write">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              aria-label={t.policies.col.rowAction}
+                              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onEdit?.(p)}>
+                              <Pencil className="w-3.5 h-3.5" /> {t.common.edit}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onDuplicate?.(p)}>
+                              <Files className="w-3.5 h-3.5" /> {t.common.duplicate}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={p.offers > 0}
+                              title={p.offers > 0 ? t.policies.deleteBlockedByOffering : undefined}
+                              onClick={() => onDelete?.(p)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </RoleGate>
                     </td>
                   </tr>
                 );
@@ -583,22 +618,24 @@ function PolicyDetailSheet({
         )}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2 flex-wrap pr-8">
+        <div className="px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
             <h2 className="text-[15px] font-semibold text-foreground truncate">{target.id}</h2>
             <Badge variant="blue" className="!font-normal">odrl:use</Badge>
             <Badge variant={target.offers > 0 ? "blue" : "gray"} className="!font-normal">
               {t.policies.offeringRef(target.offers)}
             </Badge>
-            <button
-              onClick={onClose}
-              className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              aria-label={t.common.close}
-            >
-              <X size={16} />
-            </button>
           </div>
         </div>
+        {/* 닫기 — fl-aggregator 우상단 절대 위치 표준 */}
+        <button
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <X className="size-4" />
+        </button>
 
         {/* Body */}
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
@@ -1046,11 +1083,6 @@ function ODRLBuilder({ open, connectorId, existingPolicyIds = [], editTarget, du
         className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium transition-colors">
         <PlusCircle className="w-3 h-3" /> {t.policies.addConstraint}
       </button>
-
-      <div className="flex justify-end gap-2 pt-2">
-        <button onClick={onCancel ?? onDone} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground">{t.common.cancel}</button>
-        <button onClick={handleSave} disabled={submitting} className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60">{submitting ? t.policies.saving : isEdit ? t.common.save : t.policies.savePoliciy}</button>
-      </div>
       </>
       )}
     </div>
@@ -1068,20 +1100,13 @@ function ODRLBuilder({ open, connectorId, existingPolicyIds = [], editTarget, du
   return (
     <SlidePanel open={open} onClose={onCancel ?? onDone} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Hammer className="w-4 h-4 text-primary flex-shrink-0" />
+          <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">
             {isEdit ? t.policies.editBuilder : duplicateSource ? t.policies.duplicateBuilder : t.policies.builder}
           </span>
         </div>
-        <button
-          onClick={onCancel ?? onDone}
-          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
-          aria-label={t.common.close}
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Body: builder ⇄ JSON preview toggle */}
@@ -1097,6 +1122,25 @@ function ODRLBuilder({ open, connectorId, existingPolicyIds = [], editTarget, du
           ))}
         </div>
         {mobileTab === "builder" ? builderContent : jsonPreview}
+      </div>
+
+      {/* Footer — 표준: px-5 py-3 border-t bg-muted/20 */}
+      <div className="flex justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          onClick={onCancel ?? onDone}
+          disabled={submitting}
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          <X className="w-3.5 h-3.5" />
+          {t.common.cancel}
+        </button>
+        <PrimaryActionButton
+          onClick={handleSave}
+          disabled={submitting}
+          icon={submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+        >
+          {submitting ? t.policies.saving : isEdit ? t.common.save : t.policies.savePoliciy}
+        </PrimaryActionButton>
       </div>
     </SlidePanel>
   );

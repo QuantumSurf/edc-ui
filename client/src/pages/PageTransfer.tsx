@@ -14,10 +14,11 @@ import {
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError, JsonTreeView, inputBase,
 } from "@/components/ui-kmx";
 
-const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px_280px]";
+const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px_90px]";
 import { SlidePanel } from "@/components/DetailDeleteDialogs";
 import { toast } from "sonner";
-import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle, X } from "lucide-react";
+import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle, X, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
 
@@ -69,9 +70,9 @@ function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery
   return (
     <SlidePanel open={true} onClose={onClose} className="max-w-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+          <ArrowRightLeft className="w-5 h-5 text-primary flex-shrink-0" />
           <p className="text-[15px] font-semibold text-foreground truncate">{t.transfers.dataViewerTitle}</p>
           <span className="text-[11px] text-muted-foreground font-mono truncate">{tpId.slice(0, 12)}</span>
         </div>
@@ -84,13 +85,6 @@ function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery
             className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={onClose}
-            aria-label={t.common.close}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -401,7 +395,7 @@ export default function PageTransfer() {
               <ListColLabel>{t.transfers.col.duration}</ListColLabel>
               <ListColLabel>{t.transfers.col.startedAt}</ListColLabel>
               <ListColLabel>{t.transfers.col.completedAt}</ListColLabel>
-              <ListColLabel>{t.transfers.col.action}</ListColLabel>
+              <ListColLabel className="text-right">{t.transfers.col.action}</ListColLabel>
             </ListHeaderRow>
             {isError && rows.length === 0 ? (
               <ListError onRetry={() => refetch()} fetching={isFetching} />
@@ -434,34 +428,34 @@ export default function PageTransfer() {
                 <div className="text-xs text-foreground">{tr.t}</div>
                 <div className="text-xs text-foreground truncate">{tr.startedAt ?? "—"}</div>
                 <div className="text-xs text-foreground truncate">{tr.completedAt ?? "—"}</div>
-                {/* 액션: STARTED → Fetch·완료·종료 */}
-                <div>
-                  {tr.name === "STARTED" && (
-                    <div className="flex flex-wrap gap-1">
-                      <button
-                        onClick={() => handleFetch(tr.id, tr.asset)}
-                        title={t.transfers.fetchData}
-                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-blue-100 text-blue-500 font-medium transition-colors whitespace-nowrap"
-                      >
-                        <Download className="w-3.5 h-3.5" /> {t.transfers.fetchData}
-                      </button>
-                      <RoleGate permission="transaction:write">
+                {/* 액션: STARTED → 서브 메뉴 (Fetch·완료·종료) */}
+                <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                  {tr.name === "STARTED" ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <button
-                          onClick={() => handleComplete(tr.id)}
-                          title={t.transfers.completeTransfer}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-emerald-100 text-emerald-600 font-medium transition-colors whitespace-nowrap"
+                          aria-label={t.transfers.col.action}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" /> {t.transfers.completeTransfer}
+                          <MoreVertical className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleTerminate(tr.id)}
-                          title={t.transfers.terminateTransfer}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-red-100 text-red-500 font-medium transition-colors whitespace-nowrap"
-                        >
-                          <XCircle className="w-3.5 h-3.5" /> {t.transfers.terminateTransfer}
-                        </button>
-                      </RoleGate>
-                    </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleFetch(tr.id, tr.asset)}>
+                          <Download className="w-3.5 h-3.5" /> {t.transfers.fetchData}
+                        </DropdownMenuItem>
+                        <RoleGate permission="transaction:write">
+                          <DropdownMenuItem onClick={() => handleComplete(tr.id)}>
+                            <CheckCircle className="w-3.5 h-3.5" /> {t.transfers.completeTransfer}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => handleTerminate(tr.id)}>
+                            <XCircle className="w-3.5 h-3.5" /> {t.transfers.terminateTransfer}
+                          </DropdownMenuItem>
+                        </RoleGate>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </div>
               </ListRow>
