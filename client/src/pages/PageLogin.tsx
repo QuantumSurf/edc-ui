@@ -114,7 +114,7 @@ export default function PageLogin() {
         </div>
 
         <p className="text-center text-slate-500 text-[11px] mt-4">
-          Connector Hub v1.0 · Keycloak OIDC
+          {`${t.login.appName} v1.0 · Keycloak OIDC`}
         </p>
       </div>
     </div>

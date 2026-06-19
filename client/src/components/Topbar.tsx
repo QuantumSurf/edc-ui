@@ -100,7 +100,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <button
           onClick={toggleTheme}
           title={theme === "dark" ? (locale === "ko" ? "라이트 모드로 전환" : "Switch to light") : (locale === "ko" ? "다크 모드로 전환" : "Switch to dark")}
-          aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}
+          aria-label={theme === "dark" ? (locale === "ko" ? "라이트 모드로 전환" : "Switch to light") : (locale === "ko" ? "다크 모드로 전환" : "Switch to dark")}
           className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

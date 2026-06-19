@@ -74,7 +74,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
   const handleTestConnection = async () => {
     if (!managementUrl.trim()) {
-      toast.error(t.addConnector.managementUrl + " is required");
+      toast.error(t.addConnector.managementUrlRequired);
       return;
     }
     setTesting(true);
@@ -83,13 +83,13 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       const result = await testConnection(managementUrl, apiKey || undefined);
       setTestResult(result.status);
       if (result.status === "ok") {
-        toast.success(t.addConnector.testSuccess ?? "Connection successful");
+        toast.success(t.addConnector.testSuccess);
       } else {
-        toast.error(t.addConnector.testFail ?? "Connection failed");
+        toast.error(t.addConnector.testFail);
       }
     } catch (err: unknown) {
       setTestResult("fail");
-      const msg = err instanceof Error ? err.message : "Connection failed";
+      const msg = err instanceof Error ? err.message : t.addConnector.testFail;
       toast.error(msg);
     } finally {
       setTesting(false);
@@ -98,7 +98,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
   const handleRegister = async () => {
     if (!isValid) {
-      toast.error(t.addConnector.fillRequired ?? "Please fill required fields");
+      toast.error(t.addConnector.fillRequired);
       return;
     }
     setRegistering(true);
@@ -119,7 +119,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       toast.success(t.addConnector.registered);
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Registration failed";
+      const msg = err instanceof Error ? err.message : t.addConnector.registerFailed;
       toast.error(msg);
     } finally {
       setRegistering(false);

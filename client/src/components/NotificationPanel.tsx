@@ -69,11 +69,7 @@ export default function NotificationPanel() {
     if (n.link) { navigate(n.link); close(); }
   };
 
-  const typeLabel = (f: "all" | NotificationType): string => {
-    const ko: Record<string, string> = { all: "전체", error: "오류", warn: "경고", info: "정보", success: "완료" };
-    const en: Record<string, string> = { all: "All", error: "Error", warn: "Warning", info: "Info", success: "Success" };
-    return (locale === "ko" ? ko : en)[f] ?? f;
-  };
+  const typeLabel = (f: "all" | NotificationType): string => t.notifications.filterLabels[f] ?? f;
 
   if (!panelOpen) return null;
 
