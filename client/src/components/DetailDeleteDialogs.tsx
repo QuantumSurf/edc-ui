@@ -54,12 +54,12 @@ interface DetailDialogProps {
 }
 
 const BADGE_STYLES: Record<string, string> = {
-  blue: "bg-blue-50 text-blue-700 border-blue-200",
-  green: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  amber: "bg-amber-50 text-amber-700 border-amber-200",
-  gray: "bg-gray-100 text-gray-600 border-gray-200",
-  red: "bg-red-50 text-red-700 border-red-200",
-  purple: "bg-purple-50 text-purple-700 border-purple-200",
+  blue: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30",
+  green: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
+  amber: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30",
+  gray: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/30",
+  red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30",
+  purple: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/30",
 };
 
 function FieldValue({ field, idx, copied, onCopy, inCard }: { field: DetailField; idx: string; copied: string | null; onCopy: (text: string, key: string) => void; inCard?: boolean }) {
@@ -190,7 +190,7 @@ export function DetailDialog({ open, onClose, title, subtitle, subtitleMono = tr
         <div className="flex items-center px-6 py-3 bg-muted/30 border-t border-border">
           {onDelete && (
             <button onClick={onDelete}
-              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors">
+              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
             </button>
           )}
@@ -340,7 +340,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
         <div className="flex items-center gap-1 px-6 py-4 border-t border-border bg-muted/30 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
-              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors">
+              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
             </button>
           )}
