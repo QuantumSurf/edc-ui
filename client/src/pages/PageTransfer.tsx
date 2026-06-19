@@ -15,7 +15,7 @@ import {
 } from "@/components/ui-kmx";
 
 const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px_280px]";
-import { SlidePanel } from "@/components/DetailDeleteDialogs";
+import { SlidePanel, ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import { toast } from "sonner";
 import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -242,30 +242,51 @@ export default function PageTransfer() {
 
   const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(rows, 10);
 
+  // 파괴적 액션 확인 모달 상태 (네이티브 window.confirm 대체 — 일관된 모달/강조색/취소)
+  const [confirmState, setConfirmState] = useState<{
+    title: string; description: string; tone: "warn" | "danger"; confirmLabel: string; onConfirm: () => void;
+  } | null>(null);
+
   /* ── complete / terminate handlers ─────────────────────────── */
-  async function handleComplete(tpId: string) {
-    if (!connectorId || !window.confirm(t.transfers.completeConfirm)) return;
-    try {
-      userActionRef.current.add(tpId);
-      toastedRef.current.add(tpId);
-      await completeTransfer(tpId, connectorId);
-      toast.success(t.transfers.completeSuccess);
-      queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
-    } catch {
-      userActionRef.current.delete(tpId);
-      toast.error(t.transfers.actionFailed);
-    }
+  function handleComplete(tpId: string) {
+    if (!connectorId) return;
+    setConfirmState({
+      title: t.transfers.completeTransfer,
+      description: t.transfers.completeConfirm,
+      tone: "warn",
+      confirmLabel: t.common.confirm,
+      onConfirm: async () => {
+        try {
+          userActionRef.current.add(tpId);
+          toastedRef.current.add(tpId);
+          await completeTransfer(tpId, connectorId);
+          toast.success(t.transfers.completeSuccess);
+          queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
+        } catch {
+          userActionRef.current.delete(tpId);
+          toast.error(t.transfers.actionFailed);
+        }
+      },
+    });
   }
 
-  async function handleDeleteAll() {
-    if (!connectorId || !window.confirm(t.transfers.deleteAllConfirm)) return;
-    try {
-      const { deleted } = await deleteAllTransfers(connectorId);
-      toast.success(t.transfers.deleteAllSuccess(deleted));
-      queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
-    } catch {
-      toast.error(t.transfers.actionFailed);
-    }
+  function handleDeleteAll() {
+    if (!connectorId) return;
+    setConfirmState({
+      title: t.transfers.deleteAll,
+      description: t.transfers.deleteAllConfirm,
+      tone: "danger",
+      confirmLabel: t.common.delete,
+      onConfirm: async () => {
+        try {
+          const { deleted } = await deleteAllTransfers(connectorId);
+          toast.success(t.transfers.deleteAllSuccess(deleted));
+          queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
+        } catch {
+          toast.error(t.transfers.actionFailed);
+        }
+      },
+    });
   }
 
   async function handleFetch(tpId: string, asset: string, path?: string) {
@@ -282,18 +303,26 @@ export default function PageTransfer() {
     }
   }
 
-  async function handleTerminate(tpId: string) {
-    if (!connectorId || !window.confirm(t.transfers.terminateConfirm)) return;
-    try {
-      userActionRef.current.add(tpId);
-      toastedRef.current.add(tpId);
-      await terminateTransfer(tpId, connectorId);
-      toast.success(t.transfers.terminateSuccess);
-      queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
-    } catch {
-      userActionRef.current.delete(tpId);
-      toast.error(t.transfers.actionFailed);
-    }
+  function handleTerminate(tpId: string) {
+    if (!connectorId) return;
+    setConfirmState({
+      title: t.transfers.terminateTransfer,
+      description: t.transfers.terminateConfirm,
+      tone: "danger",
+      confirmLabel: t.common.confirm,
+      onConfirm: async () => {
+        try {
+          userActionRef.current.add(tpId);
+          toastedRef.current.add(tpId);
+          await terminateTransfer(tpId, connectorId);
+          toast.success(t.transfers.terminateSuccess);
+          queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
+        } catch {
+          userActionRef.current.delete(tpId);
+          toast.error(t.transfers.actionFailed);
+        }
+      },
+    });
   }
 
   /* ── start transfer handler ─────────────────────────────────── */
@@ -349,6 +378,19 @@ export default function PageTransfer() {
           contentType={dataViewer.contentType}
           onRequery={(p) => handleFetch(dataViewer.tpId, dataViewer.asset, p)}
           onClose={() => setDataViewer(null)}
+        />
+      )}
+
+      {/* 파괴적 액션 확인 모달 (완료/종료/전체삭제) */}
+      {confirmState && (
+        <ConfirmActionDialog
+          open
+          onClose={() => setConfirmState(null)}
+          title={confirmState.title}
+          description={confirmState.description}
+          tone={confirmState.tone}
+          confirmLabel={confirmState.confirmLabel}
+          onConfirm={() => { const fn = confirmState.onConfirm; setConfirmState(null); fn(); }}
         />
       )}
       <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.transfers.title}</SectionHdr>
