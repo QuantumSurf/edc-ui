@@ -97,7 +97,7 @@ export default function NotificationPanel() {
           </div>
           <button
             onClick={close}
-            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            className="-mr-1 p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             aria-label={t.common.close}
           >
             <X className="w-4 h-4" />

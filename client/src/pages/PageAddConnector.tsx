@@ -139,7 +139,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
         <button
           onClick={requestClose}
           aria-label={t.common.close}
-          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
         >
           <X className="w-4 h-4" />
         </button>

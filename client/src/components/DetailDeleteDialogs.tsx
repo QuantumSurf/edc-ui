@@ -287,7 +287,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+            className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
             aria-label={t.common.close}
           >
             <X className="w-4 h-4" />

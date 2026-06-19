@@ -88,7 +88,7 @@ function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery
           <button
             onClick={onClose}
             aria-label={t.common.close}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

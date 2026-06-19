@@ -420,7 +420,7 @@ function NegotiationDetailSheet({
             <StateBadge name={target.name} />
             <button
               onClick={onClose}
-              className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0"
+              className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0"
               aria-label={t.common.close}
             >
               <X size={16} />

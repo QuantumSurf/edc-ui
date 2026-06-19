@@ -315,7 +315,7 @@ function SemanticModelDetailDialog({
           {model && <Badge variant={STATUS_VARIANT[model.status]}>{model.status}</Badge>}
           <button
             onClick={onClose}
-            className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label={t.common.close}
           >
             <X size={16} />
@@ -546,7 +546,7 @@ function SemanticModelEditorDialog({
         </div>
         <button
           onClick={() => { reset(); onClose(); }}
-          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
           aria-label={t.common.close}
         >
           <X className="w-4 h-4" />

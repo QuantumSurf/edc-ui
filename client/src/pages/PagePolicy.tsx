@@ -590,7 +590,7 @@ function PolicyDetailSheet({
             </Badge>
             <button
               onClick={onClose}
-              className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label={t.common.close}
             >
               <X size={16} />
@@ -1075,7 +1075,7 @@ function ODRLBuilder({ open, connectorId, existingPolicyIds = [], editTarget, du
         </div>
         <button
           onClick={onCancel ?? onDone}
-          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
           aria-label={t.common.close}
         >
           <X className="w-4 h-4" />

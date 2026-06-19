@@ -354,7 +354,7 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
         <button
           onClick={onClose}
           aria-label={t.common.close}
-          className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
           <X className="w-4 h-4" />
         </button>
