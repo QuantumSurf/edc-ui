@@ -43,14 +43,15 @@ export default function GlobalSearch() {
     navigate(`/connectors/${c.id}/dashboard`);
   };
 
+  // kw: 양 언어 동의어 — 한/영 UI 어느 쪽에서 검색해도 적중하도록 cmdk value 에 포함
   const destinations = [
-    { path: "/fleet", label: t.nav.fleetOverview, Icon: LayoutGrid },
-    { path: "/registry", label: t.nav.digitalTwins, Icon: BookMarked },
-    { path: "/submodels", label: t.nav.submodels, Icon: Shapes },
-    { path: "/system/vault", label: t.nav.vault, Icon: VaultIcon },
-    { path: "/system/identity-hub", label: t.nav.identityHub, Icon: Fingerprint },
-    { path: "/system/audit", label: t.nav.audit, Icon: ScrollText },
-    { path: "/settings", label: t.nav.settings, Icon: SettingsIcon },
+    { path: "/fleet", label: t.nav.fleetOverview, Icon: LayoutGrid, kw: "fleet 플릿 커넥터 connector overview 개요" },
+    { path: "/registry", label: t.nav.digitalTwins, Icon: BookMarked, kw: "registry 레지스트리 digital twin 디지털 트윈 shell 쉘" },
+    { path: "/submodels", label: t.nav.submodels, Icon: Shapes, kw: "submodel 서브모델 semantic 시맨틱 model 모델" },
+    { path: "/system/vault", label: t.nav.vault, Icon: VaultIcon, kw: "vault 시크릿 secret 자격증명 credential" },
+    { path: "/system/identity-hub", label: t.nav.identityHub, Icon: Fingerprint, kw: "identity 분산 신원 did hub" },
+    { path: "/system/audit", label: t.nav.audit, Icon: ScrollText, kw: "audit 감사 로그 log 이벤트 event" },
+    { path: "/settings", label: t.nav.settings, Icon: SettingsIcon, kw: "settings 설정 환경설정 preferences" },
   ];
 
   return (
@@ -82,8 +83,8 @@ export default function GlobalSearch() {
         )}
 
         <CommandGroup heading={t.common.searchPages}>
-          {destinations.map(({ path, label, Icon }) => (
-            <CommandItem key={path} value={`page ${label} ${path}`} onSelect={() => go(path)}>
+          {destinations.map(({ path, label, Icon, kw }) => (
+            <CommandItem key={path} value={`page ${label} ${kw} ${path}`} onSelect={() => go(path)}>
               <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
               <span className="font-medium flex-1 truncate">{label}</span>
             </CommandItem>

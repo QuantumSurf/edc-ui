@@ -223,7 +223,6 @@ export function AlertBanner({ children, variant = "warn", onClose }: AlertBanner
 interface SectionHdrProps {
   children: React.ReactNode;
   action?: React.ReactNode;
-  breadcrumb?: string;
   icon?: React.ReactNode;
 }
 

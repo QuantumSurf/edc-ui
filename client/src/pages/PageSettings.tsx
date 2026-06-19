@@ -33,7 +33,6 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
     <>
       <SectionHdr
         icon={<Settings className="w-5 h-5 text-primary" />}
-        breadcrumb={t.settings.subtitle}
         action={<QuietButton onClick={() => onNav("/fleet")} icon={<ChevronLeft className="w-3 h-3" />}>{t.nav.fleet}</QuietButton>}
       >
         {t.nav.settings}

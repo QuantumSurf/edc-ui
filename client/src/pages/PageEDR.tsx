@@ -53,7 +53,7 @@ export default function PageEDR() {
 
   return (
     <>
-      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.edr.title}</SectionHdr>
+      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />}>{t.edr.title}</SectionHdr>
 
       {alert && stats.nearestExpiry && stats.nearestExpiry.left < 60 && (
         <AlertBanner variant="warn" onClose={() => setAlert(false)}>

@@ -149,7 +149,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
         onConfirm={() => { if (terminateTarget) terminateMutation.mutate(terminateTarget); }}
       />
 
-      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.negotiations.title}</SectionHdr>
+      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />}>{t.negotiations.title}</SectionHdr>
       {/* ── Search & Filter — fl-aggregator TasksPage style ───── */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[220px] max-w-sm">

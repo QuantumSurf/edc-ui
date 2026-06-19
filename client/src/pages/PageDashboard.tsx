@@ -71,7 +71,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   return (
     <>
       {/* Page Title */}
-      <SectionHdr icon={<LayoutDashboard className="w-5 h-5 text-primary" />} breadcrumb={`${conn.name} / ${conn.bpn}`}>{t.nav.dashboard}</SectionHdr>
+      <SectionHdr icon={<LayoutDashboard className="w-5 h-5 text-primary" />}>{t.nav.dashboard}</SectionHdr>
 
       {/* KPI Row — KpiCard 통일 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -129,7 +129,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
   const inputClass = inputBase;
 
   return (
-    <SlidePanel open={open} onClose={requestClose} className="max-w-xl">
+    <SlidePanel open={open} onClose={() => { if (!confirmClose) requestClose(); }} className="max-w-xl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">

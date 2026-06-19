@@ -68,9 +68,7 @@ export default function PageShells() {
   return (
     <>
       <SectionHdr
-        icon={<BookMarked className="w-5 h-5 text-primary" />}
-        breadcrumb={t.twins.subtitle}
-        action={
+        icon={<BookMarked className="w-5 h-5 text-primary" />}        action={
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => refetch()}

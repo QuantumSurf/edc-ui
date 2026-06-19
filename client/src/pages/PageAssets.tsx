@@ -92,9 +92,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
   return (
     <>
       <SectionHdr
-        icon={<Package className="w-5 h-5 text-primary" />}
-        breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
-        action={
+        icon={<Package className="w-5 h-5 text-primary" />}        action={
           <RoleGate permission="resource:write">
             <PrimaryActionButton onClick={() => switchTab("wizard")} icon={<PlusCircle className="w-3 h-3" />}>
               {t.assets.createWizard}

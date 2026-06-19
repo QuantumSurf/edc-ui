@@ -239,7 +239,6 @@ export default function PageVault() {
     <>
       <SectionHdr
         icon={<Vault className="w-5 h-5 text-primary" />}
-        breadcrumb={t.vault.subtitle}
       >
         {t.vault.title}
       </SectionHdr>

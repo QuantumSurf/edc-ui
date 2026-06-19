@@ -214,7 +214,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // 글로벌 검색 단축키 (Ctrl/Cmd + K)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); toggleSearch(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { if (e.repeat) return; e.preventDefault(); toggleSearch(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

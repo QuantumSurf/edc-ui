@@ -205,9 +205,7 @@ export default function PagePolicy() {
   return (
     <>
       <SectionHdr
-        icon={<ShieldCheck className="w-5 h-5 text-primary" />}
-        breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
-        action={
+        icon={<ShieldCheck className="w-5 h-5 text-primary" />}        action={
           <RoleGate permission="resource:write">
             <PrimaryActionButton onClick={() => switchTab("builder")} icon={<PlusCircle className="w-3 h-3" />}>
               {t.policies.createOdrl}
