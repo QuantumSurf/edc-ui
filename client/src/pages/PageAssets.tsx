@@ -13,7 +13,7 @@ import {
 } from "@/components/ui-kmx";
 import { DeleteConfirmDialog, ConfirmActionDialog, JsonViewerDialog, SlidePanel, InfoCard } from "@/components/DetailDeleteDialogs";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Package, Filter, Globe, FileText, Server, Tags, Loader2, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List, Lock } from "lucide-react";
+import { PlusCircle, Copy, Search, AlertCircle, CheckCircle2, Circle, Package, Filter, Globe, FileText, Server, Tags, Loader2, Files, X, Wand2, Pencil, Trash2, Code, ChevronsRight, List, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
@@ -218,12 +218,10 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.offered ? "bg-emerald-500" : "bg-gray-300"}`} />
-                          <span className={`text-xs ${a.offered ? "text-emerald-700" : "text-foreground"}`}>
-                            {a.offered ? t.assets.registered : t.assets.unregistered}
-                          </span>
-                        </div>
+                        <Badge variant={a.offered ? "green" : "gray"}>
+                          {a.offered ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+                          {a.offered ? t.assets.registered : t.assets.unregistered}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         {a.baseUrl ? (

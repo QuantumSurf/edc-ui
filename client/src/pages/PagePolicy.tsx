@@ -13,7 +13,7 @@ import {
   Card, CardTitle, Badge, SectionHdr, FormField, JsonTreeView, PrimaryActionButton,
   inputBase, ListError, ListEmpty,
 } from "@/components/ui-kmx";
-import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, AlertCircle, X, CheckCircle2, Hammer, Pencil, Files, ChevronsRight, List, Lock } from "lucide-react";
+import { PlusCircle, Trash2, Eye, Code, ChevronDown, ChevronUp, Copy, Search, Shield, ShieldCheck, Link2, Loader2, AlertCircle, X, CheckCircle2, Circle, Hammer, Pencil, Files, ChevronsRight, List, Lock } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -455,12 +455,10 @@ function PolicyList({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", p.offers > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
-                        <span className={cn("text-xs", p.offers > 0 ? "text-emerald-700" : "text-foreground")}>
-                          {t.policies.offeringRef(p.offers)}
-                        </span>
-                      </div>
+                      <Badge variant={p.offers > 0 ? "green" : "gray"}>
+                        {p.offers > 0 ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+                        {t.policies.offeringRef(p.offers)}
+                      </Badge>
                     </td>
                   </tr>
                 );
