@@ -2,11 +2,13 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { Badge } from "@/components/ui-kmx";
+import { useI18n } from "@/i18n";
 import type { SammAspect, SammNode } from "@/lib/samm";
 
 function Row({ node, depth }: { node: SammNode; depth: number }) {
   const hasChildren = !!node.children?.length;
   const [open, setOpen] = useState(depth < 2);
+  const { t } = useI18n();
   return (
     <div>
       <div
@@ -17,7 +19,7 @@ function Row({ node, depth }: { node: SammNode; depth: number }) {
           <button
             onClick={() => setOpen((o) => !o)}
             className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={open ? "collapse" : "expand"}
+            aria-label={open ? t.common.collapse : t.common.expand}
           >
             {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           </button>

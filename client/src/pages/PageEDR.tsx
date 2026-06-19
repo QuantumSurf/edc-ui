@@ -14,6 +14,7 @@ import {
 
 const EDR_COLS = "grid-cols-[170px_1.2fr_2.2fr_1.3fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
+import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import { Copy, Shield, Key, Clock } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,9 +49,11 @@ export default function PageEDR() {
     refetchInterval: 30_000,
   });
 
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(edrs, 10);
+
   return (
     <>
-      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.edr.title}</SectionHdr>
+      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />}>{t.edr.title}</SectionHdr>
 
       {alert && stats.nearestExpiry && stats.nearestExpiry.left < 60 && (
         <AlertBanner variant="warn" onClose={() => setAlert(false)}>
@@ -92,9 +95,19 @@ export default function PageEDR() {
               <ListColLabel className="hidden xl:block">{t.edr.col.authCode}</ListColLabel>
               <ListColLabel>{t.edr.col.status}</ListColLabel>
             </ListHeaderRow>
-            {edrs.map((e) => (
+            {paginatedData.map((e) => (
               <EDRRow key={e.tpId} edr={e} onCopyAuth={(token) => setConfirmCopy(token)} />
             ))}
+            {totalItems > 0 && (
+              <DataTablePagination
+                totalItems={totalItems}
+                pageSize={pageSize}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                rowsPerPageLabel={t.common.rowsPerPage}
+              />
+            )}
           </>
         )}
       </ListCard>
@@ -105,9 +118,25 @@ export default function PageEDR() {
           <ListError onRetry={() => refetch()} fetching={isFetching} />
         ) : edrs.length === 0 ? (
           <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
-        ) : edrs.map((e) => (
-          <EDRCard key={e.tpId} edr={e} onCopyAuth={(token) => setConfirmCopy(token)} />
-        ))}
+        ) : (
+          <>
+            {paginatedData.map((e) => (
+              <EDRCard key={e.tpId} edr={e} onCopyAuth={(token) => setConfirmCopy(token)} />
+            ))}
+            {totalItems > 0 && (
+              <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                <DataTablePagination
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  rowsPerPageLabel={t.common.rowsPerPage}
+                />
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <Card title={<CardTitle icon={<Clock className="w-4 h-4 text-primary" />}>{t.edr.gcScheduler}</CardTitle>}>
@@ -136,7 +165,7 @@ export default function PageEDR() {
 
 /* ─── EDR Row (Desktop) ──────────────────────────────────────── */
 function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const noExpiry = e.left < 0;                          // expiresAt 없음 → 활성으로 간주
   const pct = noExpiry ? 100 : Math.round((e.left / e.total) * 100);
   const isExpired = !noExpiry && e.left <= 0;
@@ -155,7 +184,7 @@ function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) 
       <div className="min-w-0">
         <div className="flex justify-end text-[12px] mb-1">
           <span className={`font-medium ${timeColor} ${isCritical ? "animate-pulse" : ""}`}>
-            {isExpired ? t.edr.expired : noExpiry ? t.edr.active : `${e.left}분`}
+            {isExpired ? t.edr.expired : noExpiry ? t.edr.active : `${e.left}${locale === "ko" ? "분" : " min"}`}
           </span>
         </div>
         <ProgressBar value={pct} colorClass={colorClass} />
@@ -200,7 +229,7 @@ function EDRRow({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) 
 
 /* ─── EDR Card (Mobile) ──────────────────────────────────────── */
 function EDRCard({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string) => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const noExpiry = e.left < 0;
   const pct = noExpiry ? 100 : Math.round((e.left / e.total) * 100);
   const isWarn = !noExpiry && e.left < 60;
@@ -219,7 +248,7 @@ function EDRCard({ edr: e, onCopyAuth }: { edr: EDR; onCopyAuth: (token: string)
       <div className="flex items-center gap-2 text-[11px] mb-1">
         <span className="text-muted-foreground">{t.edr.remaining}</span>
         <span className={`font-medium ${isCritical ? "text-rose-600 animate-pulse" : isWarn ? "text-amber-600" : ""}`}>
-          {noExpiry ? t.edr.active : `${e.left}분`}
+          {noExpiry ? t.edr.active : `${e.left}${locale === "ko" ? "분" : " min"}`}
         </span>
       </div>
       <ProgressBar value={pct} colorClass={colorClass} />

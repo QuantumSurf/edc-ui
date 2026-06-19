@@ -239,7 +239,6 @@ export default function PageVault() {
     <>
       <SectionHdr
         icon={<Vault className="w-5 h-5 text-primary" />}
-        breadcrumb={t.vault.subtitle}
       >
         {t.vault.title}
       </SectionHdr>
@@ -283,8 +282,8 @@ export default function PageVault() {
         </div>
       </Card>
 
-      {/* Search + type filter */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* Search + type filter — 검색+필터를 한 카드에 그룹화 (pcf 패턴) */}
+      <div className="flex items-center gap-3 flex-wrap bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
         <div className="relative flex-1 min-w-[220px] max-w-md">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -293,7 +292,7 @@ export default function PageVault() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.vault.searchPlaceholder}
             aria-label={t.vault.searchPlaceholder}
-            className={`${inputBase} pl-8 pr-8`}
+            className={`${inputBase} pl-8 pr-8 !bg-background`}
           />
           {search && (
             <button

@@ -7,7 +7,8 @@ import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   SectionHdr, Badge, MonoText,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty,
+  ListCard, ListHeaderRow, ListRow, ListEmpty,
+  SortHeader, useTableSort, sortRows,
 } from "@/components/ui-kmx";
 
 const AUDIT_COLS = "grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
@@ -191,12 +192,31 @@ export default function PageAudit() {
     });
   }, [allEvents, search, category, result, severity, range]);
 
-  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+  // 컬럼 헤더 클릭 정렬 (기본: 최신순)
+  const { sortKey, sortDir, toggleSort } = useTableSort("timestamp", "desc");
+  const sorted = useMemo(
+    () => sortRows(filtered, sortKey, sortDir, (e, k) => {
+      switch (k) {
+        case "timestamp": return new Date(e.timestamp).getTime();
+        case "actor": return e.actor;
+        case "action": return e.action;
+        case "category": return e.category;
+        case "target": return e.target;
+        case "result": return e.result;
+        case "severity": return e.severity === "CRITICAL" ? 2 : e.severity === "WARN" ? 1 : 0;
+        case "ip": return e.ip;
+        default: return undefined;
+      }
+    }),
+    [filtered, sortKey, sortDir],
+  );
 
-  // Reset page when filters change so users always see page 1 of new results.
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(sorted, 10);
+
+  // Reset page when filters/sort change so users always see page 1 of new results.
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, category, result, severity, range, setCurrentPage]);
+  }, [search, category, result, severity, range, sortKey, sortDir, setCurrentPage]);
 
   const catLabel: Record<"ALL" | AuditCategory, string> = {
     ALL: t.audit.catAll,
@@ -217,22 +237,21 @@ export default function PageAudit() {
   return (
     <>
       <SectionHdr
-        icon={<ScrollText className="w-5 h-5 text-primary" />}
-        breadcrumb={t.audit.subtitle}
-      >
+        icon={<ScrollText className="w-5 h-5 text-primary" />}      >
         {t.audit.title}
       </SectionHdr>
 
-      {/* Filter Bar 1 — search + range + export */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[240px] max-w-md">
+      {/* Filter + Search — 검색·필터·기간·내보내기를 한 카드에 인라인 (pcf 패턴) */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
+        {/* 검색 */}
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.audit.searchPlaceholder}
-            className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           {search && (
             <button
@@ -244,7 +263,47 @@ export default function PageAudit() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1.5 ml-auto">
+
+        {/* 필터: 카테고리 / 결과 / 심각도 */}
+        <Filter className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+        <label className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterCategory}</span>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as "ALL" | AuditCategory)}
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            {CATEGORIES.map((c) => <option key={c} value={c}>{catLabel[c]}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterResult}</span>
+          <select
+            value={result}
+            onChange={(e) => setResult(e.target.value as "ALL" | AuditResult)}
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="ALL">{t.common.all}</option>
+            <option value="SUCCESS">{t.audit.resultSuccess}</option>
+            <option value="FAILURE">{t.audit.resultFailure}</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterSeverity}</span>
+          <select
+            value={severity}
+            onChange={(e) => setSeverity(e.target.value as "ALL" | AuditSeverity)}
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="ALL">{t.common.all}</option>
+            <option value="INFO">{t.audit.severityInfo}</option>
+            <option value="WARN">{t.audit.severityWarn}</option>
+            <option value="CRITICAL">{t.audit.severityCritical}</option>
+          </select>
+        </label>
+
+        {/* 기간 */}
+        <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
           {(["ALL", "1D", "7D", "30D"] as const).map((r) => (
             <RangeBtn key={r} active={range === r} onClick={() => setRange(r)}>
@@ -252,56 +311,29 @@ export default function PageAudit() {
             </RangeBtn>
           ))}
         </div>
-        <button
-          onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
-          disabled={filtered.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1"
-        >
-          <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
-        </button>
-      </div>
 
-      {/* Filter Bar 2 — category */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Filter className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-        <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterCategory}</span>
-        <div className="flex gap-1.5 flex-wrap">
-          {CATEGORIES.map((c) => (
-            <FilterPill key={c} active={category === c} onClick={() => setCategory(c)}>
-              {catLabel[c]}
-            </FilterPill>
-          ))}
-        </div>
-      </div>
-
-      {/* Filter Bar 3 — result / severity + clear */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterResult}</span>
-          {(["ALL", "SUCCESS", "FAILURE"] as const).map((r) => (
-            <FilterPill key={r} active={result === r} onClick={() => setResult(r)}>
-              {r === "ALL" ? t.common.all : r === "SUCCESS" ? t.audit.resultSuccess : t.audit.resultFailure}
-            </FilterPill>
-          ))}
-        </div>
-        <span className="text-muted-foreground/40 text-xs">·</span>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-medium text-muted-foreground">{t.audit.filterSeverity}</span>
-          {(["ALL", "INFO", "WARN", "CRITICAL"] as const).map((s) => (
-            <FilterPill key={s} active={severity === s} onClick={() => setSeverity(s)}>
-              {s === "ALL" ? t.common.all : s === "INFO" ? t.audit.severityInfo : s === "WARN" ? t.audit.severityWarn : t.audit.severityCritical}
-            </FilterPill>
-          ))}
-        </div>
-        {hasActiveFilter && (
+        {/* 우측: 초기화 + 내보내기 */}
+        <div className="flex items-center gap-2 ml-auto">
+          {hasActiveFilter && (
+            <button
+              onClick={() => { setSearch(""); setCategory("ALL"); setResult("ALL"); setSeverity("ALL"); setRange("ALL"); }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors"
+            >
+              <X className="w-3 h-3" />{t.audit.clearFilters}
+            </button>
+          )}
           <button
-            onClick={() => { setSearch(""); setCategory("ALL"); setResult("ALL"); setSeverity("ALL"); setRange("ALL"); }}
-            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+            onClick={() => { exportCsv(filtered); toast.success(t.audit.exported); }}
+            disabled={filtered.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1"
           >
-            <X className="w-3 h-3" />{t.audit.clearFilters}
+            <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
           </button>
-        )}
+        </div>
       </div>
+
+      {/* 스크린리더용 결과 개수 통지 (필터 변경 시 갱신) */}
+      <p aria-live="polite" className="sr-only">{`${filtered.length}${locale === "ko" ? "건" : " results"}`}</p>
 
       {/* List — Desktop */}
       <ListCard
@@ -321,21 +353,21 @@ export default function PageAudit() {
         ) : (
           <>
             <ListHeaderRow cols={AUDIT_COLS}>
-              <ListColLabel>{t.audit.col.timestamp}</ListColLabel>
-              <ListColLabel>{t.audit.col.actor}</ListColLabel>
-              <ListColLabel>{t.audit.col.action}</ListColLabel>
-              <ListColLabel>{t.audit.col.category}</ListColLabel>
-              <ListColLabel className="hidden lg:block">{t.audit.col.target}</ListColLabel>
-              <ListColLabel>{t.audit.col.result}</ListColLabel>
-              <ListColLabel className="hidden xl:block">{t.audit.col.severity}</ListColLabel>
-              <ListColLabel className="hidden xl:block">{t.audit.col.ip}</ListColLabel>
+              <SortHeader label={t.audit.col.timestamp} columnKey="timestamp" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.actor} columnKey="actor" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.action} columnKey="action" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.category} columnKey="category" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.target} columnKey="target" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden lg:inline-flex" />
+              <SortHeader label={t.audit.col.result} columnKey="result" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t.audit.col.severity} columnKey="severity" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
+              <SortHeader label={t.audit.col.ip} columnKey="ip" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
             </ListHeaderRow>
             {paginatedData.map((e) => (
               <ListRow
                 key={e.id}
                 cols={AUDIT_COLS}
                 onClick={() => setSelected(e)}
-                className={e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30" : undefined}
+                className={e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30 dark:bg-rose-500/10" : undefined}
               >
                 <div>
                   <span className="text-xs text-foreground" title={new Date(e.timestamp).toLocaleString()}>{formatTs(e.timestamp)}</span>
@@ -391,7 +423,7 @@ export default function PageAudit() {
               tabIndex={0}
               onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelected(e); } }}
               className={`bg-card rounded-xl p-3 shadow-sm border border-border border-l-2 active:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
-                e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30" : "border-l-transparent"
+                e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30 dark:bg-rose-500/10" : "border-l-transparent"
               }`}
             >
               <div className="flex items-center justify-between gap-2 mb-1">
@@ -434,7 +466,7 @@ export default function PageAudit() {
           open={!!selected}
           onClose={() => setSelected(null)}
           title={t.audit.detailTitle}
-          icon={<ScrollText className="w-5 h-5 text-primary flex-shrink-0" />}
+          icon={<ScrollText className="w-4 h-4 text-primary" />}
           sections={[
             {
               title: t.audit.field.timestamp,
@@ -491,22 +523,6 @@ export default function PageAudit() {
 }
 
 /* ─── Filter primitives ──────────────────────────────────────── */
-function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
-        active
-          ? "bg-primary text-primary-foreground border-primary"
-          : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 function RangeBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button

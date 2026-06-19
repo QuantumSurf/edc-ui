@@ -7,17 +7,16 @@ import { useI18n } from "@/i18n";
 import { fetchShells, createShell, updateShell, deleteShell, fetchShellRaw } from "@/services";
 import type { ShellDescriptor, SpecificAssetId } from "@/lib/data";
 import {
-  Card, Badge, SectionHdr, FormField, PrimaryActionButton, inputBase,
+  Card, Badge, MonoText, SectionHdr, FormField, PrimaryActionButton, inputBase,
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError,
 } from "@/components/ui-kmx";
 
-const SHELL_COLS = "grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr_90px]";
+const SHELL_COLS = "grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr]";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import { SlidePanel, InfoCard, DetailSection, JsonViewerDialog, DeleteConfirmDialog } from "@/components/DetailDeleteDialogs";
 import { ExposeSubmodelDialog, type ExposeTarget } from "@/components/ExposeSubmodelDialog";
 import { ExposeDtrDialog } from "@/components/ExposeDtrDialog";
-import { Boxes, PlusCircle, Plus, Trash2, Search, RefreshCw, Loader2, X, Pencil, FileJson, BookMarked, Share2, Lock, MoreVertical } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Boxes, PlusCircle, Trash2, Search, RefreshCw, Loader2, X, Pencil, FileJson, BookMarked, Share2, Lock } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
 import {
@@ -69,9 +68,7 @@ export default function PageShells() {
   return (
     <>
       <SectionHdr
-        icon={<BookMarked className="w-5 h-5 text-primary" />}
-        breadcrumb={t.twins.subtitle}
-        action={
+        icon={<BookMarked className="w-5 h-5 text-primary" />}        action={
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => refetch()}
@@ -152,7 +149,6 @@ export default function PageShells() {
             <ListColLabel className="hidden lg:block">{t.twins.col.globalAssetId}</ListColLabel>
             <ListColLabel className="hidden md:block">{t.twins.col.specificAssetIds}</ListColLabel>
             <ListColLabel>{t.twins.col.submodels}</ListColLabel>
-            <ListColLabel className="text-right">{t.twins.col.action}</ListColLabel>
           </ListHeaderRow>
           {filtered.length === 0 ? (
             <ListEmpty icon={<Boxes />} message={t.twins.noSearchResults} />
@@ -180,28 +176,6 @@ export default function PageShells() {
                 </div>
                 <div>
                   <Badge variant={s.submodelCount > 0 ? "blue" : "gray"}>{s.submodelCount}</Badge>
-                </div>
-                <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                  <RoleGate permission="resource:write">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          aria-label={t.twins.col.action}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setEditorMode("edit"); setEditorAasId(s.id); setEditorOpen(true); }}>
-                          <Pencil className="w-3.5 h-3.5" /> {t.common.edit}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(s)}>
-                          <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </RoleGate>
                 </div>
               </ListRow>
             ))
@@ -282,10 +256,17 @@ function ShellDetailDialog({
   return (
     <SlidePanel open={!!shell} onClose={onClose} className="sm:max-w-2xl">
       {/* Header */}
-      <div className="px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <BookMarked className="w-5 h-5 text-primary flex-shrink-0" />
+      <div className="px-5 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 flex-wrap pr-8">
+          <BookMarked className="w-4 h-4 text-primary flex-shrink-0" />
           <h2 className="text-[15px] font-semibold text-foreground truncate">{shell.idShort || t.twins.detail.title}</h2>
+          <button
+            onClick={onClose}
+            className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label={t.common.close}
+          >
+            <X size={16} />
+          </button>
         </div>
       </div>
 
@@ -334,16 +315,17 @@ function ShellDetailDialog({
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-foreground">{sub.idShort}</div>
-                        <span className="text-[11px] font-normal text-muted-foreground truncate block">{sub.id}</span>
+                        <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">{sub.id}</MonoText>
                         {sub.semanticId && (
-                          <span className="text-[11px] font-normal text-muted-foreground truncate block">semanticId: {sub.semanticId}</span>
+                          <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">semanticId: {sub.semanticId}</MonoText>
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <Badge variant="blue">{sub.endpointCount} ep</Badge>
                         <RoleGate permission="resource:write">
                           <button
                             onClick={() => onExpose({ aasId: shell.id, submodelId: sub.id, idShort: sub.idShort, semanticId: sub.semanticId })}
-                            className="inline-flex items-center gap-1 h-7 text-[11px] px-2.5 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                            className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground"
                           >
                             <Share2 className="w-3 h-3" />
                             {t.twins.expose.action}
@@ -366,14 +348,6 @@ function ShellDetailDialog({
 
       {/* Footer */}
       <div className="px-5 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
-        <RoleGate permission="resource:write">
-          <button
-            onClick={onDelete}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
-          >
-            <Trash2 size={13} /> {t.common.delete}
-          </button>
-        </RoleGate>
         <button
           onClick={onViewJson}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
@@ -384,9 +358,15 @@ function ShellDetailDialog({
         <RoleGate permission="resource:write">
           <button
             onClick={onEdit}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           >
             <Pencil size={13} /> {t.common.edit}
+          </button>
+          <button
+            onClick={onDelete}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
+          >
+            <Trash2 size={13} /> {t.common.delete}
           </button>
         </RoleGate>
         <button
@@ -550,15 +530,22 @@ function ShellEditorDialog({
   };
 
   return (
-    <SlidePanel open={open} onClose={() => { reset(); onClose(); }} closeDisabled={submitting} className="max-w-xl">
+    <SlidePanel open={open} onClose={() => { reset(); onClose(); }} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <BookMarked className="w-5 h-5 text-primary flex-shrink-0" />
+          <PlusCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
           <p className="text-[15px] font-semibold text-foreground truncate">
             {mode === "edit" ? t.twins.edit : t.twins.create}
           </p>
         </div>
+        <button
+          onClick={() => { reset(); onClose(); }}
+          className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Body */}
@@ -568,7 +555,7 @@ function ShellEditorDialog({
           <span className="text-[13px]">{t.common.loading}</span>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3.5">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {/* Asset Administration Shell Descriptor */}
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold border-b border-border pb-1">
             Asset Administration Shell Descriptor
@@ -578,7 +565,6 @@ function ShellEditorDialog({
               value={idShort}
               onChange={(e) => setIdShort(e.target.value)}
               placeholder="MyShell"
-              disabled={submitting}
               className={inputBase}
             />
           </FormField>
@@ -589,8 +575,8 @@ function ShellEditorDialog({
                 value={aasId}
                 onChange={(e) => setAasId(e.target.value)}
                 placeholder="urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                disabled={mode === "edit" || submitting}
-                className={cn(inputBase, "mono placeholder:font-sans placeholder:font-normal", mode === "edit" && "pl-8")}
+                disabled={mode === "edit"}
+                className={cn(inputBase, "mono", mode === "edit" && "pl-8")}
               />
             </div>
           </FormField>
@@ -599,8 +585,7 @@ function ShellEditorDialog({
               value={globalAssetId}
               onChange={(e) => setGlobalAssetId(e.target.value)}
               placeholder="urn:uuid:..."
-              disabled={submitting}
-              className={`${inputBase} mono placeholder:font-sans placeholder:font-normal`}
+              className={`${inputBase} mono`}
             />
           </FormField>
           <FormField label={t.twins.form.descriptionKo}>
@@ -608,7 +593,6 @@ function ShellEditorDialog({
               value={descriptionKo}
               onChange={(e) => setDescriptionKo(e.target.value)}
               lang="ko"
-              disabled={submitting}
               className={inputBase}
             />
           </FormField>
@@ -617,23 +601,21 @@ function ShellEditorDialog({
               value={descriptionEn}
               onChange={(e) => setDescriptionEn(e.target.value)}
               lang="en"
-              disabled={submitting}
               className={inputBase}
             />
           </FormField>
 
           {/* Specific AssetId[] */}
           <div className="pt-2">
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1">
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
                 Specific AssetId
               </label>
               <button
                 onClick={() => setSpecs([...specs, { name: "", value: "" }])}
-                disabled={submitting}
-                className="inline-flex items-center gap-1 h-7 text-[11px] px-2.5 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                className="text-[11px] text-primary hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
               >
-                <Plus className="w-3 h-3" /> {t.twins.form.addSpecificAssetId}
+                + {t.twins.form.addSpecificAssetId}
               </button>
             </div>
             <div className="space-y-1.5">
@@ -642,22 +624,19 @@ function ShellEditorDialog({
                   <input
                     placeholder={t.twins.form.keyName}
                     value={s.name}
-                    disabled={submitting}
                     onChange={(e) => { const n = [...specs]; n[i] = { ...n[i], name: e.target.value }; setSpecs(n); }}
-                    className={`${inputBase} flex-1`}
+                    className={`${inputBase} flex-1 !text-[11px] !py-1`}
                   />
                   <input
                     placeholder={t.twins.form.keyValue}
                     value={s.value}
-                    disabled={submitting}
                     onChange={(e) => { const n = [...specs]; n[i] = { ...n[i], value: e.target.value }; setSpecs(n); }}
-                    className={`${inputBase} flex-1`}
+                    className={`${inputBase} flex-1 !text-[11px] !py-1`}
                   />
                   <button
                     onClick={() => setSpecs(specs.filter((_, j) => j !== i))}
                     aria-label={t.common.delete}
-                    disabled={submitting}
-                    className="text-muted-foreground hover:text-rose-600 disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400 rounded"
+                    className="text-muted-foreground hover:text-rose-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400 rounded"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -668,16 +647,15 @@ function ShellEditorDialog({
 
           {/* Submodel Descriptor[] */}
           <div className="pt-2 border-t border-border">
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1">
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
                 Submodel Descriptor
               </label>
               <button
                 onClick={() => setSubs([...subs, newSubmodel()])}
-                disabled={submitting}
-                className="inline-flex items-center gap-1 h-7 text-[11px] px-2.5 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                className="text-[11px] text-primary hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
               >
-                <Plus className="w-3 h-3" /> {t.twins.form.addSubmodel}
+                + {t.twins.form.addSubmodel}
               </button>
             </div>
             <div className="space-y-3">
@@ -687,7 +665,6 @@ function ShellEditorDialog({
                   submodel={s}
                   index={si}
                   showDescription={false}
-                  disabled={submitting}
                   onChange={(next) => { const n = [...subs]; n[si] = next; setSubs(n); }}
                   onRemove={() => setSubs(subs.filter((_, j) => j !== si))}
                 />
@@ -698,13 +675,11 @@ function ShellEditorDialog({
       )}
 
       {/* Footer */}
-      <div className="flex justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
+      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
         <button
           onClick={() => { reset(); onClose(); }}
-          disabled={submitting}
-          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
-          <X className="w-3.5 h-3.5" />
           {t.twins.form.cancel}
         </button>
         <PrimaryActionButton

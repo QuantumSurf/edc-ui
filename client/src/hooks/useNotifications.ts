@@ -100,7 +100,7 @@ export function useNotifications() {
   };
 }
 
-/** Lightweight hook for unread count only (used in AppShell sidebar) */
+/** Lightweight hook for unread count only (used in sidebar + topbar) */
 export function useUnreadNotificationCount(): number {
   const { data = [] } = useQuery({
     queryKey: ["notifications"],

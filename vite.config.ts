@@ -188,9 +188,13 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // Windows host ↔ Linux container bind mount: inotify가 전파 안 돼 HMR이 죽는 경우
+    // VITE_USE_POLLING=true 로 폴링 감시 활성화 (docker dev 전용, 기본은 native 감시).
+    watch: process.env.VITE_USE_POLLING === "true" ? { usePolling: true, interval: 200 } : undefined,
     proxy: {
       "/api": {
-        target: "http://localhost:3003",
+        // dev compose에서는 BFF가 같은 컨테이너(localhost:3001)에 뜨므로 env로 타깃 재지정.
+        target: process.env.BFF_PROXY_TARGET || "http://localhost:3003",
         changeOrigin: true,
       },
     },

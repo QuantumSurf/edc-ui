@@ -82,7 +82,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
 
   return (
     <>
-      <SectionHdr icon={<Search className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.catalog.title}</SectionHdr>
+      <SectionHdr icon={<Search className="w-5 h-5 text-primary" />}>{t.catalog.title}</SectionHdr>
 
       {/* 현재 커넥터 참고 정보 */}
       {(myDsp || myDid) && (

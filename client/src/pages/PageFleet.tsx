@@ -80,6 +80,18 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
 
   return (
     <>
+      {/* Section Header (KPI 카드는 이 "커넥터 플릿" 제목 아래에 표시) */}
+      <SectionHdr
+        icon={<LayoutGrid className="w-5 h-5 text-primary" />}        action={
+        <RoleGate permission="connector:write">
+          <PrimaryActionButton onClick={() => setAddOpen(true)} icon={<PlusCircle className="w-3 h-3" />}>
+            {t.common.addConnector}
+          </PrimaryActionButton>
+        </RoleGate>
+      }>
+        {t.fleet.connectorFleet}
+      </SectionHdr>
+
       {/* KPI 조회 실패 배너 (값은 "—"로 표시되어 오정보 방지) */}
       {kpiError && (
         <AlertBanner variant="warn">
@@ -92,28 +104,14 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         </AlertBanner>
       )}
 
-      {/* KPI Row */}
+      {/* KPI Row — 커넥터 플릿 제목 바로 아래 */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-        <KpiCard icon={<Server className="w-[18px] h-[18px] text-blue-600" />} iconBg="bg-blue-50" value={kpiVal(kpi?.totalConnectors)} label={t.fleet.totalConnectors} loading={kpiLoading} />
-        <KpiCard icon={<CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" />} iconBg="bg-emerald-50" value={kpiVal(kpi?.up)} label={t.fleet.healthy} valueColor="text-emerald-600" loading={kpiLoading} />
-        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-amber-600" />} iconBg="bg-amber-50" value={kpiVal(kpi?.warn)} label={t.fleet.warning} sub={t.fleet.needsCheck} valueColor="text-amber-600" loading={kpiLoading} />
-        <KpiCard icon={<XCircle className="w-[18px] h-[18px] text-rose-600" />} iconBg="bg-rose-50" value={kpiVal(kpi?.down)} label={t.fleet.down} valueColor="text-rose-600" loading={kpiLoading} />
-        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />} iconBg="bg-sky-50" value={kpiVal(kpi?.totalTransfers)} label={t.fleet.todayTransfers} sub={kpiError ? undefined : t.fleet.assetsRegistered(kpi?.totalAssets ?? 0)} valueColor="text-sky-600" loading={kpiLoading} />
+        <KpiCard icon={<Server className="w-[18px] h-[18px] text-blue-600 dark:text-blue-400" />} iconBg="bg-blue-50 dark:bg-blue-500/10" value={kpiVal(kpi?.totalConnectors)} label={t.fleet.totalConnectors} loading={kpiLoading} />
+        <KpiCard icon={<CheckCircle2 className="w-[18px] h-[18px] text-emerald-600 dark:text-emerald-400" />} iconBg="bg-emerald-50 dark:bg-emerald-500/10" value={kpiVal(kpi?.up)} label={t.fleet.healthy} valueColor="text-emerald-600 dark:text-emerald-400" loading={kpiLoading} />
+        <KpiCard icon={<Shield className="w-[18px] h-[18px] text-amber-600 dark:text-amber-400" />} iconBg="bg-amber-50 dark:bg-amber-500/10" value={kpiVal(kpi?.warn)} label={t.fleet.warning} sub={t.fleet.needsCheck} valueColor="text-amber-600 dark:text-amber-400" loading={kpiLoading} />
+        <KpiCard icon={<XCircle className="w-[18px] h-[18px] text-rose-600 dark:text-rose-400" />} iconBg="bg-rose-50 dark:bg-rose-500/10" value={kpiVal(kpi?.down)} label={t.fleet.down} valueColor="text-rose-600 dark:text-rose-400" loading={kpiLoading} />
+        <KpiCard icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600 dark:text-sky-400" />} iconBg="bg-sky-50 dark:bg-sky-500/10" value={kpiVal(kpi?.totalTransfers)} label={t.fleet.todayTransfers} sub={kpiError ? undefined : t.fleet.assetsRegistered(kpi?.totalAssets ?? 0)} valueColor="text-sky-600 dark:text-sky-400" loading={kpiLoading} />
       </div>
-
-      {/* Section Header */}
-      <SectionHdr
-        icon={<LayoutGrid className="w-5 h-5 text-primary" />}
-        breadcrumb={user?.tenantName || undefined}
-        action={
-        <RoleGate permission="connector:write">
-          <PrimaryActionButton onClick={() => setAddOpen(true)} icon={<PlusCircle className="w-3 h-3" />}>
-            {t.common.addConnector}
-          </PrimaryActionButton>
-        </RoleGate>
-      }>
-        {t.fleet.connectorFleet}
-      </SectionHdr>
 
       {/* 검색 (커넥터가 있을 때만) */}
       {!connectorsLoading && !connectorsError && list.length > 0 && (
@@ -148,7 +146,15 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         <ListError onRetry={() => connectorsRefetch()} fetching={connectorsFetching} />
       ) : list.length === 0 ? (
         <div className="py-10 flex flex-col items-center gap-4">
-          <ListEmpty icon={<Server />} message={t.fleet.noConnectors} />
+          <ListEmpty
+            icon={<Server />}
+            message={
+              <>
+                <span className="block text-[14px] font-semibold text-foreground mb-1">{t.fleet.noConnectors}</span>
+                <span className="block max-w-md mx-auto">{t.fleet.emptyHelp}</span>
+              </>
+            }
+          />
           <RoleGate permission="connector:write">
             <PrimaryActionButton onClick={() => setAddOpen(true)} icon={<PlusCircle className="w-3 h-3" />}>
               {t.common.addConnector}
@@ -338,11 +344,18 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
   return (
     <SlidePanel open onClose={onClose} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <LayoutGrid className="w-5 h-5 text-primary flex-shrink-0" />
+          <Pencil className="w-4 h-4 text-blue-500 flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">{t.fleet.editConnector}</span>
         </div>
+        <button
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Body */}
@@ -394,25 +407,21 @@ function EditConnectorDialog({ connector, onClose, onSaved }: {
         </FormField>
       </div>
 
-      {/* Footer — 표준: px-5 py-3 bg-muted/20 + h-8 버튼 */}
-      <div className="flex justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
+      {/* Footer */}
+      <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">
         <button onClick={handleTest} disabled={testing || !managementUrl.trim()}
-          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary">
-          {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary">
+          {testing && <Loader2 className="w-3 h-3 animate-spin" />}
           {t.addConnector.testConnection}
         </button>
-        <button onClick={onClose} disabled={saving}
-          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary">
-          <X className="w-3.5 h-3.5" />
+        <button onClick={onClose} className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary">
           {t.fleet.cancel}
         </button>
-        <PrimaryActionButton
-          onClick={handleSave}
-          disabled={saving || !name.trim()}
-          icon={saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
-        >
+        <button onClick={handleSave} disabled={saving || !name.trim()}
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary">
+          {saving && <Loader2 className="w-3 h-3 animate-spin" />}
           {t.fleet.save}
-        </PrimaryActionButton>
+        </button>
       </div>
     </SlidePanel>
   );

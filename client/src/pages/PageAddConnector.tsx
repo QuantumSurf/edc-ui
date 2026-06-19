@@ -4,9 +4,9 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/contexts/AuthContext";
-import { FormField, inputBase, PrimaryActionButton } from "@/components/ui-kmx";
-import { SlidePanel } from "@/components/DetailDeleteDialogs";
-import { Plug, Loader2, CheckCircle2, XCircle, X, LayoutGrid } from "lucide-react";
+import { FormField, inputBase } from "@/components/ui-kmx";
+import { SlidePanel, ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
+import { Plug, Loader2, CheckCircle2, XCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { testConnection, registerConnector, fetchTenantInfo } from "@/services";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,7 +23,7 @@ const ROLE_MAP: Record<string, string[]> = {
 };
 
 export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -42,6 +42,13 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"ok" | "fail" | null>(null);
   const [registering, setRegistering] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+
+  // 미저장 변경 여부 — 입력값이 초기 상태와 다르면 닫기 시 확인을 받는다(BPN은 읽기전용이라 제외).
+  const dirty =
+    Boolean(name.trim() || managementUrl.trim() || dspEndpoint.trim() || apiKey || did.trim()) ||
+    role !== "both" || env !== "PROD" || dcpVersion !== "1.0";
+  const requestClose = () => { if (dirty) setConfirmClose(true); else onClose(); };
 
   // Reset form each time the panel opens. BPN defaults to the user's own
   // organization (tenant) BPN — editable for the rare multi-BPN case.
@@ -59,6 +66,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       setDcpVersion("1.0");
       setDid("");
       setTestResult(null);
+      setConfirmClose(false);
     }
   }, [open]);
 
@@ -66,7 +74,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
   const handleTestConnection = async () => {
     if (!managementUrl.trim()) {
-      toast.error(t.addConnector.managementUrl + " is required");
+      toast.error(t.addConnector.managementUrlRequired);
       return;
     }
     setTesting(true);
@@ -75,13 +83,13 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       const result = await testConnection(managementUrl, apiKey || undefined);
       setTestResult(result.status);
       if (result.status === "ok") {
-        toast.success(t.addConnector.testSuccess ?? "Connection successful");
+        toast.success(t.addConnector.testSuccess);
       } else {
-        toast.error(t.addConnector.testFail ?? "Connection failed");
+        toast.error(t.addConnector.testFail);
       }
     } catch (err: unknown) {
       setTestResult("fail");
-      const msg = err instanceof Error ? err.message : "Connection failed";
+      const msg = err instanceof Error ? err.message : t.addConnector.testFail;
       toast.error(msg);
     } finally {
       setTesting(false);
@@ -90,7 +98,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
   const handleRegister = async () => {
     if (!isValid) {
-      toast.error(t.addConnector.fillRequired ?? "Please fill required fields");
+      toast.error(t.addConnector.fillRequired);
       return;
     }
     setRegistering(true);
@@ -111,7 +119,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       toast.success(t.addConnector.registered);
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Registration failed";
+      const msg = err instanceof Error ? err.message : t.addConnector.registerFailed;
       toast.error(msg);
     } finally {
       setRegistering(false);
@@ -121,13 +129,20 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
   const inputClass = inputBase;
 
   return (
-    <SlidePanel open={open} onClose={onClose} className="max-w-xl">
+    <SlidePanel open={open} onClose={() => { if (!confirmClose) requestClose(); }} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <LayoutGrid className="w-5 h-5 text-primary flex-shrink-0" />
+          <Plug className="w-4 h-4 text-blue-500 flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">{t.addConnector.register}</span>
         </div>
+        <button
+          onClick={requestClose}
+          aria-label={t.common.close}
+          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Body */}
@@ -142,6 +157,19 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
                 onChange={(e) => setName(e.target.value)}
                 placeholder="KMX-PROD-03"
                 className={inputClass}
+              />
+            </FormField>
+            {/* 조직 BPN — 읽기전용(설정에서 관리). 어떤 조직으로 등록되는지 컨텍스트 제공 */}
+            <FormField
+              label={locale === "ko" ? "조직 BPN" : "Organization BPN"}
+              hint={locale === "ko" ? "설정에서 변경할 수 있습니다." : "Managed in Settings."}
+            >
+              <input
+                value={bpn}
+                readOnly
+                disabled
+                placeholder="BPNL000000000000"
+                className={`${inputClass} mono opacity-70 cursor-not-allowed`}
               />
             </FormField>
           </div>
@@ -159,8 +187,15 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
                   placeholder="https://edc-cp-03.kmx.io/management"
                   className={`${inputClass} mono flex-1`}
                 />
-                {testResult === "ok" && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 self-center" />}
-                {testResult === "fail" && <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 self-center" />}
+                {testResult && (
+                  <span
+                    role="status"
+                    className={`flex items-center gap-1 self-center flex-shrink-0 text-[11px] font-medium ${testResult === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+                  >
+                    {testResult === "ok" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                    {testResult === "ok" ? t.addConnector.testSuccess : t.addConnector.testFail}
+                  </span>
+                )}
               </div>
             </FormField>
             <FormField label={t.addConnector.dspEndpoint} required>
@@ -226,32 +261,37 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
         </div>
       </div>
 
-      {/* Footer — 표준: px-5 py-3 bg-muted/20 + h-8 버튼 */}
-      <div className="flex justify-end gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
+      {/* Footer */}
+      <div className="flex justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
         <button
           onClick={handleTestConnection}
           disabled={testing || !managementUrl.trim()}
-          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
-          {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {testing && <Loader2 className="w-3 h-3 animate-spin" />}
           {t.addConnector.testConnection}
         </button>
         <button
-          onClick={onClose}
-          disabled={registering}
-          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-        >
-          <X className="w-3.5 h-3.5" />
-          {t.fleet.cancel}
-        </button>
-        <PrimaryActionButton
           onClick={handleRegister}
           disabled={registering || !isValid}
-          icon={registering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+          className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
+          {registering && <Loader2 className="w-3 h-3 animate-spin" />}
           {t.addConnector.register}
-        </PrimaryActionButton>
+        </button>
       </div>
+
+      {/* 미저장 변경 가드 */}
+      <ConfirmActionDialog
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        title={t.common.unsavedChanges}
+        description={t.common.unsavedChangesDesc}
+        tone="warn"
+        cancelLabel={t.common.stay}
+        confirmLabel={t.common.leave}
+        onConfirm={() => { setConfirmClose(false); onClose(); }}
+      />
     </SlidePanel>
   );
 }

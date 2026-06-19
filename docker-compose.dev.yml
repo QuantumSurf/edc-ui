@@ -1,0 +1,95 @@
+# KMX EDC UI — Dev Compose (UI/UX 작업용, HMR)
+#
+# 목적: 명령어 없이 "바로 실행" + 부팅 시 자동 기동.
+#   - 소스를 컨테이너에 마운트 → 파일 저장 시 Vite HMR로 즉시 반영(재빌드 불필요).
+#   - 단일 app 컨테이너에서 BFF(Express, :3001) + Vite(:3000) 동시 실행.
+#   - platform Vault/DTR 없이도 부팅(dev 모드). 앱 전용 postgres만 사용.
+#
+# 최초 1회만:  docker compose -f docker-compose.dev.yml up -d   (또는 start-dev.bat 더블클릭)
+# 이후 PC 부팅 시 Docker Desktop이 restart 정책으로 자동 기동.
+#
+# 접속:        http://localhost:3005
+# 로그인:      admin@kmx.io / 0000   (operator@kmx.io / 0000)
+
+name: kmx-edc-ui-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kmx-edc-ui-dev-db
+    environment:
+      POSTGRES_DB: kmx_edc
+      POSTGRES_USER: kmx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kmx_dev_123}
+    volumes:
+      - devpgdata:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kmx -d kmx_edc"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  app:
+    image: node:22-alpine
+    container_name: kmx-edc-ui-dev-app
+    working_dir: /app
+    environment:
+      # NODE_ENV 미설정 → dev 모드(production 가드/CSP 비활성, manus dev 플러그인 활성)
+      - DATABASE_URL=postgresql://kmx:${POSTGRES_PASSWORD:-kmx_dev_123}@db:5432/kmx_edc
+      # Vite(:3000)가 /api 를 같은 컨테이너의 BFF(:3001)로 프록시
+      - BFF_PROXY_TARGET=http://localhost:3001
+      # Windows bind mount HMR 안정화
+      - VITE_USE_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      # dev 편의: 사설/loopback DSP 허용
+      - ALLOW_PRIVATE_DSP=true
+      # 디지털 트윈 레지스트리도 목 서버로 연결(데모 트윈 표시 + 미가동 500 제거)
+      - DTR_BASE_URL=http://mock-edc:8090/semantics/registry
+      # 분산 신원(IdentityHub)도 목 서버로 연결(데모 자격증명/상태 표시).
+      # 테넌트별 DID 는 tenant_settings 시드가 우선, 아래 participant 는 폴백.
+      - IDENTITY_HUB_URL=http://mock-edc:8090
+      - IDENTITY_HUB_PARTICIPANT_ID=did:web:identityhub:participants:BPNL000000000PRD
+      - IDENTITY_HUB_API_KEY=demo-key
+      # 데모 로그인 계정 비번 고정(미설정 시 0000)
+      - SEED_ADMIN_PASSWORD=0000
+      - SEED_OPERATOR_PASSWORD=0000
+    volumes:
+      - ./:/app
+      - devnodemodules:/app/node_modules
+    ports:
+      - "3005:3000"   # Vite (UI, HMR) — host 3000은 quantum-x-portal이 점유 → 3005로 게시
+      - "3006:3001"   # BFF (디버깅용 직접 접근)
+    depends_on:
+      db:
+        condition: service_healthy
+    # corepack로 pnpm 활성화 → 의존성 설치(멱등) → BFF 백그라운드 + Vite 포그라운드
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        corepack enable
+        corepack prepare pnpm@10.4.1 --activate
+        pnpm install --no-frozen-lockfile
+        pnpm exec tsx server/index.ts &
+        pnpm dev
+    restart: unless-stopped
+
+  # UI/UX 데모용 목 EDC Management API (무의존 Node http). 실제 커넥터 없이
+  # 자산·정책·오퍼링·협상·전송·EDR·카탈로그 화면을 canned 데이터로 채운다.
+  mock-edc:
+    image: node:22-alpine
+    container_name: kmx-edc-ui-dev-mock
+    working_dir: /mock
+    volumes:
+      - ./dev-mock:/mock:ro
+    command: ["node", "/mock/edc-mock.cjs"]
+    expose:
+      - "8090"
+    restart: unless-stopped
+
+volumes:
+  devpgdata:
+  devnodemodules:

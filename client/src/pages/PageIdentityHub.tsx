@@ -36,7 +36,7 @@ export default function PageIdentityHub({ onNav }: PageIdentityHubProps) {
 
   return (
     <>
-      <SectionHdr icon={<Fingerprint className="w-5 h-5 text-primary" />} breadcrumb={t.identityHub.subtitle}>
+      <SectionHdr icon={<Fingerprint className="w-5 h-5 text-primary" />}>
         {t.identityHub.title}
       </SectionHdr>
 

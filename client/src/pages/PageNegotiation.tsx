@@ -12,8 +12,7 @@ import {
   Card, StateBadge, SectionHdr, ListEmpty, ListError, inputBase,
 } from "@/components/ui-kmx";
 import { ConfirmActionDialog, JsonViewerDialog, InfoCard } from "@/components/DetailDeleteDialogs";
-import { FileText, AlertCircle, Copy, XCircle, Search, Loader2, Clock, X, ChevronsRight, Code, Send, List, Check, MoreVertical } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { FileText, AlertCircle, Copy, XCircle, Search, Loader2, Clock, X, ChevronsRight, Code, Send, List, Check } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
@@ -150,9 +149,9 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
         onConfirm={() => { if (terminateTarget) terminateMutation.mutate(terminateTarget); }}
       />
 
-      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.negotiations.title}</SectionHdr>
+      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />}>{t.negotiations.title}</SectionHdr>
       {/* ── Search & Filter — fl-aggregator TasksPage style ───── */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-stretch sm:items-center bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
@@ -161,7 +160,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             aria-label={t.negotiations.searchPlaceholder}
-            className={`${inputBase} pl-8`}
+            className={`${inputBase} pl-8 !bg-background`}
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -271,40 +270,39 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                       <td className="px-4 py-3"><span className="text-xs text-foreground">{n.t}</span></td>
                       <td className="px-4 py-3 whitespace-nowrap"><span className="text-xs text-foreground" title={n.ts}>{n.ts}</span></td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {n.name === "FINALIZED" && (
+                            <RoleGate permission="transaction:write">
+                              <button
+                                onClick={() => handleTransferStart(n)}
+                                className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                              >
+                                <Send className="w-3 h-3" />
+                                {t.negotiations.startTransfer}
+                              </button>
+                            </RoleGate>
+                          )}
+                          {n.name === "TERMINATED" && (
                             <button
-                              aria-label={t.negotiations.col.action}
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                              onClick={() => handleTerminatedDetail(n)}
+                              className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <AlertCircle className="w-3 h-3" />
+                              {t.negotiations.errorDetail}
                             </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {n.name === "FINALIZED" && (
-                              <RoleGate permission="transaction:write">
-                                <DropdownMenuItem onClick={() => handleTransferStart(n)}>
-                                  <Send className="w-3.5 h-3.5" />
-                                  {t.negotiations.startTransfer}
-                                </DropdownMenuItem>
-                              </RoleGate>
-                            )}
-                            {n.name === "TERMINATED" && (
-                              <DropdownMenuItem onClick={() => handleTerminatedDetail(n)}>
-                                <AlertCircle className="w-3.5 h-3.5" />
-                                {t.negotiations.errorDetail}
-                              </DropdownMenuItem>
-                            )}
-                            {!TERMINAL_STATES.has(n.name) && (
-                              <RoleGate permission="transaction:write">
-                                <DropdownMenuItem variant="destructive" onClick={() => { setTerminateTarget(n); setTerminateReason(""); }}>
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  {t.negotiations.terminate}
-                                </DropdownMenuItem>
-                              </RoleGate>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          )}
+                          {!TERMINAL_STATES.has(n.name) && (
+                            <RoleGate permission="transaction:write">
+                              <button
+                                onClick={() => { setTerminateTarget(n); setTerminateReason(""); }}
+                                className="text-[11px] px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                              >
+                                <XCircle className="w-3 h-3" />
+                                {t.negotiations.terminate}
+                              </button>
+                            </RoleGate>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -416,11 +414,17 @@ function NegotiationDetailSheet({
         )}
       >
         {/* Header */}
-        <div className="px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary flex-shrink-0" />
+        <div className="px-6 py-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2 pr-8">
             <h2 className="text-[15px] font-semibold text-foreground truncate">{t.negotiations.title}</h2>
             <StateBadge name={target.name} />
+            <button
+              onClick={onClose}
+              className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0"
+              aria-label={t.common.close}
+            >
+              <X size={16} />
+            </button>
           </div>
           {/* UUID는 보조 식별자 줄로 강등 (복사 가능) */}
           <div className="flex items-center gap-1.5 mt-1">
@@ -434,14 +438,6 @@ function NegotiationDetailSheet({
             </button>
           </div>
         </div>
-        {/* 닫기 — fl-aggregator 우상단 절대 위치 표준 */}
-        <button
-          onClick={onClose}
-          aria-label={t.common.close}
-          className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-        >
-          <X className="size-4" />
-        </button>
 
         {/* Body */}
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">

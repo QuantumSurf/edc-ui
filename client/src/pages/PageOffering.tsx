@@ -15,8 +15,7 @@ import {
   Card, CardTitle, Badge, MonoText, SectionHdr, Stepper, FormField, JsonTreeView, PrimaryActionButton,
   inputBase, ListError, ListEmpty,
 } from "@/components/ui-kmx";
-import { PlusCircle, Copy, Search, Loader2, AlertCircle, Database, Shield, X, Code, CheckCircle2, FileSignature, Wand2, Pencil, Files, Trash2, ChevronsRight, List, Lock, MoreVertical } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { PlusCircle, Copy, Search, Loader2, AlertCircle, Database, Shield, X, Code, CheckCircle2, FileSignature, Wand2, Pencil, Files, Trash2, ChevronsRight, List, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
@@ -99,9 +98,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
   return (
     <>
       <SectionHdr
-        icon={<FileSignature className="w-5 h-5 text-primary" />}
-        breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}
-        action={
+        icon={<FileSignature className="w-5 h-5 text-primary" />}        action={
           <RoleGate permission="resource:write">
             <PrimaryActionButton onClick={() => switchTab("wizard")} icon={<PlusCircle className="w-3 h-3" />}>
               {t.offerings.createWizard}
@@ -169,7 +166,6 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                     <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.step2}</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.step3}</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">{t.offerings.contractCount}</th>
-                    <th className="px-4 py-3 text-right text-[12px] font-bold text-foreground">{t.offerings.col.action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -211,37 +207,10 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                           <Badge variant="purple" className="!font-normal max-w-full"><span className="truncate">{o.contract || "—"}</span></Badge>
                         </td>
                         <td className="px-4 py-3">
-                          <Badge variant={o.cnt > 0 ? "blue" : "gray"}>{o.cnt}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                          <RoleGate permission="resource:write">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  aria-label={t.offerings.col.action}
-                                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                                >
-                                  <MoreVertical className="w-4 h-4" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => { setEditTarget(o); setTab("wizard"); }}>
-                                  <Pencil className="w-3.5 h-3.5" /> {t.common.edit}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { setDuplicateSource(o); setTab("wizard"); }}>
-                                  <Files className="w-3.5 h-3.5" /> {t.common.duplicate}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  disabled={o.cnt > 0}
-                                  title={o.cnt > 0 ? t.offerings.deleteBlockedByContracts(o.cnt) : undefined}
-                                  onClick={() => setDeleteTarget(o)}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </RoleGate>
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", o.cnt > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
+                            <span className={cn("text-xs", o.cnt > 0 ? "text-emerald-700" : "text-foreground")}>{o.cnt}</span>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -387,9 +356,8 @@ function OfferingDetailSheet({
           entered ? "translate-x-0" : "translate-x-full",
         )}
       >
-        <div className="px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <FileSignature className="w-5 h-5 text-primary flex-shrink-0" />
+        <div className="px-6 py-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap pr-8">
             <h2 className="text-[15px] font-semibold text-foreground truncate">{target.id}</h2>
             <Badge variant="purple" className="!font-normal">{t.offerings.assetCount(assetIds.length)}</Badge>
             <span className={cn(
@@ -399,16 +367,15 @@ function OfferingDetailSheet({
               <span className={cn("w-1.5 h-1.5 rounded-full", target.cnt > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
               {t.offerings.contractCount}: {target.cnt}
             </span>
+            <button
+              onClick={onClose}
+              className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              aria-label={t.common.close}
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
-        {/* 닫기 — fl-aggregator 우상단 절대 위치 표준 */}
-        <button
-          onClick={onClose}
-          aria-label={t.common.close}
-          className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-        >
-          <X className="size-4" />
-        </button>
 
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
           <div>
@@ -659,13 +626,20 @@ function OfferingWizard({
   return (
     <SlidePanel open={open} onClose={onCancel ?? (() => {})} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <FileSignature className="w-5 h-5 text-primary flex-shrink-0" />
+          <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">
             {isEdit ? t.offerings.editWizard : duplicateSource ? t.offerings.duplicateWizard : t.offerings.createWizard}
           </span>
         </div>
+        <button
+          onClick={onCancel}
+          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Body */}
@@ -754,6 +728,15 @@ function OfferingWizard({
             </div>
           )}
 
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
+            <button
+              onClick={() => setStep(1)}
+              disabled={selAssets.length === 0}
+              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+            >
+              {t.offerings.step2} &rarr;
+            </button>
+          </div>
         </div>
       )}
 
@@ -788,6 +771,21 @@ function OfferingWizard({
               />
             </>
           )}
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
+            <button
+              onClick={() => setStep(0)}
+              className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
+            >
+              {t.common.prev}
+            </button>
+            <button
+              onClick={() => setStep(2)}
+              disabled={!accessPolicy}
+              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-1 sm:flex-initial"
+            >
+              {t.offerings.step3} &rarr;
+            </button>
+          </div>
         </div>
       )}
 
@@ -822,6 +820,21 @@ function OfferingWizard({
               />
             </>
           )}
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
+            <button
+              onClick={() => setStep(1)}
+              className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
+            >
+              {t.common.prev}
+            </button>
+            <button
+              onClick={() => setStep(3)}
+              disabled={!contractPolicy}
+              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-1 sm:flex-initial"
+            >
+              {t.offerings.step4} &rarr;
+            </button>
+          </div>
         </div>
       )}
 
@@ -891,55 +904,23 @@ function OfferingWizard({
             </div>
           )}
 
-        </div>
-      )}
-      </div>
-
-      {/* Footer — 단계 네비게이션 (표준: px-5 py-3 border-t bg-muted/20) */}
-      <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-border bg-muted/20 flex-shrink-0">
-        <button
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0 || submitting}
-          className="inline-flex items-center justify-center h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-        >
-          {t.common.prev}
-        </button>
-        <div className="flex items-center gap-2">
-          {onCancel && (
+          <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
             <button
-              onClick={onCancel}
-              disabled={submitting}
-              className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border hover:bg-muted text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              onClick={() => setStep(2)}
+              className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
             >
-              <X className="w-3.5 h-3.5" />
-              {t.common.cancel}
+              {t.common.prev}
             </button>
-          )}
-          {step === 0 && (
-            <PrimaryActionButton onClick={() => setStep(1)} disabled={selAssets.length === 0}>
-              {t.offerings.step2}
-            </PrimaryActionButton>
-          )}
-          {step === 1 && (
-            <PrimaryActionButton onClick={() => setStep(2)} disabled={!accessPolicy}>
-              {t.offerings.step3}
-            </PrimaryActionButton>
-          )}
-          {step === 2 && (
-            <PrimaryActionButton onClick={() => setStep(3)} disabled={!contractPolicy}>
-              {t.offerings.step4}
-            </PrimaryActionButton>
-          )}
-          {step === 3 && (
-            <PrimaryActionButton
+            <button
               onClick={handlePublish}
               disabled={submitting}
-              icon={submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60 flex-1 sm:flex-initial"
             >
               {submitting ? t.offerings.publishing : isEdit ? t.common.save : t.offerings.publish}
-            </PrimaryActionButton>
-          )}
+            </button>
+          </div>
         </div>
+      )}
       </div>
     </SlidePanel>
   );

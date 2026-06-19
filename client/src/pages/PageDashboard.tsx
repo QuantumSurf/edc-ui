@@ -71,13 +71,13 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   return (
     <>
       {/* Page Title */}
-      <SectionHdr icon={<LayoutDashboard className="w-5 h-5 text-primary" />} breadcrumb={`${conn.name} / ${conn.bpn}`}>{t.nav.dashboard}</SectionHdr>
+      <SectionHdr icon={<LayoutDashboard className="w-5 h-5 text-primary" />}>{t.nav.dashboard}</SectionHdr>
 
       {/* KPI Row — KpiCard 통일 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <KpiCard
-          icon={<Package className="w-[18px] h-[18px] text-blue-600" />}
-          iconBg="bg-blue-50"
+          icon={<Package className="w-[18px] h-[18px] text-blue-600 dark:text-blue-400" />}
+          iconBg="bg-blue-50 dark:bg-blue-500/10"
           value={conn.assets}
           title={t.dashboard.assets}
           sub={t.dashboard.includingOfferings}
@@ -86,12 +86,12 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
           ariaLabel={`${t.dashboard.assets} ${conn.assets}`}
         />
         <KpiCard
-          icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600" />}
-          iconBg="bg-sky-50"
+          icon={<ArrowRightLeft className="w-[18px] h-[18px] text-sky-600 dark:text-sky-400" />}
+          iconBg="bg-sky-50 dark:bg-sky-500/10"
           value={transfersError ? "—" : transfers.length}
           title={t.dashboard.dataTransfers}
           sub={t.dashboard.completedInProgress(transferStats.done, transferStats.active)}
-          valueColor="text-sky-600"
+          valueColor="text-sky-600 dark:text-sky-400"
           trend="up"
           onClick={() => onNav(`/connectors/${conn.id}/transfer`)}
           ariaLabel={t.dashboard.dataTransfers}
@@ -116,8 +116,9 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
               <XAxis dataKey="t" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} interval={2} />
               <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ fontSize: 11, border: "1px solid #E2E8F0", borderRadius: 8, background: "#fff", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
-                labelStyle={{ color: "#374151", fontWeight: 600 }}
+                contentStyle={{ fontSize: 11, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)", boxShadow: "0 4px 12px rgba(0,0,0,0.18)" }}
+                labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
+                itemStyle={{ color: "var(--foreground)" }}
               />
               <Line type="monotone" dataKey="negs"      name={t.dashboard.negotiations} stroke="#3B82F6" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="transfers" name={t.dashboard.transfers} stroke="#10B981" strokeWidth={2} dot={false} />
@@ -133,7 +134,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={58} dataKey="value" strokeWidth={0}>
                   {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                 </Pie>
-                <Tooltip contentStyle={{ fontSize: 11, border: "1px solid #E2E8F0", borderRadius: 8, background: "#fff" }} />
+                <Tooltip contentStyle={{ fontSize: 11, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)" }} itemStyle={{ color: "var(--foreground)" }} />
               </PieChart>
             </ResponsiveContainer>
             {pieData.length === 0 ? (

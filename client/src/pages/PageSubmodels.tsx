@@ -10,10 +10,11 @@ import {
 import type { SemanticModel, SemanticModelStatus, SemanticModelSummary } from "@/lib/data";
 import {
   Card, Badge, SectionHdr, FormField, PrimaryActionButton, inputBase,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError,
+  ListCard, ListHeaderRow, ListRow, ListEmpty, ListError,
+  SortHeader, useTableSort, sortRows,
 } from "@/components/ui-kmx";
 
-const SUBMODEL_COLS = "grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr_90px]";
+const SUBMODEL_COLS = "grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
 import { SlidePanel, InfoCard, DetailSection, DeleteConfirmDialog } from "@/components/DetailDeleteDialogs";
 import { RoleGate } from "@/components/RoleGate";
@@ -22,9 +23,8 @@ import { SammTree } from "@/components/SammTree";
 import { parseSammAspect } from "@/lib/samm";
 import {
   Layers, Search, RefreshCw, Loader2, AlertCircle, CheckCircle2,
-  PlusCircle, Pencil, Trash2, Copy, Download, Shapes, X, Lock, MoreVertical,
+  PlusCircle, Pencil, Trash2, Copy, Download, Shapes, X, Lock,
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 const STATUSES: SemanticModelStatus[] = ["DRAFT", "RELEASED", "STANDARDIZED", "DEPRECATED"];
@@ -69,7 +69,7 @@ export default function PageSubmodels() {
   });
   const items = data?.items ?? [];
 
-  const filtered = items.filter((m) => {
+  const filtered = useMemo(() => items.filter((m) => {
     const q = search.toLowerCase();
     if (!q) return true;
     return (
@@ -78,17 +78,36 @@ export default function PageSubmodels() {
       (m.descriptionKo ?? "").toLowerCase().includes(q) ||
       (m.descriptionEn ?? "").toLowerCase().includes(q)
     );
-  });
+  }), [items, search]);
 
-  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+  // 컬럼 헤더 클릭 정렬 (기본: 수정일 최신순)
+  const { sortKey, sortDir, toggleSort } = useTableSort("updatedAt", "desc");
+  const sorted = useMemo(
+    () => sortRows(filtered, sortKey, sortDir, (m, k) => {
+      switch (k) {
+        case "name": return m.name;
+        case "urn": return m.urn;
+        case "version": return m.version;
+        case "status": return m.status;
+        case "modelType": return m.modelType;
+        case "size": return m.contentBytes;
+        case "updatedAt": return new Date(m.updatedAt).getTime();
+        default: return undefined;
+      }
+    }),
+    [filtered, sortKey, sortDir],
+  );
+
+  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(sorted, 10);
+
+  // 정렬 변경 시 1페이지로
+  useEffect(() => { setCurrentPage(1); }, [sortKey, sortDir, setCurrentPage]);
 
 
   return (
     <>
       <SectionHdr
-        icon={<Shapes className="w-5 h-5 text-primary" />}
-        breadcrumb={t.submodels.subtitle}
-        action={
+        icon={<Shapes className="w-5 h-5 text-primary" />}        action={
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => refetch()}
@@ -153,14 +172,13 @@ export default function PageSubmodels() {
           title={t.submodels.listTitle}
         >
           <ListHeaderRow cols={SUBMODEL_COLS}>
-            <ListColLabel>{t.submodels.col.name}</ListColLabel>
-            <ListColLabel>{t.submodels.col.urn}</ListColLabel>
-            <ListColLabel>{t.submodels.col.version}</ListColLabel>
-            <ListColLabel>{t.submodels.col.status}</ListColLabel>
-            <ListColLabel className="hidden lg:block">{t.submodels.col.modelType}</ListColLabel>
-            <ListColLabel className="hidden xl:block">{t.submodels.col.size}</ListColLabel>
-            <ListColLabel className="hidden xl:block">{t.submodels.col.updated}</ListColLabel>
-            <ListColLabel className="text-right">{t.submodels.col.action}</ListColLabel>
+            <SortHeader label={t.submodels.col.name} columnKey="name" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.urn} columnKey="urn" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.version} columnKey="version" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.status} columnKey="status" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+            <SortHeader label={t.submodels.col.modelType} columnKey="modelType" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden lg:inline-flex" />
+            <SortHeader label={t.submodels.col.size} columnKey="size" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
+            <SortHeader label={t.submodels.col.updated} columnKey="updatedAt" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden xl:inline-flex" />
           </ListHeaderRow>
           {filtered.length === 0 ? (
             <ListEmpty icon={<Layers />} message={t.submodels.noSearchResults} />
@@ -187,28 +205,6 @@ export default function PageSubmodels() {
                 </div>
                 <div className="hidden xl:block min-w-0">
                   <span className="text-xs text-foreground truncate block" title={formatDate(m.updatedAt, locale)}>{formatDate(m.updatedAt, locale)}</span>
-                </div>
-                <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                  <RoleGate permission="resource:write">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          aria-label={t.submodels.col.action}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setEditorMode("edit"); setEditorUrn(m.urn); setEditorOpen(true); }}>
-                          <Pencil className="w-3.5 h-3.5" /> {t.common.edit}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(m)}>
-                          <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </RoleGate>
                 </div>
               </ListRow>
             ))
@@ -310,11 +306,18 @@ function SemanticModelDetailDialog({
   return (
     <SlidePanel open={!!urn} onClose={onClose} className="sm:max-w-2xl">
       {/* Header */}
-      <div className="px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Shapes className="w-5 h-5 text-primary flex-shrink-0" />
+      <div className="px-5 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 flex-wrap pr-8">
+          <Layers className="w-4 h-4 text-violet-500 flex-shrink-0" />
           <h2 className="text-[15px] font-semibold text-foreground truncate">{model?.name ?? t.submodels.detail.title}</h2>
           {model && <Badge variant={STATUS_VARIANT[model.status]}>{model.status}</Badge>}
+          <button
+            onClick={onClose}
+            className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label={t.common.close}
+          >
+            <X size={16} />
+          </button>
         </div>
       </div>
 
@@ -349,14 +352,14 @@ function SemanticModelDetailDialog({
                     <button
                       onClick={() => setContentView("tree")}
                       aria-pressed={contentView === "tree"}
-                      className={cn("inline-flex items-center h-7 text-[11px] px-2.5 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", contentView === "tree" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
+                      className={cn("text-[11px] px-2 py-0.5 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", contentView === "tree" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
                     >
                       {t.submodels.detail.viewTree}
                     </button>
                     <button
                       onClick={() => setContentView("raw")}
                       aria-pressed={contentView === "raw"}
-                      className={cn("inline-flex items-center h-7 text-[11px] px-2.5 border-l border-border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", contentView === "raw" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
+                      className={cn("text-[11px] px-2 py-0.5 border-l border-border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", contentView === "raw" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
                     >
                       {t.submodels.detail.viewRaw}
                     </button>
@@ -365,14 +368,14 @@ function SemanticModelDetailDialog({
                 <button
                   onClick={() => copy(model.content)}
                   disabled={!model.content}
-                  className="inline-flex items-center gap-1 h-7 text-[11px] px-2.5 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 >
                   <Copy className="w-3 h-3" /> {t.submodels.detail.copyContent}
                 </button>
                 <button
                   onClick={downloadContent}
                   disabled={!model.content}
-                  className="inline-flex items-center gap-1 h-7 text-[11px] px-2.5 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 >
                   <Download className="w-3 h-3" /> {t.submodels.detail.downloadContent}
                 </button>
@@ -390,7 +393,7 @@ function SemanticModelDetailDialog({
                       {t.submodels.detail.parseFailed}
                     </div>
                   )}
-                  <pre className="max-h-[40vh] overflow-auto bg-muted/30 border border-border rounded-lg p-3 text-[11px] font-sans leading-relaxed whitespace-pre text-foreground">
+                  <pre className="max-h-[40vh] overflow-auto bg-muted/30 border border-border rounded-lg p-3 text-[11px] mono leading-relaxed whitespace-pre text-foreground">
                     {model.content}
                   </pre>
                 </>
@@ -403,8 +406,15 @@ function SemanticModelDetailDialog({
       )}
 
       {/* Footer */}
-      <div className="px-5 py-3 bg-muted/20 border-t border-border flex items-center gap-2 flex-shrink-0">
+      <div className="px-5 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
         <RoleGate permission="resource:write">
+          <button
+            onClick={onEdit}
+            disabled={!model}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          >
+            <Pencil size={13} /> {t.common.edit}
+          </button>
           <button
             onClick={() => model && onDelete({
               urn: model.urn, name: model.name, version: model.version, status: model.status,
@@ -412,24 +422,15 @@ function SemanticModelDetailDialog({
               contentBytes: model.content?.length ?? 0, createdAt: model.createdAt, updatedAt: model.updatedAt,
             })}
             disabled={!model}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
           >
             <Trash2 size={13} /> {t.common.delete}
           </button>
         </RoleGate>
         <div className="flex-1" />
-        <RoleGate permission="resource:write">
-          <button
-            onClick={onEdit}
-            disabled={!model}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-          >
-            <Pencil size={13} /> {t.common.edit}
-          </button>
-        </RoleGate>
         <button
           onClick={onClose}
-          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm font-medium border border-border text-foreground/80 rounded-md hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors"
         >
           <X size={13} /> {t.common.close}
         </button>
@@ -532,15 +533,22 @@ function SemanticModelEditorDialog({
   };
 
   return (
-    <SlidePanel open={open} onClose={() => { reset(); onClose(); }} closeDisabled={submitting} className="max-w-xl">
+    <SlidePanel open={open} onClose={() => { reset(); onClose(); }} className="max-w-xl">
       {/* Header */}
-      <div className="flex items-center px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Shapes className="w-5 h-5 text-primary flex-shrink-0" />
+          <PlusCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
           <p className="text-[15px] font-semibold text-foreground truncate">
             {mode === "edit" ? t.submodels.edit : t.submodels.create}
           </p>
         </div>
+        <button
+          onClick={() => { reset(); onClose(); }}
+          className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          aria-label={t.common.close}
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Body */}

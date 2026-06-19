@@ -2,25 +2,23 @@
 // Design: Admin Console style | Dark navy sidebar + white cards + light gray bg
 
 import { cn } from "@/lib/utils";
-import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, Check, ChevronRight, ChevronDown, List, RefreshCw, ArrowUpRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { X, AlertTriangle, Info, AlertCircle, CheckCircle2, TrendingUp, ArrowUpRight, Check, ChevronRight, ChevronDown, ChevronUp, ChevronsUpDown, List, RefreshCw } from "lucide-react";
 import React from "react";
 import { useI18n } from "@/i18n";
 
 /* ─── Badge ─────────────────────────────────────────────────── */
-// fl-aggregator 톤의 상태 배지: 흰 배경 + 색상 텍스트/테두리 (색상 점 없음 — 사용자 결정).
-// 진행 중 상태는 pulse로 배지 전체가 깜빡인다.
 type BadgeVariant = "green" | "blue" | "teal" | "amber" | "red" | "purple" | "gray" | "outline" | "sky";
 
-const BADGE_STYLES: Record<BadgeVariant, { text: string; border: string }> = {
-  sky:     { text: "text-blue-700",    border: "border-blue-200"    },
-  green:   { text: "text-emerald-700", border: "border-emerald-200" },
-  blue:    { text: "text-blue-700",    border: "border-blue-200"    },
-  teal:    { text: "text-teal-700",    border: "border-teal-200"    },
-  amber:   { text: "text-amber-700",   border: "border-amber-200"   },
-  red:     { text: "text-red-700",     border: "border-red-200"     },
-  purple:  { text: "text-purple-700",  border: "border-purple-200"  },
-  gray:    { text: "text-slate-600",   border: "border-slate-200"   },
-  outline: { text: "text-foreground",  border: "border-border"      },
+const BADGE_STYLES: Record<BadgeVariant, string> = {
+  sky:     "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/30",
+  green:   "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
+  blue:    "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30",
+  teal:    "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-300 dark:border-teal-500/30",
+  amber:   "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30",
+  red:     "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30",
+  purple:  "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/30",
+  gray:    "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/30",
+  outline: "bg-transparent text-foreground border-border",
 };
 
 interface BadgeProps {
@@ -28,17 +26,13 @@ interface BadgeProps {
   variant?: BadgeVariant;
   className?: string;
   pulse?: boolean;
-  /** @deprecated 점 표시는 제거됨 — 하위 호환용으로만 유지 */
-  dot?: boolean;
 }
 
 export function Badge({ children, variant = "gray", className, pulse }: BadgeProps) {
-  const { text, border } = BADGE_STYLES[variant];
   return (
     <span className={cn(
-      "inline-flex items-center rounded border font-normal whitespace-nowrap bg-white text-[11px] px-2 py-0.5 gap-1.5",
-      text,
-      border,
+      "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border whitespace-nowrap",
+      BADGE_STYLES[variant],
       pulse && "status-pulse",
       className
     )}>
@@ -69,15 +63,19 @@ export function StateBadge({ name }: { name: string }) {
 }
 
 /* ─── Status Pill ────────────────────────────────────────────── */
-// Badge에 위임 — 점/색상은 variant 매핑으로 일원화 (fl-aggregator 스타일).
 export function StatusPill({ status = "down" }: { status?: "up" | "warn" | "down" }) {
-  const map: Record<string, { variant: BadgeVariant; label: string; pulse?: boolean }> = {
-    up:   { variant: "green", label: "UP" },
-    warn: { variant: "amber", label: "WARN", pulse: true },
-    down: { variant: "red",   label: "DOWN" },
+  const map = {
+    up:   { dot: "bg-emerald-500", label: "UP",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30" },
+    warn: { dot: "bg-amber-500",   label: "WARN", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30" },
+    down: { dot: "bg-rose-500",    label: "DOWN", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30" },
   };
-  const { variant, label, pulse } = map[status] ?? map.down;
-  return <Badge variant={variant} pulse={pulse}>{label}</Badge>;
+  const { dot, label, cls } = map[status] ?? map.down;
+  return (
+    <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border", cls)}>
+      <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot, status === "warn" && "status-pulse")} />
+      {label}
+    </span>
+  );
 }
 
 /* ─── KPI Card — large number style (matching image) ─────────── */
@@ -100,8 +98,6 @@ interface KpiCardProps {
 }
 
 export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon, iconBg, trend, iconColor, loading, onClick, ariaLabel }: KpiCardProps) {
-  // fl-aggregator KpiCard 구조: p-4 / gap-2.5 / 아이콘 박스 옆 라벨 / text-3xl tabular-nums.
-  // onClick(딥링크) 시 우측 상단 ArrowUpRight 인디케이터 — trend가 있으면 trend 표시 우선.
   return (
     <div
       onClick={onClick}
@@ -117,7 +113,7 @@ export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-2 min-w-0">
           {icon && (
-            <span className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", iconBg ?? iconColor ?? "bg-blue-50")}>
+            <span className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", iconBg ?? iconColor ?? "bg-blue-50 dark:bg-blue-500/10")}>
               {icon}
             </span>
           )}
@@ -142,7 +138,7 @@ export function KpiCard({ label, title, value, sub, colorClass, valueColor, icon
         </div>
       )}
       {title && label && <div className="text-[13px] font-medium text-foreground/80">{label}</div>}
-      {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}
+      {sub && <div className="text-[12px] text-muted-foreground">{sub}</div>}
     </div>
   );
 }
@@ -157,9 +153,9 @@ interface ServiceCardProps {
 
 export function ServiceCard({ name, desc, status, icon }: ServiceCardProps) {
   const statusMap = {
-    healthy:  { dot: "bg-emerald-500", label: "Healthy",  cls: "text-emerald-600" },
-    degraded: { dot: "bg-rose-500",    label: "Degraded", cls: "text-rose-600"    },
-    unknown:  { dot: "bg-amber-500",   label: "Unknown",  cls: "text-amber-600"   },
+    healthy:  { dot: "bg-emerald-500", label: "Healthy",  cls: "text-emerald-600 dark:text-emerald-400" },
+    degraded: { dot: "bg-rose-500",    label: "Degraded", cls: "text-rose-600 dark:text-rose-400"    },
+    unknown:  { dot: "bg-amber-500",   label: "Unknown",  cls: "text-amber-600 dark:text-amber-400"   },
   };
   const { dot, label, cls } = statusMap[status];
   return (
@@ -167,9 +163,9 @@ export function ServiceCard({ name, desc, status, icon }: ServiceCardProps) {
       {icon && (
         <div className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5",
-          status === "healthy"  ? "bg-emerald-50 text-emerald-600" :
-          status === "degraded" ? "bg-rose-50 text-rose-600" :
-                                  "bg-amber-50 text-amber-600"
+          status === "healthy"  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" :
+          status === "degraded" ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400" :
+                                  "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
         )}>
           {icon}
         </div>
@@ -190,10 +186,10 @@ export function ServiceCard({ name, desc, status, icon }: ServiceCardProps) {
 type AlertVariant = "warn" | "info" | "danger" | "success";
 
 const ALERT_STYLES: Record<AlertVariant, { bg: string; border: string; text: string; Icon: React.ElementType }> = {
-  warn:    { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-800",   Icon: AlertTriangle  },
-  info:    { bg: "bg-sky-50",     border: "border-sky-200",     text: "text-sky-800",     Icon: Info           },
-  danger:  { bg: "bg-rose-50",    border: "border-rose-200",    text: "text-rose-800",    Icon: AlertCircle    },
-  success: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800", Icon: CheckCircle2   },
+  warn:    { bg: "bg-amber-50 dark:bg-amber-500/10",     border: "border-amber-200 dark:border-amber-500/30",     text: "text-amber-800 dark:text-amber-200",     Icon: AlertTriangle  },
+  info:    { bg: "bg-sky-50 dark:bg-sky-500/10",         border: "border-sky-200 dark:border-sky-500/30",         text: "text-sky-800 dark:text-sky-200",         Icon: Info           },
+  danger:  { bg: "bg-rose-50 dark:bg-rose-500/10",       border: "border-rose-200 dark:border-rose-500/30",       text: "text-rose-800 dark:text-rose-200",       Icon: AlertCircle    },
+  success: { bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/30", text: "text-emerald-800 dark:text-emerald-200", Icon: CheckCircle2   },
 };
 
 interface AlertBannerProps {
@@ -204,12 +200,18 @@ interface AlertBannerProps {
 
 export function AlertBanner({ children, variant = "warn", onClose }: AlertBannerProps) {
   const { bg, border, text, Icon } = ALERT_STYLES[variant];
+  const { t } = useI18n();
   return (
     <div className={cn("flex items-start gap-2.5 px-4 py-3 rounded-xl border text-[12px] shadow-sm", bg, border, text)}>
       <Icon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
       <span className="flex-1">{children}</span>
       {onClose && (
-        <button onClick={onClose} className="opacity-50 hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="opacity-50 hover:opacity-100 transition-opacity rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-current/40"
+        >
           <X className="w-3 h-3" />
         </button>
       )}
@@ -221,25 +223,21 @@ export function AlertBanner({ children, variant = "warn", onClose }: AlertBanner
 interface SectionHdrProps {
   children: React.ReactNode;
   action?: React.ReactNode;
-  breadcrumb?: string;
   icon?: React.ReactNode;
 }
 
-export function SectionHdr({ children, action, breadcrumb, icon }: SectionHdrProps) {
-  // fl-aggregator 페이지 헤더: 제목+서브타이틀 좌측, 액션 우측, 하단 보더.
-  // 아이콘은 w-5 h-5 text-primary로 정규화(호출부의 다양한 크기·색 통일).
+export function SectionHdr({ children, action, icon }: SectionHdrProps) {
+  // breadcrumb(예: 'Provider Org') 서브제목은 제거 — 페이지 위치는 상단바 브레드크럼으로 충분.
   return (
-    <div className="flex items-start justify-between gap-4 flex-wrap pb-1.5 border-b border-border">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:text-primary">
+    <div className="mb-1">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
           {icon}
           {children}
         </h1>
-        {breadcrumb && (
-          <p className="text-sm text-muted-foreground mt-1">{breadcrumb}</p>
-        )}
+        {action}
       </div>
-      {action}
+      <div className="h-px bg-border mt-1.5" />
     </div>
   );
 }
@@ -257,8 +255,8 @@ export function Card({ title, children, actions, className, noPad }: CardProps) 
   return (
     <div className={cn("bg-card rounded-xl overflow-hidden shadow-sm border border-border", className)}>
       {title && (
-        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-          <span className="font-display text-[15px] font-bold text-foreground">{title}</span>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <span className="font-display text-[14px] font-bold text-foreground">{title}</span>
           {actions && <div className="flex items-center gap-1.5">{actions}</div>}
         </div>
       )}
@@ -276,7 +274,7 @@ interface StepperProps {
 
 export function Stepper({ steps, current, icons }: StepperProps) {
   return (
-    <div className="flex mb-5 rounded-lg overflow-hidden border border-gray-200">
+    <div className="flex mb-5 rounded-lg overflow-hidden border border-border">
       {steps.map((s, i) => {
         const done = i < current;
         const curr = i === current;
@@ -284,15 +282,15 @@ export function Stepper({ steps, current, icons }: StepperProps) {
           <div
             key={i}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-[11px] font-medium border-r border-gray-200 last:border-r-0 transition-colors",
-              done && "bg-blue-50 text-blue-700",
-              curr && "bg-blue-600 text-white",
-              !done && !curr && "bg-gray-50 text-muted-foreground",
+              "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-[11px] font-medium border-r border-border last:border-r-0 transition-colors",
+              done && "bg-primary/10 text-primary",
+              curr && "bg-primary text-primary-foreground",
+              !done && !curr && "bg-muted text-muted-foreground",
             )}
           >
             {/* Step indicator: checkmark if done */}
             {done && (
-              <span className="w-4.5 h-4.5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <span className="w-4.5 h-4.5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                 <Check className="w-3 h-3 text-white" />
               </span>
             )}
@@ -320,7 +318,7 @@ export function MonoText({ children, className }: { children: React.ReactNode; c
 /* ─── Inline Code ────────────────────────────────────────────── */
 export function InlineCode({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <code className={cn("mono text-[11px] bg-gray-100 px-1.5 py-0.5 rounded text-foreground/80 border border-gray-200", className)}>
+    <code className={cn("mono text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground/80 border border-border", className)}>
       {children}
     </code>
   );
@@ -348,7 +346,7 @@ export function ProgressBar({ value, colorClass, className }: ProgressBarProps) 
 export function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
         <span className="text-xl opacity-40">∅</span>
       </div>
       <p className="text-xs">{message}</p>
@@ -372,7 +370,7 @@ export function FormField({ label, children, required, hint }: FormFieldProps) {
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
       </span>
       {children}
-      {hint && <span className="block text-[11px] text-muted-foreground leading-snug">{hint}</span>}
+      {hint && <span className="block text-[10px] text-muted-foreground leading-snug">{hint}</span>}
     </label>
   );
 }
@@ -438,7 +436,7 @@ export function PrimaryActionButton({ onClick, icon, children, className, type =
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 h-8 px-3 text-sm rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap",
+        "flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed",
         className,
       )}
     >
@@ -459,7 +457,7 @@ export function ViewAllLink({ onClick, children, className }: ViewAllLinkProps) 
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-0.5 text-xs text-primary hover:underline transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+        "flex items-center gap-0.5 text-[11px] text-blue-500 hover:text-blue-700 transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
         className,
       )}
     >
@@ -481,7 +479,7 @@ export function QuietButton({ onClick, icon, children, className }: QuietButtonP
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors",
+        "flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors",
         className,
       )}
     >
@@ -489,71 +487,6 @@ export function QuietButton({ onClick, icon, children, className }: QuietButtonP
       {children}
     </button>
   );
-}
-
-/* ─── Sortable Table Header (fl-aggregator 이식) ──────────────── */
-// <th aria-sort> + 정렬 인디케이터(ArrowUpDown/Up/Down). useSort와 세트로 사용.
-// 헤더 셀 패딩은 내부 버튼이 가지므로 th는 p-0 — 기존 px-4 py-3 th와 시각 동일.
-export type SortOrder = "asc" | "desc" | null;
-
-export function SortHeader({
-  label, sortKey, currentKey, currentOrder, onClick, align = "left",
-}: {
-  label: string; sortKey: string;
-  currentKey: string | null; currentOrder: SortOrder;
-  onClick: (key: string) => void;
-  align?: "left" | "right" | "center";
-}) {
-  const isSorted = currentKey === sortKey;
-  const Icon = !isSorted ? ArrowUpDown : currentOrder === "asc" ? ArrowUp : ArrowDown;
-  const ariaSort: React.AriaAttributes["aria-sort"] =
-    isSorted ? (currentOrder === "asc" ? "ascending" : "descending") : "none";
-  return (
-    <th
-      aria-sort={ariaSort}
-      className={cn(
-        "!text-[12px] whitespace-nowrap font-bold text-foreground p-0",
-        align === "right" && "text-right",
-        align === "center" && "text-center",
-        align === "left" && "text-left",
-      )}
-    >
-      <button
-        type="button"
-        onClick={() => onClick(sortKey)}
-        className={cn(
-          "w-full px-4 py-3 inline-flex items-center gap-1 cursor-pointer select-none hover:bg-muted/70 transition-colors",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70",
-          align === "right" && "justify-end",
-          align === "center" && "justify-center",
-        )}
-      >
-        {label}
-        <Icon className={cn("w-3 h-3 flex-shrink-0", isSorted ? "text-primary" : "text-muted-foreground/40")} />
-      </button>
-    </th>
-  );
-}
-
-export function useSort<T>(rows: T[], accessors: Record<string, (row: T) => string | number | null | undefined>) {
-  const [sortKey, setSortKey] = React.useState<string | null>(null);
-  const [sortOrder, setSortOrder] = React.useState<SortOrder>(null);
-  const handleSort = (key: string) => {
-    if (sortKey !== key) { setSortKey(key); setSortOrder("asc"); }
-    else if (sortOrder === "asc") setSortOrder("desc");
-    else { setSortKey(null); setSortOrder(null); }
-  };
-  const sorted = (!sortKey || !sortOrder) ? rows : [...rows].sort((a, b) => {
-    const av = accessors[sortKey]?.(a);
-    const bv = accessors[sortKey]?.(b);
-    const dir = sortOrder === "asc" ? 1 : -1;
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-    return String(av).localeCompare(String(bv)) * dir;
-  });
-  return { sorted, sortKey, sortOrder, handleSort };
 }
 
 /* ─── List View (fl-aggregator style) ─────────────────────────── */
@@ -573,7 +506,7 @@ export function ListCard({ title, icon, iconColor, actions, children, className 
   return (
     <div className={cn("rounded-xl border border-border bg-card overflow-hidden shadow-sm", className)}>
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-        <span className="font-display text-[15px] font-bold text-foreground flex items-center gap-2 truncate">
+        <span className="font-display text-[14px] font-bold text-foreground flex items-center gap-2 truncate">
           {icon ?? <List className={cn("w-4 h-4", iconColor ?? "text-primary")} />}
           {title}
         </span>
@@ -599,6 +532,76 @@ export function ListHeaderRow({ cols, className, children }: {
 // Header cell label — bold, dark, not uppercase (fl-aggregator style).
 export function ListColLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return <span className={cn("text-[12px] font-bold text-foreground", className)}>{children}</span>;
+}
+
+/* ─── Sortable Header + sort helpers ─────────────────────────────
+ * 목록 컬럼 헤더 클릭으로 정렬. ListColLabel 자리에 그대로 끼워 쓴다.
+ */
+export type SortDir = "asc" | "desc";
+
+export function SortHeader({
+  label, columnKey, activeKey, dir, onSort, className,
+}: {
+  label: React.ReactNode;
+  columnKey: string;
+  activeKey: string | null;
+  dir: SortDir;
+  onSort: (key: string) => void;
+  className?: string;
+}) {
+  const active = activeKey === columnKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(columnKey)}
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={cn(
+        "inline-flex items-center gap-1 text-[12px] font-bold text-foreground hover:text-primary transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+        className,
+      )}
+    >
+      <span className="truncate">{label}</span>
+      {active ? (
+        dir === "asc"
+          ? <ChevronUp className="w-3 h-3 flex-shrink-0 text-primary" />
+          : <ChevronDown className="w-3 h-3 flex-shrink-0 text-primary" />
+      ) : (
+        <ChevronsUpDown className="w-3 h-3 flex-shrink-0 text-muted-foreground/40" />
+      )}
+    </button>
+  );
+}
+
+/** 컬럼 키/방향 상태 + 토글. 같은 키 재클릭 시 asc↔desc 전환. */
+export function useTableSort(initialKey: string | null = null, initialDir: SortDir = "asc") {
+  // 단일 상태 객체 — 순수 업데이터만 사용(StrictMode 이중 호출에도 안전).
+  const [sort, setSort] = React.useState<{ key: string | null; dir: SortDir }>({ key: initialKey, dir: initialDir });
+  const toggleSort = React.useCallback((key: string) => {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  }, []);
+  return { sortKey: sort.key, sortDir: sort.dir, toggleSort };
+}
+
+/** accessor 로 추출한 값으로 정렬한 새 배열을 반환(숫자/날짜/문자 자동 처리, null 후순위). */
+export function sortRows<T>(
+  rows: T[],
+  key: string | null,
+  dir: SortDir,
+  accessor: (row: T, key: string) => string | number | Date | null | undefined,
+): T[] {
+  if (!key) return rows;
+  const sign = dir === "asc" ? 1 : -1;
+  const norm = (v: string | number | Date | null | undefined) =>
+    v instanceof Date ? v.getTime() : v;
+  return [...rows].sort((a, b) => {
+    const va = norm(accessor(a, key));
+    const vb = norm(accessor(b, key));
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * sign;
+    return String(va).localeCompare(String(vb), undefined, { numeric: true }) * sign;
+  });
 }
 
 // Data row. Pass the same `cols` class used by ListHeaderRow.

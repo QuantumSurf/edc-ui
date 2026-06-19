@@ -14,11 +14,10 @@ import {
   ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError, JsonTreeView, inputBase,
 } from "@/components/ui-kmx";
 
-const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px_90px]";
-import { SlidePanel } from "@/components/DetailDeleteDialogs";
+const TRANSFER_COLS = "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px_280px]";
+import { SlidePanel, ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import { toast } from "sonner";
-import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle, X, MoreVertical } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Send, ArrowRightLeft, CheckCircle, XCircle, Download, Trash2, FileText, AlertTriangle, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
 
@@ -70,9 +69,9 @@ function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery
   return (
     <SlidePanel open={true} onClose={onClose} className="max-w-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 px-6 pt-5 pb-4 pr-10 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <ArrowRightLeft className="w-5 h-5 text-primary flex-shrink-0" />
+          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
           <p className="text-[15px] font-semibold text-foreground truncate">{t.transfers.dataViewerTitle}</p>
           <span className="text-[11px] text-muted-foreground font-mono truncate">{tpId.slice(0, 12)}</span>
         </div>
@@ -85,6 +84,13 @@ function DataViewer({ tpId, asset, path, data, sizeBytes, contentType, onRequery
             className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onClose}
+            aria-label={t.common.close}
+            className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -236,30 +242,51 @@ export default function PageTransfer() {
 
   const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(rows, 10);
 
+  // 파괴적 액션 확인 모달 상태 (네이티브 window.confirm 대체 — 일관된 모달/강조색/취소)
+  const [confirmState, setConfirmState] = useState<{
+    title: string; description: string; tone: "warn" | "danger"; confirmLabel: string; onConfirm: () => void;
+  } | null>(null);
+
   /* ── complete / terminate handlers ─────────────────────────── */
-  async function handleComplete(tpId: string) {
-    if (!connectorId || !window.confirm(t.transfers.completeConfirm)) return;
-    try {
-      userActionRef.current.add(tpId);
-      toastedRef.current.add(tpId);
-      await completeTransfer(tpId, connectorId);
-      toast.success(t.transfers.completeSuccess);
-      queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
-    } catch {
-      userActionRef.current.delete(tpId);
-      toast.error(t.transfers.actionFailed);
-    }
+  function handleComplete(tpId: string) {
+    if (!connectorId) return;
+    setConfirmState({
+      title: t.transfers.completeTransfer,
+      description: t.transfers.completeConfirm,
+      tone: "warn",
+      confirmLabel: t.common.confirm,
+      onConfirm: async () => {
+        try {
+          userActionRef.current.add(tpId);
+          toastedRef.current.add(tpId);
+          await completeTransfer(tpId, connectorId);
+          toast.success(t.transfers.completeSuccess);
+          queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
+        } catch {
+          userActionRef.current.delete(tpId);
+          toast.error(t.transfers.actionFailed);
+        }
+      },
+    });
   }
 
-  async function handleDeleteAll() {
-    if (!connectorId || !window.confirm(t.transfers.deleteAllConfirm)) return;
-    try {
-      const { deleted } = await deleteAllTransfers(connectorId);
-      toast.success(t.transfers.deleteAllSuccess(deleted));
-      queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
-    } catch {
-      toast.error(t.transfers.actionFailed);
-    }
+  function handleDeleteAll() {
+    if (!connectorId) return;
+    setConfirmState({
+      title: t.transfers.deleteAll,
+      description: t.transfers.deleteAllConfirm,
+      tone: "danger",
+      confirmLabel: t.common.delete,
+      onConfirm: async () => {
+        try {
+          const { deleted } = await deleteAllTransfers(connectorId);
+          toast.success(t.transfers.deleteAllSuccess(deleted));
+          queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
+        } catch {
+          toast.error(t.transfers.actionFailed);
+        }
+      },
+    });
   }
 
   async function handleFetch(tpId: string, asset: string, path?: string) {
@@ -276,18 +303,26 @@ export default function PageTransfer() {
     }
   }
 
-  async function handleTerminate(tpId: string) {
-    if (!connectorId || !window.confirm(t.transfers.terminateConfirm)) return;
-    try {
-      userActionRef.current.add(tpId);
-      toastedRef.current.add(tpId);
-      await terminateTransfer(tpId, connectorId);
-      toast.success(t.transfers.terminateSuccess);
-      queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
-    } catch {
-      userActionRef.current.delete(tpId);
-      toast.error(t.transfers.actionFailed);
-    }
+  function handleTerminate(tpId: string) {
+    if (!connectorId) return;
+    setConfirmState({
+      title: t.transfers.terminateTransfer,
+      description: t.transfers.terminateConfirm,
+      tone: "danger",
+      confirmLabel: t.common.confirm,
+      onConfirm: async () => {
+        try {
+          userActionRef.current.add(tpId);
+          toastedRef.current.add(tpId);
+          await terminateTransfer(tpId, connectorId);
+          toast.success(t.transfers.terminateSuccess);
+          queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
+        } catch {
+          userActionRef.current.delete(tpId);
+          toast.error(t.transfers.actionFailed);
+        }
+      },
+    });
   }
 
   /* ── start transfer handler ─────────────────────────────────── */
@@ -345,7 +380,20 @@ export default function PageTransfer() {
           onClose={() => setDataViewer(null)}
         />
       )}
-      <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />} breadcrumb={connector ? `${connector.name} / ${connector.bpn}` : undefined}>{t.transfers.title}</SectionHdr>
+
+      {/* 파괴적 액션 확인 모달 (완료/종료/전체삭제) */}
+      {confirmState && (
+        <ConfirmActionDialog
+          open
+          onClose={() => setConfirmState(null)}
+          title={confirmState.title}
+          description={confirmState.description}
+          tone={confirmState.tone}
+          confirmLabel={confirmState.confirmLabel}
+          onConfirm={() => { const fn = confirmState.onConfirm; setConfirmState(null); fn(); }}
+        />
+      )}
+      <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />}>{t.transfers.title}</SectionHdr>
 
 
       {/* ── Filter — fl-aggregator TasksPage style ───────────── */}
@@ -395,7 +443,7 @@ export default function PageTransfer() {
               <ListColLabel>{t.transfers.col.duration}</ListColLabel>
               <ListColLabel>{t.transfers.col.startedAt}</ListColLabel>
               <ListColLabel>{t.transfers.col.completedAt}</ListColLabel>
-              <ListColLabel className="text-right">{t.transfers.col.action}</ListColLabel>
+              <ListColLabel>{t.transfers.col.action}</ListColLabel>
             </ListHeaderRow>
             {isError && rows.length === 0 ? (
               <ListError onRetry={() => refetch()} fetching={isFetching} />
@@ -428,34 +476,34 @@ export default function PageTransfer() {
                 <div className="text-xs text-foreground">{tr.t}</div>
                 <div className="text-xs text-foreground truncate">{tr.startedAt ?? "—"}</div>
                 <div className="text-xs text-foreground truncate">{tr.completedAt ?? "—"}</div>
-                {/* 액션: STARTED → 서브 메뉴 (Fetch·완료·종료) */}
-                <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                  {tr.name === "STARTED" ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                {/* 액션: STARTED → Fetch·완료·종료 */}
+                <div>
+                  {tr.name === "STARTED" && (
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        onClick={() => handleFetch(tr.id, tr.asset)}
+                        title={t.transfers.fetchData}
+                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-blue-100 text-blue-500 font-medium transition-colors whitespace-nowrap"
+                      >
+                        <Download className="w-3.5 h-3.5" /> {t.transfers.fetchData}
+                      </button>
+                      <RoleGate permission="transaction:write">
                         <button
-                          aria-label={t.transfers.col.action}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                          onClick={() => handleComplete(tr.id)}
+                          title={t.transfers.completeTransfer}
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-emerald-100 text-emerald-600 font-medium transition-colors whitespace-nowrap"
                         >
-                          <MoreVertical className="w-4 h-4" />
+                          <CheckCircle className="w-3.5 h-3.5" /> {t.transfers.completeTransfer}
                         </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleFetch(tr.id, tr.asset)}>
-                          <Download className="w-3.5 h-3.5" /> {t.transfers.fetchData}
-                        </DropdownMenuItem>
-                        <RoleGate permission="transaction:write">
-                          <DropdownMenuItem onClick={() => handleComplete(tr.id)}>
-                            <CheckCircle className="w-3.5 h-3.5" /> {t.transfers.completeTransfer}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem variant="destructive" onClick={() => handleTerminate(tr.id)}>
-                            <XCircle className="w-3.5 h-3.5" /> {t.transfers.terminateTransfer}
-                          </DropdownMenuItem>
-                        </RoleGate>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
+                        <button
+                          onClick={() => handleTerminate(tr.id)}
+                          title={t.transfers.terminateTransfer}
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-red-100 text-red-500 font-medium transition-colors whitespace-nowrap"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> {t.transfers.terminateTransfer}
+                        </button>
+                      </RoleGate>
+                    </div>
                   )}
                 </div>
               </ListRow>
@@ -502,14 +550,15 @@ export default function PageTransfer() {
                     )}
                   </div>
                 </div>
-                <div className="text-[11px]">
-                  <span className="font-medium text-foreground/70">{t.transfers.col.assetId}:</span>{" "}
-                  <span className="text-xs text-foreground">{tr.asset}</span>
+                <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                  <span className="font-medium text-foreground/70">{t.transfers.col.assetId}:</span>
+                  <span className="text-xs text-foreground break-all">{tr.asset}</span>
+                  {tr.transferType && tr.transferType !== "—" && <Badge variant={tr.transferType === "PULL" ? "sky" : tr.transferType === "PUSH" ? "purple" : "gray"}>{tr.transferType}</Badge>}
                 </div>
-                <div className="flex gap-3 text-xs text-foreground">
-                  <span>{tr.size}</span>
-                  <span>{tr.t}</span>
-                  <span>{tr.ts}</span>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                  <span>{t.transfers.col.size}: <span className="text-foreground">{tr.size}</span></span>
+                  <span>{t.transfers.col.duration}: <span className="text-foreground">{tr.t}</span></span>
+                  <span>{t.transfers.col.startedAt}: <span className="text-foreground">{tr.startedAt ?? "—"}</span></span>
                 </div>
               </div>
             ))}
