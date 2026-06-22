@@ -360,9 +360,9 @@ function CatalogResults({
                       {o.pols.length === 0 ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
-                        o.pols.map(p => (
+                        o.pols.map((p, pi) => (
                           <Badge
-                            key={p}
+                            key={`${p}-${pi}`}
                             variant="purple"
                             className="!font-normal"
                           >
@@ -419,8 +419,12 @@ function CatalogResults({
               {o.src ? ` · ${o.src}` : ""}
             </div>
             <div className="flex flex-wrap gap-1 mb-3">
-              {o.pols.map(p => (
-                <Badge key={p} variant="purple" className="!font-normal">
+              {o.pols.map((p, pi) => (
+                <Badge
+                  key={`${p}-${pi}`}
+                  variant="purple"
+                  className="!font-normal"
+                >
                   {p}
                 </Badge>
               ))}

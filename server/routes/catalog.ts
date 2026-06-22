@@ -28,6 +28,24 @@ async function resolveConnector(id: string) {
   };
 }
 
+// EDC ContractOfferId 포맷: base64url(정의ID):base64url(assetId):uuid
+// 카탈로그의 정책 @id는 이 인코딩 형태라 화면에 그대로 노출하면 가독성이 나쁘다.
+// 표시용으로 정의ID(첫 세그먼트)를 디코딩한다. (협상 ContractRequest에는 raw offerId가 별도로 쓰임)
+const OFFER_UUID_RE = /^[0-9a-fA-F-]{36}$/;
+function decodePolicyId(id: string): string {
+  if (!id) return id;
+  const parts = id.split(":");
+  if (parts.length === 3 && OFFER_UUID_RE.test(parts[2])) {
+    try {
+      const def = Buffer.from(parts[0], "base64url").toString("utf8");
+      if (def && /^[\x20-\x7E]+$/.test(def)) return def; // 출력 가능한 ASCII만 채택
+    } catch {
+      /* 디코딩 실패 시 원본 유지 */
+    }
+  }
+  return id;
+}
+
 /* ── DCAT JSON-LD → CatalogOffer[] mapper ──────────────────── */
 interface CatalogOffer {
   name: string;
@@ -86,13 +104,16 @@ function mapCatalogResponse(
     const policies: Record<string, unknown>[] = Array.isArray(rawPolicy)
       ? rawPolicy
       : [rawPolicy];
-    const pols = policies
+    const rawPols = policies
       .map(p => (p?.["@id"] ?? p?.["id"] ?? "") as string)
       .filter(Boolean);
 
-    // offerId: first policy's @id + 전체 policy 객체 (ContractRequest에 포함 필요)
-    const offerId = pols[0] ?? "";
+    // offerId: first policy's @id + 전체 policy 객체 (ContractRequest에 raw 인코딩값 그대로 필요)
+    const offerId = rawPols[0] ?? "";
     const offerPolicy = policies[0] ?? null;
+
+    // pols: 화면 표시용 — 인코딩된 offer @id를 정의ID로 디코딩
+    const pols = rawPols.map(decodePolicyId);
 
     // Source from distribution or dataAddress
     const dist = ds["dcat:distribution"] ?? ds["distribution"];
