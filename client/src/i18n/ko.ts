@@ -392,6 +392,10 @@ const ko = {
     queryFailed: "카탈로그 조회에 실패했습니다.",
     negotiationFailed: "협상 시작에 실패했습니다.",
     myConnectorInfo: "현재 커넥터 정보 (상대방에게 공유)",
+    quickSelect: "상대방 커넥터 선택",
+    registeredConnectors: "등록된 커넥터",
+    recentQueries: "최근 조회",
+    manualEntry: "직접 입력",
   },
 
   // ── Negotiations ──

@@ -386,6 +386,10 @@ const en: Translations = {
     queryFailed: "Failed to query catalog.",
     negotiationFailed: "Failed to start negotiation.",
     myConnectorInfo: "This connector's info (share with partners)",
+    quickSelect: "Select counterparty",
+    registeredConnectors: "Registered connectors",
+    recentQueries: "Recent",
+    manualEntry: "Manual entry",
   },
 
   negotiations: {
