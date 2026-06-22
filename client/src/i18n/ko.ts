@@ -41,7 +41,7 @@ const ko = {
     deleted: "삭제되었습니다",
     addConnector: "커넥터 추가",
     allSystemsOk: "모든 시스템이 정상 작동 중",
-    appName: "Connector Hub",
+    appName: "커넥터 허브",
     appSubtitle: "관리 콘솔",
     saving: "저장 중...",
     comingSoon: "곧 제공될 예정입니다",
@@ -749,7 +749,7 @@ const ko = {
     admin: "공급자",
     operator: "이용자",
     viewer: "열람자",
-    appName: "Connector Hub",
+    appName: "커넥터 허브",
     appSubtitle: "관리 콘솔",
   },
 
