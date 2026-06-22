@@ -1,7 +1,7 @@
 /**
  * Topbar — pcf-exchange-ui 셸과 동일한 메인 타이틀 바.
  * 좌측 메뉴 토글 + 브레드크럼(앱명 + 현재 페이지),
- * 우측 테마 토글 · 한/영 토글 · 버전 · 알림 벨 · 사용자/역할.
+ * 우측 검색 · 버전 · 테마 토글 · 언어(KO/EN) · 알림 벨 · 사용자/역할.
  */
 import { useLocation } from "wouter";
 import { ChevronRight, Bell, Menu, Sun, Moon, Search, Settings as SettingsIcon, LogOut } from "lucide-react";
@@ -96,6 +96,9 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-muted-foreground">Ctrl K</kbd>
         </button>
 
+        {/* 버전 */}
+        <span className="hidden sm:block text-[12px] text-muted-foreground font-medium tabular-nums">v0.16.0</span>
+
         {/* 다크/라이트 테마 토글 */}
         <button
           onClick={toggleTheme}
@@ -106,18 +109,30 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        {/* 한/영 토글 */}
-        <button
-          onClick={() => setLocale(locale === "ko" ? "en" : "ko")}
-          title={locale === "ko" ? "Switch to English" : "한국어로 전환"}
-          aria-label={locale === "ko" ? "Switch to English" : "한국어로 전환"}
-          className="text-[12px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted font-medium"
-        >
-          {locale.toUpperCase()}
-        </button>
-
-        {/* 버전 */}
-        <span className="hidden sm:block text-[12px] text-muted-foreground font-medium tabular-nums">v0.16.0</span>
+        {/* 언어 KO / EN */}
+        <div className="flex items-center gap-0.5 text-[12px] font-medium" role="group" aria-label={locale === "ko" ? "언어 선택" : "Language"}>
+          <button
+            onClick={() => setLocale("ko")}
+            aria-pressed={locale === "ko"}
+            className={cn(
+              "px-1.5 py-1 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              locale === "ko" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+            )}
+          >
+            KO
+          </button>
+          <span className="text-muted-foreground/40" aria-hidden="true">/</span>
+          <button
+            onClick={() => setLocale("en")}
+            aria-pressed={locale === "en"}
+            className={cn(
+              "px-1.5 py-1 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              locale === "en" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+            )}
+          >
+            EN
+          </button>
+        </div>
 
         {/* Notification Bell */}
         <button
