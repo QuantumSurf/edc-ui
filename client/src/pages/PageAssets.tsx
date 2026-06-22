@@ -426,7 +426,7 @@ function AssetDetailSheet({
         <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors">
               <Trash2 size={13} /> {t.common.delete}
             </button>
           )}
@@ -509,7 +509,7 @@ function EmptyAssets({ onCreateClick }: { onCreateClick: () => void }) {
   const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center mb-4">
         <Package className="w-7 h-7 text-blue-400" />
       </div>
       <p className="text-[15px] font-semibold text-foreground/80 mb-1">{t.assets.emptyTitle}</p>
@@ -545,7 +545,7 @@ function AssetCard({ asset: a }: { asset: Asset }) {
         <AssetTypeBadge type={a.type} />
         <div className="flex items-center gap-1">
           <span className={`w-1.5 h-1.5 rounded-full ${a.offered ? "bg-emerald-500" : "bg-gray-300"}`} />
-          <span className={`text-[11px] ${a.offered ? "text-emerald-700" : "text-muted-foreground"}`}>
+          <span className={`text-[11px] ${a.offered ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>
             {a.offered ? t.assets.registered : t.assets.unregistered}
           </span>
         </div>
@@ -728,7 +728,7 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
                 />
               </div>
               {idError && (
-                <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
+                <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
                   <AlertCircle className="w-3 h-3" /> {idError}
                 </div>
               )}
@@ -800,7 +800,7 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
               <input value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); markDirty(); }}
                 className={`${inputBase} mono`} />
               {baseUrl && !baseUrl.startsWith("https://") && (
-                <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
+                <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
                   <AlertCircle className="w-3 h-3" /> {t.assets.httpsRequired}
                 </div>
               )}
@@ -930,7 +930,7 @@ function AssetWizard({ open, connectorId, editTarget, duplicateSource, onDone, o
                     />
                     <button
                       onClick={() => removeCustomProp(idx)}
-                      className="p-1.5 rounded hover:bg-rose-50 text-rose-500"
+                      className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-500"
                       title={t.common.delete}
                     >
                       <X className="w-3.5 h-3.5" />

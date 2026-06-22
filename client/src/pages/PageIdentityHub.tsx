@@ -75,7 +75,7 @@ export default function PageIdentityHub({ onNav }: PageIdentityHubProps) {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-6 gap-3">
-            <div className="flex items-center gap-2 text-amber-600">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <AlertCircle className="w-4 h-4" />
               <span className="text-[13px] font-medium">{t.identityHub.notConfigured}</span>
             </div>
@@ -118,13 +118,13 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
           <span className="text-[13px]">{t.common.loading}</span>
         </div>
       ) : isError || !data ? (
-        <div className="flex items-center gap-2 text-rose-600 py-4">
+        <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 py-4">
           <AlertCircle className="w-4 h-4" />
           <span className="text-[13px]">{t.common.loadFailed}</span>
         </div>
       ) : !data.configured ? (
         <div className="flex flex-col items-center justify-center py-6 gap-3">
-          <div className="flex items-center gap-2 text-amber-600">
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <AlertCircle className="w-4 h-4" />
             <span className="text-[13px] font-medium">{t.identityHub.participantNotConfigured}</span>
           </div>
@@ -184,7 +184,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
               </button>
             </div>
             {data.credentialError ? (
-              <div className="flex items-start gap-2 text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded px-2 py-1.5">
+              <div className="flex items-start gap-2 text-[11px] text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/25 rounded px-2 py-1.5">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                 <span className="flex-1 min-w-0 break-all">
                   {t.identityHub.credentialFetchFailed}: {data.credentialError}
@@ -193,7 +193,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
                       <span className="block mt-0.5 text-rose-600/80">{t.identityHub.credentialAuthHint}</span>
                       <button
                         onClick={() => onNav("/settings")}
-                        className="mt-1.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                        className="mt-1.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/15 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                       >
                         <SettingsIcon className="w-3 h-3" /> {t.identityHub.goToSettings}
                       </button>
@@ -295,7 +295,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
                     </Badge>
                   </div>
                   {!c.isHealthy && c.failure && (
-                    <p className="text-[11px] text-rose-600 break-all mt-1 pl-[22px]">{c.failure}</p>
+                    <p className="text-[11px] text-rose-600 dark:text-rose-400 break-all mt-1 pl-[22px]">{c.failure}</p>
                   )}
                 </li>
               ))}
@@ -304,7 +304,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
         </div>
 
         {(isError || data?.error) && (
-          <div className="flex items-start gap-2 text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded px-2 py-1.5">
+          <div className="flex items-start gap-2 text-[11px] text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/25 rounded px-2 py-1.5">
             <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
             <MonoText className="!text-[11px] !font-normal break-all flex-1 min-w-0">
               {data?.error ?? t.identityHub.requestFailed}

@@ -113,8 +113,8 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
         >
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <XAxis dataKey="t" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} interval={2} />
-              <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="t" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={2} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ fontSize: 11, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)", boxShadow: "0 4px 12px rgba(0,0,0,0.18)" }}
                 labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}

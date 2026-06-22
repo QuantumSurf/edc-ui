@@ -190,7 +190,7 @@ export function DetailDialog({ open, onClose, title, subtitle, subtitleMono = tr
         <div className="flex items-center px-6 py-3 bg-muted/30 border-t border-border">
           {onDelete && (
             <button onClick={onDelete}
-              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
             </button>
           )}
@@ -341,7 +341,7 @@ export function DetailPanel({ open, onClose, title, icon, subtitle, subtitleMono
         <div className="flex items-center gap-1 px-6 py-4 border-t border-border bg-muted/30 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
-              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+              className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" /> {t.common.delete}
             </button>
           )}
@@ -479,7 +479,7 @@ export function DetailSection({ title, tone = "sky", action, children }: {
       <div className="flex items-center justify-between gap-2 mb-2">
         <p className={cn(
           "text-[11px] font-bold uppercase tracking-wide flex items-center gap-1",
-          tone === "rose" ? "text-rose-600" : "text-muted-foreground",
+          tone === "rose" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground",
         )}>
           <ChevronsRight className={cn("w-3.5 h-3.5", tone === "rose" ? "text-rose-500" : "text-primary")} />
           {title}
@@ -527,9 +527,9 @@ const TONE_BTN: Record<NonNullable<ConfirmActionDialogProps["tone"]>, string> = 
 };
 
 const TONE_ICON: Record<NonNullable<ConfirmActionDialogProps["tone"]>, { color: string; bg: string }> = {
-  danger: { color: "text-rose-600",  bg: "bg-rose-100" },
-  warn:   { color: "text-amber-600", bg: "bg-amber-100" },
-  info:   { color: "text-blue-600",  bg: "bg-blue-100" },
+  danger: { color: "text-rose-600 dark:text-rose-400",  bg: "bg-rose-100 dark:bg-rose-500/15" },
+  warn:   { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-500/15" },
+  info:   { color: "text-blue-600 dark:text-blue-400",  bg: "bg-blue-100 dark:bg-blue-500/15" },
 };
 
 export function ConfirmActionDialog({
@@ -768,8 +768,8 @@ export function DeleteConfirmDialog({ open, onClose, itemName, onConfirm, queryK
       <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-5 h-5 text-rose-600" />
+            <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-500/15 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
             </div>
             <div className="flex-1 min-w-0">
               <AlertDialogTitle className="font-display text-[15px]">{t.common.confirmDelete}</AlertDialogTitle>

@@ -209,7 +209,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", o.cnt > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
-                            <span className={cn("text-xs", o.cnt > 0 ? "text-emerald-700" : "text-foreground")}>{o.cnt}</span>
+                            <span className={cn("text-xs", o.cnt > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-foreground")}>{o.cnt}</span>
                           </div>
                         </td>
                       </tr>
@@ -362,7 +362,7 @@ function OfferingDetailSheet({
             <Badge variant="purple" className="!font-normal">{t.offerings.assetCount(assetIds.length)}</Badge>
             <span className={cn(
               "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border",
-              target.cnt > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-muted text-muted-foreground border-border"
+              target.cnt > 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-muted text-muted-foreground border-border"
             )}>
               <span className={cn("w-1.5 h-1.5 rounded-full", target.cnt > 0 ? "bg-emerald-500" : "bg-muted-foreground/40")} />
               {t.offerings.contractCount}: {target.cnt}
@@ -428,7 +428,7 @@ function OfferingDetailSheet({
         <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors">
               <Trash2 size={13} /> {t.common.delete}
             </button>
           )}
@@ -466,7 +466,7 @@ function EmptyOfferings({ onCreateClick }: { onCreateClick: () => void }) {
   const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center mb-4">
         <FileSignature className="w-7 h-7 text-blue-400" />
       </div>
       <p className="text-[15px] font-semibold text-foreground/80 mb-1">{t.offerings.emptyTitle}</p>
@@ -660,7 +660,7 @@ function OfferingWizard({
 
           {assets.length === 0 && (
             <div className="flex flex-col items-center justify-center py-8 gap-3 bg-muted/30 rounded-md border border-dashed border-border">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
                 <Database className="w-5 h-5 text-blue-400" />
               </div>
               <div className="text-center">
@@ -747,7 +747,7 @@ function OfferingWizard({
             <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.step2}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
-          <div className="bg-sky-50 border border-sky-200 rounded-md px-3 py-2 text-[11px] text-sky-800">
+          <div className="bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 rounded-md px-3 py-2 text-[11px] text-sky-800 dark:text-sky-300">
             {t.offerings.whoCanSee}
           </div>
           {policies.length === 0 ? (
@@ -796,7 +796,7 @@ function OfferingWizard({
             <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-primary" />{t.offerings.step3}</div>
             <div className="h-px bg-border mt-1.5" />
           </div>
-          <div className="bg-violet-50 border border-violet-200 rounded-md px-3 py-2 text-[11px] text-violet-800">
+          <div className="bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/30 rounded-md px-3 py-2 text-[11px] text-violet-800 dark:text-violet-300">
             {t.offerings.whoCanContract}
           </div>
           {policies.length === 0 ? (
@@ -959,7 +959,7 @@ function OfferingJsonDialog({ offering, onClose }: { offering: Offering; onClose
 function NoPoliciesHint({ connectorId, navigate, t }: { connectorId: string; navigate: (path: string) => void; t: ReturnType<typeof useI18n>["t"] }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-3 bg-muted/30 rounded-md border border-dashed border-border">
-      <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
+      <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center">
         <Shield className="w-5 h-5 text-violet-400" />
       </div>
       <div className="text-center">

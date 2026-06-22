@@ -334,7 +334,7 @@ function ShellDetailDialog({
                       </div>
                     </div>
                     {(sub.endpoints ?? []).length > 0 && (
-                      <div className="space-y-1.5 pl-2 border-l-2 border-violet-300">
+                      <div className="space-y-1.5 pl-2 border-l-2 border-violet-300 dark:border-violet-500/40">
                         {(sub.endpoints ?? []).map((ep, ei) => (
                           <EndpointDetail key={ei} ep={ep} index={ei} onCopy={copy} />
                         ))}
@@ -364,7 +364,7 @@ function ShellDetailDialog({
           </button>
           <button
             onClick={onDelete}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-md transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
           >
             <Trash2 size={13} /> {t.common.delete}
           </button>

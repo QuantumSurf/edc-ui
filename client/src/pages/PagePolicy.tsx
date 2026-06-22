@@ -356,7 +356,7 @@ function EmptyPolicies({ onCreateClick }: { onCreateClick: () => void }) {
   const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center mb-4">
         <Shield className="w-7 h-7 text-blue-400" />
       </div>
       <p className="text-[15px] font-semibold text-foreground/80 mb-1">{t.policies.emptyTitle}</p>
@@ -628,7 +628,7 @@ function PolicyDetailSheet({
         <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
           {onDelete && (
             <button onClick={onDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors">
               <Trash2 size={13} /> {t.common.delete}
             </button>
           )}
@@ -866,7 +866,7 @@ function ODRLBuilder({ open, connectorId, existingPolicyIds = [], editTarget, du
         className="w-full text-[12px] mono p-4 rounded-xl bg-slate-900 text-slate-300 border border-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary resize-y leading-relaxed"
       />
       {jsonError && (
-        <div className="flex items-start gap-1.5 text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1.5">
+        <div className="flex items-start gap-1.5 text-[11px] text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-md px-2 py-1.5">
           <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
           <span className="break-all">{jsonError}</span>
         </div>

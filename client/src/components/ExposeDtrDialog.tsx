@@ -152,7 +152,7 @@ export function ExposeDtrDialog({
         <DialogDescription className="text-[12px] text-muted-foreground leading-snug">{t.twins.exposeDtr.desc}</DialogDescription>
 
         {connectors.length === 0 ? (
-          <div className="flex items-start gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          <div className="flex items-start gap-2 text-[12px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded px-3 py-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span>{t.twins.expose.noConnectors}</span>
           </div>
@@ -172,7 +172,7 @@ export function ExposeDtrDialog({
             </FormField>
 
             {policies.length === 0 && !polLoading ? (
-              <div className="flex items-start gap-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              <div className="flex items-start gap-2 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded px-3 py-2">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                 <span>{t.twins.expose.noPolicies}</span>
               </div>

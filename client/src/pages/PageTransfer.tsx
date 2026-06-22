@@ -425,7 +425,7 @@ export default function PageTransfer() {
                 <RoleGate permission="transaction:write">
                   <button
                     onClick={handleDeleteAll}
-                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-colors"
+                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-red-200 dark:border-red-500/30 transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t.transfers.deleteAll}
@@ -483,7 +483,7 @@ export default function PageTransfer() {
                       <button
                         onClick={() => handleFetch(tr.id, tr.asset)}
                         title={t.transfers.fetchData}
-                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-blue-100 text-blue-500 font-medium transition-colors whitespace-nowrap"
+                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/15 text-blue-500 font-medium transition-colors whitespace-nowrap"
                       >
                         <Download className="w-3.5 h-3.5" /> {t.transfers.fetchData}
                       </button>
@@ -491,14 +491,14 @@ export default function PageTransfer() {
                         <button
                           onClick={() => handleComplete(tr.id)}
                           title={t.transfers.completeTransfer}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-emerald-100 text-emerald-600 font-medium transition-colors whitespace-nowrap"
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium transition-colors whitespace-nowrap"
                         >
                           <CheckCircle className="w-3.5 h-3.5" /> {t.transfers.completeTransfer}
                         </button>
                         <button
                           onClick={() => handleTerminate(tr.id)}
                           title={t.transfers.terminateTransfer}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-red-100 text-red-500 font-medium transition-colors whitespace-nowrap"
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-500/15 text-red-500 font-medium transition-colors whitespace-nowrap"
                         >
                           <XCircle className="w-3.5 h-3.5" /> {t.transfers.terminateTransfer}
                         </button>
@@ -539,12 +539,12 @@ export default function PageTransfer() {
                     {tr.name === "STARTED" && (
                       <div className="flex gap-1">
                         <button onClick={() => handleFetch(tr.id, tr.asset)} title={t.transfers.fetchData}
-                          className="p-1 rounded hover:bg-blue-100 text-blue-500"><Download className="w-3.5 h-3.5" /></button>
+                          className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/15 text-blue-500"><Download className="w-3.5 h-3.5" /></button>
                         <RoleGate permission="transaction:write">
                           <button onClick={() => handleComplete(tr.id)} title={t.transfers.completeTransfer}
-                            className="p-1 rounded hover:bg-emerald-100 text-emerald-600"><CheckCircle className="w-3.5 h-3.5" /></button>
+                            className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"><CheckCircle className="w-3.5 h-3.5" /></button>
                           <button onClick={() => handleTerminate(tr.id)} title={t.transfers.terminateTransfer}
-                            className="p-1 rounded hover:bg-red-100 text-red-500"><XCircle className="w-3.5 h-3.5" /></button>
+                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-500/15 text-red-500"><XCircle className="w-3.5 h-3.5" /></button>
                         </RoleGate>
                       </div>
                     )}

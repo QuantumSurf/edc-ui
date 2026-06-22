@@ -285,7 +285,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                           {n.name === "TERMINATED" && (
                             <button
                               onClick={() => handleTerminatedDetail(n)}
-                              className="text-[11px] px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                              className="text-[11px] px-2 py-1 rounded bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 text-rose-700 dark:text-rose-300 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
                             >
                               <AlertCircle className="w-3 h-3" />
                               {t.negotiations.errorDetail}
@@ -295,7 +295,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                             <RoleGate permission="transaction:write">
                               <button
                                 onClick={() => { setTerminateTarget(n); setTerminateReason(""); }}
-                                className="text-[11px] px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                                className="text-[11px] px-2 py-1 rounded bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/10 border border-rose-300 text-rose-600 dark:text-rose-400 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
                               >
                                 <XCircle className="w-3 h-3" />
                                 {t.negotiations.terminate}
@@ -473,9 +473,9 @@ function NegotiationDetailSheet({
           {/* Error */}
           {target.errorDetail && (
             <div>
-              <p className="text-[11px] font-bold text-rose-600 uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-rose-500" />{t.negotiations.errorDetail}</p>
-              <div className="bg-rose-50 rounded-lg border border-rose-100 px-3 py-2">
-                <p className="text-xs text-rose-700 break-all">{target.errorDetail}</p>
+              <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide mb-2 flex items-center gap-1"><ChevronsRight className="w-3.5 h-3.5 text-rose-500" />{t.negotiations.errorDetail}</p>
+              <div className="bg-rose-50 dark:bg-rose-500/10 rounded-lg border border-rose-100 dark:border-rose-500/25 px-3 py-2">
+                <p className="text-xs text-rose-700 dark:text-rose-300 break-all">{target.errorDetail}</p>
               </div>
             </div>
           )}
@@ -662,7 +662,7 @@ function NegotiationCard({
       {n.name === "TERMINATED" && (
         <button
           onClick={(e) => { e.stopPropagation(); onError(n); }}
-          className="mt-2 w-full text-[11px] py-1.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium transition-colors"
+          className="mt-2 w-full text-[11px] py-1.5 rounded bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 text-rose-700 dark:text-rose-300 font-medium transition-colors"
         >
           {t.negotiations.errorDetail}
         </button>
@@ -671,7 +671,7 @@ function NegotiationCard({
         <RoleGate permission="transaction:write">
           <button
             onClick={(e) => { e.stopPropagation(); onTerminate(n); }}
-            className="mt-2 w-full text-[11px] py-1.5 rounded bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-600 font-medium transition-colors flex items-center justify-center gap-1"
+            className="mt-2 w-full text-[11px] py-1.5 rounded bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/10 border border-rose-300 text-rose-600 dark:text-rose-400 font-medium transition-colors flex items-center justify-center gap-1"
           >
             <XCircle className="w-3 h-3" />
             {t.negotiations.terminate}

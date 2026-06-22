@@ -292,7 +292,7 @@ export function SubmodelFormFields({
                 />
                 {/* Protocol Information */}
                 <div className="pl-2 border-l-2 border-violet-300 space-y-1.5">
-                  <span className="text-[10px] text-violet-600 font-semibold uppercase tracking-wide">Protocol Information</span>
+                  <span className="text-[10px] text-violet-600 dark:text-violet-400 font-semibold uppercase tracking-wide">Protocol Information</span>
                   <p className="text-[10px] text-muted-foreground leading-snug">{t.twins.form.dspNote}</p>
 
                   <FormField label={t.twins.form.endpointHref + " *"} hint={t.twins.form.hrefHint}>

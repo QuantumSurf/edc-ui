@@ -388,7 +388,7 @@ function SemanticModelDetailDialog({
               ) : (
                 <>
                   {!aspect && (
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] text-amber-600">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
                       <AlertCircle className="w-3 h-3 flex-shrink-0" />
                       {t.submodels.detail.parseFailed}
                     </div>
@@ -422,7 +422,7 @@ function SemanticModelDetailDialog({
               contentBytes: model.content?.length ?? 0, createdAt: model.createdAt, updatedAt: model.updatedAt,
             })}
             disabled={!model}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-md transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
           >
             <Trash2 size={13} /> {t.common.delete}
           </button>
@@ -636,11 +636,11 @@ function SemanticModelEditorDialog({
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 {content.trim() ? (
                   editAspect ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
                       <CheckCircle2 className="w-3 h-3" /> {t.submodels.form.structureOk}
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-600">
+                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
                       <AlertCircle className="w-3 h-3" /> {t.submodels.form.structureUnparsed}
                     </span>
                   )

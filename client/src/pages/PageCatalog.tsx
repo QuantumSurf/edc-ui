@@ -2,14 +2,13 @@
 // DSP Endpoint input → catalog query → negotiation start flow
 
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
-import { fetchCatalog, startNegotiation, fetchConnectors } from "@/services";
+import { fetchCatalog, startNegotiation } from "@/services";
 import { type CatalogOffer } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { Card, Badge, SectionHdr, CardTitle, FormField, inputBase, PrimaryActionButton, ListError, ListEmpty } from "@/components/ui-kmx";
+import { Card, Badge, SectionHdr, CardTitle, inputBase, PrimaryActionButton, ListError, ListEmpty } from "@/components/ui-kmx";
 import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
-import { getRecent, addRecent, type RecentCatalogEntry } from "@/lib/recentCatalog";
 import { Search, Globe, ArrowRight, Loader2, Building2, Info, Package } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
@@ -29,24 +28,6 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pick, setPick] = useState("");
-  const [recent, setRecent] = useState<RecentCatalogEntry[]>(() => getRecent());
-
-  // 빠른 선택용: 등록된 커넥터(현재 선택 커넥터 제외, dspEndpoint 보유). dsp·did 자동 채움.
-  const { data: connectors = [] } = useQuery({ queryKey: ["connectors"], queryFn: fetchConnectors });
-  const peers = connectors.filter((c) => c.id !== connectorId && !!c.dspEndpoint);
-  const hasQuickSelect = peers.length > 0 || recent.length > 0;
-
-  const handlePick = (value: string) => {
-    setPick(value);
-    if (value.startsWith("conn:")) {
-      const c = peers.find((p) => p.id === value.slice(5));
-      if (c) { setUrl(c.dspEndpoint ?? ""); setCounterPartyId(c.did || c.bpn); }
-    } else if (value.startsWith("recent:")) {
-      const r = recent[Number(value.slice(7))];
-      if (r) { setUrl(r.url); setCounterPartyId(r.counterPartyId); }
-    }
-  };
 
   const handleQuery = async () => {
     if (!url.trim()) {
@@ -64,7 +45,6 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
       const result = await fetchCatalog(url, counterPartyId, connectorId);
       setOffers(result);
       setLoaded(true);
-      setRecent(addRecent({ url, counterPartyId }));
     } catch (err: unknown) {
       // EDC가 돌려준 actionable 에러(4xx 검증·SSRF 거부, 5xx 자격증명/구성 실패 등)는
       // 실제 원인 메시지를 노출, 그 외(전송/내부 마스킹)는 로컬라이즈된 안내 문구를 사용.
@@ -126,28 +106,6 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
 
       <Card title={<CardTitle icon={<Search className="w-3.5 h-3.5 text-blue-500" />}>{t.catalog.queryTitle}</CardTitle>}>
         <div className="flex flex-col gap-2 mb-4">
-          {/* 빠른 선택: 등록 커넥터/최근 조회 → DSP·DID 자동 채움 (수동 입력은 아래에서 유지) */}
-          {hasQuickSelect && (
-            <FormField label={t.catalog.quickSelect}>
-              <select value={pick} onChange={(e) => handlePick(e.target.value)} className={inputBase}>
-                <option value="">{t.catalog.manualEntry}</option>
-                {peers.length > 0 && (
-                  <optgroup label={t.catalog.registeredConnectors}>
-                    {peers.map((c) => (
-                      <option key={c.id} value={`conn:${c.id}`}>{c.name} · {c.bpn}</option>
-                    ))}
-                  </optgroup>
-                )}
-                {recent.length > 0 && (
-                  <optgroup label={t.catalog.recentQueries}>
-                    {recent.map((r, i) => (
-                      <option key={`${r.url}|${r.counterPartyId}`} value={`recent:${i}`}>{r.counterPartyId}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </FormField>
-          )}
           {/* DSP Endpoint */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">

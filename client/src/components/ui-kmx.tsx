@@ -653,7 +653,7 @@ export function ListError({ onRetry, fetching, message }: { onRetry: () => void;
   const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <div className="flex items-center gap-2 text-rose-600">
+      <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
         <AlertCircle className="w-4 h-4" />
         <span className="text-[13px] font-medium">{message ?? t.common.loadFailed}</span>
       </div>

@@ -231,8 +231,8 @@ export default function PageInfra() {
         <div className="hidden sm:block">
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={HIKARI_DATA} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={{ fontSize: 11, border: "1px solid #BFDBFE", borderRadius: 6 }} />
             <Bar dataKey="value" radius={[3, 3, 0, 0]}>
               {HIKARI_DATA.map((entry, i) => (
