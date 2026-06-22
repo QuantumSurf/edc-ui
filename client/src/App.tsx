@@ -41,14 +41,14 @@ import PageIdentityHub from "./pages/PageIdentityHub";
 
 /** Sync connector from URL param to Zustand store */
 function ConnectorSync({ id }: { id: string }) {
-  const selectConnector = useConnectorStore((s) => s.selectConnector);
-  const setNavigating = useConnectorStore((s) => s.setNavigating);
+  const selectConnector = useConnectorStore(s => s.selectConnector);
+  const setNavigating = useConnectorStore(s => s.setNavigating);
   const { data: connectors = [] } = useQuery({
     queryKey: ["connectors"],
     queryFn: fetchConnectors,
   });
   useEffect(() => {
-    const c = connectors.find((c) => c.id === id);
+    const c = connectors.find(c => c.id === id);
     if (c) {
       selectConnector(c);
       setNavigating(false);
@@ -59,9 +59,9 @@ function ConnectorSync({ id }: { id: string }) {
 
 function AppRoutes() {
   const [, navigate] = useLocation();
-  const connector = useConnectorStore((s) => s.connector);
-  const selectConnector = useConnectorStore((s) => s.selectConnector);
-  const setNavigating = useConnectorStore((s) => s.setNavigating);
+  const connector = useConnectorStore(s => s.connector);
+  const selectConnector = useConnectorStore(s => s.selectConnector);
+  const setNavigating = useConnectorStore(s => s.setNavigating);
 
   const nav = (path: string) => navigate(path);
   const selectAndGo = (c: import("@/lib/data").Connector, page?: string) => {
@@ -185,20 +185,23 @@ function AppRoutes() {
 
 /** App Layout — pcf-exchange-ui 셸 패턴 (사이드바 + 탑바 + 메인) */
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const drawerOpen = useConnectorStore((s) => s.drawerOpen);
-  const setDrawerOpen = useConnectorStore((s) => s.setDrawerOpen);
-  const toggleDrawer = useConnectorStore((s) => s.toggleDrawer);
-  const toggleSearch = useConnectorStore((s) => s.toggleSearch);
+  const drawerOpen = useConnectorStore(s => s.drawerOpen);
+  const setDrawerOpen = useConnectorStore(s => s.setDrawerOpen);
+  const toggleDrawer = useConnectorStore(s => s.toggleDrawer);
+  const toggleSearch = useConnectorStore(s => s.toggleSearch);
 
   // 모바일에서 네비게이션 시 사이드바 자동 닫힘
   const handleNavigate = () => {
-    if (typeof window !== "undefined" && window.innerWidth < 1024) setDrawerOpen(false);
+    if (typeof window !== "undefined" && window.innerWidth < 1024)
+      setDrawerOpen(false);
   };
 
   // 모바일 드로어 ESC 로 닫기
   useEffect(() => {
     if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && window.innerWidth < 1024) setDrawerOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && window.innerWidth < 1024) setDrawerOpen(false);
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [drawerOpen, setDrawerOpen]);
@@ -214,7 +217,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // 글로벌 검색 단축키 (Ctrl/Cmd + K)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { if (e.repeat) return; e.preventDefault(); toggleSearch(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        if (e.repeat) return;
+        e.preventDefault();
+        toggleSearch();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -237,10 +244,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-40 transition-transform duration-200 lg:static lg:z-auto lg:transition-none",
-          drawerOpen ? "translate-x-0" : "-translate-x-full lg:hidden",
+          drawerOpen ? "translate-x-0" : "-translate-x-full lg:hidden"
         )}
       >
-        <AppSidebar onCollapse={() => setDrawerOpen(false)} onNavigate={handleNavigate} />
+        <AppSidebar
+          onCollapse={() => setDrawerOpen(false)}
+          onNavigate={handleNavigate}
+        />
       </div>
 
       {/* 메인 컬럼 */}
@@ -291,11 +301,17 @@ function App() {
   const [locale, setLocale] = useState<Locale>(() => {
     return (localStorage.getItem("locale") as Locale) || "ko";
   });
-  const i18n = useMemo(() => ({
-    locale,
-    t: getTranslations(locale),
-    setLocale: (l: Locale) => { setLocale(l); localStorage.setItem("locale", l); },
-  }), [locale]);
+  const i18n = useMemo(
+    () => ({
+      locale,
+      t: getTranslations(locale),
+      setLocale: (l: Locale) => {
+        setLocale(l);
+        localStorage.setItem("locale", l);
+      },
+    }),
+    [locale]
+  );
 
   return (
     <ErrorBoundary>
@@ -304,7 +320,13 @@ function App() {
           <AuthProvider>
             <QueryClientProvider client={queryClient}>
               <TooltipProvider>
-                <Toaster position="top-center" richColors expand visibleToasts={3} duration={3000} />
+                <Toaster
+                  position="top-center"
+                  richColors
+                  expand
+                  visibleToasts={3}
+                  duration={3000}
+                />
                 <AuthGate />
               </TooltipProvider>
             </QueryClientProvider>

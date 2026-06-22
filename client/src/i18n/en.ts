@@ -111,12 +111,14 @@ const en: Translations = {
     assetsRegistered: (n: number) => `${n} assets registered`,
     connectorFleet: "Connector Fleet",
     noConnectors: "No connectors registered.",
-    emptyHelp: "Register an EDC connector to manage assets, policies, catalog and transfers in one place.",
+    emptyHelp:
+      "Register an EDC connector to manage assets, policies, catalog and transfers in one place.",
     kpiLoadFailed: "Failed to load summary metrics",
     searchPlaceholder: "Search by connector name or BPN...",
     noSearchResults: "No matching connectors.",
     vcWarning: "VC Expiry Warning",
-    vcWarningMsg: "KMX-PROD-01 MembershipCredential expires in 23 days. Please initiate renewal from IssuerService.",
+    vcWarningMsg:
+      "KMX-PROD-01 MembershipCredential expires in 23 days. Please initiate renewal from IssuerService.",
     assets: "Assets",
     offers: "Offerings",
     negotiations: "Negotiations",
@@ -146,7 +148,8 @@ const en: Translations = {
     edrActive: "Active EDR",
     includingOfferings: "Including offerings",
     expiringWithin30: "3 expiring within 30 days",
-    completedInProgress: (done: number, active: number) => `${done} completed / ${active} in progress`,
+    completedInProgress: (done: number, active: number) =>
+      `${done} completed / ${active} in progress`,
     expiringSoon: "4 expiring soon",
     negotiations: "Negotiations",
     transfers: "Transfers",
@@ -169,7 +172,8 @@ const en: Translations = {
       size: "Size",
       duration: "Duration",
     },
-    vcExpireWarning: (days: number) => `MembershipCredential expires in ${days} days. Initiate renewal from IssuerService.`,
+    vcExpireWarning: (days: number) =>
+      `MembershipCredential expires in ${days} days. Initiate renewal from IssuerService.`,
   },
 
   assets: {
@@ -181,7 +185,16 @@ const en: Translations = {
     description: "Description",
     sourceType: "Source Type",
     sourceUrl: "Source URL",
-    col: { id: "Asset ID", type: "Type", name: "Asset Name", version: "Version", semanticId: "Semantic ID", offering: "Offering", dataSource: "Data Source", created: "Created" },
+    col: {
+      id: "Asset ID",
+      type: "Type",
+      name: "Asset Name",
+      version: "Version",
+      semanticId: "Semantic ID",
+      offering: "Offering",
+      dataSource: "Data Source",
+      created: "Created",
+    },
     resultCount: (shown: number, total: number) => `${shown} / ${total} total`,
     emptyTitle: "No assets registered",
     emptyDesc: "Use the asset creation wizard to register your first asset.",
@@ -211,7 +224,8 @@ const en: Translations = {
     authCodeFormat: "authCode alias must start with 'edc:key'.",
     semanticIdFormat: "semanticId must be in 'urn:samm:' URN format.",
     noConnector: "Please select a connector first.",
-    deleteBlockedByOffering: "Cannot delete an asset that is registered in an offering.",
+    deleteBlockedByOffering:
+      "Cannot delete an asset that is registered in an offering.",
     urnConfirmed: "URN format confirmed",
     privateProps: "Private Properties (not exposed in catalog)",
     dataAddressPreview: "DataAddress JSON Preview",
@@ -228,7 +242,8 @@ const en: Translations = {
     addProp: "Add Property",
     propKey: "e.g. cx-common:owner",
     propValue: "Value",
-    noCustomProps: "No custom properties. Add Catena-X namespaced properties (e.g. 'cx-common:owner').",
+    noCustomProps:
+      "No custom properties. Add Catena-X namespaced properties (e.g. 'cx-common:owner').",
     idImmutable: "Asset ID cannot be modified.",
     nextDataAddress: "DataAddress →",
     nextAasMeta: "AAS Metadata →",
@@ -241,7 +256,8 @@ const en: Translations = {
     proxyQueryParams: "proxyQueryParams",
     contentTypeLabel: "contentType",
     authCodeLabel: "authCode (Vault alias)",
-    stepMobile: (step: number, total: number, label: string) => `Step ${step} / ${total} — ${label}`,
+    stepMobile: (step: number, total: number, label: string) =>
+      `Step ${step} / ${total} — ${label}`,
   },
 
   policies: {
@@ -276,33 +292,54 @@ const en: Translations = {
     downloadJson: "Download JSON",
     modeBuilder: "Builder",
     modeJsonImport: "Import JSON",
-    jsonImportHint: "Paste an external ODRL policy JSON (e.g. Catena-X standard) and press 'Apply'. The Builder will be populated.",
+    jsonImportHint:
+      "Paste an external ODRL policy JSON (e.g. Catena-X standard) and press 'Apply'. The Builder will be populated.",
     applyJson: "Apply",
     jsonInvalid: "Invalid JSON",
     jsonNoPermission: "No odrl:permission array found.",
     jsonNoConstraints: "No odrl:constraint found.",
     jsonImported: "JSON policy applied to Builder.",
     ruleType: "Rule Type",
-    ruleLabel: { permission: "permit", prohibition: "forbid", obligation: "duty" },
+    ruleLabel: {
+      permission: "permit",
+      prohibition: "forbid",
+      obligation: "duty",
+    },
     action: "Action",
     logicOp: "Combine",
-    logicLabel: { and: "All true (AND)", or: "Any true (OR)", xone: "Exactly one (XONE)" },
+    logicLabel: {
+      and: "All true (AND)",
+      or: "Any true (OR)",
+      xone: "Exactly one (XONE)",
+    },
     template: "Template",
     templateChoose: "Choose template...",
     templateHint: "Quickly apply common Catena-X policy patterns.",
     templateApplied: (name: string) => `Applied template '${name}'.`,
     templateDesc: {
-      "membership-active": "Allow use only for participants with an active Catena-X membership.",
-      "framework-traceability": "Allow only participants with a signed Traceability framework agreement.",
-      "bpn-allowlist-bmw-vw": "Allow use for two specified BPNs only (OR combination).",
-      "membership-and-framework": "Require active membership AND the Data Exchange Governance framework.",
-      "prohibit-third-country-transfer": "Prohibit data transfer to specific countries (prohibition + transfer).",
+      "membership-active":
+        "Allow use only for participants with an active Catena-X membership.",
+      "framework-traceability":
+        "Allow only participants with a signed Traceability framework agreement.",
+      "bpn-allowlist-bmw-vw":
+        "Allow use for two specified BPNs only (OR combination).",
+      "membership-and-framework":
+        "Require active membership AND the Data Exchange Governance framework.",
+      "prohibit-third-country-transfer":
+        "Prohibit data transfer to specific countries (prohibition + transfer).",
       "usage-purpose-dtr": "Allow use only for Digital Twin Registry purposes.",
     } as Record<string, string>,
     offeringRef: (n: number) => `${n} Offerings`,
-    deleteBlockedByOffering: "Cannot delete a policy that is linked to an offering.",
+    deleteBlockedByOffering:
+      "Cannot delete a policy that is linked to an offering.",
     searchPlaceholder: "Search policy ID or constraints...",
-    col: { id: "Policy ID / Summary", action: "Action", constraint: "Constraints", offeringRef: "Offering Ref.", created: "Created" },
+    col: {
+      id: "Policy ID / Summary",
+      action: "Action",
+      constraint: "Constraints",
+      offeringRef: "Offering Ref.",
+      created: "Created",
+    },
     actionUse: "Permission: Use",
     sectionBasic: "Basic Info",
     sectionConstraints: "ODRL Constraints",
@@ -322,7 +359,13 @@ const en: Translations = {
     wizard: "Creation Wizard (4 Steps)",
     searchPlaceholder: "Search offering ID or asset...",
     offeringIdRequired: "Offering ID is required.",
-    col: { id: "Offering ID", asset: "Asset", access: "Access Policy", contract: "Usage Policy", cnt: "Contracts" },
+    col: {
+      id: "Offering ID",
+      asset: "Asset",
+      access: "Access Policy",
+      contract: "Usage Policy",
+      cnt: "Contracts",
+    },
     step1: "Select Assets",
     step2: "Access Policy",
     step3: "Usage Policy",
@@ -338,7 +381,8 @@ const en: Translations = {
     count: (n: number) => `${n}`,
     selectedAssets: "Selected Assets",
     assetsSelector: "assets_selector (IN operator)",
-    stepMobile: (step: number, total: number, label: string) => `Step ${step} / ${total} — ${label}`,
+    stepMobile: (step: number, total: number, label: string) =>
+      `Step ${step} / ${total} — ${label}`,
     idTooLong: "Offering ID must be 128 characters or fewer.",
     idNoSpaces: "Offering ID cannot contain whitespace.",
     idInvalidChars: "Offering ID cannot contain / ? # % & characters.",
@@ -361,7 +405,8 @@ const en: Translations = {
     assetCount: (n: number) => `${n} asset${n === 1 ? "" : "s"}`,
     policyStatus: "Policy Status",
     policyDeleted: "Deleted policy (broken reference)",
-    deleteBlockedByContracts: (n: number) => `Cannot delete: ${n} negotiation(s) in progress or finalized.`,
+    deleteBlockedByContracts: (n: number) =>
+      `Cannot delete: ${n} negotiation(s) in progress or finalized.`,
     relatedNegotiations: "Related Negotiations (latest 5)",
     noRelatedNegotiations: "No negotiations related to this offering.",
     emptyTitle: "No offerings yet",
@@ -371,11 +416,14 @@ const en: Translations = {
   catalog: {
     title: "Catalog Browser",
     queryTitle: "Query Partner Connector",
-    dspPlaceholder: "DSP Endpoint URL (e.g. http://controlplane:8283/api/v1/dsp)",
-    bpnPlaceholder: "Counter-party DID (e.g. did:web:identityhub:participants:BPNL000000000PRD)",
+    dspPlaceholder:
+      "DSP Endpoint URL (e.g. http://controlplane:8283/api/v1/dsp)",
+    bpnPlaceholder:
+      "Counter-party DID (e.g. did:web:identityhub:participants:BPNL000000000PRD)",
     bpnLabel: "Counter-party DID",
     dspLabel: "DSP Endpoint",
-    initialHint: "Enter the partner's DSP address and DID, then query the catalog.",
+    initialHint:
+      "Enter the partner's DSP address and DID, then query the catalog.",
     query: "Query Catalog",
     querying: "Querying...",
     offersFound: (n: number) => `${n} data offers found`,
@@ -414,7 +462,8 @@ const en: Translations = {
     selectedCount: (n: number) => `${n} negotiation(s) selected`,
     clearSelection: "Clear selection",
     bulkTerminate: "Bulk terminate",
-    bulkTerminateConfirm: (n: number) => `Terminate all ${n} selected negotiations.`,
+    bulkTerminateConfirm: (n: number) =>
+      `Terminate all ${n} selected negotiations.`,
     bulkTerminateSuccess: (n: number) => `${n} negotiation(s) terminated`,
     bulkTerminatePartial: (n: number) => `${n} negotiation(s) failed`,
     sectionBasic: "Basic Info",
@@ -434,9 +483,20 @@ const en: Translations = {
       FINALIZED: "Finalized",
       TERMINATED: "Terminated",
     },
-    col: { id: "ID", state: "State", stateCode: "State Code", peer: "Counterparty", asset: "Asset", duration: "Duration", time: "Time", action: "Action" },
-    transferStartToast: (id: string) => `Starting data transfer. (Negotiation ID: ${id})`,
-    terminatedToast: (peer: string, duration: string) => `Terminated — Negotiation with ${peer} has failed. (Duration: ${duration})`,
+    col: {
+      id: "ID",
+      state: "State",
+      stateCode: "State Code",
+      peer: "Counterparty",
+      asset: "Asset",
+      duration: "Duration",
+      time: "Time",
+      action: "Action",
+    },
+    transferStartToast: (id: string) =>
+      `Starting data transfer. (Negotiation ID: ${id})`,
+    terminatedToast: (peer: string, duration: string) =>
+      `Terminated — Negotiation with ${peer} has failed. (Duration: ${duration})`,
     resultCount: (shown: number, total: number) => `${shown} / ${total} total`,
     noResults: "No negotiations found for this state.",
   },
@@ -461,7 +521,17 @@ const en: Translations = {
       COMPLETED: "Completed",
       TERMINATED: "Failed",
     },
-    col: { id: "Transfer ID", state: "State", assetId: "Asset ID", type: "Type", size: "Size", duration: "Duration", startedAt: "Started", completedAt: "Completed", action: "Actions" },
+    col: {
+      id: "Transfer ID",
+      state: "State",
+      assetId: "Asset ID",
+      type: "Type",
+      size: "Size",
+      duration: "Duration",
+      startedAt: "Started",
+      completedAt: "Completed",
+      action: "Actions",
+    },
     agreementId: "Agreement ID",
     assetId: "Asset ID",
     counterPartyAddress: "Provider DSP Endpoint",
@@ -474,8 +544,10 @@ const en: Translations = {
     avgDuration: "Avg Duration",
     noInflight: "No in-flight transfers.",
     noCompleted: "No completed transfers.",
-    transferFailedToast: (id: string, asset: string) => `Transfer failed: ${id} (asset: ${asset})`,
-    edrPendingHint: "No EDR issued — the data plane may be unavailable or the EDR expired/pending. Check the data plane or restart the transfer.",
+    transferFailedToast: (id: string, asset: string) =>
+      `Transfer failed: ${id} (asset: ${asset})`,
+    edrPendingHint:
+      "No EDR issued — the data plane may be unavailable or the EDR expired/pending. Check the data plane or restart the transfer.",
     filterAll: "All",
     dateFrom: "From",
     dateTo: "To",
@@ -484,7 +556,8 @@ const en: Translations = {
     completeTransfer: "Mark Complete",
     terminateTransfer: "Terminate",
     deleteAll: "Delete All",
-    deleteAllConfirm: "Delete all transfers? Active transfers will be terminated.",
+    deleteAllConfirm:
+      "Delete all transfers? Active transfers will be terminated.",
     deleteAllSuccess: (n: number) => `${n} transfer(s) deleted.`,
     fetchData: "Fetch Data",
     fetchSuccess: (size: string) => `Data fetched successfully (${size})`,
@@ -515,11 +588,13 @@ const en: Translations = {
     gcScheduler: "GC Scheduler",
     gcDeleteCondition: "Delete condition: expires_at + grace(60s) < NOW()",
     securityConfirm: "Security Confirmation",
-    authCodeWarning: "Copying authCode (Bearer Token) to clipboard. This token is sensitive — exposure may leak data access rights.",
+    authCodeWarning:
+      "Copying authCode (Bearer Token) to clipboard. This token is sensitive — exposure may leak data access rights.",
     copyConfirm: "Confirm Copy",
     authCodeCopied: "authCode copied to clipboard.",
     copyAuthCode: "Copy authCode",
-    expiringWarning: (tpId: string, minutes: number) => `Expiring soon — ${tpId} EDR expires in ${minutes} minutes. Complete data transfer before GC deletion.`,
+    expiringWarning: (tpId: string, minutes: number) =>
+      `Expiring soon — ${tpId} EDR expires in ${minutes} minutes. Complete data transfer before GC deletion.`,
     gcInterval: "Interval",
     gcBatchSize: "Batch Size",
     gcGrace: "Grace Period",
@@ -548,7 +623,8 @@ const en: Translations = {
     statusSealed: "Sealed",
     statusUnknown: "Unknown",
     sealAlertTitle: "Vault is currently sealed",
-    sealAlertDesc: "An operator must manually unseal the Vault before any key-alias operations resume. All key access is suspended.",
+    sealAlertDesc:
+      "An operator must manually unseal the Vault before any key-alias operations resume. All key access is suspended.",
     kpiSecrets: "Stored Secrets",
     kpiKeys: "Encryption Keys",
     kpiExpiring: "Expiring (30d)",
@@ -577,7 +653,8 @@ const en: Translations = {
     noSearchResults: "No matching entries.",
     hideValue: "Hide value",
     serverManaged: "Server-managed · value hidden",
-    serverManagedAction: "Managed server-side — not editable from this console.",
+    serverManagedAction:
+      "Managed server-side — not editable from this console.",
     col: {
       alias: "Alias",
       type: "Type",
@@ -591,9 +668,11 @@ const en: Translations = {
     typeKey: "Key",
     typeCertificate: "Certificate",
     rotate: "Rotate Key",
-    rotateConfirm: "Rotate this key now? The previous version will be retained for one generation.",
+    rotateConfirm:
+      "Rotate this key now? The previous version will be retained for one generation.",
     rotateSuccess: (alias: string) => `${alias} has been rotated.`,
-    deleteConfirm: "Delete this entry? Operations referencing this alias will fail.",
+    deleteConfirm:
+      "Delete this entry? Operations referencing this alias will fail.",
     deleteSuccess: (alias: string) => `${alias} has been deleted.`,
     copyAlias: "Copy alias",
     aliasCopied: "Alias copied to clipboard.",
@@ -688,7 +767,8 @@ const en: Translations = {
     didSettings: "DID / STS Settings",
     valid: "Valid",
     expiresIn: (days: number) => `Expires in ${days} days`,
-    vcExpireWarning: (days: number) => `Credentials expiring soon (${days} days remaining). Initiate renewal from IssuerService.`,
+    vcExpireWarning: (days: number) =>
+      `Credentials expiring soon (${days} days remaining). Initiate renewal from IssuerService.`,
     noVcs: "No verifiable credentials registered.",
     loading: "Loading...",
     addVc: "Add Credential",
@@ -758,7 +838,8 @@ const en: Translations = {
     basicInfo: "Basic Info",
     connectorName: "Connector Name",
     participantBpn: "Participant ID (BPN)",
-    bpnFromSettings: "The organization BPN from Settings is applied automatically. Edit it in Settings to change.",
+    bpnFromSettings:
+      "The organization BPN from Settings is applied automatically. Edit it in Settings to change.",
     endpoints: "Endpoints",
     managementUrl: "Management API URL",
     dspEndpoint: "DSP Endpoint URL",
@@ -817,23 +898,29 @@ const en: Translations = {
     identityHubUrlDesc: "Single IdentityHub endpoint shared by all connectors",
     identityHubUrlPlaceholder: "http://identityhub:8183",
     identityHubUrlSaved: "Identity Hub URL saved",
-    identityHubServerDesc: "Identity Hub server connection used by the Decentralized Identity screen to fetch the participant's own info",
+    identityHubServerDesc:
+      "Identity Hub server connection used by the Decentralized Identity screen to fetch the participant's own info",
     identityHubParticipantId: "Participant ID",
-    identityHubParticipantIdDesc: "Own participant context identifier (BPN / DID)",
+    identityHubParticipantIdDesc:
+      "Own participant context identifier (BPN / DID)",
     didPreviewLabel: "DID used in DSP/catalog:",
     identityHubApiKey: "API Key",
-    identityHubApiKeyDesc: "IdentityHub management API key. Enter only when changing it.",
+    identityHubApiKeyDesc:
+      "IdentityHub management API key. Enter only when changing it.",
     identityHubApiKeySet: "●●●●●●●● (saved — enter only to change)",
     identityHubApiKeyUnset: "Enter API key",
     identityHubConfigSaved: "Identity Hub server settings saved.",
     organization: "Organization",
     orgBpn: "Organization BPN",
-    orgBpnDesc: "This organization's (tenant's) BPN. It is your login ID and the BPN applied when registering connectors.",
-    orgBpnHint: "Changing it means you must sign in with the new BPN from next login.",
+    orgBpnDesc:
+      "This organization's (tenant's) BPN. It is your login ID and the BPN applied when registering connectors.",
+    orgBpnHint:
+      "Changing it means you must sign in with the new BPN from next login.",
     orgBpnSaved: "Organization BPN saved.",
     orgBpnTaken: "That BPN is already used by another organization.",
     vaultServer: "Vault Server",
-    vaultServerDesc: "Connection settings to fetch secret/key info from the Vault server",
+    vaultServerDesc:
+      "Connection settings to fetch secret/key info from the Vault server",
     vaultUrl: "Vault Server URL",
     vaultUrlDesc: "API endpoint of the Vault HA cluster",
     vaultNamespace: "Namespace",
@@ -860,7 +947,8 @@ const en: Translations = {
     statusConfigured: "Configured",
     sharedNote: "Shared by all connectors",
     notConfigured: "Identity Hub URL is not configured",
-    notConfiguredHint: "Configure it in Settings → Identity Hub Server and it will appear here.",
+    notConfiguredHint:
+      "Configure it in Settings → Identity Hub Server and it will appear here.",
     openSettings: "Open Settings",
     monitor: "Health Monitor",
     statusUp: "UP",
@@ -882,16 +970,24 @@ const en: Translations = {
     credentials: "Verifiable Credentials",
     noCredentials: "No credentials held.",
     credentialFetchFailed: "Failed to fetch credentials",
-    credentialAuthHint: "Missing or invalid IdentityHub API key. Set it in Settings → Distributed Identity.",
+    credentialAuthHint:
+      "Missing or invalid IdentityHub API key. Set it in Settings → Distributed Identity.",
     goToSettings: "Go to Settings",
     participantNotConfigured: "Participant ID is not configured",
-    participantNotConfiguredHint: "Enter the participant ID and API key in Settings → Identity Hub Server to fetch your own info.",
+    participantNotConfiguredHint:
+      "Enter the participant ID and API key in Settings → Identity Hub Server to fetch your own info.",
     requestFailed: "Request failed",
   },
 
   notifications: {
     title: "Notifications",
-    filterLabels: { all: "All", error: "Error", warn: "Warning", info: "Info", success: "Success" },
+    filterLabels: {
+      all: "All",
+      error: "Error",
+      warn: "Warning",
+      info: "Info",
+      success: "Success",
+    },
     markAllRead: "Mark all read",
     clearAll: "Clear all",
     empty: "No notifications",
@@ -901,7 +997,8 @@ const en: Translations = {
     tabUnread: "Unread",
     unreadLabel: "Unread",
     clearAllConfirmTitle: "Clear all notifications",
-    clearAllConfirmDesc: "All notifications will be permanently deleted. This cannot be undone.",
+    clearAllConfirmDesc:
+      "All notifications will be permanently deleted. This cannot be undone.",
     unreadCount: (n: number) => `${n} unread`,
     sources: {
       system: "System",
@@ -1001,7 +1098,8 @@ const en: Translations = {
     edit: "Edit Shell",
     aasIdImmutable: "AAS ID cannot be modified.",
     searchPlaceholder: "Search by ID, idShort, globalAssetId…",
-    resultCount: (filtered: number, total: number) => `${filtered}/${total} items`,
+    resultCount: (filtered: number, total: number) =>
+      `${filtered}/${total} items`,
     create: "Create Shell",
     refresh: "Refresh",
     empty: "No Shell Descriptors registered.",
@@ -1055,16 +1153,20 @@ const en: Translations = {
       subEndpoint: "Endpoint URL (optional, e.g. http://...)",
       endpointInterface: "Endpoint interface",
       endpointHref: "Protocol Information.href (Data Plane)",
-      hrefHint: "Data Plane URL where data is actually transferred after EDR token authorization",
+      hrefHint:
+        "Data Plane URL where data is actually transferred after EDR token authorization",
       subprotocol: "subprotocol",
       subprotocolHint: "Data exchange protocol (Tractus-X standard: DSP)",
       subprotocolBody: "subprotocolBody",
       subprotocolBodyEncoding: "subprotocolBodyEncoding",
       dspAssetId: "Asset ID (Provider EDC)",
-      dspAssetIdHint: "Identifies the negotiation target asset in the provider EDC catalog",
+      dspAssetIdHint:
+        "Identifies the negotiation target asset in the provider EDC catalog",
       dspEndpoint: "DSP Endpoint (Provider Control Plane)",
-      dspEndpointHint: "Provider EDC Control Plane URL where policy negotiation begins",
-      dspNote: "DSP flow: consumer EDC parses subprotocolBody → opens DSP negotiation with dspEndpoint → mutual auth via IdentityHub/DID → agree on Usage Policy → receive EDR token → fetch data from href via Data Plane",
+      dspEndpointHint:
+        "Provider EDC Control Plane URL where policy negotiation begins",
+      dspNote:
+        "DSP flow: consumer EDC parses subprotocolBody → opens DSP negotiation with dspEndpoint → mutual auth via IdentityHub/DID → agree on Usage Policy → receive EDR token → fetch data from href via Data Plane",
       subprotocolBodyPreview: "subprotocolBody to be sent",
       submit: "Create",
       update: "Update",
@@ -1086,9 +1188,11 @@ const en: Translations = {
       connector: "Provider connector",
       noConnector: "Select a connector first (pick one in Fleet, then retry).",
       dataSourceUrl: "Data source URL",
-      dataSourceHint: "Backend endpoint actually serving the submodel data (asset dataAddress.baseUrl)",
+      dataSourceHint:
+        "Backend endpoint actually serving the submodel data (asset dataAddress.baseUrl)",
       dataPlaneHref: "Data Plane href",
-      dataPlaneHrefHint: "EDC data plane public URL the consumer fetches from (blank = use data source URL)",
+      dataPlaneHrefHint:
+        "EDC data plane public URL the consumer fetches from (blank = use data source URL)",
       accessPolicy: "Access policy",
       contractPolicy: "Contract policy",
       noPolicies: "No policies found. Create one in the Policies screen first.",
@@ -1100,10 +1204,12 @@ const en: Translations = {
       submit: "Expose",
       submitting: "Exposing...",
       success: "Submodel exposed to the catalog.",
-      requiredFields: "Enter Asset ID, data source URL, and access/contract policies.",
+      requiredFields:
+        "Enter Asset ID, data source URL, and access/contract policies.",
       failAsset: "Asset creation failed",
       failOffering: "Contract definition failed (asset was created)",
-      failLink: "Twin linking failed (asset & contract definition were created)",
+      failLink:
+        "Twin linking failed (asset & contract definition were created)",
     },
     exposeDtr: {
       action: "Expose DTR as asset",
@@ -1111,7 +1217,8 @@ const en: Translations = {
       desc: "Expose the Digital Twin Registry endpoint as a cx-taxo:DigitalTwinRegistry asset + contract definition. Consumers discover the DTR in the catalog, negotiate, then browse registered twins via the data plane.",
       noConnector: "Select a connector first (pick one in Fleet, then retry).",
       dtrUrl: "DTR API URL",
-      dtrUrlHint: "DTR shell-descriptors/lookup API base the data plane proxies (asset dataAddress.baseUrl)",
+      dtrUrlHint:
+        "DTR shell-descriptors/lookup API base the data plane proxies (asset dataAddress.baseUrl)",
       needUrl: "Enter the DTR URL.",
       submit: "Expose",
       submitting: "Exposing...",

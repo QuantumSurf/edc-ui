@@ -21,16 +21,22 @@ import { getEdcClient, withJsonLd } from "./edcClient.js";
 const POLL_INTERVAL_MS = Number(process.env.KMX_NOTIFY_POLL_MS ?? 60_000);
 const ENABLED = process.env.KMX_NOTIFY_ENABLED !== "false";
 const POLL_CONCURRENCY = Number(process.env.KMX_NOTIFY_CONCURRENCY ?? 4);
-const DEDUP_CACHE_LIMIT = Number(process.env.KMX_NOTIFY_DEDUP_CACHE_LIMIT ?? 10_000);
+const DEDUP_CACHE_LIMIT = Number(
+  process.env.KMX_NOTIFY_DEDUP_CACHE_LIMIT ?? 10_000
+);
 const DEDUP_TTL_DAYS = Number(process.env.KMX_NOTIFY_DEDUP_TTL_DAYS ?? 30);
-const DEDUP_CLEANUP_EVERY_N_TICKS = Number(process.env.KMX_NOTIFY_CLEANUP_EVERY_N_TICKS ?? 60);
+const DEDUP_CLEANUP_EVERY_N_TICKS = Number(
+  process.env.KMX_NOTIFY_CLEANUP_EVERY_N_TICKS ?? 60
+);
 const DAY_BUCKET_TZ = process.env.KMX_NOTIFY_TIMEZONE ?? "Asia/Seoul";
 
 /** Bounded in-memory dedup cache (process-local). DB UNIQUE INDEX is the cross-restart guarantor. */
 class BoundedSet {
   private set = new Set<string>();
   constructor(private readonly limit: number) {}
-  has(k: string): boolean { return this.set.has(k); }
+  has(k: string): boolean {
+    return this.set.has(k);
+  }
   add(k: string): void {
     if (this.set.size >= this.limit) {
       // Drop the oldest ~10% to amortize work
@@ -43,7 +49,9 @@ class BoundedSet {
     }
     this.set.add(k);
   }
-  size(): number { return this.set.size; }
+  size(): number {
+    return this.set.size;
+  }
 }
 const seenKeys = new BoundedSet(DEDUP_CACHE_LIMIT);
 
@@ -54,7 +62,9 @@ function makeKey(connectorId: string, kind: string, targetId: string): string {
 
 /** YYYY-MM-DD in configured timezone (default KST). */
 function dayBucket(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: DAY_BUCKET_TZ }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: DAY_BUCKET_TZ }).format(
+    new Date()
+  );
 }
 
 interface InsertSpec {
@@ -116,15 +126,22 @@ async function runDedupCleanup(): Promise<void> {
 }
 
 /** Run promises with bounded concurrency. */
-async function runWithConcurrency<T>(items: T[], limit: number, fn: (it: T) => Promise<void>): Promise<void> {
+async function runWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  fn: (it: T) => Promise<void>
+): Promise<void> {
   let idx = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (true) {
-      const i = idx++;
-      if (i >= items.length) return;
-      await fn(items[i]);
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (true) {
+        const i = idx++;
+        if (i >= items.length) return;
+        await fn(items[i]);
+      }
     }
-  });
+  );
   await Promise.all(workers);
 }
 
@@ -136,18 +153,23 @@ async function pollConnector(conn: {
   managementUrl: string;
   apiKey: string;
 }): Promise<void> {
-  const client = getEdcClient(conn.id, { managementUrl: conn.managementUrl, apiKey: conn.apiKey });
+  const client = getEdcClient(conn.id, {
+    managementUrl: conn.managementUrl,
+    apiKey: conn.apiKey,
+  });
   let anyQuerySucceeded = false;
   const errors: string[] = [];
 
   // ── Negotiations: TERMINATED → error ──
   try {
-    const r = await client.post("/v3/contractnegotiations/request", withJsonLd({}));
+    const r = await client.post(
+      "/v3/contractnegotiations/request",
+      withJsonLd({})
+    );
     anyQuerySucceeded = true;
-    const list = (Array.isArray(r.data) ? r.data : r.data?.["dataset"] ?? []) as Record<
-      string,
-      unknown
-    >[];
+    const list = (
+      Array.isArray(r.data) ? r.data : (r.data?.["dataset"] ?? [])
+    ) as Record<string, unknown>[];
     for (const n of list) {
       if (n["state"] !== "TERMINATED") continue;
       const id = (n["@id"] as string) ?? "";
@@ -157,7 +179,10 @@ async function pollConnector(conn: {
         type: "error",
         source: "negotiation",
         title: `협상 종료 — ${conn.name}`,
-        message: `상대 ${peer} 와의 협상이 실패했습니다. ${errorDetail}`.slice(0, 1900),
+        message: `상대 ${peer} 와의 협상이 실패했습니다. ${errorDetail}`.slice(
+          0,
+          1900
+        ),
         link: "/transaction/negotiations",
         dedupKey: makeKey(conn.id, "neg.terminated", id),
       });
@@ -168,12 +193,14 @@ async function pollConnector(conn: {
 
   // ── Transfers: TERMINATED → error, COMPLETED → success ──
   try {
-    const r = await client.post("/v3/transferprocesses/request", withJsonLd({}));
+    const r = await client.post(
+      "/v3/transferprocesses/request",
+      withJsonLd({})
+    );
     anyQuerySucceeded = true;
-    const list = (Array.isArray(r.data) ? r.data : r.data?.["dataset"] ?? []) as Record<
-      string,
-      unknown
-    >[];
+    const list = (
+      Array.isArray(r.data) ? r.data : (r.data?.["dataset"] ?? [])
+    ) as Record<string, unknown>[];
     for (const tp of list) {
       const state = tp["state"] as string;
       const id = (tp["@id"] as string) ?? "";
@@ -184,7 +211,10 @@ async function pollConnector(conn: {
           type: "error",
           source: "transfer",
           title: `전송 실패 — ${conn.name}`,
-          message: `자산 ${asset} 전송이 종료되었습니다. ${errorDetail}`.slice(0, 1900),
+          message: `자산 ${asset} 전송이 종료되었습니다. ${errorDetail}`.slice(
+            0,
+            1900
+          ),
           link: "/transaction/transfers",
           dedupKey: makeKey(conn.id, "transfer.terminated", id),
         });
@@ -207,14 +237,18 @@ async function pollConnector(conn: {
   try {
     const r = await client.post("/v3/edrs/request", withJsonLd({}));
     anyQuerySucceeded = true;
-    const list = (Array.isArray(r.data) ? r.data : []) as Record<string, unknown>[];
+    const list = (Array.isArray(r.data) ? r.data : []) as Record<
+      string,
+      unknown
+    >[];
     const now = Date.now();
     for (const edr of list) {
       const expiresAt = edr["expiresAt"] as number | undefined;
       if (!expiresAt) continue;
       const left = Math.round((expiresAt - now) / 60_000);
       if (left <= 0 || left >= 60) continue;
-      const tpId = (edr["transferProcessId"] as string) ?? (edr["@id"] as string) ?? "";
+      const tpId =
+        (edr["transferProcessId"] as string) ?? (edr["@id"] as string) ?? "";
       // Per-day dedup: alias gives one warning per day per EDR
       const today = dayBucket();
       await insertOnce({
@@ -239,7 +273,11 @@ async function pollConnector(conn: {
       type: "error",
       source: "system",
       title: `Connector unreachable: ${conn.name}`,
-      message: `${conn.managementUrl} 응답 없음 — DSP / 협상 / 전송 작업 중단 가능. (${detail})`.slice(0, 1900),
+      message:
+        `${conn.managementUrl} 응답 없음 — DSP / 협상 / 전송 작업 중단 가능. (${detail})`.slice(
+          0,
+          1900
+        ),
       link: "/system/infra",
       dedupKey: makeKey(conn.id, `connector.unreachable.${today}`, conn.id),
     });
@@ -253,7 +291,7 @@ let tickCount = 0;
 async function tick(): Promise<void> {
   try {
     const conns = await listConnectors();
-    await runWithConcurrency(conns, POLL_CONCURRENCY, async (c) => {
+    await runWithConcurrency(conns, POLL_CONCURRENCY, async c => {
       try {
         await pollConnector({
           id: c.id,
@@ -262,7 +300,10 @@ async function tick(): Promise<void> {
           apiKey: c.apiKey,
         });
       } catch (err) {
-        console.warn(`[NotifyGen] connector ${c.id} poll error:`, (err as Error).message);
+        console.warn(
+          `[NotifyGen] connector ${c.id} poll error:`,
+          (err as Error).message
+        );
       }
     });
 
@@ -289,7 +330,7 @@ export async function startNotificationGenerator(): Promise<void> {
   timer = setInterval(tick, POLL_INTERVAL_MS);
   console.log(
     `[NotifyGen] started (poll=${POLL_INTERVAL_MS}ms, concurrency=${POLL_CONCURRENCY}, ` +
-    `dedupCache=${DEDUP_CACHE_LIMIT}, cleanupEvery=${DEDUP_CLEANUP_EVERY_N_TICKS}ticks, tz=${DAY_BUCKET_TZ})`
+      `dedupCache=${DEDUP_CACHE_LIMIT}, cleanupEvery=${DEDUP_CLEANUP_EVERY_N_TICKS}ticks, tz=${DAY_BUCKET_TZ})`
   );
 }
 

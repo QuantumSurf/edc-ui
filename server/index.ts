@@ -58,11 +58,17 @@ async function startServer() {
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "1; mode=block");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+    res.setHeader(
+      "Permissions-Policy",
+      "geolocation=(), microphone=(), camera=(), payment=()"
+    );
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
     res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
     if (process.env.NODE_ENV === "production") {
-      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+      res.setHeader(
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains"
+      );
       // 프로덕션 CSP: 인라인 스크립트 차단 (Vite dev에서는 제외)
       res.setHeader(
         "Content-Security-Policy",
@@ -129,12 +135,14 @@ async function startServer() {
   const port = process.env.PORT || 3001;
 
   server.listen(port, () => {
-    console.log(`[BFF] KMX EDC API server running on http://localhost:${port}/`);
+    console.log(
+      `[BFF] KMX EDC API server running on http://localhost:${port}/`
+    );
   });
 
   // Background watcher for system-event notifications (negotiation TERMINATED,
   // transfer COMPLETED/TERMINATED, EDR expiring, VC expiring, connector unreachable).
-  startNotificationGenerator().catch((err) =>
+  startNotificationGenerator().catch(err =>
     console.error("[NotifyGen] failed to start:", err)
   );
 }

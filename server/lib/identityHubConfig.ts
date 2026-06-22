@@ -12,8 +12,8 @@ const API_KEY_ENV = process.env.IDENTITY_HUB_API_KEY ?? "";
 export const IDENTITY_HUB_KEYS = [
   "identity_hub_url",
   "identity_hub_participant_id",
-  "identity_hub_api_key",        // legacy plaintext (deprecated, read-only fallback)
-  "identity_hub_api_key_alias",  // platform-vault alias holding the actual key value
+  "identity_hub_api_key", // legacy plaintext (deprecated, read-only fallback)
+  "identity_hub_api_key_alias", // platform-vault alias holding the actual key value
 ];
 
 export interface IdentityHubConfig {
@@ -22,9 +22,13 @@ export interface IdentityHubConfig {
   apiKey: string;
 }
 
-export async function getIdentityHubConfig(tenantId?: string): Promise<IdentityHubConfig> {
+export async function getIdentityHubConfig(
+  tenantId?: string
+): Promise<IdentityHubConfig> {
   try {
-    const m = tenantId ? await getTenantSettings(tenantId, IDENTITY_HUB_KEYS) : {};
+    const m = tenantId
+      ? await getTenantSettings(tenantId, IDENTITY_HUB_KEYS)
+      : {};
     // apiKey 해석 우선순위: ① vault alias 참조 → platform-vault read
     //                       ② 관례적 alias ih-apikey-{테넌트 BPN} (sts-bridge가 IH vault에서 미러)
     //                       ③ 레거시 평문 identity_hub_api_key  ④ env
@@ -39,7 +43,8 @@ export async function getIdentityHubConfig(tenantId?: string): Promise<IdentityH
     if (!apiKey && tenantId) {
       try {
         const tenant = await getTenant(tenantId);
-        if (tenant?.bpn) apiKey = await readVaultSecret(`ih-apikey-${tenant.bpn}`);
+        if (tenant?.bpn)
+          apiKey = await readVaultSecret(`ih-apikey-${tenant.bpn}`);
       } catch {
         apiKey = "";
       }
@@ -52,6 +57,10 @@ export async function getIdentityHubConfig(tenantId?: string): Promise<IdentityH
     };
   } catch {
     // tenant_settings unavailable (e.g. DB not ready) — fall back to env.
-    return { url: URL_ENV, participantId: PARTICIPANT_ENV, apiKey: API_KEY_ENV };
+    return {
+      url: URL_ENV,
+      participantId: PARTICIPANT_ENV,
+      apiKey: API_KEY_ENV,
+    };
   }
 }

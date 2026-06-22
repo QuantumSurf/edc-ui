@@ -1,7 +1,12 @@
 // KMX EDC — Fleet KPI Aggregation Route
 // Aggregates health, asset, negotiation, and transfer counts across all connectors
 
-import { Router, type Request, type Response, type NextFunction } from "express";
+import {
+  Router,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import { listConnectors } from "../lib/connectorRegistry.js";
 import { createEdcClient } from "../lib/edcClient.js";
 
@@ -30,10 +35,15 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
     if (connectors.length === 0) {
       return res.json({
         totalConnectors: 0,
-        up: 0, warn: 0, down: 0,
-        totalAssets: 0, totalOffers: 0,
-        totalNegotiations: 0, totalTransfers: 0,
-        vcWarnings: 0, perConnector: [],
+        up: 0,
+        warn: 0,
+        down: 0,
+        totalAssets: 0,
+        totalOffers: 0,
+        totalNegotiations: 0,
+        totalTransfers: 0,
+        vcWarnings: 0,
+        perConnector: [],
       });
     }
 
@@ -54,7 +64,7 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
 
         // If at least one call succeeded, connector is healthy
         const healthy = [assetsRes, negotiationsRes, transfersRes].some(
-          (r) => r.status === "fulfilled"
+          r => r.status === "fulfilled"
         );
 
         return {
@@ -63,15 +73,21 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
           healthy,
           assets:
             assetsRes.status === "fulfilled"
-              ? Array.isArray(assetsRes.value.data) ? assetsRes.value.data.length : 0
+              ? Array.isArray(assetsRes.value.data)
+                ? assetsRes.value.data.length
+                : 0
               : 0,
           negotiations:
             negotiationsRes.status === "fulfilled"
-              ? Array.isArray(negotiationsRes.value.data) ? negotiationsRes.value.data.length : 0
+              ? Array.isArray(negotiationsRes.value.data)
+                ? negotiationsRes.value.data.length
+                : 0
               : 0,
           transfers:
             transfersRes.status === "fulfilled"
-              ? Array.isArray(transfersRes.value.data) ? transfersRes.value.data.length : 0
+              ? Array.isArray(transfersRes.value.data)
+                ? transfersRes.value.data.length
+                : 0
               : 0,
         };
       })
@@ -90,7 +106,7 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
           }
     );
 
-    const up = perConnector.filter((c) => c.healthy).length;
+    const up = perConnector.filter(c => c.healthy).length;
     const down = perConnector.length - up;
 
     // Match client FleetKPI interface
@@ -101,7 +117,10 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
       down,
       totalAssets: perConnector.reduce((sum, c) => sum + c.assets, 0),
       totalOffers: 0,
-      totalNegotiations: perConnector.reduce((sum, c) => sum + c.negotiations, 0),
+      totalNegotiations: perConnector.reduce(
+        (sum, c) => sum + c.negotiations,
+        0
+      ),
       totalTransfers: perConnector.reduce((sum, c) => sum + c.transfers, 0),
       vcWarnings: 0,
       perConnector,

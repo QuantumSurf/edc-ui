@@ -1,8 +1,12 @@
 // KMX EDC — Notifications React Query hook
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchNotifications, createNotification, markNotificationRead,
-  markAllNotificationsRead, dismissNotification, clearAllNotifications,
+  fetchNotifications,
+  createNotification,
+  markNotificationRead,
+  markAllNotificationsRead,
+  dismissNotification,
+  clearAllNotifications,
   type NotificationItem,
 } from "@/services/api";
 
@@ -11,21 +15,26 @@ const QUERY_KEY = ["notifications"] as const;
 export function useNotifications() {
   const queryClient = useQueryClient();
 
-  const { data: notifications = [], isError, refetch, isFetching } = useQuery({
+  const {
+    data: notifications = [],
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchNotifications,
     refetchInterval: 30_000, // 30초마다 폴링
   });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) => markNotificationRead(id),
-    onMutate: async (id) => {
+    onMutate: async id => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
       const prev = queryClient.getQueryData<NotificationItem[]>(QUERY_KEY);
       queryClient.setQueryData<NotificationItem[]>(QUERY_KEY, (old = []) =>
-        old.map((n) => (n.id === id ? { ...n, read: true } : n))
+        old.map(n => (n.id === id ? { ...n, read: true } : n))
       );
       return { prev };
     },
@@ -40,7 +49,7 @@ export function useNotifications() {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
       const prev = queryClient.getQueryData<NotificationItem[]>(QUERY_KEY);
       queryClient.setQueryData<NotificationItem[]>(QUERY_KEY, (old = []) =>
-        old.map((n) => ({ ...n, read: true }))
+        old.map(n => ({ ...n, read: true }))
       );
       return { prev };
     },
@@ -51,11 +60,11 @@ export function useNotifications() {
 
   const dismissMutation = useMutation({
     mutationFn: (id: string) => dismissNotification(id),
-    onMutate: async (id) => {
+    onMutate: async id => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
       const prev = queryClient.getQueryData<NotificationItem[]>(QUERY_KEY);
       queryClient.setQueryData<NotificationItem[]>(QUERY_KEY, (old = []) =>
-        old.filter((n) => n.id !== id)
+        old.filter(n => n.id !== id)
       );
       return { prev };
     },
@@ -91,10 +100,10 @@ export function useNotifications() {
     isError,
     refetch,
     isFetching,
-    markRead:   (id: string) => markReadMutation.mutate(id),
+    markRead: (id: string) => markReadMutation.mutate(id),
     markAllRead: () => markAllReadMutation.mutate(),
-    dismiss:    (id: string) => dismissMutation.mutate(id),
-    clearAll:   () => clearAllMutation.mutate(),
+    dismiss: (id: string) => dismissMutation.mutate(id),
+    clearAll: () => clearAllMutation.mutate(),
     addNotification: (n: Omit<NotificationItem, "id" | "read" | "timestamp">) =>
       addMutation.mutate(n),
   };
@@ -108,5 +117,5 @@ export function useUnreadNotificationCount(): number {
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
-  return data.filter((n) => !n.read).length;
+  return data.filter(n => !n.read).length;
 }

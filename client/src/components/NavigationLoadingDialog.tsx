@@ -5,8 +5,8 @@ import { useI18n } from "@/i18n";
 
 export default function NavigationLoadingDialog() {
   const { t } = useI18n();
-  const navigating = useConnectorStore((s) => s.navigating);
-  const connector = useConnectorStore((s) => s.connector);
+  const navigating = useConnectorStore(s => s.navigating);
+  const connector = useConnectorStore(s => s.connector);
   const isFetching = useIsFetching();
   const visible = navigating || isFetching > 0;
 
@@ -22,11 +22,17 @@ export default function NavigationLoadingDialog() {
         <div className="flex flex-col items-center gap-1 text-center">
           {connector ? (
             <>
-              <span className="text-[15px] font-semibold text-foreground">{connector.name}</span>
-              <span className="text-[12px] text-muted-foreground">{t.common.loadingData}</span>
+              <span className="text-[15px] font-semibold text-foreground">
+                {connector.name}
+              </span>
+              <span className="text-[12px] text-muted-foreground">
+                {t.common.loadingData}
+              </span>
             </>
           ) : (
-            <span className="text-[15px] font-semibold text-foreground">{t.common.loading}</span>
+            <span className="text-[15px] font-semibold text-foreground">
+              {t.common.loading}
+            </span>
           )}
         </div>
         <div className="w-full h-[3px] bg-border rounded-full overflow-hidden">

@@ -9,7 +9,8 @@ import type { Request, Response, NextFunction } from "express";
 export function validateDspEndpoint(url: string): string | null {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "Only HTTP/HTTPS endpoints are allowed";
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:")
+      return "Only HTTP/HTTPS endpoints are allowed";
 
     if (process.env.ALLOW_PRIVATE_DSP === "true") return null;
 
@@ -27,11 +28,13 @@ export function validateDspEndpoint(url: string): string | null {
       hostname === "0.0.0.0" ||
       hostname.startsWith("169.254.") || // includes 169.254.169.254 cloud metadata
       /^0x[0-9a-f]+$/i.test(hostname) || // hex-encoded IP (e.g. 0x7f000001)
-      /^\d+$/.test(hostname) ||          // decimal integer IP (e.g. 2130706433 = 127.0.0.1)
-      h6 === "::1" || h6 === "::" ||      // IPv6 loopback / unspecified
-      h6.startsWith("fc") || h6.startsWith("fd") || // IPv6 ULA fc00::/7
-      /^fe[89ab]/.test(h6) ||            // IPv6 link-local fe80::/10
-      h6.startsWith("::ffff:")           // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+      /^\d+$/.test(hostname) || // decimal integer IP (e.g. 2130706433 = 127.0.0.1)
+      h6 === "::1" ||
+      h6 === "::" || // IPv6 loopback / unspecified
+      h6.startsWith("fc") ||
+      h6.startsWith("fd") || // IPv6 ULA fc00::/7
+      /^fe[89ab]/.test(h6) || // IPv6 link-local fe80::/10
+      h6.startsWith("::ffff:") // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
     ) {
       return "Private/internal network addresses are not allowed";
     }
@@ -42,7 +45,11 @@ export function validateDspEndpoint(url: string): string | null {
 }
 
 /** Validate connector ID format (alphanumeric + hyphens) */
-export function validateConnectorId(req: Request, res: Response, next: NextFunction) {
+export function validateConnectorId(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const id = req.params.id;
   if (id && !/^[a-zA-Z0-9\-_]+$/.test(id)) {
     res.status(400).json({ error: "Invalid connector ID format" });

@@ -36,7 +36,8 @@ const ko = {
     noResults: "검색 결과가 없습니다.",
     detail: "상세 정보",
     confirmDelete: "정말 삭제하시겠습니까?",
-    confirmDeleteDesc: (name: string) => `"${name}"을(를) 삭제하면 복구할 수 없습니다.`,
+    confirmDeleteDesc: (name: string) =>
+      `"${name}"을(를) 삭제하면 복구할 수 없습니다.`,
     updated: "수정되었습니다",
     deleted: "삭제되었습니다",
     addConnector: "커넥터 추가",
@@ -112,12 +113,14 @@ const ko = {
     assetsRegistered: (n: number) => `자산 ${n}개 등록`,
     connectorFleet: "커넥터 플릿",
     noConnectors: "등록된 커넥터가 없습니다.",
-    emptyHelp: "EDC 커넥터를 등록하면 자산·정책·카탈로그·전송을 한 곳에서 관리할 수 있습니다.",
+    emptyHelp:
+      "EDC 커넥터를 등록하면 자산·정책·카탈로그·전송을 한 곳에서 관리할 수 있습니다.",
     kpiLoadFailed: "요약 지표를 불러오지 못했습니다",
     searchPlaceholder: "커넥터 이름 또는 BPN 검색...",
     noSearchResults: "검색 결과가 없습니다.",
     vcWarning: "VC 만료 경고",
-    vcWarningMsg: "KMX-PROD-01 MembershipCredential이 23일 후 만료됩니다. IssuerService에서 갱신 요청을 시작하십시오.",
+    vcWarningMsg:
+      "KMX-PROD-01 MembershipCredential이 23일 후 만료됩니다. IssuerService에서 갱신 요청을 시작하십시오.",
     assets: "자산",
     offers: "오퍼링",
     negotiations: "협상",
@@ -129,7 +132,8 @@ const ko = {
     editConnector: "커넥터 수정",
     deleteConnector: "커넥터 삭제",
     confirmDelete: "정말 삭제하시겠습니까?",
-    confirmDeleteDesc: (name: string) => `"${name}" 커넥터를 삭제하면 복구할 수 없습니다.`,
+    confirmDeleteDesc: (name: string) =>
+      `"${name}" 커넥터를 삭제하면 복구할 수 없습니다.`,
     updated: "커넥터가 수정되었습니다",
     deleted: "커넥터가 삭제되었습니다",
     updateFailed: "커넥터 수정에 실패했습니다.",
@@ -148,7 +152,8 @@ const ko = {
     edrActive: "EDR 활성",
     includingOfferings: "오퍼링 등록 포함",
     expiringWithin30: "30일 이내 만료 3건",
-    completedInProgress: (done: number, active: number) => `${done}건 완료 / ${active}건 진행 중`,
+    completedInProgress: (done: number, active: number) =>
+      `${done}건 완료 / ${active}건 진행 중`,
     expiringSoon: "만료 임박 4건",
     negotiations: "협상",
     transfers: "전송",
@@ -171,7 +176,8 @@ const ko = {
       size: "크기",
       duration: "소요",
     },
-    vcExpireWarning: (days: number) => `MembershipCredential 만료까지 ${days}일 남았습니다. IssuerService에서 갱신 요청을 시작하십시오.`,
+    vcExpireWarning: (days: number) =>
+      `MembershipCredential 만료까지 ${days}일 남았습니다. IssuerService에서 갱신 요청을 시작하십시오.`,
   },
 
   // ── Assets ──
@@ -184,8 +190,18 @@ const ko = {
     description: "설명",
     sourceType: "소스 유형",
     sourceUrl: "소스 URL",
-    col: { id: "자산 ID", type: "유형", name: "자산 이름", version: "버전", semanticId: "시맨틱 ID", offering: "오퍼링", dataSource: "데이터 소스", created: "생성일" },
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    col: {
+      id: "자산 ID",
+      type: "유형",
+      name: "자산 이름",
+      version: "버전",
+      semanticId: "시맨틱 ID",
+      offering: "오퍼링",
+      dataSource: "데이터 소스",
+      created: "생성일",
+    },
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     emptyTitle: "등록된 자산이 없습니다",
     emptyDesc: "자산 생성 마법사를 사용하여 첫 번째 자산을 등록해보세요.",
     filterAll: "전체",
@@ -231,7 +247,8 @@ const ko = {
     addProp: "속성 추가",
     propKey: "예: cx-common:owner",
     propValue: "값",
-    noCustomProps: "추가된 속성이 없습니다. 'cx-common:owner' 같은 Catena-X 속성을 자유롭게 추가할 수 있습니다.",
+    noCustomProps:
+      "추가된 속성이 없습니다. 'cx-common:owner' 같은 Catena-X 속성을 자유롭게 추가할 수 있습니다.",
     idImmutable: "자산 ID는 수정할 수 없습니다.",
     nextDataAddress: "데이터 주소 →",
     nextAasMeta: "AAS 메타데이터 →",
@@ -244,7 +261,8 @@ const ko = {
     proxyQueryParams: "proxyQueryParams",
     contentTypeLabel: "contentType",
     authCodeLabel: "authCode (Vault 별칭)",
-    stepMobile: (step: number, total: number, label: string) => `단계 ${step} / ${total} — ${label}`,
+    stepMobile: (step: number, total: number, label: string) =>
+      `단계 ${step} / ${total} — ${label}`,
   },
 
   // ── Policies ──
@@ -280,7 +298,8 @@ const ko = {
     downloadJson: "JSON 다운로드",
     modeBuilder: "빌더",
     modeJsonImport: "JSON 가져오기",
-    jsonImportHint: "Catena-X 표준 정책 등 외부 ODRL JSON을 붙여넣은 뒤 '적용'을 누르세요. 빌더 화면이 채워집니다.",
+    jsonImportHint:
+      "Catena-X 표준 정책 등 외부 ODRL JSON을 붙여넣은 뒤 '적용'을 누르세요. 빌더 화면이 채워집니다.",
     applyJson: "적용",
     jsonInvalid: "잘못된 JSON",
     jsonNoPermission: "odrl:permission 배열을 찾지 못했습니다.",
@@ -290,23 +309,36 @@ const ko = {
     ruleLabel: { permission: "허가", prohibition: "금지", obligation: "의무" },
     action: "액션",
     logicOp: "결합",
-    logicLabel: { and: "모두 참 (AND)", or: "하나 이상 참 (OR)", xone: "정확히 하나 참 (XONE)" },
+    logicLabel: {
+      and: "모두 참 (AND)",
+      or: "하나 이상 참 (OR)",
+      xone: "정확히 하나 참 (XONE)",
+    },
     template: "템플릿",
     templateChoose: "템플릿 선택...",
     templateHint: "Catena-X 표준 정책 패턴을 빠르게 적용합니다.",
     templateApplied: (name: string) => `'${name}' 템플릿이 적용되었습니다.`,
     templateDesc: {
       "membership-active": "Catena-X 멤버십이 활성화된 참여자에게만 사용 허가.",
-      "framework-traceability": "Traceability 프레임워크 계약을 체결한 참여자만 허가.",
+      "framework-traceability":
+        "Traceability 프레임워크 계약을 체결한 참여자만 허가.",
       "bpn-allowlist-bmw-vw": "지정된 BPN 두 곳만 사용 허가 (OR 결합).",
-      "membership-and-framework": "활성 멤버십 AND Data Exchange Governance 프레임워크 동시 충족.",
-      "prohibit-third-country-transfer": "특정 국가로의 데이터 전송 금지 (prohibition + transfer).",
+      "membership-and-framework":
+        "활성 멤버십 AND Data Exchange Governance 프레임워크 동시 충족.",
+      "prohibit-third-country-transfer":
+        "특정 국가로의 데이터 전송 금지 (prohibition + transfer).",
       "usage-purpose-dtr": "디지털 트윈 레지스트리 용도로만 사용 허가.",
     } as Record<string, string>,
     offeringRef: (n: number) => `${n}개 오퍼링`,
     deleteBlockedByOffering: "오퍼링에 연결된 정책은 삭제할 수 없습니다.",
     searchPlaceholder: "정책 ID, 제약 조건 검색...",
-    col: { id: "정책 ID / 요약", action: "액션", constraint: "제약 조건", offeringRef: "오퍼링 참조", created: "생성일" },
+    col: {
+      id: "정책 ID / 요약",
+      action: "액션",
+      constraint: "제약 조건",
+      offeringRef: "오퍼링 참조",
+      created: "생성일",
+    },
     actionUse: "사용 허가",
     sectionBasic: "기본 정보",
     sectionConstraints: "ODRL 제약 조건",
@@ -315,7 +347,8 @@ const ko = {
     sectionJson: "ODRL JSON",
     emptyTitle: "등록된 정책이 없습니다",
     emptyDesc: "ODRL 빌더를 사용하여 접근 제어 정책을 생성해보세요.",
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     constraintCount: (n: number) => `${n}개 제약 조건`,
   },
 
@@ -327,7 +360,13 @@ const ko = {
     wizard: "생성 마법사 (4단계)",
     searchPlaceholder: "오퍼링 ID 또는 자산 검색...",
     offeringIdRequired: "오퍼링 ID를 입력하세요.",
-    col: { id: "오퍼링 ID", asset: "자산", access: "접근 정책", contract: "사용 정책", cnt: "계약 수" },
+    col: {
+      id: "오퍼링 ID",
+      asset: "자산",
+      access: "접근 정책",
+      contract: "사용 정책",
+      cnt: "계약 수",
+    },
     step1: "자산 선택",
     step2: "접근 정책",
     step3: "사용 정책",
@@ -343,7 +382,8 @@ const ko = {
     count: (n: number) => `${n}건`,
     selectedAssets: "선택된 자산",
     assetsSelector: "assets_selector (IN operator)",
-    stepMobile: (step: number, total: number, label: string) => `단계 ${step} / ${total} — ${label}`,
+    stepMobile: (step: number, total: number, label: string) =>
+      `단계 ${step} / ${total} — ${label}`,
     idTooLong: "오퍼링 ID는 128자 이하여야 합니다.",
     idNoSpaces: "오퍼링 ID에 공백을 포함할 수 없습니다.",
     idInvalidChars: "오퍼링 ID는 / ? # % & 문자를 포함할 수 없습니다.",
@@ -366,7 +406,8 @@ const ko = {
     assetCount: (n: number) => `자산 ${n}개`,
     policyStatus: "정책 상태",
     policyDeleted: "삭제된 정책 (참조 무효)",
-    deleteBlockedByContracts: (n: number) => `진행/체결 중인 협상이 ${n}건 있어 삭제할 수 없습니다.`,
+    deleteBlockedByContracts: (n: number) =>
+      `진행/체결 중인 협상이 ${n}건 있어 삭제할 수 없습니다.`,
     relatedNegotiations: "연관 협상 (최근 5건)",
     noRelatedNegotiations: "이 오퍼링과 연관된 협상이 없습니다.",
     emptyTitle: "등록된 계약이 없습니다",
@@ -377,8 +418,10 @@ const ko = {
   catalog: {
     title: "카탈로그 브라우저",
     queryTitle: "상대방 커넥터 조회",
-    dspPlaceholder: "DSP 엔드포인트 URL (예: http://controlplane:8283/api/v1/dsp)",
-    bpnPlaceholder: "상대방 DID (예: did:web:identityhub:participants:BPNL000000000PRD)",
+    dspPlaceholder:
+      "DSP 엔드포인트 URL (예: http://controlplane:8283/api/v1/dsp)",
+    bpnPlaceholder:
+      "상대방 DID (예: did:web:identityhub:participants:BPNL000000000PRD)",
     bpnLabel: "상대방 DID",
     dspLabel: "DSP 엔드포인트",
     initialHint: "상대방 DSP 주소와 DID를 입력해 카탈로그를 조회하세요.",
@@ -386,7 +429,8 @@ const ko = {
     querying: "조회 중...",
     offersFound: (n: number) => `${n}개 데이터 오퍼 검색됨`,
     startNegotiation: "협상 시작",
-    negotiationStarted: "협상이 시작되었습니다. 3초 간격으로 상태를 확인합니다.",
+    negotiationStarted:
+      "협상이 시작되었습니다. 3초 간격으로 상태를 확인합니다.",
     dspRequired: "DSP 엔드포인트 URL을 입력하세요.",
     bpnRequired: "상대방 DID를 입력하세요.",
     queryFailed: "카탈로그 조회에 실패했습니다.",
@@ -421,7 +465,8 @@ const ko = {
     selectedCount: (n: number) => `${n}개 협상 선택됨`,
     clearSelection: "선택 해제",
     bulkTerminate: "일괄 종료",
-    bulkTerminateConfirm: (n: number) => `선택된 ${n}개 협상을 모두 종료합니다.`,
+    bulkTerminateConfirm: (n: number) =>
+      `선택된 ${n}개 협상을 모두 종료합니다.`,
     bulkTerminateSuccess: (n: number) => `${n}개 협상 종료 완료`,
     bulkTerminatePartial: (n: number) => `${n}개 협상 종료 실패`,
     sectionBasic: "기본 정보",
@@ -441,10 +486,22 @@ const ko = {
       FINALIZED: "계약 성립",
       TERMINATED: "협상 종료",
     },
-    col: { id: "ID", state: "상태", stateCode: "상태 코드", peer: "상대방", asset: "자산", duration: "소요 시간", time: "시각", action: "액션" },
-    transferStartToast: (id: string) => `데이터 전송을 시작합니다. (협상 ID: ${id})`,
-    terminatedToast: (peer: string, duration: string) => `협상 종료 — ${peer} 와의 협상이 실패하였습니다. (소요: ${duration})`,
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    col: {
+      id: "ID",
+      state: "상태",
+      stateCode: "상태 코드",
+      peer: "상대방",
+      asset: "자산",
+      duration: "소요 시간",
+      time: "시각",
+      action: "액션",
+    },
+    transferStartToast: (id: string) =>
+      `데이터 전송을 시작합니다. (협상 ID: ${id})`,
+    terminatedToast: (peer: string, duration: string) =>
+      `협상 종료 — ${peer} 와의 협상이 실패하였습니다. (소요: ${duration})`,
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     noResults: "해당 상태의 협상이 없습니다.",
   },
 
@@ -469,7 +526,17 @@ const ko = {
       COMPLETED: "전송 완료",
       TERMINATED: "전송 실패",
     },
-    col: { id: "전송 ID", state: "상태", assetId: "자산 ID", type: "유형", size: "크기", duration: "소요 시간", startedAt: "전송 시각", completedAt: "완료 시각", action: "액션" },
+    col: {
+      id: "전송 ID",
+      state: "상태",
+      assetId: "자산 ID",
+      type: "유형",
+      size: "크기",
+      duration: "소요 시간",
+      startedAt: "전송 시각",
+      completedAt: "완료 시각",
+      action: "액션",
+    },
     agreementId: "계약 ID",
     assetId: "자산 ID",
     counterPartyAddress: "Provider DSP 엔드포인트",
@@ -482,17 +549,21 @@ const ko = {
     avgDuration: "평균 소요 시간",
     noInflight: "진행 중인 전송이 없습니다.",
     noCompleted: "완료된 전송이 없습니다.",
-    transferFailedToast: (id: string, asset: string) => `전송 실패: ${id} (asset: ${asset})`,
-    edrPendingHint: "EDR 미발급 — 데이터플레인 미가용이거나 EDR 만료/대기 중일 수 있습니다. 데이터플레인 상태를 확인하거나 전송을 다시 시작하세요.",
+    transferFailedToast: (id: string, asset: string) =>
+      `전송 실패: ${id} (asset: ${asset})`,
+    edrPendingHint:
+      "EDR 미발급 — 데이터플레인 미가용이거나 EDR 만료/대기 중일 수 있습니다. 데이터플레인 상태를 확인하거나 전송을 다시 시작하세요.",
     filterAll: "전체",
     dateFrom: "시작일",
     dateTo: "종료일",
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     noFilterResults: "검색 조건에 맞는 전송이 없습니다.",
     completeTransfer: "완료 처리",
     terminateTransfer: "강제 종료",
     deleteAll: "전체 삭제",
-    deleteAllConfirm: "전송 목록을 모두 삭제합니까? (진행 중인 전송은 강제 종료됩니다)",
+    deleteAllConfirm:
+      "전송 목록을 모두 삭제합니까? (진행 중인 전송은 강제 종료됩니다)",
     deleteAllSuccess: (n: number) => `${n}건 삭제됐습니다.`,
     fetchData: "데이터 조회",
     fetchSuccess: (size: string) => `데이터 조회 완료 (${size})`,
@@ -515,7 +586,8 @@ const ko = {
     gcErrors: "GC 오류",
     listTitle: "EDR 목록 (만료 임박 순)",
     authCodeMasked: "authCode 마스킹 처리 (복사만 가능, NF-23)",
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     remaining: "남은 시간",
     expired: "만료됨",
     active: "활성",
@@ -524,11 +596,13 @@ const ko = {
     gcScheduler: "GC 스케줄러",
     gcDeleteCondition: "삭제 조건: expires_at + grace(60s) < 현재 시각",
     securityConfirm: "보안 확인",
-    authCodeWarning: "authCode(Bearer Token)를 클립보드에 복사합니다. 이 토큰은 민감한 인증 정보이며, 외부 유출 시 데이터 접근 권한이 노출됩니다.",
+    authCodeWarning:
+      "authCode(Bearer Token)를 클립보드에 복사합니다. 이 토큰은 민감한 인증 정보이며, 외부 유출 시 데이터 접근 권한이 노출됩니다.",
     copyConfirm: "복사 확인",
     authCodeCopied: "authCode가 클립보드에 복사되었습니다.",
     copyAuthCode: "authCode 복사",
-    expiringWarning: (tpId: string, minutes: number) => `만료 임박 — ${tpId} EDR이 ${minutes}분 후 만료됩니다. GC 삭제 전 데이터 전송을 완료하십시오.`,
+    expiringWarning: (tpId: string, minutes: number) =>
+      `만료 임박 — ${tpId} EDR이 ${minutes}분 후 만료됩니다. GC 삭제 전 데이터 전송을 완료하십시오.`,
     gcInterval: "실행 주기",
     gcBatchSize: "배치 크기",
     gcGrace: "유예 시간 (grace)",
@@ -558,7 +632,8 @@ const ko = {
     statusSealed: "봉인됨",
     statusUnknown: "알 수 없음",
     sealAlertTitle: "Vault가 봉인된 상태입니다",
-    sealAlertDesc: "Vault를 다시 사용하려면 운영자가 수동으로 봉인을 해제해야 합니다. 키 별칭에 접근하는 모든 작업이 일시 중단됩니다.",
+    sealAlertDesc:
+      "Vault를 다시 사용하려면 운영자가 수동으로 봉인을 해제해야 합니다. 키 별칭에 접근하는 모든 작업이 일시 중단됩니다.",
     kpiSecrets: "저장된 시크릿",
     kpiKeys: "암호화 키",
     kpiExpiring: "만료 임박 (30일)",
@@ -583,7 +658,8 @@ const ko = {
     searchPlaceholder: "별칭 검색...",
     filterType: "유형",
     typeAll: "전체",
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     noSearchResults: "검색 결과가 없습니다.",
     hideValue: "값 숨기기",
     serverManaged: "서버 관리 · 값 비공개",
@@ -601,9 +677,11 @@ const ko = {
     typeKey: "키",
     typeCertificate: "인증서",
     rotate: "키 회전",
-    rotateConfirm: "이 키를 즉시 회전하시겠습니까? 기존 키는 1세대 이전으로 이동합니다.",
+    rotateConfirm:
+      "이 키를 즉시 회전하시겠습니까? 기존 키는 1세대 이전으로 이동합니다.",
     rotateSuccess: (alias: string) => `${alias} 키가 회전되었습니다.`,
-    deleteConfirm: "이 항목을 삭제하시겠습니까? 참조 중인 자산이 있으면 동작이 실패할 수 있습니다.",
+    deleteConfirm:
+      "이 항목을 삭제하시겠습니까? 참조 중인 자산이 있으면 동작이 실패할 수 있습니다.",
     deleteSuccess: (alias: string) => `${alias} 항목이 삭제되었습니다.`,
     copyAlias: "별칭 복사",
     aliasCopied: "별칭이 클립보드에 복사되었습니다.",
@@ -681,7 +759,8 @@ const ko = {
     },
     emptyTitle: "검색 결과가 없습니다",
     emptyDesc: "필터 조건을 변경해보세요.",
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     retentionNotice: "감사 로그는 90일간 보관됩니다.",
   },
 
@@ -700,7 +779,8 @@ const ko = {
     didSettings: "DID / STS 설정",
     valid: "유효",
     expiresIn: (days: number) => `${days}일 후 만료`,
-    vcExpireWarning: (days: number) => `만료 예정 자격증명이 있습니다 (최소 ${days}일 남음). IssuerService에서 갱신 요청을 시작하십시오.`,
+    vcExpireWarning: (days: number) =>
+      `만료 예정 자격증명이 있습니다 (최소 ${days}일 남음). IssuerService에서 갱신 요청을 시작하십시오.`,
     noVcs: "등록된 자격증명이 없습니다.",
     loading: "불러오는 중...",
     addVc: "자격증명 추가",
@@ -774,7 +854,8 @@ const ko = {
     basicInfo: "기본 정보",
     connectorName: "커넥터 이름",
     participantBpn: "참여자 ID (BPN)",
-    bpnFromSettings: "설정 화면의 조직 BPN이 자동 적용됩니다. 변경하려면 설정에서 수정하세요.",
+    bpnFromSettings:
+      "설정 화면의 조직 BPN이 자동 적용됩니다. 변경하려면 설정에서 수정하세요.",
     endpoints: "엔드포인트",
     managementUrl: "Management API URL",
     dspEndpoint: "DSP 엔드포인트  URL",
@@ -834,18 +915,21 @@ const ko = {
     identityHubUrlDesc: "전체 커넥터가 공유하는 단일 IdentityHub 엔드포인트",
     identityHubUrlPlaceholder: "http://identityhub:8183",
     identityHubUrlSaved: "Identity Hub URL 저장됨",
-    identityHubServerDesc: "분산 신원 화면에서 참여자 본인의 정보를 가져오기 위한 분산 신원 서버 연결 설정",
+    identityHubServerDesc:
+      "분산 신원 화면에서 참여자 본인의 정보를 가져오기 위한 분산 신원 서버 연결 설정",
     identityHubParticipantId: "참여자 ID",
     identityHubParticipantIdDesc: "본인 참여자 컨텍스트 식별자 (BPN / DID)",
     didPreviewLabel: "DSP/카탈로그에서 사용되는 DID:",
     identityHubApiKey: "API 키",
-    identityHubApiKeyDesc: "IdentityHub 관리 API 인증 키. 변경할 때만 입력하세요.",
+    identityHubApiKeyDesc:
+      "IdentityHub 관리 API 인증 키. 변경할 때만 입력하세요.",
     identityHubApiKeySet: "●●●●●●●● (저장됨 — 변경 시에만 입력)",
     identityHubApiKeyUnset: "API 키 입력",
     identityHubConfigSaved: "분산 신원 서버 설정이 저장되었습니다.",
     organization: "조직",
     orgBpn: "조직 BPN",
-    orgBpnDesc: "이 조직(테넌트)의 BPN입니다. 로그인 ID이자, 커넥터 등록 시 사용되는 BPN입니다.",
+    orgBpnDesc:
+      "이 조직(테넌트)의 BPN입니다. 로그인 ID이자, 커넥터 등록 시 사용되는 BPN입니다.",
     orgBpnHint: "변경하면 다음 로그인부터 새 BPN으로 로그인해야 합니다.",
     orgBpnSaved: "조직 BPN이 저장되었습니다.",
     orgBpnTaken: "이미 다른 조직이 사용 중인 BPN입니다.",
@@ -877,7 +961,8 @@ const ko = {
     statusConfigured: "설정됨",
     sharedNote: "전체 커넥터가 공유합니다",
     notConfigured: "Identity Hub URL 이 설정되지 않았습니다",
-    notConfiguredHint: "설정 화면 분산 신원 서버에서 Identity Hub URL 을 입력하면 여기에 표시됩니다.",
+    notConfiguredHint:
+      "설정 화면 분산 신원 서버에서 Identity Hub URL 을 입력하면 여기에 표시됩니다.",
     openSettings: "설정 열기",
     monitor: "상태 모니터링",
     statusUp: "정상",
@@ -899,17 +984,25 @@ const ko = {
     credentials: "검증가능 자격증명 (VC)",
     noCredentials: "보유한 자격증명이 없습니다.",
     credentialFetchFailed: "자격증명 조회 실패",
-    credentialAuthHint: "IdentityHub API 키가 없거나 올바르지 않습니다. 설정 → 분산 신원에서 API 키를 등록하세요.",
+    credentialAuthHint:
+      "IdentityHub API 키가 없거나 올바르지 않습니다. 설정 → 분산 신원에서 API 키를 등록하세요.",
     goToSettings: "설정으로 이동",
     participantNotConfigured: "참여자 ID 가 설정되지 않았습니다",
-    participantNotConfiguredHint: "설정 화면 분산 신원 서버에서 참여자 ID 와 API 키를 입력하면 본인 정보를 가져옵니다.",
+    participantNotConfiguredHint:
+      "설정 화면 분산 신원 서버에서 참여자 ID 와 API 키를 입력하면 본인 정보를 가져옵니다.",
     requestFailed: "요청 실패",
   },
 
   // ── Notifications ──
   notifications: {
     title: "알림",
-    filterLabels: { all: "전체", error: "오류", warn: "경고", info: "정보", success: "완료" },
+    filterLabels: {
+      all: "전체",
+      error: "오류",
+      warn: "경고",
+      info: "정보",
+      success: "완료",
+    },
     markAllRead: "모두 읽음 처리",
     clearAll: "전체 삭제",
     empty: "새로운 알림이 없습니다.",
@@ -944,7 +1037,8 @@ const ko = {
     empty: "등록된 시맨틱 모델이 없습니다.",
     listTitle: "시맨틱 모델 목록",
     noSearchResults: "검색 결과가 없습니다.",
-    resultCount: (shown: number, total: number) => `${shown}건 / 전체 ${total}건`,
+    resultCount: (shown: number, total: number) =>
+      `${shown}건 / 전체 ${total}건`,
     create: "시맨틱 모델 추가",
     edit: "시맨틱 모델 수정",
     refresh: "새로고침",
@@ -1019,7 +1113,8 @@ const ko = {
     edit: "Shell 수정",
     aasIdImmutable: "AAS ID는 수정할 수 없습니다.",
     searchPlaceholder: "ID, idShort, globalAssetId 검색…",
-    resultCount: (filtered: number, total: number) => `${filtered}/${total} 항목`,
+    resultCount: (filtered: number, total: number) =>
+      `${filtered}/${total} 항목`,
     create: "Shell 생성",
     refresh: "새로고침",
     empty: "등록된 쉘 디스크립터가 없습니다.",
@@ -1046,7 +1141,8 @@ const ko = {
     },
     delete: {
       title: "Shell Descriptor 삭제",
-      message: "이 Shell 을 정말 삭제하시겠습니까? 연결된 Submodel 도 함께 삭제됩니다.",
+      message:
+        "이 Shell 을 정말 삭제하시겠습니까? 연결된 Submodel 도 함께 삭제됩니다.",
     },
     badge: {
       registered: "DTR 등록됨",
@@ -1082,7 +1178,8 @@ const ko = {
       dspAssetIdHint: "제공자 EDC 카탈로그에서 협상 대상 자산을 식별",
       dspEndpoint: "DSP Endpoint (Provider Control Plane)",
       dspEndpointHint: "정책 협상을 시작할 제공자 EDC Control Plane URL",
-      dspNote: "DSP 흐름: 소비자 EDC가 subprotocolBody의 dspEndpoint로 정책 협상 → IdentityHub/DID 상호 인증 → Usage Policy 합의 → EDR 토큰 발급 → href의 Data Plane으로 실제 데이터 수신",
+      dspNote:
+        "DSP 흐름: 소비자 EDC가 subprotocolBody의 dspEndpoint로 정책 협상 → IdentityHub/DID 상호 인증 → Usage Policy 합의 → EDR 토큰 발급 → href의 Data Plane으로 실제 데이터 수신",
       subprotocolBodyPreview: "전송될 subprotocolBody",
       submit: "등록",
       update: "수정",
@@ -1095,18 +1192,22 @@ const ko = {
       loadFailed: "Shell 정보를 불러올 수 없습니다.",
       requiredAasId: "AAS ID 와 idShort 는 필수입니다.",
       requiredSubmodel: "Submodel 은 ID 와 idShort 가 필수입니다.",
-      requiredEndpointHref: "Endpoint 는 Protocol Information.href 가 필수입니다.",
+      requiredEndpointHref:
+        "Endpoint 는 Protocol Information.href 가 필수입니다.",
     },
     expose: {
       action: "카탈로그 노출",
       title: "서브모델을 카탈로그에 노출",
       desc: "이 서브모델을 EDC 자산 + 계약정의로 노출하고, 트윈 endpoint를 해당 자산에 연결합니다.",
       connector: "제공자 커넥터",
-      noConnector: "먼저 커넥터를 선택하세요 (플릿에서 커넥터 선택 후 다시 시도).",
+      noConnector:
+        "먼저 커넥터를 선택하세요 (플릿에서 커넥터 선택 후 다시 시도).",
       dataSourceUrl: "데이터 소스 URL",
-      dataSourceHint: "서브모델 데이터를 실제 서빙하는 백엔드 엔드포인트 (자산의 dataAddress.baseUrl)",
+      dataSourceHint:
+        "서브모델 데이터를 실제 서빙하는 백엔드 엔드포인트 (자산의 dataAddress.baseUrl)",
       dataPlaneHref: "Data Plane href",
-      dataPlaneHrefHint: "소비자가 데이터를 받을 EDC Data Plane 공개 URL (비우면 데이터 소스 URL 사용)",
+      dataPlaneHrefHint:
+        "소비자가 데이터를 받을 EDC Data Plane 공개 URL (비우면 데이터 소스 URL 사용)",
       accessPolicy: "접근 정책",
       contractPolicy: "계약 정책",
       noPolicies: "정책이 없습니다. 정책 화면에서 먼저 생성하세요.",
@@ -1127,9 +1228,11 @@ const ko = {
       action: "DTR 자산으로 노출",
       title: "DTR을 카탈로그에 노출",
       desc: "디지털 트윈 레지스트리 엔드포인트를 cx-taxo:DigitalTwinRegistry 자산 + 계약정의로 노출합니다. 소비자가 카탈로그에서 DTR을 발견 → 협상 → 데이터플레인으로 등록된 트윈을 탐색합니다.",
-      noConnector: "먼저 커넥터를 선택하세요 (플릿에서 커넥터 선택 후 다시 시도).",
+      noConnector:
+        "먼저 커넥터를 선택하세요 (플릿에서 커넥터 선택 후 다시 시도).",
       dtrUrl: "DTR API URL",
-      dtrUrlHint: "데이터플레인이 프록시할 DTR shell-descriptors/lookup API 베이스 (자산 dataAddress.baseUrl)",
+      dtrUrlHint:
+        "데이터플레인이 프록시할 DTR shell-descriptors/lookup API 베이스 (자산 dataAddress.baseUrl)",
       needUrl: "DTR URL을 입력하세요.",
       submit: "노출",
       submitting: "노출 중...",

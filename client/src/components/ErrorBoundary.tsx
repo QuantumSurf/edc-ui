@@ -26,7 +26,10 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       // 클래스 컴포넌트라 useI18n 훅 사용 불가 + ErrorBoundary 는 I18n Provider 바깥에 위치 →
       // App 과 동일한 localStorage "locale" 키로 활성 로케일을 직접 읽어 번역한다.
-      const locale = (typeof localStorage !== "undefined" ? (localStorage.getItem("locale") as Locale | null) : null) || "ko";
+      const locale =
+        (typeof localStorage !== "undefined"
+          ? (localStorage.getItem("locale") as Locale | null)
+          : null) || "ko";
       const t = getTranslations(locale);
       return (
         <div className="flex items-center justify-center min-h-screen p-8 bg-background">

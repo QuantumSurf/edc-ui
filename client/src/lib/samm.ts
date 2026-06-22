@@ -13,16 +13,27 @@ type Term =
   | { t: "blank"; v: string }
   | { t: "lit"; v: string; lang?: string; dt?: string };
 
-interface Triple { s: Term; p: Term; o: Term }
+interface Triple {
+  s: Term;
+  p: Term;
+  o: Term;
+}
 
 /* ─── Tokenizer ──────────────────────────────────────────────── */
 type Tok =
   | { k: "punc"; v: "." | ";" | "," | "[" | "]" | "(" | ")" }
   | { k: "a" }
-  | { k: "iri"; v: string }       // resolved absolute IRI
+  | { k: "iri"; v: string } // resolved absolute IRI
   | { k: "pname"; prefix: string; local: string }
-  | { k: "blank"; v: string }     // _:label
-  | { k: "lit"; v: string; lang?: string; dtPrefix?: string; dtLocal?: string; dtIri?: string }
+  | { k: "blank"; v: string } // _:label
+  | {
+      k: "lit";
+      v: string;
+      lang?: string;
+      dtPrefix?: string;
+      dtLocal?: string;
+      dtIri?: string;
+    }
   | { k: "prefix"; prefix: string; iri: string }
   | { k: "base"; iri: string };
 
@@ -30,7 +41,8 @@ function tokenize(input: string): Tok[] {
   const toks: Tok[] = [];
   let i = 0;
   const n = input.length;
-  const isWS = (c: string) => c === " " || c === "\t" || c === "\r" || c === "\n";
+  const isWS = (c: string) =>
+    c === " " || c === "\t" || c === "\r" || c === "\n";
 
   const readString = (): { v: string } => {
     // assumes input[i] is a quote
@@ -39,8 +51,15 @@ function tokenize(input: string): Tok[] {
     if (input[i + 1] === q && input[i + 2] === q) {
       i += 3;
       let s = "";
-      while (i < n && !(input[i] === q && input[i + 1] === q && input[i + 2] === q)) {
-        if (input[i] === "\\") { s += input[i] + input[i + 1]; i += 2; continue; }
+      while (
+        i < n &&
+        !(input[i] === q && input[i + 1] === q && input[i + 2] === q)
+      ) {
+        if (input[i] === "\\") {
+          s += input[i] + input[i + 1];
+          i += 2;
+          continue;
+        }
         s += input[i++];
       }
       i += 3;
@@ -49,7 +68,11 @@ function tokenize(input: string): Tok[] {
     i += 1;
     let s = "";
     while (i < n && input[i] !== q) {
-      if (input[i] === "\\") { s += input[i] + input[i + 1]; i += 2; continue; }
+      if (input[i] === "\\") {
+        s += input[i] + input[i + 1];
+        i += 2;
+        continue;
+      }
       s += input[i++];
     }
     i += 1;
@@ -57,12 +80,22 @@ function tokenize(input: string): Tok[] {
   };
 
   const unescape = (s: string) =>
-    s.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r")
-      .replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+    s
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\r/g, "\r")
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
+      .replace(/\\\\/g, "\\");
 
   const readUntilWS = (extraStops = ""): string => {
     let s = "";
-    while (i < n && !isWS(input[i]) && !";,.[]()".includes(input[i]) && !extraStops.includes(input[i])) {
+    while (
+      i < n &&
+      !isWS(input[i]) &&
+      !";,.[]()".includes(input[i]) &&
+      !extraStops.includes(input[i])
+    ) {
       s += input[i++];
     }
     return s;
@@ -70,8 +103,14 @@ function tokenize(input: string): Tok[] {
 
   while (i < n) {
     const c = input[i];
-    if (isWS(c)) { i++; continue; }
-    if (c === "#") { while (i < n && input[i] !== "\n") i++; continue; }
+    if (isWS(c)) {
+      i++;
+      continue;
+    }
+    if (c === "#") {
+      while (i < n && input[i] !== "\n") i++;
+      continue;
+    }
 
     // directives
     if (c === "@") {
@@ -87,14 +126,22 @@ function tokenize(input: string): Tok[] {
           while (i < n && isWS(input[i])) i++;
           // IRI
           let iri = "";
-          if (input[i] === "<") { i++; while (i < n && input[i] !== ">") iri += input[i++]; i++; }
+          if (input[i] === "<") {
+            i++;
+            while (i < n && input[i] !== ">") iri += input[i++];
+            i++;
+          }
           while (i < n && input[i] !== ".") i++;
           i++; // consume '.'
           toks.push({ k: "prefix", prefix: pn, iri });
         } else {
           while (i < n && isWS(input[i])) i++;
           let iri = "";
-          if (input[i] === "<") { i++; while (i < n && input[i] !== ">") iri += input[i++]; i++; }
+          if (input[i] === "<") {
+            i++;
+            while (i < n && input[i] !== ">") iri += input[i++];
+            i++;
+          }
           while (i < n && input[i] !== ".") i++;
           i++;
           toks.push({ k: "base", iri });
@@ -112,24 +159,43 @@ function tokenize(input: string): Tok[] {
         const pn = readUntilWS(":");
         if (input[i] === ":") i++;
         while (i < n && isWS(input[i])) i++;
-        let iri = ""; if (input[i] === "<") { i++; while (i < n && input[i] !== ">") iri += input[i++]; i++; }
+        let iri = "";
+        if (input[i] === "<") {
+          i++;
+          while (i < n && input[i] !== ">") iri += input[i++];
+          i++;
+        }
         toks.push({ k: "prefix", prefix: pn, iri });
       } else {
         while (i < n && isWS(input[i])) i++;
-        let iri = ""; if (input[i] === "<") { i++; while (i < n && input[i] !== ">") iri += input[i++]; i++; }
+        let iri = "";
+        if (input[i] === "<") {
+          i++;
+          while (i < n && input[i] !== ">") iri += input[i++];
+          i++;
+        }
         toks.push({ k: "base", iri });
       }
       continue;
     }
 
-    if (c === "." || c === ";" || c === "," || c === "[" || c === "]" || c === "(" || c === ")") {
+    if (
+      c === "." ||
+      c === ";" ||
+      c === "," ||
+      c === "[" ||
+      c === "]" ||
+      c === "(" ||
+      c === ")"
+    ) {
       toks.push({ k: "punc", v: c as "." });
       i++;
       continue;
     }
 
     if (c === "<") {
-      i++; let iri = "";
+      i++;
+      let iri = "";
       while (i < n && input[i] !== ">") iri += input[i++];
       i++;
       toks.push({ k: "iri", v: iri });
@@ -139,37 +205,66 @@ function tokenize(input: string): Tok[] {
     if (c === '"' || c === "'") {
       const { v } = readString();
       let lang: string | undefined;
-      let dtPrefix: string | undefined, dtLocal: string | undefined, dtIri: string | undefined;
+      let dtPrefix: string | undefined,
+        dtLocal: string | undefined,
+        dtIri: string | undefined;
       if (input[i] === "@") {
-        i++; let l = ""; while (i < n && /[a-zA-Z0-9-]/.test(input[i])) l += input[i++];
+        i++;
+        let l = "";
+        while (i < n && /[a-zA-Z0-9-]/.test(input[i])) l += input[i++];
         lang = l;
       } else if (input[i] === "^" && input[i + 1] === "^") {
         i += 2;
-        if (input[i] === "<") { i++; let d = ""; while (i < n && input[i] !== ">") d += input[i++]; i++; dtIri = d; }
-        else { const tok = readUntilWS(); const idx = tok.indexOf(":"); dtPrefix = tok.slice(0, idx); dtLocal = tok.slice(idx + 1); }
+        if (input[i] === "<") {
+          i++;
+          let d = "";
+          while (i < n && input[i] !== ">") d += input[i++];
+          i++;
+          dtIri = d;
+        } else {
+          const tok = readUntilWS();
+          const idx = tok.indexOf(":");
+          dtPrefix = tok.slice(0, idx);
+          dtLocal = tok.slice(idx + 1);
+        }
       }
       toks.push({ k: "lit", v, lang, dtPrefix, dtLocal, dtIri });
       continue;
     }
 
     if (c === "_" && input[i + 1] === ":") {
-      i += 2; let lbl = ""; while (i < n && !isWS(input[i]) && !";,.[]()".includes(input[i])) lbl += input[i++];
+      i += 2;
+      let lbl = "";
+      while (i < n && !isWS(input[i]) && !";,.[]()".includes(input[i]))
+        lbl += input[i++];
       toks.push({ k: "blank", v: lbl });
       continue;
     }
 
     // 'a' keyword (rdf:type) — standalone
     if (c === "a" && (isWS(input[i + 1]) || input[i + 1] === undefined)) {
-      toks.push({ k: "a" }); i++; continue;
+      toks.push({ k: "a" });
+      i++;
+      continue;
     }
 
     // prefixed name or boolean/number literal
     const word = readUntilWS();
-    if (word === "") { i++; continue; }
+    if (word === "") {
+      i++;
+      continue;
+    }
     const colon = word.indexOf(":");
     if (colon >= 0 && !/^https?:/.test(word)) {
-      toks.push({ k: "pname", prefix: word.slice(0, colon), local: word.slice(colon + 1) });
-    } else if (/^(true|false)$/.test(word) || /^[+-]?[\d.]+([eE][+-]?\d+)?$/.test(word)) {
+      toks.push({
+        k: "pname",
+        prefix: word.slice(0, colon),
+        local: word.slice(colon + 1),
+      });
+    } else if (
+      /^(true|false)$/.test(word) ||
+      /^[+-]?[\d.]+([eE][+-]?\d+)?$/.test(word)
+    ) {
       toks.push({ k: "lit", v: word });
     } else {
       // unknown bareword — treat as literal to avoid crashing
@@ -190,14 +285,27 @@ function parseTriples(input: string): Triple[] {
   const newBlank = (): Term => ({ t: "blank", v: `_:b${blankCounter++}` });
 
   const resolve = (tok: Tok): Term => {
-    if (tok.k === "iri") return { t: "iri", v: base && !/^[a-z]+:/i.test(tok.v) ? base + tok.v : tok.v };
-    if (tok.k === "pname") return { t: "iri", v: (prefixes[tok.prefix] ?? `${tok.prefix}:`) + tok.local };
+    if (tok.k === "iri")
+      return {
+        t: "iri",
+        v: base && !/^[a-z]+:/i.test(tok.v) ? base + tok.v : tok.v,
+      };
+    if (tok.k === "pname")
+      return {
+        t: "iri",
+        v: (prefixes[tok.prefix] ?? `${tok.prefix}:`) + tok.local,
+      };
     if (tok.k === "blank") return { t: "blank", v: "_:" + tok.v };
     if (tok.k === "lit") {
-      const dt = tok.dtIri ? tok.dtIri : tok.dtPrefix !== undefined ? (prefixes[tok.dtPrefix] ?? "") + (tok.dtLocal ?? "") : undefined;
+      const dt = tok.dtIri
+        ? tok.dtIri
+        : tok.dtPrefix !== undefined
+          ? (prefixes[tok.dtPrefix] ?? "") + (tok.dtLocal ?? "")
+          : undefined;
       return { t: "lit", v: tok.v, lang: tok.lang, dt };
     }
-    if (tok.k === "a") return { t: "iri", v: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" };
+    if (tok.k === "a")
+      return { t: "iri", v: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" };
     return { t: "iri", v: "" };
   };
 
@@ -222,7 +330,10 @@ function parseTriples(input: string): Triple[] {
       next();
       // RDF collection
       const items: Term[] = [];
-      while (peek() && !(peek().k === "punc" && (peek() as { v: string }).v === ")")) {
+      while (
+        peek() &&
+        !(peek().k === "punc" && (peek() as { v: string }).v === ")")
+      ) {
         items.push(parseObject());
       }
       next(); // consume ')'
@@ -236,7 +347,11 @@ function parseTriples(input: string): Triple[] {
           triples.push({ s: head, p: { t: "iri", v: RDF_REST }, o: rest });
           head = rest;
         } else {
-          triples.push({ s: head, p: { t: "iri", v: RDF_REST }, o: { t: "iri", v: RDF_NIL } });
+          triples.push({
+            s: head,
+            p: { t: "iri", v: RDF_REST },
+            o: { t: "iri", v: RDF_NIL },
+          });
         }
       });
       return first;
@@ -249,16 +364,32 @@ function parseTriples(input: string): Triple[] {
     while (true) {
       const t = peek();
       if (!t) return;
-      if (t.k === "punc" && t.v === term) { next(); return; }
-      if (t.k === "punc" && t.v === ";") { next(); continue; }
-      if (t.k === "punc" && t.v === ",") { next(); continue; } // handled below via lastPred
+      if (t.k === "punc" && t.v === term) {
+        next();
+        return;
+      }
+      if (t.k === "punc" && t.v === ";") {
+        next();
+        continue;
+      }
+      if (t.k === "punc" && t.v === ",") {
+        next();
+        continue;
+      } // handled below via lastPred
       // predicate
-      if (t.k === "prefix" || t.k === "base") { next(); continue; }
+      if (t.k === "prefix" || t.k === "base") {
+        next();
+        continue;
+      }
       const pred = resolve(next());
       // object list
       let obj = parseObject();
       triples.push({ s: subject, p: pred, o: obj });
-      while (peek() && peek().k === "punc" && (peek() as { v: string }).v === ",") {
+      while (
+        peek() &&
+        peek().k === "punc" &&
+        (peek() as { v: string }).v === ","
+      ) {
         next();
         obj = parseObject();
         triples.push({ s: subject, p: pred, o: obj });
@@ -269,9 +400,20 @@ function parseTriples(input: string): Triple[] {
   while (p < toks.length) {
     const t = peek();
     if (!t) break;
-    if (t.k === "prefix") { prefixes[t.prefix] = t.iri; next(); continue; }
-    if (t.k === "base") { base = t.iri; next(); continue; }
-    if (t.k === "punc" && t.v === ".") { next(); continue; }
+    if (t.k === "prefix") {
+      prefixes[t.prefix] = t.iri;
+      next();
+      continue;
+    }
+    if (t.k === "base") {
+      base = t.iri;
+      next();
+      continue;
+    }
+    if (t.k === "punc" && t.v === ".") {
+      next();
+      continue;
+    }
     // subject
     const subj = parseObject(); // handles [] / iri / pname
     parsePredicateList(subj, ".");
@@ -287,7 +429,7 @@ export interface SammNode {
   characteristic?: string;
   dataType?: string;
   optional?: boolean;
-  collection?: string;      // e.g. "List" / "Set" / "Collection"
+  collection?: string; // e.g. "List" / "Set" / "Collection"
   enumValues?: string[];
   children?: SammNode[];
 }
@@ -312,7 +454,10 @@ function buildIndex(triples: Triple[]): Index {
   for (const tr of triples) {
     const sk = tr.s.v;
     let m = bySubject.get(sk);
-    if (!m) { m = new Map(); bySubject.set(sk, m); }
+    if (!m) {
+      m = new Map();
+      bySubject.set(sk, m);
+    }
     const pf = tr.p.t === "iri" ? frag(tr.p.v) : tr.p.v;
     const arr = m.get(pf) ?? [];
     arr.push(tr.o);
@@ -345,23 +490,44 @@ function readList(idx: Index, head: Term): Term[] {
 
 const langPick = (terms: Term[] | undefined): string | undefined => {
   if (!terms?.length) return undefined;
-  const lits = terms.filter((t) => t.t === "lit") as Array<{ v: string; lang?: string }>;
+  const lits = terms.filter(t => t.t === "lit") as Array<{
+    v: string;
+    lang?: string;
+  }>;
   if (!lits.length) return undefined;
-  return (lits.find((l) => l.lang === "ko") ?? lits.find((l) => l.lang === "en") ?? lits[0]).v;
+  return (
+    lits.find(l => l.lang === "ko") ??
+    lits.find(l => l.lang === "en") ??
+    lits[0]
+  ).v;
 };
 
 function typeFrags(idx: Index, subjectIri: string): string[] {
   const m = idx.bySubject.get(subjectIri);
   const types = m?.get("type") ?? [];
-  return types.map((t) => (t.t === "iri" ? frag(t.v) : ""));
+  return types.map(t => (t.t === "iri" ? frag(t.v) : ""));
 }
 
-const COLLECTION_FRAGS = new Set(["Collection", "List", "Set", "SortedSet", "TimeSeries"]);
+const COLLECTION_FRAGS = new Set([
+  "Collection",
+  "List",
+  "Set",
+  "SortedSet",
+  "TimeSeries",
+]);
 
-function characteristicInfo(idx: Index, charTerm: Term): { name: string; collection?: string; dataTypeIri?: string; enumValues?: string[] } {
+function characteristicInfo(
+  idx: Index,
+  charTerm: Term
+): {
+  name: string;
+  collection?: string;
+  dataTypeIri?: string;
+  enumValues?: string[];
+} {
   const name = localName(charTerm.v);
   const m = idx.bySubject.get(charTerm.v);
-  const types = (m?.get("type") ?? []).map((t) => frag(t.v));
+  const types = (m?.get("type") ?? []).map(t => frag(t.v));
   let collection: string | undefined;
   for (const tf of types) if (COLLECTION_FRAGS.has(tf)) collection = tf;
   // also if the characteristic name itself is a collection meta class
@@ -371,12 +537,16 @@ function characteristicInfo(idx: Index, charTerm: Term): { name: string; collect
   const values = m?.get("values")?.[0];
   if (values) {
     const list = readList(idx, values);
-    enumValues = list.map((v) => (v.t === "lit" ? v.v : localName(v.v))).slice(0, 12);
+    enumValues = list
+      .map(v => (v.t === "lit" ? v.v : localName(v.v)))
+      .slice(0, 12);
   }
   return { name, collection, dataTypeIri: dataType?.v, enumValues };
 }
 
-export interface SammAspect extends SammNode { kind: "aspect" }
+export interface SammAspect extends SammNode {
+  kind: "aspect";
+}
 
 /**
  * TTL/RDF 본문에서 SAMM Aspect 구조 트리를 파싱한다.
@@ -392,7 +562,10 @@ export function parseSammAspect(ttl: string): SammAspect | null {
     // find an Aspect subject
     let aspectIri: string | undefined;
     for (const [s] of idx.bySubject) {
-      if (typeFrags(idx, s).includes("Aspect")) { aspectIri = s; break; }
+      if (typeFrags(idx, s).includes("Aspect")) {
+        aspectIri = s;
+        break;
+      }
     }
     if (!aspectIri) return null;
 
@@ -416,7 +589,12 @@ export function parseSammAspect(ttl: string): SammAspect | null {
           const opt = bm?.get("optional")?.[0];
           if (opt && opt.t === "lit" && /true/i.test(opt.v)) optional = true;
           const notInPayload = bm?.get("notInPayload")?.[0];
-          if (notInPayload && notInPayload.t === "lit" && /true/i.test(notInPayload.v)) optional = optional || false;
+          if (
+            notInPayload &&
+            notInPayload.t === "lit" &&
+            /true/i.test(notInPayload.v)
+          )
+            optional = optional || false;
         }
         const node = buildPropertyNode(propIri, optional, depth);
         if (node) nodes.push(node);
@@ -424,7 +602,11 @@ export function parseSammAspect(ttl: string): SammAspect | null {
       return nodes;
     };
 
-    const buildPropertyNode = (propIri: string, optional: boolean, depth: number): SammNode | null => {
+    const buildPropertyNode = (
+      propIri: string,
+      optional: boolean,
+      depth: number
+    ): SammNode | null => {
       if (!propIri) return null;
       const pm = idx.bySubject.get(propIri);
       const node: SammNode = {

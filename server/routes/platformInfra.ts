@@ -12,7 +12,12 @@
 //   - Single shared read-only role expected (PLATFORM_DATABASE_URL).
 //   - Endpoints don't expose individual query text (privacy / NF-23).
 
-import { Router, type Request, type Response, type NextFunction } from "express";
+import {
+  Router,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import { requireRole } from "../middleware/auth.js";
 import { getPlatformPool } from "../lib/platform.js";
 
@@ -27,14 +32,19 @@ router.get(
       const pool = getPlatformPool();
       const [verRes, upRes, settingsRes] = await Promise.all([
         pool.query("SELECT version() AS version"),
-        pool.query("SELECT extract(epoch FROM (now() - pg_postmaster_start_time()))::bigint AS uptime_seconds"),
+        pool.query(
+          "SELECT extract(epoch FROM (now() - pg_postmaster_start_time()))::bigint AS uptime_seconds"
+        ),
         pool.query(`
           SELECT name, setting FROM pg_settings
           WHERE name IN ('max_connections','shared_buffers','effective_cache_size','wal_level','work_mem')
         `),
       ]);
       const settings = Object.fromEntries(
-        (settingsRes.rows as { name: string; setting: string }[]).map((r) => [r.name, r.setting])
+        (settingsRes.rows as { name: string; setting: string }[]).map(r => [
+          r.name,
+          r.setting,
+        ])
       );
       res.json({
         version: verRes.rows[0]?.version ?? "unknown",
@@ -66,12 +76,19 @@ router.get(
         ORDER BY d.datname
       `);
       res.json({
-        databases: r.rows.map((row: { name: string; size_bytes: string; connections: string; owner: string }) => ({
-          name: row.name,
-          sizeBytes: Number(row.size_bytes),
-          connections: Number(row.connections),
-          owner: row.owner,
-        })),
+        databases: r.rows.map(
+          (row: {
+            name: string;
+            size_bytes: string;
+            connections: string;
+            owner: string;
+          }) => ({
+            name: row.name,
+            sizeBytes: Number(row.size_bytes),
+            connections: Number(row.connections),
+            owner: row.owner,
+          })
+        ),
       });
     } catch (error) {
       next(error);

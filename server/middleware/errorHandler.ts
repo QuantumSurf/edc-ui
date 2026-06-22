@@ -19,7 +19,12 @@ function sanitizeMessage(message: string): string {
   return message; // In development, show full error for debugging
 }
 
-export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+) {
   if (err instanceof EdcApiError) {
     console.error(`[BFF] EDC API Error: ${err.status} ${err.detail}`);
     const role = req.user?.role;
@@ -30,17 +35,23 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     // 전송/내부 실패(fromEdcResponse=false)는 항상 5xx 마스킹.
     if (err.fromEdcResponse) {
       if (privileged) {
-        res.status(err.status).json({ error: err.detail, source: "edc", actionable: true });
+        res
+          .status(err.status)
+          .json({ error: err.detail, source: "edc", actionable: true });
       } else {
         // viewer: 4xx 검증 메시지는 안전하므로 유지, 5xx 내부 상세는 마스킹.
-        const msg = err.status >= 400 && err.status < 500 ? err.detail : sanitizeMessage(err.detail);
+        const msg =
+          err.status >= 400 && err.status < 500
+            ? err.detail
+            : sanitizeMessage(err.detail);
         res.status(err.status).json({ error: msg, source: "edc" });
       }
       return;
     }
-    const message = err.status >= 400 && err.status < 500
-      ? err.detail
-      : sanitizeMessage(err.detail);
+    const message =
+      err.status >= 400 && err.status < 500
+        ? err.detail
+        : sanitizeMessage(err.detail);
     res.status(err.status).json({ error: message, source: "edc" });
     return;
   }

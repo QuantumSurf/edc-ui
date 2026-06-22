@@ -3,20 +3,45 @@
 // Falls back to demo data when API is unavailable (e.g. dev without platform compose up).
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Vault, Lock, Copy, Eye, EyeOff, Server, Search, X } from "lucide-react";
+import {
+  Vault,
+  Lock,
+  Copy,
+  Eye,
+  EyeOff,
+  Server,
+  Search,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
-  Card, SectionHdr, Badge, AlertBanner, MonoText, CardTitle, inputBase,
-  ListCard, ListHeaderRow, ListRow, ListColLabel, ListEmpty, ListError,
+  Card,
+  SectionHdr,
+  Badge,
+  AlertBanner,
+  MonoText,
+  CardTitle,
+  inputBase,
+  ListCard,
+  ListHeaderRow,
+  ListRow,
+  ListColLabel,
+  ListEmpty,
+  ListError,
 } from "@/components/ui-kmx";
-import { DataTablePagination, usePagination } from "@/components/DataTablePagination";
+import {
+  DataTablePagination,
+  usePagination,
+} from "@/components/DataTablePagination";
 
 const VAULT_COLS = "grid-cols-[2.4fr_0.7fr_1fr_0.9fr_1fr_0.8fr]";
 import {
-  fetchVaultStatus, fetchVaultList,
-  type VaultStatusResp as VaultStatus, type VaultListResp,
+  fetchVaultStatus,
+  fetchVaultList,
+  type VaultStatusResp as VaultStatus,
+  type VaultListResp,
 } from "@/services/api";
 
 function inferType(alias: string): VaultItemType {
@@ -65,7 +90,10 @@ function maskValue(v: string) {
   return "•".repeat(Math.min(12, Math.max(6, v.length)));
 }
 
-function makeDemoData(connectorId: string): { backend: VaultBackendInfo; items: VaultItem[] } {
+function makeDemoData(connectorId: string): {
+  backend: VaultBackendInfo;
+  items: VaultItem[];
+} {
   const isProd = connectorId.toLowerCase().includes("prod");
   const isCons = connectorId.toLowerCase().includes("cons");
   // 모든 커넥터가 같은 HA 클러스터(vault.kmx.io)를 공유, namespace로 격리.
@@ -134,7 +162,8 @@ function expiryBadge(days: number | null, t: ReturnType<typeof useI18n>["t"]) {
   if (days === null) return <Badge variant="gray">—</Badge>;
   if (days <= 0) return <Badge variant="red">{t.vault.expired}</Badge>;
   if (days <= 7) return <Badge variant="red">{t.vault.daysLeft(days)}</Badge>;
-  if (days <= 30) return <Badge variant="amber">{t.vault.daysLeft(days)}</Badge>;
+  if (days <= 30)
+    return <Badge variant="amber">{t.vault.daysLeft(days)}</Badge>;
   return <Badge variant="green">{t.vault.daysLeft(days)}</Badge>;
 }
 
@@ -150,11 +179,11 @@ function typeBadge(type: VaultItemType, t: ReturnType<typeof useI18n>["t"]) {
 
 export default function PageVault() {
   const { t } = useI18n();
-  const connector = useConnectorStore((s) => s.connector);
+  const connector = useConnectorStore(s => s.connector);
 
   const initial = useMemo(
     () => makeDemoData(connector?.id ?? "demo"),
-    [connector?.id],
+    [connector?.id]
   );
   const [backend, setBackend] = useState<VaultBackendInfo>(initial.backend);
   const [items, setItems] = useState<VaultItem[]>(initial.items);
@@ -178,7 +207,7 @@ export default function PageVault() {
 
   useEffect(() => {
     if (statusQuery.data) {
-      setBackend((prev) => ({
+      setBackend(prev => ({
         ...prev,
         backend: "HashiCorp Vault (Shared HA)",
         version: statusQuery.data.version,
@@ -193,7 +222,7 @@ export default function PageVault() {
     if (listQuery.data?.aliases?.length) {
       const today = new Date().toISOString().slice(0, 10);
       setItems(
-        listQuery.data.aliases.map((alias) => ({
+        listQuery.data.aliases.map(alias => ({
           alias,
           type: inferType(alias),
           algorithm: inferAlgorithm(alias),
@@ -202,21 +231,28 @@ export default function PageVault() {
           expiryDays: alias.includes("aes") ? 365 : null,
           value: "",
           serverManaged: true,
-        })),
+        }))
       );
     }
   }, [listQuery.data]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter((it) => {
+    return items.filter(it => {
       if (typeFilter !== "ALL" && it.type !== typeFilter) return false;
       if (q && !it.alias.toLowerCase().includes(q)) return false;
       return true;
     });
   }, [items, search, typeFilter]);
 
-  const { paginatedData, totalItems, currentPage, pageSize, setCurrentPage, setPageSize } = usePagination(filtered, 10);
+  const {
+    paginatedData,
+    totalItems,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   // 필터 변경 시 항상 1페이지부터 보이도록 리셋
   useEffect(() => {
@@ -237,9 +273,7 @@ export default function PageVault() {
 
   return (
     <>
-      <SectionHdr
-        icon={<Vault className="w-5 h-5 text-primary" />}
-      >
+      <SectionHdr icon={<Vault className="w-5 h-5 text-primary" />}>
         {t.vault.title}
       </SectionHdr>
 
@@ -247,36 +281,59 @@ export default function PageVault() {
         <AlertBanner variant="danger">
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold">{t.vault.sealAlertTitle}</span>
-            <span className="text-[11px] opacity-90">{t.vault.sealAlertDesc}</span>
+            <span className="text-[11px] opacity-90">
+              {t.vault.sealAlertDesc}
+            </span>
           </div>
         </AlertBanner>
       )}
 
-      <Card title={
-        <CardTitle
-          icon={<Server className="w-3.5 h-3.5 text-blue-500" />}
-          badge={<Badge variant={backend.sealed ? "red" : "green"}>{backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed}</Badge>}
-        >
-          <span className="font-bold">{t.vault.backendInfo}</span>
-        </CardTitle>
-      }>
+      <Card
+        title={
+          <CardTitle
+            icon={<Server className="w-3.5 h-3.5 text-blue-500" />}
+            badge={
+              <Badge variant={backend.sealed ? "red" : "green"}>
+                {backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed}
+              </Badge>
+            }
+          >
+            <span className="font-bold">{t.vault.backendInfo}</span>
+          </CardTitle>
+        }
+      >
         <div className="space-y-3">
           {[
             [t.vault.field.backend, backend.backend, false],
             [t.vault.field.version, backend.version, false],
             [t.vault.field.address, backend.address, false],
             [t.vault.field.namespace, backend.namespace || "—", false],
-            [t.vault.field.sealed, backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed, true],
+            [
+              t.vault.field.sealed,
+              backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed,
+              true,
+            ],
             [t.vault.field.lastRotation, backend.lastRotation, false],
             [
               t.vault.field.autoRotation,
-              backend.autoRotation ? t.vault.field.autoRotationOn : t.vault.field.autoRotationOff,
+              backend.autoRotation
+                ? t.vault.field.autoRotationOn
+                : t.vault.field.autoRotationOff,
               true,
             ],
           ].map(([k, v, asTitle]) => (
-            <div key={k as string} className="flex items-center justify-between gap-3 py-1.5 border-b border-border last:border-0">
-              <span className="text-[12px] text-muted-foreground flex-shrink-0">{k}</span>
-              <span className={`text-[12px] text-foreground font-normal text-right break-all ${asTitle ? "" : "mono"}`}>{v}</span>
+            <div
+              key={k as string}
+              className="flex items-center justify-between gap-3 py-1.5 border-b border-border last:border-0"
+            >
+              <span className="text-[12px] text-muted-foreground flex-shrink-0">
+                {k}
+              </span>
+              <span
+                className={`text-[12px] text-foreground font-normal text-right break-all ${asTitle ? "" : "mono"}`}
+              >
+                {v}
+              </span>
             </div>
           ))}
         </div>
@@ -289,7 +346,7 @@ export default function PageVault() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             placeholder={t.vault.searchPlaceholder}
             aria-label={t.vault.searchPlaceholder}
             className={`${inputBase} pl-8 pr-8 !bg-background`}
@@ -305,8 +362,10 @@ export default function PageVault() {
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-medium text-muted-foreground">{t.vault.filterType}</span>
-          {TYPE_FILTERS.map((tf) => (
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {t.vault.filterType}
+          </span>
+          {TYPE_FILTERS.map(tf => (
             <button
               key={tf.key}
               onClick={() => setTypeFilter(tf.key)}
@@ -326,11 +385,18 @@ export default function PageVault() {
       {/* Desktop list */}
       <ListCard
         title={t.vault.listTitle}
-        actions={<span className="text-[11px] text-muted-foreground">{t.vault.masked}</span>}
+        actions={
+          <span className="text-[11px] text-muted-foreground">
+            {t.vault.masked}
+          </span>
+        }
         className="hidden md:block"
       >
         {listQuery.isError && items.length === 0 ? (
-          <ListError onRetry={() => listQuery.refetch()} fetching={listQuery.isFetching} />
+          <ListError
+            onRetry={() => listQuery.refetch()}
+            fetching={listQuery.isFetching}
+          />
         ) : items.length === 0 ? (
           <ListEmpty icon={<Vault />} message={t.vault.noItems} />
         ) : filtered.length === 0 ? (
@@ -341,17 +407,23 @@ export default function PageVault() {
               <ListColLabel>{t.vault.col.alias}</ListColLabel>
               <ListColLabel>{t.vault.col.type}</ListColLabel>
               <ListColLabel>{t.vault.col.algorithm}</ListColLabel>
-              <ListColLabel className="hidden lg:block">{t.vault.col.created}</ListColLabel>
-              <ListColLabel className="hidden xl:block">{t.vault.col.lastUsed}</ListColLabel>
+              <ListColLabel className="hidden lg:block">
+                {t.vault.col.created}
+              </ListColLabel>
+              <ListColLabel className="hidden xl:block">
+                {t.vault.col.lastUsed}
+              </ListColLabel>
               <ListColLabel>{t.vault.col.expiry}</ListColLabel>
             </ListHeaderRow>
-            {paginatedData.map((it) => {
+            {paginatedData.map(it => {
               const isRevealed = revealed === it.alias;
               return (
                 <ListRow key={it.alias} cols={VAULT_COLS}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-bold text-primary truncate">{it.alias}</span>
+                      <span className="text-xs font-bold text-primary truncate">
+                        {it.alias}
+                      </span>
                       <button
                         onClick={() => onCopy(it.alias)}
                         title={t.vault.copyAlias}
@@ -373,12 +445,26 @@ export default function PageVault() {
                             {isRevealed ? it.value : maskValue(it.value)}
                           </MonoText>
                           <button
-                            onClick={() => setRevealed(isRevealed ? null : it.alias)}
-                            title={isRevealed ? t.vault.hideValue : t.vault.revealValue}
-                            aria-label={isRevealed ? t.vault.hideValue : t.vault.revealValue}
+                            onClick={() =>
+                              setRevealed(isRevealed ? null : it.alias)
+                            }
+                            title={
+                              isRevealed
+                                ? t.vault.hideValue
+                                : t.vault.revealValue
+                            }
+                            aria-label={
+                              isRevealed
+                                ? t.vault.hideValue
+                                : t.vault.revealValue
+                            }
                             className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
                           >
-                            {isRevealed ? <EyeOff className="w-3 h-3 text-muted-foreground" /> : <Eye className="w-3 h-3 text-muted-foreground" />}
+                            {isRevealed ? (
+                              <EyeOff className="w-3 h-3 text-muted-foreground" />
+                            ) : (
+                              <Eye className="w-3 h-3 text-muted-foreground" />
+                            )}
                           </button>
                         </>
                       )}
@@ -386,10 +472,22 @@ export default function PageVault() {
                   </div>
                   <div>{typeBadge(it.type, t)}</div>
                   <div>
-                    <span className="text-xs text-foreground">{it.algorithm}</span>
+                    <span className="text-xs text-foreground">
+                      {it.algorithm}
+                    </span>
                   </div>
-                  <div className="hidden lg:block text-xs text-foreground" title={it.created}>{it.created}</div>
-                  <div className="hidden xl:block text-xs text-foreground" title={it.lastUsed}>{it.lastUsed}</div>
+                  <div
+                    className="hidden lg:block text-xs text-foreground"
+                    title={it.created}
+                  >
+                    {it.created}
+                  </div>
+                  <div
+                    className="hidden xl:block text-xs text-foreground"
+                    title={it.lastUsed}
+                  >
+                    {it.lastUsed}
+                  </div>
                   <div>{expiryBadge(it.expiryDays, t)}</div>
                 </ListRow>
               );
@@ -411,24 +509,38 @@ export default function PageVault() {
       {/* Mobile stack */}
       <div className="md:hidden flex flex-col gap-3">
         {listQuery.isError && items.length === 0 ? (
-          <ListError onRetry={() => listQuery.refetch()} fetching={listQuery.isFetching} />
+          <ListError
+            onRetry={() => listQuery.refetch()}
+            fetching={listQuery.isFetching}
+          />
         ) : items.length === 0 ? (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">{t.vault.noItems}</div>
+          <div className="py-6 text-center text-[13px] text-muted-foreground">
+            {t.vault.noItems}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">{t.vault.noSearchResults}</div>
+          <div className="py-6 text-center text-[13px] text-muted-foreground">
+            {t.vault.noSearchResults}
+          </div>
         ) : (
-          paginatedData.map((it) => {
+          paginatedData.map(it => {
             const isRevealed = revealed === it.alias;
             return (
-              <div key={it.alias} className="bg-card rounded-xl p-3 shadow-sm border border-border">
+              <div
+                key={it.alias}
+                className="bg-card rounded-xl p-3 shadow-sm border border-border"
+              >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-1 min-w-0">
                     <Vault className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    <span className="text-xs font-bold text-primary truncate">{it.alias}</span>
+                    <span className="text-xs font-bold text-primary truncate">
+                      {it.alias}
+                    </span>
                   </div>
                   {typeBadge(it.type, t)}
                 </div>
-                <div className="text-xs text-foreground mb-1">{it.algorithm}</div>
+                <div className="text-xs text-foreground mb-1">
+                  {it.algorithm}
+                </div>
                 <div className="flex items-center gap-1 mb-2">
                   {it.serverManaged ? (
                     <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/80 truncate">
@@ -441,19 +553,34 @@ export default function PageVault() {
                         {isRevealed ? it.value : maskValue(it.value)}
                       </MonoText>
                       <button
-                        onClick={() => setRevealed(isRevealed ? null : it.alias)}
-                        title={isRevealed ? t.vault.hideValue : t.vault.revealValue}
-                        aria-label={isRevealed ? t.vault.hideValue : t.vault.revealValue}
+                        onClick={() =>
+                          setRevealed(isRevealed ? null : it.alias)
+                        }
+                        title={
+                          isRevealed ? t.vault.hideValue : t.vault.revealValue
+                        }
+                        aria-label={
+                          isRevealed ? t.vault.hideValue : t.vault.revealValue
+                        }
                         className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
                       >
-                        {isRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        {isRevealed ? (
+                          <EyeOff className="w-3 h-3" />
+                        ) : (
+                          <Eye className="w-3 h-3" />
+                        )}
                       </button>
                     </>
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   {expiryBadge(it.expiryDays, t)}
-                  <span className="text-[11px] text-muted-foreground" title={it.lastUsed}>{it.lastUsed}</span>
+                  <span
+                    className="text-[11px] text-muted-foreground"
+                    title={it.lastUsed}
+                  >
+                    {it.lastUsed}
+                  </span>
                 </div>
               </div>
             );

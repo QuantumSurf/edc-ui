@@ -8,12 +8,31 @@ import { useConnectorStore } from "@/stores/connectorStore";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import {
-  LayoutGrid, LayoutDashboard, Share2, ShieldCheck, Package, FileSignature,
-  Search, FileText, ArrowRightLeft, Key,
-  ChevronRight, ChevronLeft, ChevronDown, Bell,
-  Settings as SettingsIcon, LogOut,
-  Vault as VaultIcon, ScrollText, Boxes, BookMarked, Shapes,
-  Activity, Wrench, Network, Fingerprint,
+  LayoutGrid,
+  LayoutDashboard,
+  Share2,
+  ShieldCheck,
+  Package,
+  FileSignature,
+  Search,
+  FileText,
+  ArrowRightLeft,
+  Key,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Bell,
+  Settings as SettingsIcon,
+  LogOut,
+  Vault as VaultIcon,
+  ScrollText,
+  Boxes,
+  BookMarked,
+  Shapes,
+  Activity,
+  Wrench,
+  Network,
+  Fingerprint,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n";
@@ -53,7 +72,7 @@ const C = {
 
 function useNavGroups(): { build: () => NavGroup[] } {
   const { t } = useI18n();
-  const connector = useConnectorStore((s) => s.connector);
+  const connector = useConnectorStore(s => s.connector);
   const counts = useSidebarCounts(connector?.id ?? null);
 
   const fleetGroup: NavGroup = {
@@ -79,7 +98,11 @@ function useNavGroups(): { build: () => NavGroup[] } {
     Icon: Wrench,
     items: [
       { path: "/system/vault", label: t.nav.vault, Icon: VaultIcon },
-      { path: "/system/identity-hub", label: t.nav.identityHub, Icon: Fingerprint },
+      {
+        path: "/system/identity-hub",
+        label: t.nav.identityHub,
+        Icon: Fingerprint,
+      },
       { path: "/system/audit", label: t.nav.audit, Icon: ScrollText },
     ],
   };
@@ -89,16 +112,37 @@ function useNavGroups(): { build: () => NavGroup[] } {
       key: "ops",
       label: t.nav.groupOps,
       Icon: Activity,
-      items: [{ path: `/connectors/${id}/dashboard`, label: t.nav.dashboard, Icon: LayoutDashboard }],
+      items: [
+        {
+          path: `/connectors/${id}/dashboard`,
+          label: t.nav.dashboard,
+          Icon: LayoutDashboard,
+        },
+      ],
     },
     {
       key: "provide",
       label: t.nav.groupProvide,
       Icon: Share2,
       items: [
-        { path: `/connectors/${id}/assets`, label: t.nav.assets, Icon: Package, count: c?.assets },
-        { path: `/connectors/${id}/policy`, label: t.nav.policies, Icon: ShieldCheck, count: c?.policies },
-        { path: `/connectors/${id}/contract`, label: t.nav.offerings, Icon: FileSignature, count: c?.offerings },
+        {
+          path: `/connectors/${id}/assets`,
+          label: t.nav.assets,
+          Icon: Package,
+          count: c?.assets,
+        },
+        {
+          path: `/connectors/${id}/policy`,
+          label: t.nav.policies,
+          Icon: ShieldCheck,
+          count: c?.policies,
+        },
+        {
+          path: `/connectors/${id}/contract`,
+          label: t.nav.offerings,
+          Icon: FileSignature,
+          count: c?.offerings,
+        },
       ],
     },
     {
@@ -106,17 +150,41 @@ function useNavGroups(): { build: () => NavGroup[] } {
       label: t.nav.groupTransaction,
       Icon: ArrowRightLeft,
       items: [
-        { path: `/connectors/${id}/catalog`, label: t.nav.catalog, Icon: Search },
-        { path: `/connectors/${id}/negotiation`, label: t.nav.negotiations, Icon: FileText, count: c?.negotiations },
-        { path: `/connectors/${id}/transfer`, label: t.nav.transfers, Icon: ArrowRightLeft, count: c?.transfers },
-        { path: `/connectors/${id}/edr`, label: t.nav.edr, Icon: Key, count: c?.edrs },
+        {
+          path: `/connectors/${id}/catalog`,
+          label: t.nav.catalog,
+          Icon: Search,
+        },
+        {
+          path: `/connectors/${id}/negotiation`,
+          label: t.nav.negotiations,
+          Icon: FileText,
+          count: c?.negotiations,
+        },
+        {
+          path: `/connectors/${id}/transfer`,
+          label: t.nav.transfers,
+          Icon: ArrowRightLeft,
+          count: c?.transfers,
+        },
+        {
+          path: `/connectors/${id}/edr`,
+          label: t.nav.edr,
+          Icon: Key,
+          count: c?.edrs,
+        },
       ],
     },
   ];
 
   const build = (): NavGroup[] =>
     connector
-      ? [fleetGroup, ...connectorGroups(connector.id, counts), digitalTwinGroup, systemGroup]
+      ? [
+          fleetGroup,
+          ...connectorGroups(connector.id, counts),
+          digitalTwinGroup,
+          systemGroup,
+        ]
       : [fleetGroup, digitalTwinGroup, systemGroup];
 
   return { build };
@@ -134,13 +202,16 @@ export default function AppSidebar({
   const { logout } = useAuth();
   const { build } = useNavGroups();
   const unreadCount = useUnreadNotificationCount();
-  const openNotifications = useNotificationStore((s) => s.setPanelOpen);
+  const openNotifications = useNotificationStore(s => s.setPanelOpen);
 
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set()
+  );
   const toggleGroup = (key: string) =>
-    setCollapsedGroups((prev) => {
+    setCollapsedGroups(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
 
@@ -154,11 +225,24 @@ export default function AppSidebar({
   return (
     <aside className="w-60 shrink-0 flex flex-col h-screen sidebar-scroll overflow-x-hidden overflow-y-auto bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       {/* Brand */}
-      <div className="flex items-center py-4 gap-3 px-4 flex-shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <img src="/logo.svg" alt="Quantum-X" width="28" height="28" className="w-7 h-7 flex-shrink-0" />
+      <div
+        className="flex items-center py-4 gap-3 px-4 flex-shrink-0"
+        style={{ borderBottom: `1px solid ${C.border}` }}
+      >
+        <img
+          src="/logo.svg"
+          alt="Quantum-X"
+          width="28"
+          height="28"
+          className="w-7 h-7 flex-shrink-0"
+        />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-white leading-tight truncate">Quantum-X</p>
-          <p className="text-[11px] font-semibold leading-tight text-white truncate">{t.common.appName}</p>
+          <p className="text-sm font-semibold text-white leading-tight truncate">
+            Quantum-X
+          </p>
+          <p className="text-[11px] font-semibold leading-tight text-white truncate">
+            {t.common.appName}
+          </p>
         </div>
         {onCollapse && (
           <button
@@ -168,8 +252,14 @@ export default function AppSidebar({
             title={t.common.collapse}
             className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70"
             style={{ color: C.idle }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = C.idleBg; e.currentTarget.style.color = "white"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.idle; }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = C.idleBg;
+              e.currentTarget.style.color = "white";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = C.idle;
+            }}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -180,13 +270,24 @@ export default function AppSidebar({
       <ConnectorSelectorCard />
 
       {/* Nav Groups */}
-      <nav aria-label={t.nav.primary} className="flex-1 overflow-y-auto py-3 px-2">
+      <nav
+        aria-label={t.nav.primary}
+        className="flex-1 overflow-y-auto py-3 px-2"
+      >
         <div className="space-y-3">
           {groups.map((group, gi) => {
             const GroupIcon = group.Icon;
             const groupCollapsed = collapsedGroups.has(group.key);
             return (
-              <div key={group.key} className={cn(gi > 0 && "pt-3")} style={gi > 0 ? { borderTop: `1px solid ${C.borderSoft}` } : undefined}>
+              <div
+                key={group.key}
+                className={cn(gi > 0 && "pt-3")}
+                style={
+                  gi > 0
+                    ? { borderTop: `1px solid ${C.borderSoft}` }
+                    : undefined
+                }
+              >
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.key)}
@@ -197,12 +298,19 @@ export default function AppSidebar({
                 >
                   <GroupIcon size={14} style={{ color: C.groupIcon }} />
                   <span className="flex-1 text-left">{group.label}</span>
-                  {groupCollapsed
-                    ? <ChevronRight size={12} style={{ color: C.groupIcon }} />
-                    : <ChevronDown size={12} style={{ color: C.groupIcon }} />}
+                  {groupCollapsed ? (
+                    <ChevronRight size={12} style={{ color: C.groupIcon }} />
+                  ) : (
+                    <ChevronDown size={12} style={{ color: C.groupIcon }} />
+                  )}
                 </button>
-                <div id={`navgrp-${group.key}`} role="group" aria-label={group.label} className={cn("space-y-0.5", groupCollapsed && "hidden")}>
-                  {group.items.map((it) => (
+                <div
+                  id={`navgrp-${group.key}`}
+                  role="group"
+                  aria-label={group.label}
+                  className={cn("space-y-0.5", groupCollapsed && "hidden")}
+                >
+                  {group.items.map(it => (
                     <SidebarLink
                       key={it.path}
                       href={it.path}
@@ -221,9 +329,23 @@ export default function AppSidebar({
       </nav>
 
       {/* Bottom Links — 설정/알림/로그아웃 모두 동일 컴포넌트로 통일(아이콘 크기·자간 일치) */}
-      <div className="p-2 space-y-0.5" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-        <SidebarLink href="/settings" icon={SettingsIcon} label={t.nav.settings} active={location === "/settings"} onNavigate={onNavigate} />
-        <SidebarLink icon={Bell} label={t.nav.notifications} badge={unreadCount} onClick={() => openNotifications(true)} />
+      <div
+        className="p-2 space-y-0.5"
+        style={{ borderTop: `1px solid ${C.borderSoft}` }}
+      >
+        <SidebarLink
+          href="/settings"
+          icon={SettingsIcon}
+          label={t.nav.settings}
+          active={location === "/settings"}
+          onNavigate={onNavigate}
+        />
+        <SidebarLink
+          icon={Bell}
+          label={t.nav.notifications}
+          badge={unreadCount}
+          onClick={() => openNotifications(true)}
+        />
         <SidebarLink icon={LogOut} label={t.nav.signOut} onClick={logout} />
       </div>
     </aside>
@@ -235,7 +357,14 @@ export default function AppSidebar({
  * count: 자원 개수(앰버), badge: 안읽음 수(로즈). 셋 다 동일 마크업 → 자간/정렬 일치.
  */
 function SidebarLink({
-  href, icon: Icon, label, count, badge, active = false, onClick, onNavigate,
+  href,
+  icon: Icon,
+  label,
+  count,
+  badge,
+  active = false,
+  onClick,
+  onNavigate,
 }: {
   href?: string;
   icon: React.ElementType;
@@ -251,21 +380,40 @@ function SidebarLink({
   const className =
     "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150 text-left relative focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70";
   const style: React.CSSProperties = active
-    ? { background: C.activeBg, color: "white", fontWeight: 600, boxShadow: `inset 0 0 0 1px ${C.activeRing}` }
+    ? {
+        background: C.activeBg,
+        color: "white",
+        fontWeight: 600,
+        boxShadow: `inset 0 0 0 1px ${C.activeRing}`,
+      }
     : { color: C.idle };
   const onMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
-    if (!active) { e.currentTarget.style.background = C.idleBg; e.currentTarget.style.color = "white"; }
+    if (!active) {
+      e.currentTarget.style.background = C.idleBg;
+      e.currentTarget.style.color = "white";
+    }
   };
   const onMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
-    if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.idle; }
+    if (!active) {
+      e.currentTarget.style.background = "transparent";
+      e.currentTarget.style.color = C.idle;
+    }
   };
 
   const content = (
     <>
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r" style={{ background: C.activeAccent }} />
+        <span
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
+          style={{ background: C.activeAccent }}
+        />
       )}
-      <span style={{ color: active ? C.activeIcon : C.groupIcon, display: "inline-flex" }}>
+      <span
+        style={{
+          color: active ? C.activeIcon : C.groupIcon,
+          display: "inline-flex",
+        }}
+      >
         <Icon size={16} />
       </span>
       <span className="flex-1 truncate">{label}</span>
@@ -275,7 +423,11 @@ function SidebarLink({
           style={
             active
               ? { background: "oklch(1 0 0 / 0.15)", color: "white" }
-              : { background: "oklch(0.75 0.18 75 / 0.15)", color: "oklch(0.85 0.12 75)", border: "1px solid oklch(0.75 0.18 75 / 0.3)" }
+              : {
+                  background: "oklch(0.75 0.18 75 / 0.15)",
+                  color: "oklch(0.85 0.12 75)",
+                  border: "1px solid oklch(0.75 0.18 75 / 0.3)",
+                }
           }
         >
           {count}
@@ -289,7 +441,12 @@ function SidebarLink({
           {badge > 99 ? "99+" : badge}
         </span>
       )}
-      {active && <ChevronRight size={12} style={{ color: C.activeAccent, flexShrink: 0 }} />}
+      {active && (
+        <ChevronRight
+          size={12}
+          style={{ color: C.activeAccent, flexShrink: 0 }}
+        />
+      )}
     </>
   );
 

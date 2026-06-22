@@ -42,11 +42,23 @@ describe("i18n Translation System", () => {
 
   it("all section keys in en match ko structure", () => {
     const sections = [
-      "common", "nav", "fleet", "dashboard", "assets", "policies",
-      "offerings", "catalog", "negotiations", "transfers", "edr", "dcp", "infra", "addConnector",
+      "common",
+      "nav",
+      "fleet",
+      "dashboard",
+      "assets",
+      "policies",
+      "offerings",
+      "catalog",
+      "negotiations",
+      "transfers",
+      "edr",
+      "dcp",
+      "infra",
+      "addConnector",
     ] as const;
 
-    sections.forEach((section) => {
+    sections.forEach(section => {
       const koSection = ko[section];
       const enSection = en[section];
       const koKeys = Object.keys(koSection as Record<string, unknown>).sort();

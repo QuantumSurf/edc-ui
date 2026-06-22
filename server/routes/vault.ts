@@ -12,7 +12,12 @@
 //   - Key rotation is intentionally NOT exposed via UI; operators must use
 //     `vault write transit/keys/<name>/rotate` directly with audit logging.
 
-import { Router, type Request, type Response, type NextFunction } from "express";
+import {
+  Router,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import { requireRole } from "../middleware/auth.js";
 import { getVaultClient, getVaultUrl } from "../lib/platform.js";
 
@@ -25,14 +30,14 @@ const ALIAS_PREFIX_ALLOWLIST = [
   "dataplane-public-key",
   "sts-client-secret",
   "consumer-sts-client-secret",
-  "ih-apikey-",  // per-tenant IdentityHub API key (vault-referenced)
+  "ih-apikey-", // per-tenant IdentityHub API key (vault-referenced)
   // EDC-managed aliases — actual prefix varies by extension; cover both forms.
   "edc:",
   "edc-",
 ];
 
 function isAliasAllowed(alias: string): boolean {
-  return ALIAS_PREFIX_ALLOWLIST.some((p) => alias === p || alias.startsWith(p));
+  return ALIAS_PREFIX_ALLOWLIST.some(p => alias === p || alias.startsWith(p));
 }
 
 /* ─── GET /status ────────────────────────────────────────────── */
@@ -43,8 +48,11 @@ router.get(
     try {
       const vault = await getVaultClient();
       const [seal, health] = await Promise.all([
-        vault.get("/v1/sys/seal-status").then((r) => r.data),
-        vault.get("/v1/sys/health").then((r) => r.data).catch((e) => e.response?.data ?? {}),
+        vault.get("/v1/sys/seal-status").then(r => r.data),
+        vault
+          .get("/v1/sys/health")
+          .then(r => r.data)
+          .catch(e => e.response?.data ?? {}),
       ]);
       res.json({
         url: await getVaultUrl(),
@@ -100,7 +108,9 @@ router.get(
         return res.status(403).json({ error: "alias-not-allowed" });
       }
       const vault = await getVaultClient();
-      const r = await vault.get(`/v1/secret/metadata/${encodeURIComponent(alias)}`);
+      const r = await vault.get(
+        `/v1/secret/metadata/${encodeURIComponent(alias)}`
+      );
       const meta = r.data?.data ?? {};
       // Strip any value-like fields defensively
       res.json({
@@ -115,7 +125,11 @@ router.get(
         versions: meta.versions
           ? Object.entries(meta.versions).map(([v, info]) => ({
               version: Number(v),
-              ...(info as { created_time?: string; deletion_time?: string; destroyed?: boolean }),
+              ...(info as {
+                created_time?: string;
+                deletion_time?: string;
+                destroyed?: boolean;
+              }),
             }))
           : [],
       });

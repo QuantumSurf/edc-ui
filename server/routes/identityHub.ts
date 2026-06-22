@@ -1,7 +1,12 @@
 // KMX EDC — IdentityHub status monitoring (proxy)
 // Reads the global identity_hub_url setting and probes its /api/check/health.
 
-import { Router, type Request, type Response, type NextFunction } from "express";
+import {
+  Router,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import axios from "axios";
 import { getIdentityHubConfig } from "../lib/identityHubConfig.js";
 import { validateDspEndpoint } from "../middleware/validation.js";
@@ -37,85 +42,105 @@ function buildHealthUrl(baseUrl: string): string {
 }
 
 // GET /api/identity-hub/health — probe IdentityHub health
-router.get("/health", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { url: baseUrl } = await getIdentityHubConfig(req.user?.tenantId);
-    if (!baseUrl) {
-      const body: HealthResponse = {
-        status: "unconfigured",
-        baseUrl: "",
-        endpointUrl: "",
-        latencyMs: null,
-        checkedAt: new Date().toISOString(),
-        isSystemHealthy: null,
-        components: [],
-        httpStatus: null,
-        error: "identity_hub_url is not configured",
-      };
-      res.json(body);
-      return;
-    }
-
-    // SSRF 방어: 저장/환경값이 사설·내부·메타데이터 주소면 외부 요청을 보내지 않음.
-    const ssrfErr = validateDspEndpoint(baseUrl);
-    if (ssrfErr) {
-      res.json({
-        status: "down", baseUrl, endpointUrl: "", latencyMs: null,
-        checkedAt: new Date().toISOString(), isSystemHealthy: null,
-        components: [], httpStatus: null, error: `Rejected URL — ${ssrfErr}`,
-      } satisfies HealthResponse);
-      return;
-    }
-    const endpointUrl = buildHealthUrl(baseUrl);
-    const startedAt = Date.now();
+router.get(
+  "/health",
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { data, status } = await axios.get(endpointUrl, { timeout: TIMEOUT_MS, validateStatus: () => true });
-      const latencyMs = Date.now() - startedAt;
-      const isSystemHealthy = Boolean((data as { isSystemHealthy?: boolean })?.isSystemHealthy);
-      const components: ComponentResult[] = Array.isArray((data as { componentResults?: unknown })?.componentResults)
-        ? ((data as { componentResults: Array<Record<string, unknown>> }).componentResults).map((c) => ({
-            component: (c.component as string) ?? "",
-            isHealthy: Boolean(c.isHealthy),
-            failure: (c.failure as string) ?? null,
-          }))
-        : [];
-      let outStatus: HealthResponse["status"] = "down";
-      if (status >= 200 && status < 300) {
-        if (isSystemHealthy && components.every((c) => c.isHealthy)) outStatus = "up";
-        else if (components.some((c) => c.isHealthy)) outStatus = "warn";
-        else outStatus = "down";
+      const { url: baseUrl } = await getIdentityHubConfig(req.user?.tenantId);
+      if (!baseUrl) {
+        const body: HealthResponse = {
+          status: "unconfigured",
+          baseUrl: "",
+          endpointUrl: "",
+          latencyMs: null,
+          checkedAt: new Date().toISOString(),
+          isSystemHealthy: null,
+          components: [],
+          httpStatus: null,
+          error: "identity_hub_url is not configured",
+        };
+        res.json(body);
+        return;
       }
-      const body: HealthResponse = {
-        status: outStatus,
-        baseUrl,
-        endpointUrl,
-        latencyMs,
-        checkedAt: new Date().toISOString(),
-        isSystemHealthy: status >= 200 && status < 300 ? isSystemHealthy : null,
-        components,
-        httpStatus: status,
-        error: status >= 200 && status < 300 ? null : `http ${status}`,
-      };
-      res.json(body);
-    } catch (e) {
-      const latencyMs = Date.now() - startedAt;
-      const body: HealthResponse = {
-        status: "down",
-        baseUrl,
-        endpointUrl,
-        latencyMs,
-        checkedAt: new Date().toISOString(),
-        isSystemHealthy: false,
-        components: [],
-        httpStatus: null,
-        error: (e as Error).message,
-      };
-      res.json(body);
+
+      // SSRF 방어: 저장/환경값이 사설·내부·메타데이터 주소면 외부 요청을 보내지 않음.
+      const ssrfErr = validateDspEndpoint(baseUrl);
+      if (ssrfErr) {
+        res.json({
+          status: "down",
+          baseUrl,
+          endpointUrl: "",
+          latencyMs: null,
+          checkedAt: new Date().toISOString(),
+          isSystemHealthy: null,
+          components: [],
+          httpStatus: null,
+          error: `Rejected URL — ${ssrfErr}`,
+        } satisfies HealthResponse);
+        return;
+      }
+      const endpointUrl = buildHealthUrl(baseUrl);
+      const startedAt = Date.now();
+      try {
+        const { data, status } = await axios.get(endpointUrl, {
+          timeout: TIMEOUT_MS,
+          validateStatus: () => true,
+        });
+        const latencyMs = Date.now() - startedAt;
+        const isSystemHealthy = Boolean(
+          (data as { isSystemHealthy?: boolean })?.isSystemHealthy
+        );
+        const components: ComponentResult[] = Array.isArray(
+          (data as { componentResults?: unknown })?.componentResults
+        )
+          ? (
+              data as { componentResults: Array<Record<string, unknown>> }
+            ).componentResults.map(c => ({
+              component: (c.component as string) ?? "",
+              isHealthy: Boolean(c.isHealthy),
+              failure: (c.failure as string) ?? null,
+            }))
+          : [];
+        let outStatus: HealthResponse["status"] = "down";
+        if (status >= 200 && status < 300) {
+          if (isSystemHealthy && components.every(c => c.isHealthy))
+            outStatus = "up";
+          else if (components.some(c => c.isHealthy)) outStatus = "warn";
+          else outStatus = "down";
+        }
+        const body: HealthResponse = {
+          status: outStatus,
+          baseUrl,
+          endpointUrl,
+          latencyMs,
+          checkedAt: new Date().toISOString(),
+          isSystemHealthy:
+            status >= 200 && status < 300 ? isSystemHealthy : null,
+          components,
+          httpStatus: status,
+          error: status >= 200 && status < 300 ? null : `http ${status}`,
+        };
+        res.json(body);
+      } catch (e) {
+        const latencyMs = Date.now() - startedAt;
+        const body: HealthResponse = {
+          status: "down",
+          baseUrl,
+          endpointUrl,
+          latencyMs,
+          checkedAt: new Date().toISOString(),
+          isSystemHealthy: false,
+          components: [],
+          httpStatus: null,
+          error: (e as Error).message,
+        };
+        res.json(body);
+      }
+    } catch (error) {
+      next(error);
     }
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 /* ─── Participant's own identity info ────────────────────────── */
 
@@ -140,15 +165,26 @@ interface ParticipantResponse {
 function mapCredential(raw: unknown): CredentialSummary {
   const o = (raw ?? {}) as Record<string, unknown>;
   const vcWrap = (o.verifiableCredential ?? {}) as Record<string, unknown>;
-  const vc = (vcWrap.credential ?? o.credential ?? o) as Record<string, unknown>;
+  const vc = (vcWrap.credential ?? o.credential ?? o) as Record<
+    string,
+    unknown
+  >;
   const rawType = vc.type ?? (o as Record<string, unknown>).type;
-  const types: string[] = Array.isArray(rawType) ? rawType.map(String) : rawType ? [String(rawType)] : [];
+  const types: string[] = Array.isArray(rawType)
+    ? rawType.map(String)
+    : rawType
+      ? [String(rawType)]
+      : [];
   const issuer = vc.issuer;
   return {
     id: String(o.id ?? vc.id ?? ""),
-    type: types.filter((t) => t !== "VerifiableCredential").join(", ") || "VerifiableCredential",
+    type:
+      types.filter(t => t !== "VerifiableCredential").join(", ") ||
+      "VerifiableCredential",
     issuer: String(
-      issuer && typeof issuer === "object" ? (issuer as Record<string, unknown>).id ?? "" : issuer ?? "",
+      issuer && typeof issuer === "object"
+        ? ((issuer as Record<string, unknown>).id ?? "")
+        : (issuer ?? "")
     ),
     status: String(o.state ?? o.status ?? "—"),
   };
@@ -175,58 +211,68 @@ function toIdentityApiBase(url: string): string {
 
 // GET /api/identity-hub/participant — fetch the participant's own identity
 // info (DID + verifiable credentials) from the configured IdentityHub server.
-router.get("/participant", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const cfg = await getIdentityHubConfig(req.user?.tenantId);
-    const body: ParticipantResponse = {
-      configured: Boolean(cfg.url && cfg.participantId),
-      participantId: cfg.participantId,
-      baseUrl: cfg.url,
-      did: cfg.participantId.startsWith("did:") ? cfg.participantId : null,
-      credentials: [],
-      credentialError: null,
-      checkedAt: new Date().toISOString(),
-    };
-    if (!body.configured) {
-      res.json(body);
-      return;
-    }
-    // SSRF 방어: 구성된 URL이 사설·내부·메타데이터 주소면 외부 요청을 보내지 않음.
-    const ssrfErr = validateDspEndpoint(cfg.url);
-    if (ssrfErr) {
-      body.credentialError = `Rejected URL — ${ssrfErr}`;
-      res.json(body);
-      return;
-    }
-    // Tractus-X IdentityHub Identity Management API (port 8182). Credentials are
-    // listed via GET /v1alpha/participants/{participantContextId}/credentials.
-    // EDC IdentityHub의 participant context id는 participantId의 base64url 인코딩이며,
-    // 인증은 X-Api-Key 헤더(해당 참가자의 API 토큰)로 한다.
-    const base = toIdentityApiBase(cfg.url);
-    const idPath = Buffer.from(cfg.participantId).toString("base64url");
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (cfg.apiKey) headers["x-api-key"] = cfg.apiKey;
+router.get(
+  "/participant",
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { data, status } = await axios.get(
-        `${base}/api/identity/v1alpha/participants/${idPath}/credentials`,
-        { headers, timeout: TIMEOUT_MS, validateStatus: () => true },
-      );
-      if (status >= 200 && status < 300 && Array.isArray(data)) {
-        body.credentials = data.map(mapCredential);
-      } else {
-        // IdentityHub의 오류 본문을 함께 노출 → 401(API 키 불일치) vs 403/404(participant 컨텍스트 ID 경로) 구분에 도움.
-        let detail = "";
-        try { detail = typeof data === "string" ? data : JSON.stringify(data); } catch { /* ignore */ }
-        if (detail === "{}" || detail === "[]" || detail === "null") detail = "";
-        body.credentialError = `http ${status}${detail ? ` — ${detail.slice(0, 300)}` : ""}`;
+      const cfg = await getIdentityHubConfig(req.user?.tenantId);
+      const body: ParticipantResponse = {
+        configured: Boolean(cfg.url && cfg.participantId),
+        participantId: cfg.participantId,
+        baseUrl: cfg.url,
+        did: cfg.participantId.startsWith("did:") ? cfg.participantId : null,
+        credentials: [],
+        credentialError: null,
+        checkedAt: new Date().toISOString(),
+      };
+      if (!body.configured) {
+        res.json(body);
+        return;
       }
-    } catch (e) {
-      body.credentialError = (e as Error).message;
+      // SSRF 방어: 구성된 URL이 사설·내부·메타데이터 주소면 외부 요청을 보내지 않음.
+      const ssrfErr = validateDspEndpoint(cfg.url);
+      if (ssrfErr) {
+        body.credentialError = `Rejected URL — ${ssrfErr}`;
+        res.json(body);
+        return;
+      }
+      // Tractus-X IdentityHub Identity Management API (port 8182). Credentials are
+      // listed via GET /v1alpha/participants/{participantContextId}/credentials.
+      // EDC IdentityHub의 participant context id는 participantId의 base64url 인코딩이며,
+      // 인증은 X-Api-Key 헤더(해당 참가자의 API 토큰)로 한다.
+      const base = toIdentityApiBase(cfg.url);
+      const idPath = Buffer.from(cfg.participantId).toString("base64url");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (cfg.apiKey) headers["x-api-key"] = cfg.apiKey;
+      try {
+        const { data, status } = await axios.get(
+          `${base}/api/identity/v1alpha/participants/${idPath}/credentials`,
+          { headers, timeout: TIMEOUT_MS, validateStatus: () => true }
+        );
+        if (status >= 200 && status < 300 && Array.isArray(data)) {
+          body.credentials = data.map(mapCredential);
+        } else {
+          // IdentityHub의 오류 본문을 함께 노출 → 401(API 키 불일치) vs 403/404(participant 컨텍스트 ID 경로) 구분에 도움.
+          let detail = "";
+          try {
+            detail = typeof data === "string" ? data : JSON.stringify(data);
+          } catch {
+            /* ignore */
+          }
+          if (detail === "{}" || detail === "[]" || detail === "null")
+            detail = "";
+          body.credentialError = `http ${status}${detail ? ` — ${detail.slice(0, 300)}` : ""}`;
+        }
+      } catch (e) {
+        body.credentialError = (e as Error).message;
+      }
+      res.json(body);
+    } catch (error) {
+      next(error);
     }
-    res.json(body);
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 export default router;

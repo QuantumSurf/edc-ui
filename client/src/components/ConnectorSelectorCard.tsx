@@ -26,12 +26,14 @@ interface ConnectorSelectorCardProps {
   collapsed?: boolean;
 }
 
-export default function ConnectorSelectorCard({ collapsed }: ConnectorSelectorCardProps) {
+export default function ConnectorSelectorCard({
+  collapsed,
+}: ConnectorSelectorCardProps) {
   const [, navigate] = useLocation();
-  const connector = useConnectorStore((s) => s.connector);
-  const selectConnector = useConnectorStore((s) => s.selectConnector);
-  const setNavigating = useConnectorStore((s) => s.setNavigating);
-  const setDrawerOpen = useConnectorStore((s) => s.setDrawerOpen);
+  const connector = useConnectorStore(s => s.connector);
+  const selectConnector = useConnectorStore(s => s.selectConnector);
+  const setNavigating = useConnectorStore(s => s.setNavigating);
+  const setDrawerOpen = useConnectorStore(s => s.setDrawerOpen);
   const { t } = useI18n();
 
   const { data: connectors = [] } = useQuery({
@@ -56,7 +58,12 @@ export default function ConnectorSelectorCard({ collapsed }: ConnectorSelectorCa
   };
 
   const dotCls = STATUS_DOT_CLS[connector.status] ?? "bg-rose-400";
-  const statusLabel = connector.status === "up" ? t.fleet.healthy : connector.status === "warn" ? t.fleet.warning : t.fleet.down;
+  const statusLabel =
+    connector.status === "up"
+      ? t.fleet.healthy
+      : connector.status === "warn"
+        ? t.fleet.warning
+        : t.fleet.down;
 
   return (
     <div className={cn("px-2 pt-3", collapsed && "px-1")}>
@@ -64,14 +71,21 @@ export default function ConnectorSelectorCard({ collapsed }: ConnectorSelectorCa
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            title={collapsed ? `${connector.name} (${connector.bpn}) — ${statusLabel}` : `${statusLabel}`}
+            title={
+              collapsed
+                ? `${connector.name} (${connector.bpn}) — ${statusLabel}`
+                : `${statusLabel}`
+            }
             aria-label={`${connector.name} — ${statusLabel}`}
             className={cn(
               "w-full flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-left",
               collapsed ? "justify-center p-2" : "px-3 py-2"
             )}
           >
-            <span aria-hidden="true" className={cn("w-2 h-2 rounded-full flex-shrink-0", dotCls)} />
+            <span
+              aria-hidden="true"
+              className={cn("w-2 h-2 rounded-full flex-shrink-0", dotCls)}
+            />
             <span className="sr-only">{statusLabel}</span>
             {!collapsed && (
               <>
@@ -93,7 +107,7 @@ export default function ConnectorSelectorCard({ collapsed }: ConnectorSelectorCa
           <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
             {t.nav.fleet}
           </DropdownMenuLabel>
-          {connectors.map((c) => (
+          {connectors.map(c => (
             <DropdownMenuItem
               key={c.id}
               onSelect={() => switchTo(c)}
@@ -102,15 +116,27 @@ export default function ConnectorSelectorCard({ collapsed }: ConnectorSelectorCa
                 c.id === connector.id && "bg-accent/60"
               )}
             >
-              <span className={cn("w-2 h-2 rounded-full flex-shrink-0", STATUS_DOT_CLS[c.status])} />
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full flex-shrink-0",
+                  STATUS_DOT_CLS[c.status]
+                )}
+              />
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold truncate">{c.name}</div>
-                <div className="mono text-[11px] text-muted-foreground truncate">{c.bpn}</div>
+                <div className="text-[13px] font-semibold truncate">
+                  {c.name}
+                </div>
+                <div className="mono text-[11px] text-muted-foreground truncate">
+                  {c.bpn}
+                </div>
               </div>
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={goFleet} className="flex items-center gap-2 py-1.5">
+          <DropdownMenuItem
+            onSelect={goFleet}
+            className="flex items-center gap-2 py-1.5"
+          >
             <LayoutGrid className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-[13px]">{t.nav.fleetSwitch}</span>
           </DropdownMenuItem>

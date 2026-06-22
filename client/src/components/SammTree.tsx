@@ -17,29 +17,43 @@ function Row({ node, depth }: { node: SammNode; depth: number }) {
       >
         {hasChildren ? (
           <button
-            onClick={() => setOpen((o) => !o)}
+            onClick={() => setOpen(o => !o)}
             className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
             aria-label={open ? t.common.collapse : t.common.expand}
           >
-            {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {open ? (
+              <ChevronDown className="w-3 h-3" />
+            ) : (
+              <ChevronRight className="w-3 h-3" />
+            )}
           </button>
         ) : (
           <span className="w-3 flex-shrink-0" />
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-semibold text-foreground">{node.name}</span>
+            <span className="text-xs font-semibold text-foreground">
+              {node.name}
+            </span>
             {node.optional && <Badge variant="gray">optional</Badge>}
-            {node.collection && <Badge variant="purple">{node.collection}</Badge>}
+            {node.collection && (
+              <Badge variant="purple">{node.collection}</Badge>
+            )}
             {node.characteristic && (
-              <span className="text-[11px] text-muted-foreground">{node.characteristic}</span>
+              <span className="text-[11px] text-muted-foreground">
+                {node.characteristic}
+              </span>
             )}
             {node.dataType && (
-              <span className="text-[11px] text-muted-foreground/70">: {node.dataType}</span>
+              <span className="text-[11px] text-muted-foreground/70">
+                : {node.dataType}
+              </span>
             )}
           </div>
           {node.preferredName && (
-            <div className="text-[11px] text-muted-foreground">{node.preferredName}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {node.preferredName}
+            </div>
           )}
           {node.enumValues?.length ? (
             <div className="text-[10px] text-muted-foreground break-all">
@@ -48,9 +62,11 @@ function Row({ node, depth }: { node: SammNode; depth: number }) {
           ) : null}
         </div>
       </div>
-      {hasChildren && open && node.children!.map((c, i) => (
-        <Row key={`${c.name}-${i}`} node={c} depth={depth + 1} />
-      ))}
+      {hasChildren &&
+        open &&
+        node.children!.map((c, i) => (
+          <Row key={`${c.name}-${i}`} node={c} depth={depth + 1} />
+        ))}
     </div>
   );
 }
@@ -60,16 +76,24 @@ export function SammTree({ aspect }: { aspect: SammAspect }) {
     <div className="text-xs">
       <div className="flex items-center gap-1.5 mb-2">
         <Layers className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
-        <span className="text-[13px] font-semibold text-foreground break-all">{aspect.name}</span>
+        <span className="text-[13px] font-semibold text-foreground break-all">
+          {aspect.name}
+        </span>
         {aspect.preferredName && (
-          <span className="text-[11px] text-muted-foreground">{aspect.preferredName}</span>
+          <span className="text-[11px] text-muted-foreground">
+            {aspect.preferredName}
+          </span>
         )}
       </div>
       <div className="rounded-lg border border-border bg-muted/20 p-2 max-h-[40vh] overflow-auto">
         {aspect.children?.length ? (
-          aspect.children.map((c, i) => <Row key={`${c.name}-${i}`} node={c} depth={0} />)
+          aspect.children.map((c, i) => (
+            <Row key={`${c.name}-${i}`} node={c} depth={0} />
+          ))
         ) : (
-          <div className="py-2 text-center text-[11px] text-muted-foreground italic">—</div>
+          <div className="py-2 text-center text-[11px] text-muted-foreground italic">
+            —
+          </div>
         )}
       </div>
     </div>

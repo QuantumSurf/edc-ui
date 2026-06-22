@@ -11,7 +11,11 @@ import { getConnector } from "../lib/connectorRegistry.js";
 // NOT be treated as a connector id.
 const RESERVED_IDS = new Set(["test-connection"]);
 
-export async function requireConnectorOwnership(req: Request, res: Response, next: NextFunction) {
+export async function requireConnectorOwnership(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const id = req.params.id;
     if (!id || RESERVED_IDS.has(id)) return next();

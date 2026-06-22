@@ -49,11 +49,15 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-display: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-body: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-sans:
+    "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --font-display:
+    "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --font-body:
+    "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
   /* 전체 맑은 고딕 단일화 — 한글/영문/숫자/코드 혼용 없이 한 서체. 식별자/코드는 크기·색·tnum 으로만 구분 (사용자 결정) */
-  --font-mono: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-mono:
+    "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
 }
 
 :root {
@@ -97,24 +101,29 @@
   /* Charts — blue palette */
   --chart-1: oklch(0.55 0.22 240);
   --chart-2: oklch(0.65 0.18 220);
-  --chart-3: oklch(0.45 0.20 255);
+  --chart-3: oklch(0.45 0.2 255);
   --chart-4: oklch(0.72 0.14 200);
   --chart-5: oklch(0.38 0.18 265);
 
   /* Sidebar: fl-aggregator dark navy tone (oklch 240) */
-  --sidebar: oklch(0.20 0.06 240);
+  --sidebar: oklch(0.2 0.06 240);
   --sidebar-foreground: oklch(0.92 0.015 240);
-  --sidebar-primary: oklch(0.60 0.20 240);
+  --sidebar-primary: oklch(0.6 0.2 240);
   --sidebar-primary-foreground: oklch(0.99 0.005 240);
-  --sidebar-accent: oklch(0.36 0.10 240);
+  --sidebar-accent: oklch(0.36 0.1 240);
   --sidebar-accent-foreground: oklch(0.95 0.01 240);
-  --sidebar-border: oklch(0.38 0.10 240 / 0.6);
-  --sidebar-ring: oklch(0.60 0.20 240);
+  --sidebar-border: oklch(0.38 0.1 240 / 0.6);
+  --sidebar-ring: oklch(0.6 0.2 240);
 
   /* Shell helpers retained for existing layout components */
   --shell-bg: var(--background);
   --topbar-bg: var(--card);
-  --sidebar-gradient: linear-gradient(180deg, oklch(0.30 0.09 240) 0%, oklch(0.26 0.09 240) 60%, oklch(0.30 0.09 240) 100%);
+  --sidebar-gradient: linear-gradient(
+    180deg,
+    oklch(0.3 0.09 240) 0%,
+    oklch(0.26 0.09 240) 60%,
+    oklch(0.3 0.09 240) 100%
+  );
 }
 
 /* 다크 모드 — AAS-Service-Hub 딥네이비 팔레트 참고, 블루(hue 240) 정체성 유지.
@@ -132,9 +141,9 @@
   --secondary-foreground: oklch(0.86 0.02 240);
 
   --muted: oklch(0.25 0.03 240);
-  --muted-foreground: oklch(0.70 0.03 240);
+  --muted-foreground: oklch(0.7 0.03 240);
 
-  --accent: oklch(0.30 0.045 240);
+  --accent: oklch(0.3 0.045 240);
   --accent-foreground: oklch(0.95 0.012 240);
 
   --destructive: oklch(0.62 0.22 25);
@@ -142,9 +151,9 @@
 
   --border: oklch(0.36 0.04 240 / 0.65);
   --input: oklch(0.36 0.04 240 / 0.8);
-  --ring: oklch(0.62 0.20 240);
+  --ring: oklch(0.62 0.2 240);
 
-  --primary: oklch(0.62 0.20 240);
+  --primary: oklch(0.62 0.2 240);
   --primary-foreground: oklch(0.99 0.005 240);
 }
 
@@ -155,16 +164,31 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family:
+      "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
     font-weight: 600;
   }
-  .mono, code, pre, .font-mono {
-    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
-    font-feature-settings: "tnum" 1, "ss01" 1, "calt" 0;
+  .mono,
+  code,
+  pre,
+  .font-mono {
+    font-family:
+      "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
+    font-feature-settings:
+      "tnum" 1,
+      "ss01" 1,
+      "calt" 0;
     font-weight: 400;
   }
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     font-family: inherit;
     font-weight: 400;
   }
@@ -194,19 +218,30 @@
     min-width: 0;
   }
   @media (min-width: 640px) {
-    .container { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
   }
   @media (min-width: 1024px) {
-    .container { padding-left: 2rem; padding-right: 2rem; max-width: 1280px; }
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 1280px;
+    }
   }
 
   /* ID/해시/DID 표기 — 맑은 고딕, tnum(고정폭 숫자)으로 식별자 가독 유지 */
   .mono {
-    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    font-family:
+      "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
     font-size: 0.8125rem;
     letter-spacing: 0;
     font-weight: 400;
-    font-feature-settings: "tnum" 1, "ss01" 1, "calt" 0;
+    font-feature-settings:
+      "tnum" 1,
+      "ss01" 1,
+      "calt" 0;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -216,14 +251,19 @@
     letter-spacing: -0.02em;
   }
 
-
   /* Page enter animation */
   .page-enter {
     animation: page-enter 0.15s ease-out;
   }
   @keyframes page-enter {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Navigation progress bar */
@@ -231,9 +271,15 @@
     animation: nav-progress 1.6s ease-in-out infinite;
   }
   @keyframes nav-progress {
-    0%   { transform: translateX(-100%); }
-    50%  { transform: translateX(0%); }
-    100% { transform: translateX(100%); }
+    0% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
   }
 
   /* Status pulse animation */
@@ -241,8 +287,13 @@
     animation: status-pulse 2s ease-in-out infinite;
   }
   @keyframes status-pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.5; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
   }
 
   /* Table row hover */
@@ -288,8 +339,12 @@
 }
 
 /* Sidebar scrollbar (dark sidebar — keep semi-transparent thumbs) */
-.sidebar-scroll::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 15%); }
-.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 25%); }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 15%);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: oklch(1 0 0 / 25%);
+}
 
 /* 동작 최소화 선호(prefers-reduced-motion) — 진입/진행바/펄스 애니메이션 정지(의미는 정적 색/배지로 유지) */
 @media (prefers-reduced-motion: reduce) {
@@ -300,14 +355,24 @@
   .animate-pulse {
     animation: none !important;
   }
-  * { scroll-behavior: auto !important; }
+  * {
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Glow effects for status indicators */
-.glow-emerald { box-shadow: 0 0 8px oklch(0.72 0.17 160 / 0.3); }
-.glow-cyan    { box-shadow: 0 0 8px oklch(0.75 0.15 195 / 0.3); }
-.glow-amber   { box-shadow: 0 0 8px oklch(0.78 0.15 85 / 0.3); }
-.glow-red     { box-shadow: 0 0 8px oklch(0.60 0.22 25 / 0.3); }
+.glow-emerald {
+  box-shadow: 0 0 8px oklch(0.72 0.17 160 / 0.3);
+}
+.glow-cyan {
+  box-shadow: 0 0 8px oklch(0.75 0.15 195 / 0.3);
+}
+.glow-amber {
+  box-shadow: 0 0 8px oklch(0.78 0.15 85 / 0.3);
+}
+.glow-red {
+  box-shadow: 0 0 8px oklch(0.6 0.22 25 / 0.3);
+}
 
 /* 접근성: 모션 최소화 선호 시 애니메이션·전환을 무력화 (WCAG 2.3.3) */
 @media (prefers-reduced-motion: reduce) {

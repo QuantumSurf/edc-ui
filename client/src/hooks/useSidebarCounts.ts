@@ -3,8 +3,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  fetchAssets, fetchPolicies, fetchOfferings,
-  fetchNegotiations, fetchTransfers, fetchEDRs,
+  fetchAssets,
+  fetchPolicies,
+  fetchOfferings,
+  fetchNegotiations,
+  fetchTransfers,
+  fetchEDRs,
 } from "@/services";
 
 export interface SidebarCounts {

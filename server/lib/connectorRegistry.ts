@@ -39,24 +39,36 @@ function rowToEntry(row: Record<string, unknown>): ConnectorEntry {
 }
 
 /** List connectors for a tenant. Pass undefined to list all (internal/migration use only). */
-export async function listConnectors(tenantId?: string): Promise<ConnectorEntry[]> {
+export async function listConnectors(
+  tenantId?: string
+): Promise<ConnectorEntry[]> {
   const { rows } = tenantId
-    ? await getPool().query("SELECT * FROM connectors WHERE tenant_id = $1 ORDER BY created_at", [tenantId])
+    ? await getPool().query(
+        "SELECT * FROM connectors WHERE tenant_id = $1 ORDER BY created_at",
+        [tenantId]
+      )
     : await getPool().query("SELECT * FROM connectors ORDER BY created_at");
   return rows.map(rowToEntry);
 }
 
-export async function getConnector(id: string): Promise<ConnectorEntry | undefined> {
-  const { rows } = await getPool().query("SELECT * FROM connectors WHERE id = $1", [id]);
+export async function getConnector(
+  id: string
+): Promise<ConnectorEntry | undefined> {
+  const { rows } = await getPool().query(
+    "SELECT * FROM connectors WHERE id = $1",
+    [id]
+  );
   return rows.length > 0 ? rowToEntry(rows[0]) : undefined;
 }
 
 export async function registerConnector(
   entry: Omit<ConnectorEntry, "id" | "createdAt" | "tenantId">,
-  tenantId: string,
+  tenantId: string
 ): Promise<ConnectorEntry> {
   // Generate ID: env-NN (next sequence number)
-  const { rows: countRows } = await getPool().query("SELECT COUNT(*)::int AS cnt FROM connectors");
+  const { rows: countRows } = await getPool().query(
+    "SELECT COUNT(*)::int AS cnt FROM connectors"
+  );
   const id = `${entry.env.toLowerCase()}-${String(countRows[0].cnt + 1).padStart(2, "0")}`;
 
   const sql = `
@@ -66,9 +78,18 @@ export async function registerConnector(
   `;
 
   const { rows } = await getPool().query(sql, [
-    id, entry.name, entry.bpn, entry.managementUrl, entry.dspEndpoint,
-    entry.apiKey, entry.env, entry.roles, entry.dcpVersion,
-    entry.did ?? null, entry.identityHubUrl ?? null, tenantId,
+    id,
+    entry.name,
+    entry.bpn,
+    entry.managementUrl,
+    entry.dspEndpoint,
+    entry.apiKey,
+    entry.env,
+    entry.roles,
+    entry.dcpVersion,
+    entry.did ?? null,
+    entry.identityHubUrl ?? null,
+    tenantId,
   ]);
 
   return rowToEntry(rows[0]);
@@ -76,13 +97,19 @@ export async function registerConnector(
 
 export async function updateConnector(
   id: string,
-  updates: Partial<Omit<ConnectorEntry, "id" | "createdAt">>,
+  updates: Partial<Omit<ConnectorEntry, "id" | "createdAt">>
 ): Promise<ConnectorEntry | undefined> {
   // Build dynamic SET clause from provided fields
   const fieldMap: Record<string, string> = {
-    name: "name", bpn: "bpn", managementUrl: "management_url",
-    dspEndpoint: "dsp_endpoint", apiKey: "api_key", env: "env",
-    roles: "roles", dcpVersion: "dcp_version", did: "did",
+    name: "name",
+    bpn: "bpn",
+    managementUrl: "management_url",
+    dspEndpoint: "dsp_endpoint",
+    apiKey: "api_key",
+    env: "env",
+    roles: "roles",
+    dcpVersion: "dcp_version",
+    did: "did",
     identityHubUrl: "identity_hub_url",
   };
 
@@ -96,7 +123,9 @@ export async function updateConnector(
       if (val === undefined) continue;
       setClauses.push(`${col} = $${idx}`);
       // Store empty string as null for optional fields like "did"
-      values.push((val === "" && (col === "did" || col === "identity_hub_url")) ? null : val);
+      values.push(
+        val === "" && (col === "did" || col === "identity_hub_url") ? null : val
+      );
       idx++;
     }
   }
@@ -110,6 +139,9 @@ export async function updateConnector(
 }
 
 export async function deleteConnector(id: string): Promise<boolean> {
-  const { rowCount } = await getPool().query("DELETE FROM connectors WHERE id = $1", [id]);
+  const { rowCount } = await getPool().query(
+    "DELETE FROM connectors WHERE id = $1",
+    [id]
+  );
   return (rowCount ?? 0) > 0;
 }

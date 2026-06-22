@@ -88,7 +88,7 @@ export interface EDR {
   tpId: string;
   asset: string;
   prov: string;
-  left: number;   // -1: expiresAt 없음(활성), 0: 만료, >0: 남은 분
+  left: number; // -1: expiresAt 없음(활성), 0: 만료, >0: 남은 분
   total: number;
   endpoint?: string;
   authCode?: string;
@@ -168,32 +168,60 @@ export interface CatalogOffer {
   providerDid: string;
 }
 
-export type NegotiationStateName = "INITIAL" | "REQUESTING" | "OFFERED" | "ACCEPTED" | "AGREED" | "VERIFIED" | "FINALIZED" | "TERMINATED";
-export type TransferStateName = "REQUESTING" | "STARTED" | "SUSPENDED" | "COMPLETED" | "TERMINATED";
+export type NegotiationStateName =
+  | "INITIAL"
+  | "REQUESTING"
+  | "OFFERED"
+  | "ACCEPTED"
+  | "AGREED"
+  | "VERIFIED"
+  | "FINALIZED"
+  | "TERMINATED";
+export type TransferStateName =
+  | "REQUESTING"
+  | "STARTED"
+  | "SUSPENDED"
+  | "COMPLETED"
+  | "TERMINATED";
 
-export const NEG_STATE_MAP: Record<number, { name: NegotiationStateName; label: string; variant: string }> = {
-  100:  { name: "INITIAL",    label: "초기화",                variant: "gray"   },
-  200:  { name: "REQUESTING", label: "요청 전송 중",          variant: "blue"   },
-  400:  { name: "OFFERED",    label: "프로바이더 오퍼 전달",   variant: "teal"   },
-  600:  { name: "ACCEPTED",   label: "소비자 수락",            variant: "teal"   },
-  800:  { name: "AGREED",     label: "프로바이더 합의",        variant: "teal"   },
-  1000: { name: "VERIFIED",   label: "소비자 검증 완료",       variant: "teal"   },
-  1200: { name: "FINALIZED",  label: "계약 성립",              variant: "green"  },
-  1300: { name: "TERMINATED", label: "협상 종료",              variant: "red"    },
+export const NEG_STATE_MAP: Record<
+  number,
+  { name: NegotiationStateName; label: string; variant: string }
+> = {
+  100: { name: "INITIAL", label: "초기화", variant: "gray" },
+  200: { name: "REQUESTING", label: "요청 전송 중", variant: "blue" },
+  400: { name: "OFFERED", label: "프로바이더 오퍼 전달", variant: "teal" },
+  600: { name: "ACCEPTED", label: "소비자 수락", variant: "teal" },
+  800: { name: "AGREED", label: "프로바이더 합의", variant: "teal" },
+  1000: { name: "VERIFIED", label: "소비자 검증 완료", variant: "teal" },
+  1200: { name: "FINALIZED", label: "계약 성립", variant: "green" },
+  1300: { name: "TERMINATED", label: "협상 종료", variant: "red" },
 };
 
-export const TRANSFER_STATE_MAP: Record<number, { name: TransferStateName; label: string; variant: string }> = {
-  200:  { name: "REQUESTING", label: "요청 전송",      variant: "blue"  },
-  400:  { name: "STARTED",    label: "전송 진행 중",   variant: "blue"  },
-  800:  { name: "SUSPENDED",  label: "일시 중단",      variant: "amber" },
-  1200: { name: "COMPLETED",  label: "전송 완료",      variant: "green" },
-  1300: { name: "TERMINATED", label: "전송 실패",      variant: "red"   },
+export const TRANSFER_STATE_MAP: Record<
+  number,
+  { name: TransferStateName; label: string; variant: string }
+> = {
+  200: { name: "REQUESTING", label: "요청 전송", variant: "blue" },
+  400: { name: "STARTED", label: "전송 진행 중", variant: "blue" },
+  800: { name: "SUSPENDED", label: "일시 중단", variant: "amber" },
+  1200: { name: "COMPLETED", label: "전송 완료", variant: "green" },
+  1300: { name: "TERMINATED", label: "전송 실패", variant: "red" },
 };
 
-export const SINK_TYPES = ["HttpProxy", "HttpData", "AmazonS3", "AzureStorage"] as const;
-export type SinkType = typeof SINK_TYPES[number];
+export const SINK_TYPES = [
+  "HttpProxy",
+  "HttpData",
+  "AmazonS3",
+  "AzureStorage",
+] as const;
+export type SinkType = (typeof SINK_TYPES)[number];
 
-export type SemanticModelStatus = "DRAFT" | "RELEASED" | "STANDARDIZED" | "DEPRECATED";
+export type SemanticModelStatus =
+  | "DRAFT"
+  | "RELEASED"
+  | "STANDARDIZED"
+  | "DEPRECATED";
 
 export interface SemanticModelSummary {
   urn: string;
@@ -208,6 +236,7 @@ export interface SemanticModelSummary {
   updatedAt: string;
 }
 
-export interface SemanticModel extends Omit<SemanticModelSummary, "contentBytes"> {
+export interface SemanticModel
+  extends Omit<SemanticModelSummary, "contentBytes"> {
   content: string;
 }

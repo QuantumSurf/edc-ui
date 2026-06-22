@@ -2,7 +2,12 @@
 // Reusable page navigation for list views
 
 import { useI18n } from "@/i18n";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PaginationProps {
@@ -14,7 +19,12 @@ interface PaginationProps {
 
 export const DEFAULT_PAGE_SIZE = 20;
 
-export function Pagination({ total, page, pageSize = DEFAULT_PAGE_SIZE, onPageChange }: PaginationProps) {
+export function Pagination({
+  total,
+  page,
+  pageSize = DEFAULT_PAGE_SIZE,
+  onPageChange,
+}: PaginationProps) {
   const { t } = useI18n();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (total <= pageSize) return null;
@@ -29,12 +39,18 @@ export function Pagination({ total, page, pageSize = DEFAULT_PAGE_SIZE, onPageCh
   } else {
     pages.push(1);
     if (page > 3) pages.push("...");
-    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    for (
+      let i = Math.max(2, page - 1);
+      i <= Math.min(totalPages - 1, page + 1);
+      i++
+    )
+      pages.push(i);
     if (page < totalPages - 2) pages.push("...");
     pages.push(totalPages);
   }
 
-  const btnClass = "w-7 h-7 flex items-center justify-center rounded-md text-[12px] transition-colors";
+  const btnClass =
+    "w-7 h-7 flex items-center justify-center rounded-md text-[12px] transition-colors";
 
   return (
     <div className="flex items-center justify-between pt-3 border-t border-border mt-2">
@@ -46,21 +62,32 @@ export function Pagination({ total, page, pageSize = DEFAULT_PAGE_SIZE, onPageCh
         <button
           onClick={() => onPageChange(1)}
           disabled={page === 1}
-          className={cn(btnClass, "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed")}
+          className={cn(
+            btnClass,
+            "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+          )}
         >
           <ChevronsLeft className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className={cn(btnClass, "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed")}
+          className={cn(
+            btnClass,
+            "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+          )}
         >
           <ChevronLeft className="w-3.5 h-3.5" />
         </button>
 
         {pages.map((p, i) =>
           p === "..." ? (
-            <span key={`dots-${i}`} className="w-7 text-center text-[12px] text-muted-foreground/50">...</span>
+            <span
+              key={`dots-${i}`}
+              className="w-7 text-center text-[12px] text-muted-foreground/50"
+            >
+              ...
+            </span>
           ) : (
             <button
               key={p}
@@ -80,14 +107,20 @@ export function Pagination({ total, page, pageSize = DEFAULT_PAGE_SIZE, onPageCh
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className={cn(btnClass, "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed")}
+          className={cn(
+            btnClass,
+            "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+          )}
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => onPageChange(totalPages)}
           disabled={page === totalPages}
-          className={cn(btnClass, "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed")}
+          className={cn(
+            btnClass,
+            "text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+          )}
         >
           <ChevronsRight className="w-3.5 h-3.5" />
         </button>
@@ -97,6 +130,10 @@ export function Pagination({ total, page, pageSize = DEFAULT_PAGE_SIZE, onPageCh
 }
 
 /** Slice an array for the current page */
-export function paginate<T>(items: T[], page: number, pageSize = DEFAULT_PAGE_SIZE): T[] {
+export function paginate<T>(
+  items: T[],
+  page: number,
+  pageSize = DEFAULT_PAGE_SIZE
+): T[] {
   return items.slice((page - 1) * pageSize, page * pageSize);
 }

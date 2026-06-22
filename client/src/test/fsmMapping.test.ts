@@ -38,7 +38,7 @@ describe("FSM State Code Mapping", () => {
     });
 
     it("has Korean labels for all states", () => {
-      Object.values(NEG_STATE_MAP).forEach((entry) => {
+      Object.values(NEG_STATE_MAP).forEach(entry => {
         expect(entry.label).toBeTruthy();
         expect(entry.label.length).toBeGreaterThan(0);
       });

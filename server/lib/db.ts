@@ -13,10 +13,14 @@ let pool: pg.Pool;
 export function getPool(): pg.Pool {
   if (!pool) {
     if (!process.env.DATABASE_URL) {
-      console.warn("[DB] WARNING: DATABASE_URL env var is not set. Using default development connection string.");
+      console.warn(
+        "[DB] WARNING: DATABASE_URL env var is not set. Using default development connection string."
+      );
     }
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL ?? "postgresql://kmx:kmx_dev_123@localhost:5432/kmx_edc",
+      connectionString:
+        process.env.DATABASE_URL ??
+        "postgresql://kmx:kmx_dev_123@localhost:5432/kmx_edc",
       max: 10,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
@@ -55,9 +59,13 @@ async function createSchema(): Promise<void> {
     );
   `);
   // Migration: add identity_hub_url to existing tables
-  await getPool().query(`ALTER TABLE connectors ADD COLUMN IF NOT EXISTS identity_hub_url TEXT;`);
+  await getPool().query(
+    `ALTER TABLE connectors ADD COLUMN IF NOT EXISTS identity_hub_url TEXT;`
+  );
   // Migration: add tenant_id (multi-tenant isolation)
-  await getPool().query(`ALTER TABLE connectors ADD COLUMN IF NOT EXISTS tenant_id TEXT;`);
+  await getPool().query(
+    `ALTER TABLE connectors ADD COLUMN IF NOT EXISTS tenant_id TEXT;`
+  );
 
   // 테넌트별 설정 (Identity Hub 등). Vault 등 인스턴스 전역 설정은 app_settings 유지.
   await getPool().query(`
@@ -101,8 +109,12 @@ async function createSchema(): Promise<void> {
       PRIMARY KEY (transfer_id, connector_id)
     );
   `);
-  await getPool().query(`ALTER TABLE transfer_metadata ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;`);
-  await getPool().query(`ALTER TABLE transfer_metadata ADD COLUMN IF NOT EXISTS fetch_duration_ms INTEGER;`);
+  await getPool().query(
+    `ALTER TABLE transfer_metadata ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;`
+  );
+  await getPool().query(
+    `ALTER TABLE transfer_metadata ADD COLUMN IF NOT EXISTS fetch_duration_ms INTEGER;`
+  );
 
   // 협상 메타데이터: EDC에 완료 시각 필드가 없어 소요시간 계산을 위해 별도 저장
   await getPool().query(`
@@ -127,9 +139,13 @@ async function createSchema(): Promise<void> {
       updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
-  await getPool().query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`);
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`
+  );
   // Migration: associate each user with a tenant (multi-tenant)
-  await getPool().query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id TEXT;`);
+  await getPool().query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id TEXT;`
+  );
 
   // UI 알림: 사용자에게 표시되는 시스템/이벤트 알림
   await getPool().query(`
@@ -165,7 +181,9 @@ async function createSchema(): Promise<void> {
       updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
-  await getPool().query(`CREATE INDEX IF NOT EXISTS idx_semantic_models_name ON semantic_models(name);`);
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_semantic_models_name ON semantic_models(name);`
+  );
 
   // 글로벌 애플리케이션 설정 (key-value).
   // 예: identity_hub_url — 이 UI 인스턴스가 사용하는 단일 IdentityHub URL.
@@ -187,10 +205,25 @@ async function seedDb(): Promise<void> {
   if (rowCount && rowCount > 0) return;
 
   type SeedRole = "admin" | "operator" | "viewer";
-  const seeds: Array<{ email: string; name: string; role: SeedRole; envKey: string }> = [
-    { email: "admin@kmx.io",    name: "Admin User",   role: "admin", envKey: "SEED_ADMIN_PASSWORD" },
+  const seeds: Array<{
+    email: string;
+    name: string;
+    role: SeedRole;
+    envKey: string;
+  }> = [
+    {
+      email: "admin@kmx.io",
+      name: "Admin User",
+      role: "admin",
+      envKey: "SEED_ADMIN_PASSWORD",
+    },
     // 데모 편의: 이용자(소비자, BPNL000000000CON) 계정도 admin 권한으로 로그인.
-    { email: "operator@kmx.io", name: "Ops Engineer", role: "admin", envKey: "SEED_OPERATOR_PASSWORD" },
+    {
+      email: "operator@kmx.io",
+      name: "Ops Engineer",
+      role: "admin",
+      envKey: "SEED_OPERATOR_PASSWORD",
+    },
   ];
 
   const printedCreds: Array<{ email: string; password: string }> = [];
@@ -198,7 +231,9 @@ async function seedDb(): Promise<void> {
     const envPw = process.env[s.envKey];
     // 프로덕션에서는 약한 기본 비밀번호("0000") 시드를 거부 — 반드시 SEED_*_PASSWORD(>=8자) 지정.
     if (process.env.NODE_ENV === "production" && (!envPw || envPw.length < 8)) {
-      throw new Error(`[DB] ${s.envKey} must be set (>=8 chars) in production — refusing to seed a weak default password.`);
+      throw new Error(
+        `[DB] ${s.envKey} must be set (>=8 chars) in production — refusing to seed a weak default password.`
+      );
     }
     const pwPlain = envPw && envPw.length >= 4 ? envPw : "0000";
     if (!envPw) printedCreds.push({ email: s.email, password: pwPlain });
@@ -207,18 +242,26 @@ async function seedDb(): Promise<void> {
       `INSERT INTO users (id, email, name, role, password_hash)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (email) DO NOTHING`,
-      [randomUUID(), s.email, s.name, s.role, pwHash],
+      [randomUUID(), s.email, s.name, s.role, pwHash]
     );
   }
 
   if (printedCreds.length > 0) {
-    console.log("\n[DB] ┌─────────────────────────────────────────────────────────────");
-    console.log("[DB] │  *** GENERATED INITIAL PASSWORDS (shown once, save now) ***");
+    console.log(
+      "\n[DB] ┌─────────────────────────────────────────────────────────────"
+    );
+    console.log(
+      "[DB] │  *** GENERATED INITIAL PASSWORDS (shown once, save now) ***"
+    );
     for (const { email, password } of printedCreds) {
       console.log(`[DB] │  ${email}  →  ${password}`);
     }
-    console.log("[DB] │  Set SEED_{ADMIN,OPERATOR,VIEWER}_PASSWORD env to override.");
-    console.log("[DB] └─────────────────────────────────────────────────────────────\n");
+    console.log(
+      "[DB] │  Set SEED_{ADMIN,OPERATOR,VIEWER}_PASSWORD env to override."
+    );
+    console.log(
+      "[DB] └─────────────────────────────────────────────────────────────\n"
+    );
   } else {
     console.log("[DB] Seeded default users from SEED_*_PASSWORD env vars.");
   }
@@ -234,16 +277,22 @@ async function migrateTenants(): Promise<void> {
   const pool = getPool();
 
   const ensureTenant = async (name: string, bpn: string): Promise<string> => {
-    const { rows } = await pool.query<{ id: string }>(`SELECT id FROM tenants WHERE bpn = $1 LIMIT 1`, [bpn]);
+    const { rows } = await pool.query<{ id: string }>(
+      `SELECT id FROM tenants WHERE bpn = $1 LIMIT 1`,
+      [bpn]
+    );
     if (rows.length > 0) return rows[0].id;
     const id = randomUUID();
-    await pool.query(`INSERT INTO tenants (id, name, bpn) VALUES ($1, $2, $3)`, [id, name, bpn]);
+    await pool.query(
+      `INSERT INTO tenants (id, name, bpn) VALUES ($1, $2, $3)`,
+      [id, name, bpn]
+    );
     return id;
   };
 
   // 1) 기존 커넥터 BPN마다 테넌트 보장
   const { rows: bpnRows } = await pool.query<{ bpn: string }>(
-    `SELECT DISTINCT bpn FROM connectors WHERE bpn <> '' ORDER BY bpn DESC`,
+    `SELECT DISTINCT bpn FROM connectors WHERE bpn <> '' ORDER BY bpn DESC`
   );
   for (const { bpn } of bpnRows) await ensureTenant(`Org ${bpn}`, bpn);
 
@@ -251,14 +300,14 @@ async function migrateTenants(): Promise<void> {
   await pool.query(
     `UPDATE connectors c SET tenant_id = t.id
        FROM tenants t
-      WHERE c.bpn = t.bpn AND (c.tenant_id IS NULL OR c.tenant_id = '')`,
+      WHERE c.bpn = t.bpn AND (c.tenant_id IS NULL OR c.tenant_id = '')`
   );
 
   // 3) 테넌트 없는 사용자에게 1:1 테넌트 배정
   const { rows: userRows } = await pool.query<{ id: string; email: string }>(
-    `SELECT id, email FROM users WHERE tenant_id IS NULL OR tenant_id = '' ORDER BY email`,
+    `SELECT id, email FROM users WHERE tenant_id IS NULL OR tenant_id = '' ORDER BY email`
   );
-  const bpnList = bpnRows.map((r) => r.bpn);
+  const bpnList = bpnRows.map(r => r.bpn);
   for (let i = 0; i < userRows.length; i++) {
     const u = userRows[i];
     let bpn = bpnList[i];
@@ -271,11 +320,16 @@ async function migrateTenants(): Promise<void> {
       name = `${lp.charAt(0).toUpperCase()}${lp.slice(1)} Org`;
     }
     const tid = await ensureTenant(name, bpn);
-    await pool.query(`UPDATE users SET tenant_id = $1 WHERE id = $2`, [tid, u.id]);
+    await pool.query(`UPDATE users SET tenant_id = $1 WHERE id = $2`, [
+      tid,
+      u.id,
+    ]);
   }
 
   // 4) 데모 편의: 이용자(소비자) 계정을 admin 권한으로 승격 (이미 시드된 DB에도 반영, 멱등).
-  await pool.query(`UPDATE users SET role = 'admin' WHERE email = 'operator@kmx.io' AND role <> 'admin'`);
+  await pool.query(
+    `UPDATE users SET role = 'admin' WHERE email = 'operator@kmx.io' AND role <> 'admin'`
+  );
 }
 
 /**
@@ -291,7 +345,7 @@ async function migrateIdentityHubSettings(): Promise<void> {
   const pool = getPool();
   const { rows } = await pool.query<{ key: string; value: string }>(
     `SELECT key, value FROM app_settings
-      WHERE key IN ('identity_hub_url', 'identity_hub_participant_id', 'identity_hub_api_key')`,
+      WHERE key IN ('identity_hub_url', 'identity_hub_participant_id', 'identity_hub_api_key')`
   );
   const g: Record<string, string> = {};
   for (const r of rows) g[r.key] = (r.value ?? "").trim();
@@ -300,18 +354,24 @@ async function migrateIdentityHubSettings(): Promise<void> {
   const apiKey = g.identity_hub_api_key ?? "";
 
   // 빈/누락 값만 채움(비어있지 않은 per-tenant 값은 DO UPDATE WHERE로 보존).
-  const upsertIfEmpty = async (tenantId: string, key: string, value: string): Promise<void> => {
+  const upsertIfEmpty = async (
+    tenantId: string,
+    key: string,
+    value: string
+  ): Promise<void> => {
     if (!value) return;
     await pool.query(
       `INSERT INTO tenant_settings (tenant_id, key, value, updated_at)
        VALUES ($1, $2, $3, NOW())
        ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
        WHERE tenant_settings.value IS NULL OR tenant_settings.value = ''`,
-      [tenantId, key, value],
+      [tenantId, key, value]
     );
   };
 
-  const { rows: tenants } = await pool.query<{ id: string; bpn: string }>(`SELECT id, bpn FROM tenants`);
+  const { rows: tenants } = await pool.query<{ id: string; bpn: string }>(
+    `SELECT id, bpn FROM tenants`
+  );
   for (const t of tenants) {
     // 1) 레거시 전역 설정(url/participant) 백필 — 전역 url이 있을 때만.
     if (url) {
@@ -331,20 +391,26 @@ async function migrateIdentityHubSettings(): Promise<void> {
     try {
       const { rows: pk } = await pool.query<{ value: string }>(
         `SELECT value FROM tenant_settings WHERE tenant_id = $1 AND key = 'identity_hub_api_key'`,
-        [t.id],
+        [t.id]
       );
       const plain = (pk[0]?.value ?? "").trim();
       if (plain) {
         let existing = "";
-        try { existing = await readVaultSecret(alias); } catch { existing = ""; }
+        try {
+          existing = await readVaultSecret(alias);
+        } catch {
+          existing = "";
+        }
         if (!existing) await writeVaultSecret(alias, plain);
         await pool.query(
           `UPDATE tenant_settings SET value = '', updated_at = NOW() WHERE tenant_id = $1 AND key = 'identity_hub_api_key'`,
-          [t.id],
+          [t.id]
         );
       }
     } catch (e) {
-      console.warn(`[DB] IH apikey → vault migration skipped for ${t.bpn}: ${(e as Error).message}`);
+      console.warn(
+        `[DB] IH apikey → vault migration skipped for ${t.bpn}: ${(e as Error).message}`
+      );
     }
   }
   console.log("[DB] IdentityHub settings reconciled (vault alias references)");

@@ -9,15 +9,17 @@ interface Bucket {
 }
 
 interface RateLimitOptions {
-  windowMs: number;        // sliding window 길이 (ms)
-  max: number;             // 윈도우 내 최대 요청 수
+  windowMs: number; // sliding window 길이 (ms)
+  max: number; // 윈도우 내 최대 요청 수
   keyFn?: (req: Request) => string;
   message?: string;
 }
 
 export function rateLimit(opts: RateLimitOptions) {
   const buckets = new Map<string, Bucket>();
-  const keyFn = opts.keyFn ?? ((req: Request) => (req.ip ?? req.socket.remoteAddress ?? "unknown"));
+  const keyFn =
+    opts.keyFn ??
+    ((req: Request) => req.ip ?? req.socket.remoteAddress ?? "unknown");
 
   // 메모리 누수 방지 — 1분마다 만료 bucket 정리
   setInterval(() => {

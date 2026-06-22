@@ -16,8 +16,10 @@ export function getRecent(): RecentCatalogEntry[] {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter((e): e is RecentCatalogEntry =>
-        e && typeof e.url === "string" && typeof e.counterPartyId === "string")
+      .filter(
+        (e): e is RecentCatalogEntry =>
+          e && typeof e.url === "string" && typeof e.counterPartyId === "string"
+      )
       .slice(0, MAX);
   } catch {
     return [];
@@ -31,7 +33,9 @@ export function addRecent(entry: RecentCatalogEntry): RecentCatalogEntry[] {
   if (!url || !counterPartyId) return getRecent();
   const next = [
     { url, counterPartyId },
-    ...getRecent().filter((e) => !(e.url === url && e.counterPartyId === counterPartyId)),
+    ...getRecent().filter(
+      e => !(e.url === url && e.counterPartyId === counterPartyId)
+    ),
   ].slice(0, MAX);
   try {
     localStorage.setItem(KEY, JSON.stringify(next));

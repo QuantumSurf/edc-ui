@@ -6,18 +6,18 @@ import { useAuth } from "@/contexts/AuthContext";
 export type Role = "admin" | "operator" | "viewer";
 
 export type Permission =
-  | "connector:write"  // register/update/delete connectors
-  | "vc:write"         // add/update/delete/renew verifiable credentials
-  | "resource:write"   // asset / policy / offering CRUD
-  | "transaction:write"// negotiation / transfer start/terminate/complete
-  | "read";            // any GET/list endpoint (baseline)
+  | "connector:write" // register/update/delete connectors
+  | "vc:write" // add/update/delete/renew verifiable credentials
+  | "resource:write" // asset / policy / offering CRUD
+  | "transaction:write" // negotiation / transfer start/terminate/complete
+  | "read"; // any GET/list endpoint (baseline)
 
 export const PERMISSIONS: Record<Permission, readonly Role[]> = {
-  "connector:write":    ["admin"],
-  "vc:write":           ["admin"],
-  "resource:write":     ["admin", "operator"],
-  "transaction:write":  ["admin", "operator"],
-  "read":               ["admin", "operator", "viewer"],
+  "connector:write": ["admin"],
+  "vc:write": ["admin"],
+  "resource:write": ["admin", "operator"],
+  "transaction:write": ["admin", "operator"],
+  read: ["admin", "operator", "viewer"],
 };
 
 /** Pure helper — no React hooks. Useful in event handlers or utilities. */

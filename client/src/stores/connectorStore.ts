@@ -20,17 +20,17 @@ interface ConnectorStore {
   toggleSearch: () => void;
 }
 
-export const useConnectorStore = create<ConnectorStore>((set) => ({
+export const useConnectorStore = create<ConnectorStore>(set => ({
   connector: null,
   // 데스크톱(lg+)은 사이드바 기본 열림, 모바일은 닫힘 (pcf 셸 패턴)
   drawerOpen: typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   navigating: false,
   searchOpen: false,
 
-  selectConnector: (c) => set({ connector: c }),
-  setDrawerOpen: (open) => set({ drawerOpen: open }),
-  toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
-  setNavigating: (v) => set({ navigating: v }),
-  setSearchOpen: (open) => set({ searchOpen: open }),
-  toggleSearch: () => set((s) => ({ searchOpen: !s.searchOpen })),
+  selectConnector: c => set({ connector: c }),
+  setDrawerOpen: open => set({ drawerOpen: open }),
+  toggleDrawer: () => set(s => ({ drawerOpen: !s.drawerOpen })),
+  setNavigating: v => set({ navigating: v }),
+  setSearchOpen: open => set({ searchOpen: open }),
+  toggleSearch: () => set(s => ({ searchOpen: !s.searchOpen })),
 }));

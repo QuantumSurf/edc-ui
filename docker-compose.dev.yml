@@ -61,8 +61,8 @@ services:
       - ./:/app
       - devnodemodules:/app/node_modules
     ports:
-      - "3005:3000"   # Vite (UI, HMR) — host 3000은 quantum-x-portal이 점유 → 3005로 게시
-      - "3006:3001"   # BFF (디버깅용 직접 접근)
+      - "3005:3000" # Vite (UI, HMR) — host 3000은 quantum-x-portal이 점유 → 3005로 게시
+      - "3006:3001" # BFF (디버깅용 직접 접근)
     depends_on:
       db:
         condition: service_healthy

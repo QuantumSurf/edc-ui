@@ -5,7 +5,12 @@ import { create } from "zustand";
 // Re-export type alias for backwards compatibility
 export type { NotificationItem as Notification } from "@/services/api";
 export type NotificationType = "info" | "warn" | "error" | "success";
-export type NotificationSource = "system" | "negotiation" | "transfer" | "edr" | "vc";
+export type NotificationSource =
+  | "system"
+  | "negotiation"
+  | "transfer"
+  | "edr"
+  | "vc";
 
 interface NotificationUIStore {
   panelOpen: boolean;
@@ -13,8 +18,8 @@ interface NotificationUIStore {
   togglePanel: () => void;
 }
 
-export const useNotificationStore = create<NotificationUIStore>((set) => ({
+export const useNotificationStore = create<NotificationUIStore>(set => ({
   panelOpen: false,
-  setPanelOpen: (open) => set({ panelOpen: open }),
-  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+  setPanelOpen: open => set({ panelOpen: open }),
+  togglePanel: () => set(s => ({ panelOpen: !s.panelOpen })),
 }));

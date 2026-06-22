@@ -56,7 +56,7 @@ function writeToLogFile(source: LogSource, entries: unknown[]) {
   const logPath = path.join(LOG_DIR, `${source}.log`);
 
   // Format entries with timestamps
-  const lines = entries.map((entry) => {
+  const lines = entries.map(entry => {
     const ts = new Date().toISOString();
     return `[${ts}] ${JSON.stringify(entry)}`;
   });
@@ -132,7 +132,7 @@ function vitePluginManusDebugCollector(): Plugin {
         }
 
         let body = "";
-        req.on("data", (chunk) => {
+        req.on("data", chunk => {
           body += chunk.toString();
         });
 
@@ -150,7 +150,13 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+const plugins = [
+  react(),
+  tailwindcss(),
+  jsxLocPlugin(),
+  vitePluginManusRuntime(),
+  vitePluginManusDebugCollector(),
+];
 
 export default defineConfig({
   plugins,
@@ -190,7 +196,10 @@ export default defineConfig({
     },
     // Windows host ↔ Linux container bind mount: inotify가 전파 안 돼 HMR이 죽는 경우
     // VITE_USE_POLLING=true 로 폴링 감시 활성화 (docker dev 전용, 기본은 native 감시).
-    watch: process.env.VITE_USE_POLLING === "true" ? { usePolling: true, interval: 200 } : undefined,
+    watch:
+      process.env.VITE_USE_POLLING === "true"
+        ? { usePolling: true, interval: 200 }
+        : undefined,
     proxy: {
       "/api": {
         // dev compose에서는 BFF가 같은 컨테이너(localhost:3001)에 뜨므로 env로 타깃 재지정.

@@ -5,8 +5,8 @@
 import axios, { type AxiosInstance, type AxiosError } from "axios";
 
 export interface DtrClientConfig {
-  baseUrl: string;          // e.g. http://platform-dtr:4243/semantics/registry
-  token?: string;           // optional Bearer (prod)
+  baseUrl: string; // e.g. http://platform-dtr:4243/semantics/registry
+  token?: string; // optional Bearer (prod)
   timeoutMs?: number;
 }
 
@@ -22,7 +22,9 @@ export class DtrApiError extends Error {
 }
 
 export function createDtrClient(config: DtrClientConfig): AxiosInstance {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (config.token) headers["Authorization"] = `Bearer ${config.token}`;
   // DTR's local profile filters reads by Edc-Bpn matching the owning tenant.
   // Sending the configured tenant id grants the BFF full visibility.
@@ -36,7 +38,7 @@ export function createDtrClient(config: DtrClientConfig): AxiosInstance {
   });
 
   client.interceptors.response.use(
-    (res) => res,
+    res => res,
     (error: AxiosError) => {
       if (error.response) {
         const data = error.response.data as unknown;
@@ -45,9 +47,13 @@ export function createDtrClient(config: DtrClientConfig): AxiosInstance {
           const obj = data as Record<string, unknown>;
           const msgs = (obj.messages as Array<{ text?: string }>) ?? null;
           if (Array.isArray(msgs) && msgs.length > 0) {
-            detail = msgs.map((m) => m.text).filter(Boolean).join("; ");
+            detail = msgs
+              .map(m => m.text)
+              .filter(Boolean)
+              .join("; ");
           } else {
-            detail = (obj.error as string) ?? (obj.message as string) ?? error.message;
+            detail =
+              (obj.error as string) ?? (obj.message as string) ?? error.message;
           }
         } else {
           detail = error.message;
@@ -58,7 +64,7 @@ export function createDtrClient(config: DtrClientConfig): AxiosInstance {
         throw new DtrApiError(503, `DTR unreachable: ${error.message}`);
       }
       throw new DtrApiError(500, error.message);
-    },
+    }
   );
 
   return client;
@@ -68,7 +74,8 @@ let cachedClient: AxiosInstance | null = null;
 let cachedKey = "";
 
 export function getDtrClient(): AxiosInstance {
-  const baseUrl = process.env.DTR_BASE_URL ?? "http://platform-dtr:4243/semantics/registry";
+  const baseUrl =
+    process.env.DTR_BASE_URL ?? "http://platform-dtr:4243/semantics/registry";
   const token = process.env.DTR_TOKEN;
   const key = `${baseUrl}|${token ?? ""}`;
   if (cachedClient && cachedKey === key) return cachedClient;
@@ -127,27 +134,27 @@ export interface ShellDescriptorLite {
 function mapDescriptions(raw: unknown): ShellDescriptionLite[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((d) => {
+    .map(d => {
       const obj = d as Record<string, unknown>;
       return {
         language: (obj.language as string) ?? "",
         text: (obj.text as string) ?? "",
       };
     })
-    .filter((d) => d.text);
+    .filter(d => d.text);
 }
 
 function mapSpecificAssetIds(raw: unknown): SpecificAssetIdLite[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((s) => {
+    .map(s => {
       const obj = s as Record<string, unknown>;
       return {
         name: (obj.name as string) ?? "",
         value: (obj.value as string) ?? "",
       };
     })
-    .filter((s) => s.name);
+    .filter(s => s.name);
 }
 
 function mapEndpoint(raw: Record<string, unknown>): EndpointLite {
@@ -164,15 +171,20 @@ function mapEndpoint(raw: Record<string, unknown>): EndpointLite {
   };
 }
 
-export function mapSubmodelDescriptor(raw: Record<string, unknown>): SubmodelDescriptorLite {
+export function mapSubmodelDescriptor(
+  raw: Record<string, unknown>
+): SubmodelDescriptorLite {
   const semantic = raw.semanticId as Record<string, unknown> | undefined;
   let semanticId = "";
   if (semantic) {
     const keys = (semantic.keys as Array<Record<string, unknown>>) ?? [];
     if (keys.length > 0) semanticId = (keys[0].value as string) ?? "";
   }
-  const endpointsRaw = (raw.endpoints as Array<Record<string, unknown>> | undefined) ?? [];
-  const endpoints = Array.isArray(endpointsRaw) ? endpointsRaw.map(mapEndpoint) : [];
+  const endpointsRaw =
+    (raw.endpoints as Array<Record<string, unknown>> | undefined) ?? [];
+  const endpoints = Array.isArray(endpointsRaw)
+    ? endpointsRaw.map(mapEndpoint)
+    : [];
   return {
     id: (raw.id as string) ?? "",
     idShort: (raw.idShort as string) ?? "",
@@ -182,8 +194,11 @@ export function mapSubmodelDescriptor(raw: Record<string, unknown>): SubmodelDes
   };
 }
 
-export function mapShellDescriptor(raw: Record<string, unknown>): ShellDescriptorLite {
-  const submodels = (raw.submodelDescriptors as Array<Record<string, unknown>>) ?? [];
+export function mapShellDescriptor(
+  raw: Record<string, unknown>
+): ShellDescriptorLite {
+  const submodels =
+    (raw.submodelDescriptors as Array<Record<string, unknown>>) ?? [];
   const descriptions = mapDescriptions(raw.description);
   return {
     id: (raw.id as string) ?? "",

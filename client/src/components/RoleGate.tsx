@@ -13,7 +13,11 @@ interface RoleGateProps {
   fallback?: ReactNode;
 }
 
-export function RoleGate({ permission, children, fallback = null }: RoleGateProps) {
+export function RoleGate({
+  permission,
+  children,
+  fallback = null,
+}: RoleGateProps) {
   const allowed = useCan(permission);
   return <>{allowed ? children : fallback}</>;
 }

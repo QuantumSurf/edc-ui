@@ -65,7 +65,7 @@ services:
       - IDENTITY_HUB_API_KEY=${IDENTITY_HUB_API_KEY:-}
     networks:
       - default
-      - kmx-ih_default   # provider/consumer EDC 컨테이너와 동일 네트워크
+      - kmx-ih_default # provider/consumer EDC 컨테이너와 동일 네트워크
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,4 +82,4 @@ volumes:
 
 networks:
   kmx-ih_default:
-    external: true   # kmx-provider-controlplane / kmx-consumer-controlplane 이 속한 네트워크
+    external: true # kmx-provider-controlplane / kmx-consumer-controlplane 이 속한 네트워크

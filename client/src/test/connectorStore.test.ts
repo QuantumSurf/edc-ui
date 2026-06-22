@@ -4,9 +4,18 @@ import { useConnectorStore } from "../stores/connectorStore";
 import type { Connector } from "../lib/data";
 
 const SAMPLE_CONNECTOR: Connector = {
-  id: "test-01", name: "TEST-01", bpn: "BPNL000000000TST",
-  status: "up", env: "DEV", roles: ["Provider"], dcp: "1.0",
-  aas: false, assets: 0, offers: 0, negs: 0, transfers: 0,
+  id: "test-01",
+  name: "TEST-01",
+  bpn: "BPNL000000000TST",
+  status: "up",
+  env: "DEV",
+  roles: ["Provider"],
+  dcp: "1.0",
+  aas: false,
+  assets: 0,
+  offers: 0,
+  negs: 0,
+  transfers: 0,
 };
 
 describe("Connector Store (Zustand)", () => {

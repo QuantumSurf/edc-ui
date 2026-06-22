@@ -22,27 +22,55 @@ export default function PageLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "radial-gradient(ellipse at center, #0f2454 0%, #081634 70%, #050f24 100%)" }}>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        background:
+          "radial-gradient(ellipse at center, #0f2454 0%, #081634 70%, #050f24 100%)",
+      }}
+    >
       <div className="w-full max-w-sm mx-4">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-[0_8px_24px_rgba(37,99,235,0.45)] ring-1 ring-blue-400/30">
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-white fill-current">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              viewBox="0 0 24 24"
+              className="w-8 h-8 text-white fill-current"
+            >
+              <path
+                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">{t.login.appName}</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            {t.login.appName}
+          </h1>
           <p className="text-slate-400 text-sm mt-1">{t.login.appSubtitle}</p>
         </div>
 
         {/* Login Card */}
         <div className="bg-card rounded-2xl p-6 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] border border-border">
-          <h2 className="text-lg font-semibold text-foreground mb-1">{t.login.signIn}</h2>
-          <p className="text-sm text-muted-foreground mb-6">{t.login.subtitle}</p>
+          <h2 className="text-lg font-semibold text-foreground mb-1">
+            {t.login.signIn}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            {t.login.subtitle}
+          </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            autoComplete="off"
+          >
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.login.username}</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t.login.username}
+              </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -50,7 +78,10 @@ export default function PageLogin() {
                   name="kmx-login-username"
                   id="kmx-login-username"
                   value={username}
-                  onChange={(e) => { setUsername(e.target.value); setError(false); }}
+                  onChange={e => {
+                    setUsername(e.target.value);
+                    setError(false);
+                  }}
                   placeholder="BPNL000000000000"
                   autoComplete="username"
                   className="w-full pl-10 pr-3 py-2.5 text-sm border border-border rounded-lg bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent focus:bg-card transition-colors"
@@ -59,7 +90,9 @@ export default function PageLogin() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.login.password}</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t.login.password}
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -67,7 +100,10 @@ export default function PageLogin() {
                   name="kmx-login-password"
                   id="kmx-login-password"
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(false); }}
+                  onChange={e => {
+                    setPassword(e.target.value);
+                    setError(false);
+                  }}
                   autoComplete="new-password"
                   className="w-full pl-10 pr-3 py-2.5 text-sm border border-border rounded-lg bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent focus:bg-card transition-colors"
                 />
@@ -93,7 +129,9 @@ export default function PageLogin() {
 
           {/* Demo accounts hint */}
           <div className="mt-5 pt-4 border-t border-border">
-            <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">{t.login.demoAccounts}</p>
+            <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+              {t.login.demoAccounts}
+            </p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { bpn: "BPNL000000000PRD", pw: "0000", role: t.login.admin },
@@ -102,11 +140,17 @@ export default function PageLogin() {
                 <button
                   key={bpn}
                   type="button"
-                  onClick={() => { setUsername(bpn); setPassword(pw); setError(false); }}
+                  onClick={() => {
+                    setUsername(bpn);
+                    setPassword(pw);
+                    setError(false);
+                  }}
                   className="px-2 py-1.5 rounded-md border border-border hover:bg-muted hover:border-foreground/30 transition-colors text-muted-foreground hover:text-foreground leading-tight"
                 >
                   <span className="block text-[11px] font-medium">{role}</span>
-                  <span className="block mono text-[9px] text-muted-foreground/70 truncate">{bpn}</span>
+                  <span className="block mono text-[9px] text-muted-foreground/70 truncate">
+                    {bpn}
+                  </span>
                 </button>
               ))}
             </div>

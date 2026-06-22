@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/contexts/AuthContext";
 import { FormField, inputBase } from "@/components/ui-kmx";
-import { SlidePanel, ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
+import {
+  SlidePanel,
+  ConfirmActionDialog,
+} from "@/components/DetailDeleteDialogs";
 import { Plug, Loader2, CheckCircle2, XCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { testConnection, registerConnector, fetchTenantInfo } from "@/services";
@@ -22,7 +25,10 @@ const ROLE_MAP: Record<string, string[]> = {
   consumer: ["Consumer"],
 };
 
-export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelProps) {
+export default function AddConnectorPanel({
+  open,
+  onClose,
+}: AddConnectorPanelProps) {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -46,9 +52,20 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
   // 미저장 변경 여부 — 입력값이 초기 상태와 다르면 닫기 시 확인을 받는다(BPN은 읽기전용이라 제외).
   const dirty =
-    Boolean(name.trim() || managementUrl.trim() || dspEndpoint.trim() || apiKey || did.trim()) ||
-    role !== "both" || env !== "PROD" || dcpVersion !== "1.0";
-  const requestClose = () => { if (dirty) setConfirmClose(true); else onClose(); };
+    Boolean(
+      name.trim() ||
+        managementUrl.trim() ||
+        dspEndpoint.trim() ||
+        apiKey ||
+        did.trim()
+    ) ||
+    role !== "both" ||
+    env !== "PROD" ||
+    dcpVersion !== "1.0";
+  const requestClose = () => {
+    if (dirty) setConfirmClose(true);
+    else onClose();
+  };
 
   // Reset form each time the panel opens. BPN defaults to the user's own
   // organization (tenant) BPN — editable for the rare multi-BPN case.
@@ -57,7 +74,11 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       setName("");
       // BPN is managed in Settings — show the org BPN (fresh), read-only here.
       setBpn(user?.tenantBpn ?? "");
-      fetchTenantInfo().then((info) => { if (info.bpn) setBpn(info.bpn); }).catch(() => {});
+      fetchTenantInfo()
+        .then(info => {
+          if (info.bpn) setBpn(info.bpn);
+        })
+        .catch(() => {});
       setManagementUrl("");
       setDspEndpoint("");
       setApiKey("");
@@ -119,7 +140,8 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       toast.success(t.addConnector.registered);
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t.addConnector.registerFailed;
+      const msg =
+        err instanceof Error ? err.message : t.addConnector.registerFailed;
       toast.error(msg);
     } finally {
       setRegistering(false);
@@ -129,12 +151,20 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
   const inputClass = inputBase;
 
   return (
-    <SlidePanel open={open} onClose={() => { if (!confirmClose) requestClose(); }} className="max-w-xl">
+    <SlidePanel
+      open={open}
+      onClose={() => {
+        if (!confirmClose) requestClose();
+      }}
+      className="max-w-xl"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Plug className="w-4 h-4 text-blue-500 flex-shrink-0" />
-          <span className="text-[15px] font-semibold text-foreground truncate">{t.addConnector.register}</span>
+          <span className="text-[15px] font-semibold text-foreground truncate">
+            {t.addConnector.register}
+          </span>
         </div>
         <button
           onClick={requestClose}
@@ -149,12 +179,14 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
       <div className="flex-1 overflow-y-auto p-4 space-y-5 min-w-0">
         {/* Basic Info */}
         <div>
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t.addConnector.basicInfo}</div>
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            {t.addConnector.basicInfo}
+          </div>
           <div className="grid grid-cols-1 gap-4">
             <FormField label={t.addConnector.connectorName} required>
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 placeholder="KMX-PROD-03"
                 className={inputClass}
               />
@@ -162,7 +194,11 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
             {/* 조직 BPN — 읽기전용(설정에서 관리). 어떤 조직으로 등록되는지 컨텍스트 제공 */}
             <FormField
               label={locale === "ko" ? "조직 BPN" : "Organization BPN"}
-              hint={locale === "ko" ? "설정에서 변경할 수 있습니다." : "Managed in Settings."}
+              hint={
+                locale === "ko"
+                  ? "설정에서 변경할 수 있습니다."
+                  : "Managed in Settings."
+              }
             >
               <input
                 value={bpn}
@@ -177,13 +213,18 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
         {/* Endpoints */}
         <div>
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t.addConnector.endpoints}</div>
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            {t.addConnector.endpoints}
+          </div>
           <div className="space-y-3">
             <FormField label={t.addConnector.managementUrl} required>
               <div className="flex gap-2">
                 <input
                   value={managementUrl}
-                  onChange={(e) => { setManagementUrl(e.target.value); setTestResult(null); }}
+                  onChange={e => {
+                    setManagementUrl(e.target.value);
+                    setTestResult(null);
+                  }}
                   placeholder="https://edc-cp-03.kmx.io/management"
                   className={`${inputClass} mono flex-1`}
                 />
@@ -192,8 +233,14 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
                     role="status"
                     className={`flex items-center gap-1 self-center flex-shrink-0 text-[11px] font-medium ${testResult === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
                   >
-                    {testResult === "ok" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                    {testResult === "ok" ? t.addConnector.testSuccess : t.addConnector.testFail}
+                    {testResult === "ok" ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    {testResult === "ok"
+                      ? t.addConnector.testSuccess
+                      : t.addConnector.testFail}
                   </span>
                 )}
               </div>
@@ -201,7 +248,7 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
             <FormField label={t.addConnector.dspEndpoint} required>
               <input
                 value={dspEndpoint}
-                onChange={(e) => setDspEndpoint(e.target.value)}
+                onChange={e => setDspEndpoint(e.target.value)}
                 placeholder="https://edc-cp-03.kmx.io/api/v1/dsp"
                 className={`${inputClass} mono`}
               />
@@ -211,33 +258,52 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
         {/* Auth & Role */}
         <div>
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t.addConnector.authAndRole}</div>
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            {t.addConnector.authAndRole}
+          </div>
           <div className="grid grid-cols-1 gap-4">
             <FormField label={t.addConnector.apiKey}>
               <input
                 type="password"
                 value={apiKey}
-                onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }}
+                onChange={e => {
+                  setApiKey(e.target.value);
+                  setTestResult(null);
+                }}
                 placeholder="••••••••"
                 className={inputClass}
               />
             </FormField>
             <FormField label={t.addConnector.role}>
-              <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
-                <option value="both">{t.addConnector.roleProviderConsumer}</option>
+              <select
+                value={role}
+                onChange={e => setRole(e.target.value)}
+                className={inputClass}
+              >
+                <option value="both">
+                  {t.addConnector.roleProviderConsumer}
+                </option>
                 <option value="provider">{t.addConnector.roleProvider}</option>
                 <option value="consumer">{t.addConnector.roleConsumer}</option>
               </select>
             </FormField>
             <FormField label={t.addConnector.environment}>
-              <select value={env} onChange={(e) => setEnv(e.target.value)} className={inputClass}>
+              <select
+                value={env}
+                onChange={e => setEnv(e.target.value)}
+                className={inputClass}
+              >
                 <option value="PROD">{t.addConnector.envProd}</option>
                 <option value="STG">{t.addConnector.envStg}</option>
                 <option value="DEV">{t.addConnector.envDev}</option>
               </select>
             </FormField>
             <FormField label={t.addConnector.dcpVersion}>
-              <select value={dcpVersion} onChange={(e) => setDcpVersion(e.target.value)} className={inputClass}>
+              <select
+                value={dcpVersion}
+                onChange={e => setDcpVersion(e.target.value)}
+                className={inputClass}
+              >
                 <option value="1.0">DCP 1.0</option>
                 <option value="0.8">DCP 0.8 {t.addConnector.dcpLegacy}</option>
               </select>
@@ -247,12 +313,14 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
 
         {/* DID / IdentityHub */}
         <div>
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t.addConnector.dcpTrust}</div>
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            {t.addConnector.dcpTrust}
+          </div>
           <div className="space-y-3">
             <FormField label={t.addConnector.did}>
               <input
                 value={did}
-                onChange={(e) => setDid(e.target.value)}
+                onChange={e => setDid(e.target.value)}
                 placeholder="did:web:kmx.io:participants:kmx-prod-03"
                 className={`${inputClass} mono`}
               />
@@ -290,7 +358,10 @@ export default function AddConnectorPanel({ open, onClose }: AddConnectorPanelPr
         tone="warn"
         cancelLabel={t.common.stay}
         confirmLabel={t.common.leave}
-        onConfirm={() => { setConfirmClose(false); onClose(); }}
+        onConfirm={() => {
+          setConfirmClose(false);
+          onClose();
+        }}
       />
     </SlidePanel>
   );
