@@ -243,7 +243,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {paginatedData.map((n) => (
-                    <tr key={n.id} className="table-row-hover group cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary" onClick={() => setDetailTarget(n)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(n); } }}>
+                    <tr key={n.id} className={cn("table-row-hover group cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary [&>td:first-child]:border-l-2", detailTarget?.id === n.id ? "bg-primary/5 [&>td:first-child]:border-l-primary" : "[&>td:first-child]:border-l-transparent")} onClick={() => setDetailTarget(n)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(n); } }}>
                       <td className="px-4 py-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">

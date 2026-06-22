@@ -188,7 +188,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(a); } }}
-                      className={`table-row-hover cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${detailTarget?.id === a.id ? "bg-primary/5" : ""}`}
+                      className={`table-row-hover cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary [&>td:first-child]:border-l-2 ${detailTarget?.id === a.id ? "bg-primary/5 [&>td:first-child]:border-l-primary" : "[&>td:first-child]:border-l-transparent"}`}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 min-w-0">

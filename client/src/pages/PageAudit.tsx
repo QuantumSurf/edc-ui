@@ -366,6 +366,7 @@ export default function PageAudit() {
               <ListRow
                 key={e.id}
                 cols={AUDIT_COLS}
+                selected={selected?.id === e.id}
                 onClick={() => setSelected(e)}
                 className={e.result === "FAILURE" || e.severity === "CRITICAL" ? "border-l-rose-400 bg-rose-50/30 dark:bg-rose-500/10" : undefined}
               >

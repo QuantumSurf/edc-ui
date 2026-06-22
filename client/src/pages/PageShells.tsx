@@ -154,7 +154,7 @@ export default function PageShells() {
             <ListEmpty icon={<Boxes />} message={t.twins.noSearchResults} />
           ) : (
             paginatedData.map((s) => (
-              <ListRow key={s.id} cols={SHELL_COLS} onClick={() => setDetail(s)}>
+              <ListRow key={s.id} cols={SHELL_COLS} selected={detail?.id === s.id} onClick={() => setDetail(s)}>
                 <div className="min-w-0">
                   <span className="text-xs font-bold text-primary truncate block">{s.idShort || "—"}</span>
                 </div>

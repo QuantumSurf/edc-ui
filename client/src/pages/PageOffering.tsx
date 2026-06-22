@@ -178,7 +178,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(o); } }}
-                        className={cn("table-row-hover cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary", detailTarget?.id === o.id && "bg-primary/5")}
+                        className={cn("table-row-hover cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary [&>td:first-child]:border-l-2", detailTarget?.id === o.id ? "bg-primary/5 [&>td:first-child]:border-l-primary" : "[&>td:first-child]:border-l-transparent")}
                       >
                         <td className="px-4 py-3">
                           <div className="min-w-0">

@@ -184,7 +184,7 @@ export default function PageSubmodels() {
             <ListEmpty icon={<Layers />} message={t.submodels.noSearchResults} />
           ) : (
             paginatedData.map((m) => (
-              <ListRow key={m.urn} cols={SUBMODEL_COLS} onClick={() => setDetailUrn(m.urn)}>
+              <ListRow key={m.urn} cols={SUBMODEL_COLS} selected={detailUrn === m.urn} onClick={() => setDetailUrn(m.urn)}>
                 <div className="min-w-0">
                   <span className="text-xs font-bold text-primary truncate block">{m.name}</span>
                 </div>
