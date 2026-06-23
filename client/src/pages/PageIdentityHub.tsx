@@ -244,7 +244,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
                   {t.identityHub.credentialFetchFailed}: {data.credentialError}
                   {/(\b401\b|unauthor)/i.test(data.credentialError) && (
                     <>
-                      <span className="block mt-0.5 text-rose-600/80">
+                      <span className="block mt-0.5 text-rose-600/80 dark:text-rose-300/80">
                         {t.identityHub.credentialAuthHint}
                       </span>
                       <button

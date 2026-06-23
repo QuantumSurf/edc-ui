@@ -777,7 +777,7 @@ function StateTimeline({
               ? "bg-primary"
               : "bg-border";
         const labelClass = failed
-          ? "text-rose-600 font-medium"
+          ? "text-rose-600 dark:text-rose-400 font-medium"
           : isCurrent
             ? "text-primary font-semibold"
             : reached
@@ -811,7 +811,7 @@ function StateTimeline({
             <div className="w-3.5 h-3.5 rounded-full border-2 bg-rose-500 border-rose-500 ring-2 ring-rose-300/40 flex-shrink-0 mt-0.5" />
           </div>
           <div>
-            <span className="text-[12px] font-semibold tracking-wide text-rose-600">
+            <span className="text-[12px] font-semibold tracking-wide text-rose-600 dark:text-rose-400">
               TERMINATED
             </span>
           </div>

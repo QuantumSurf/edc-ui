@@ -1402,7 +1402,7 @@ function ODRLBuilder({
               />
             </div>
             {policyIdError && (
-              <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600">
+              <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
                 <AlertCircle className="w-3 h-3" /> {policyIdError}
               </div>
             )}

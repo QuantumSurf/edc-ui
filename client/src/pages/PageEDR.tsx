@@ -255,9 +255,9 @@ function EDRRow({
   const timeColor = isExpired
     ? "text-muted-foreground"
     : isCritical
-      ? "text-rose-600"
+      ? "text-rose-600 dark:text-rose-300"
       : isWarn
-        ? "text-amber-600"
+        ? "text-amber-600 dark:text-amber-300"
         : "text-foreground";
 
   return (
@@ -375,7 +375,7 @@ function EDRCard({
       <div className="flex items-center gap-2 text-[11px] mb-1">
         <span className="text-muted-foreground">{t.edr.remaining}</span>
         <span
-          className={`font-medium ${isCritical ? "text-rose-600 animate-pulse" : isWarn ? "text-amber-600" : ""}`}
+          className={`font-medium ${isCritical ? "text-rose-600 dark:text-rose-300 animate-pulse" : isWarn ? "text-amber-600 dark:text-amber-300" : ""}`}
         >
           {noExpiry
             ? t.edr.active

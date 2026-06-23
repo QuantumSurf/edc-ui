@@ -1240,7 +1240,7 @@ function AssetWizard({
                   className={`${inputBase} mono`}
                 />
                 {authCode && !authCode.startsWith("edc:key") && (
-                  <div className="flex items-center gap-1 mt-1 text-[11px] text-amber-600">
+                  <div className="flex items-center gap-1 mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                     <AlertCircle className="w-3 h-3" /> {t.assets.authCodeHint}
                   </div>
                 )}
@@ -1323,7 +1323,7 @@ function AssetWizard({
                   className={`${inputBase} mono`}
                 />
                 {semanticId && semanticId.startsWith("urn:samm:") && (
-                  <div className="flex items-center gap-1 mt-1 text-[11px] text-emerald-600">
+                  <div className="flex items-center gap-1 mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">
                     <CheckCircle2 className="w-3 h-3" /> {t.assets.urnConfirmed}
                   </div>
                 )}

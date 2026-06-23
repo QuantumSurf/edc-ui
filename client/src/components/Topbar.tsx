@@ -269,7 +269,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={logout}
-              className="gap-2 text-xs text-rose-600 focus:text-rose-600"
+              className="gap-2 text-xs text-rose-600 dark:text-rose-400 focus:text-rose-600 dark:focus:text-rose-400"
             >
               <LogOut className="w-3.5 h-3.5" /> {t.nav.signOut}
             </DropdownMenuItem>

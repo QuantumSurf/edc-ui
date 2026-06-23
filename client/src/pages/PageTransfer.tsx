@@ -603,7 +603,7 @@ export default function PageTransfer() {
                     {startedNoEdr(tr) && (
                       <span
                         title={t.transfers.edrPendingHint}
-                        className="inline-flex items-center text-amber-600"
+                        className="inline-flex items-center text-amber-600 dark:text-amber-400"
                       >
                         <AlertTriangle className="w-3 h-3" />
                       </span>
@@ -699,7 +699,7 @@ export default function PageTransfer() {
                     {startedNoEdr(tr) && (
                       <span
                         title={t.transfers.edrPendingHint}
-                        className="inline-flex items-center text-amber-600"
+                        className="inline-flex items-center text-amber-600 dark:text-amber-400"
                       >
                         <AlertTriangle className="w-3 h-3" />
                       </span>
