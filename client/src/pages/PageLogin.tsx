@@ -32,25 +32,17 @@ export default function PageLogin() {
       <div className="w-full max-w-sm mx-4">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-[0_8px_24px_rgba(37,99,235,0.45)] ring-1 ring-blue-400/30">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-8 h-8 text-white fill-current"
-            >
-              <path
-                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                stroke="currentColor"
-                strokeWidth="2"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <img
+            src="/logo.svg"
+            alt="Quantum-X"
+            width="64"
+            height="64"
+            className="w-16 h-16 mx-auto mb-4"
+          />
           <h1 className="text-2xl font-bold text-white tracking-tight">
-            {t.login.appName}
+            Quantum-X
           </h1>
-          <p className="text-slate-400 text-sm mt-1">{t.login.appSubtitle}</p>
+          <p className="text-slate-400 text-sm mt-1">{t.login.appName}</p>
         </div>
 
         {/* Login Card */}
