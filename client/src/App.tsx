@@ -187,7 +187,6 @@ function AppRoutes() {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const drawerOpen = useConnectorStore(s => s.drawerOpen);
   const setDrawerOpen = useConnectorStore(s => s.setDrawerOpen);
-  const toggleDrawer = useConnectorStore(s => s.toggleDrawer);
   const toggleSearch = useConnectorStore(s => s.toggleSearch);
 
   // 모바일에서 네비게이션 시 사이드바 자동 닫힘
@@ -255,7 +254,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* 메인 컬럼 */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuClick={toggleDrawer} />
+        <Topbar />
         <main className="flex-1 overflow-y-auto bg-background">
           {/* 모바일/태블릿(<lg)은 하단 탭바 높이만큼 pb-20, 데스크톱은 pb-6 */}
           <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-20 lg:pb-6 flex flex-col gap-5 min-h-full page-enter">

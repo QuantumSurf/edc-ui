@@ -7,7 +7,6 @@ import { useLocation } from "wouter";
 import {
   ChevronRight,
   Bell,
-  Menu,
   Sun,
   Moon,
   Search,
@@ -55,7 +54,7 @@ function currentLabel(t: Translations, location: string): string | undefined {
   return map[location] ?? map[suffix];
 }
 
-export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
+export default function Topbar() {
   const [location, navigate] = useLocation();
   const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
@@ -77,16 +76,6 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   return (
     <header className="h-12 flex items-center gap-3 px-4 border-b border-border bg-card flex-shrink-0 shadow-sm">
-      {/* 메뉴(사이드바 토글) */}
-      <button
-        onClick={onMenuClick}
-        aria-label={t.common.menu}
-        title={t.common.menu}
-        className="inline-flex items-center justify-center w-8 h-8 -ml-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      >
-        <Menu className="w-4 h-4" />
-      </button>
-
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs flex-1 min-w-0">
         <span className="text-muted-foreground">{t.common.appName}</span>
@@ -267,6 +256,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             >
               <SettingsIcon className="w-3.5 h-3.5" /> {t.nav.settings}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={logout}
               className="gap-2 text-xs text-rose-600 dark:text-rose-400 focus:text-rose-600 dark:focus:text-rose-400"
