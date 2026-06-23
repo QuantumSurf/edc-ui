@@ -69,6 +69,7 @@ const LEFT_OPERANDS = [
   { value: "cx-policy:FrameworkAgreement", label: "Framework Agreement" },
   { value: "BusinessPartnerNumber", label: "Business Partner Number" },
   { value: "cx-policy:UsagePurpose", label: "Usage Purpose" },
+  { value: "https://w3id.org/kmx/v0.1/ns/transferCount", label: "Transfer Count (공유 횟수)" },
 ];
 
 const OPERATORS = [
@@ -115,6 +116,20 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
         leftOperand: "cx-policy:FrameworkAgreement",
         operator: "odrl:eq",
         rightOperand: "Traceability:1.0",
+      },
+    ],
+  },
+  {
+    id: "transfer-count-limit",
+    label: "Transfer Count Limit (공유 횟수 제한)",
+    description: "계약(agreement)당 데이터 전송 횟수를 N회 미만으로 제한.",
+    ruleType: "permission",
+    action: "use",
+    constraints: [
+      {
+        leftOperand: "https://w3id.org/kmx/v0.1/ns/transferCount",
+        operator: "odrl:lt",
+        rightOperand: "5",
       },
     ],
   },
