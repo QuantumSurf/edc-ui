@@ -54,7 +54,6 @@ import {
   Loader2,
   Files,
   X,
-  Wand2,
   Pencil,
   Trash2,
   Code,
@@ -1038,6 +1037,66 @@ function AssetWizard({
     contentType,
   };
 
+  const handleSubmit = async () => {
+    if (!validateStep3()) return;
+    if (!connectorId) {
+      toast.error(t.assets.noConnector);
+      return;
+    }
+    setSaving(true);
+    try {
+      const customPropsObj = customProps.reduce<Record<string, string>>(
+        (acc, p) => {
+          const k = p.key.trim();
+          if (k) acc[k] = p.value;
+          return acc;
+        },
+        {}
+      );
+      const payload = {
+        id: assetId,
+        type: dctType,
+        name: label,
+        ver: version,
+        sem: semanticId || null,
+        dataAddressType: addrType,
+        baseUrl,
+        proxyPath,
+        proxyQueryParams: proxyQuery,
+        authCode,
+        contentType,
+        aasVersion: aasVersion || undefined,
+        aasId: aasId || undefined,
+        submodelId: submodelId || undefined,
+        customProperties:
+          Object.keys(customPropsObj).length > 0 ? customPropsObj : undefined,
+      };
+      if (isEdit) {
+        await updateAsset(
+          assetId,
+          payload as Record<string, unknown>,
+          connectorId
+        );
+      } else {
+        await createAsset(payload, connectorId);
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["assets", connectorId],
+      });
+      toast.success(isEdit ? t.assets.updateComplete : t.assets.createComplete);
+      onDone();
+    } catch (err) {
+      const cause =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error ?? (err instanceof Error ? err.message : String(err));
+      toast.error(
+        `${isEdit ? t.assets.updateFailed : t.assets.createFailed}: ${cause}`
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <SlidePanel
       open={open}
@@ -1047,7 +1106,7 @@ function AssetWizard({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <Package className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">
             {isEdit
               ? t.assets.editWizard
@@ -1155,25 +1214,6 @@ function AssetWizard({
                 />
               </FormField>
             </div>
-            {/* Wizard nav: right-aligned on md+, sticky bottom on mobile (spec 3.3.3) */}
-            <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-[12px] px-3 py-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mr-auto"
-              >
-                {t.common.cancel}
-              </button>
-              <button
-                disabled={checkingId}
-                onClick={async () => {
-                  if (await validateStep1()) setStep(1);
-                }}
-                className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors w-full sm:w-auto disabled:opacity-50"
-              >
-                {checkingId ? t.common.loading : t.assets.nextDataAddress}
-              </button>
-            </div>
           </div>
         )}
 
@@ -1274,29 +1314,6 @@ function AssetWizard({
                 {t.assets.dataAddressPreview}
               </div>
               <JsonTreeView data={dataAddressObj} />
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-[12px] px-3 py-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mr-auto"
-              >
-                {t.common.cancel}
-              </button>
-              <button
-                onClick={() => setStep(0)}
-                className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
-              >
-                {t.common.prev}
-              </button>
-              <button
-                onClick={() => {
-                  if (validateStep2()) setStep(2);
-                }}
-                className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors flex-1 sm:flex-initial"
-              >
-                {t.assets.nextAasMeta}
-              </button>
             </div>
           </div>
         )}
@@ -1418,95 +1435,51 @@ function AssetWizard({
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-[12px] px-3 py-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mr-auto"
-              >
-                {t.common.cancel}
-              </button>
-              <button
-                onClick={() => setStep(1)}
-                className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
-              >
-                {t.common.prev}
-              </button>
-              <button
-                disabled={saving}
-                onClick={async () => {
-                  if (!validateStep3()) return;
-                  if (!connectorId) {
-                    toast.error(t.assets.noConnector);
-                    return;
-                  }
-                  setSaving(true);
-                  try {
-                    const customPropsObj = customProps.reduce<
-                      Record<string, string>
-                    >((acc, p) => {
-                      const k = p.key.trim();
-                      if (k) acc[k] = p.value;
-                      return acc;
-                    }, {});
-                    const payload = {
-                      id: assetId,
-                      type: dctType,
-                      name: label,
-                      ver: version,
-                      sem: semanticId || null,
-                      dataAddressType: addrType,
-                      baseUrl,
-                      proxyPath,
-                      proxyQueryParams: proxyQuery,
-                      authCode,
-                      contentType,
-                      aasVersion: aasVersion || undefined,
-                      aasId: aasId || undefined,
-                      submodelId: submodelId || undefined,
-                      customProperties:
-                        Object.keys(customPropsObj).length > 0
-                          ? customPropsObj
-                          : undefined,
-                    };
-                    if (isEdit) {
-                      await updateAsset(
-                        assetId,
-                        payload as Record<string, unknown>,
-                        connectorId
-                      );
-                    } else {
-                      await createAsset(payload, connectorId);
-                    }
-                    await queryClient.invalidateQueries({
-                      queryKey: ["assets", connectorId],
-                    });
-                    toast.success(
-                      isEdit ? t.assets.updateComplete : t.assets.createComplete
-                    );
-                    onDone();
-                  } catch (err) {
-                    const cause =
-                      (err as { response?: { data?: { error?: string } } })
-                        ?.response?.data?.error ??
-                      (err instanceof Error ? err.message : String(err));
-                    toast.error(
-                      `${isEdit ? t.assets.updateFailed : t.assets.createFailed}: ${cause}`
-                    );
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-                className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors flex-1 sm:flex-initial disabled:opacity-50"
-              >
-                {saving
-                  ? t.common.saving
-                  : isEdit
-                    ? t.common.save
-                    : t.assets.finish}
-              </button>
-            </div>
           </div>
+        )}
+      </div>
+
+      {/* 통일 푸터 (PCF/ShellEditorDialog 패턴): 취소=좌측 버튼화 + 단계 네비, 패널 하단 고정 */}
+      <div className="flex items-center justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors mr-auto focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          {t.common.cancel}
+        </button>
+        {step > 0 && (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          >
+            {t.common.prev}
+          </button>
+        )}
+        {step === 0 && (
+          <PrimaryActionButton
+            disabled={checkingId}
+            onClick={async () => {
+              if (await validateStep1()) setStep(1);
+            }}
+          >
+            {checkingId ? t.common.loading : t.assets.nextDataAddress}
+          </PrimaryActionButton>
+        )}
+        {step === 1 && (
+          <PrimaryActionButton
+            onClick={() => {
+              if (validateStep2()) setStep(2);
+            }}
+          >
+            {t.assets.nextAasMeta}
+          </PrimaryActionButton>
+        )}
+        {step === 2 && (
+          <PrimaryActionButton disabled={saving} onClick={handleSubmit}>
+            {saving ? t.common.saving : isEdit ? t.common.save : t.assets.finish}
+          </PrimaryActionButton>
         )}
       </div>
     </SlidePanel>
