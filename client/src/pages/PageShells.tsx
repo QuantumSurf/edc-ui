@@ -239,7 +239,7 @@ export default function PageShells() {
                   </span>
                 </div>
                 <div className="hidden md:block min-w-0">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex items-center gap-1">
                     {s.specificAssetIds.slice(0, 2).map((sa, i) => (
                       <Badge key={i} variant="gray">
                         {sa.name}={sa.value}
