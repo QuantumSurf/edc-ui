@@ -10,7 +10,6 @@ import {
   SectionHdr,
   Badge,
   CardTitle,
-  QuietButton,
   DataSourceBadge,
   FormField,
   inputBase,
@@ -19,7 +18,6 @@ import {
   PrimaryActionButton,
 } from "@/components/ui-kmx";
 import {
-  ChevronLeft,
   User,
   Bell,
   Monitor,
@@ -42,11 +40,7 @@ import {
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
-interface PageSettingsProps {
-  onNav: (path: string) => void;
-}
-
-export default function PageSettings({ onNav }: PageSettingsProps) {
+export default function PageSettings() {
   const { t } = useI18n();
   const { locale, setLocale } = useI18n();
   const { user } = useAuth();
@@ -64,17 +58,7 @@ export default function PageSettings({ onNav }: PageSettingsProps) {
 
   return (
     <>
-      <SectionHdr
-        icon={<Settings className="w-5 h-5 text-primary" />}
-        action={
-          <QuietButton
-            onClick={() => onNav("/fleet")}
-            icon={<ChevronLeft className="w-3 h-3" />}
-          >
-            {t.nav.fleet}
-          </QuietButton>
-        }
-      >
+      <SectionHdr icon={<Settings className="w-5 h-5 text-primary" />}>
         {t.nav.settings}
       </SectionHdr>
 

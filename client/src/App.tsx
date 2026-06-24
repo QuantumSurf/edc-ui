@@ -172,7 +172,7 @@ function AppRoutes() {
 
       {/* Settings */}
       <Route path="/settings">
-        <PageSettings onNav={nav} />
+        <PageSettings />
       </Route>
 
       {/* Fallback */}
