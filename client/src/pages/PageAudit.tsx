@@ -18,7 +18,14 @@ import {
   sortRows,
 } from "@/components/ui-kmx";
 
-const AUDIT_COLS = "grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
+// 컬럼은 lg/xl 에서만 보이므로(target=lg, severity·ip=xl) 트랙 수도 브레이크포인트별로
+// 맞춘다. 안 맞추면 display:none 항목이 빠진 뒤 남은 셀이 앞 트랙부터 자동배치되어
+// 엉뚱한 너비 트랙을 쓰고 뒤 트랙이 비어 줄이 어긋난다.
+// md(5): 시각·행위자·액션·카테고리·결과 / lg(6): +대상 / xl(8): +심각도·IP
+const AUDIT_COLS =
+  "grid-cols-[170px_1fr_1.7fr_0.9fr_0.9fr] " +
+  "lg:grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr] " +
+  "xl:grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
 import { DetailPanel } from "@/components/DetailDeleteDialogs";
 import {
   DataTablePagination,
