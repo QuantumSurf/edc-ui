@@ -136,6 +136,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
     queryKey: ["identity-hub-participant"],
     queryFn: fetchIdentityHubParticipant,
     refetchOnWindowFocus: false,
+    staleTime: 60_000,
     retry: 0,
   });
 
@@ -299,6 +300,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
     queryKey: ["identity-hub-health"],
     queryFn: fetchIdentityHubHealth,
     enabled: hasUrl,
+    staleTime: 10_000,
     refetchInterval: 10_000,
     refetchOnWindowFocus: false,
     retry: 0,

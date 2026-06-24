@@ -196,12 +196,14 @@ export default function PageVault() {
     queryKey: ["platform-vault", "status"],
     queryFn: fetchVaultStatus,
     retry: false,
+    staleTime: 30_000,
     refetchInterval: 30_000,
   });
   const listQuery = useQuery<VaultListResp>({
     queryKey: ["platform-vault", "list"],
     queryFn: fetchVaultList,
     retry: false,
+    staleTime: 60_000,
     refetchInterval: 60_000,
   });
 

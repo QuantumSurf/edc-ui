@@ -3,11 +3,22 @@ import { useConnectorStore } from "@/stores/connectorStore";
 import { useIsFetching } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 
+// 시크릿(Vault)·분산신원(IdentityHub) 페이지의 폴링/시스템 조회는 전역 블로킹 모달에서
+// 제외한다. 이 페이지들은 데모 폴백·카드별 인라인 로딩으로 즉시 렌더되므로, 풀스크린 모달이
+// 백그라운드 폴링·느린 응답(15s 타임아웃)마다 떠 "로딩이 길다"는 체감만 유발한다.
+const NON_BLOCKING_QUERY_KEYS = new Set([
+  "platform-vault",
+  "identity-hub-participant",
+  "identity-hub-health",
+]);
+
 export default function NavigationLoadingDialog() {
   const { t } = useI18n();
   const navigating = useConnectorStore(s => s.navigating);
   const connector = useConnectorStore(s => s.connector);
-  const isFetching = useIsFetching();
+  const isFetching = useIsFetching({
+    predicate: q => !NON_BLOCKING_QUERY_KEYS.has(q.queryKey?.[0] as string),
+  });
   const visible = navigating || isFetching > 0;
 
   if (!visible) return null;
