@@ -784,7 +784,7 @@ export function ListCard({
           <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>
         )}
       </div>
-      {children}
+      <div className="overflow-x-auto">{children}</div>
     </div>
   );
 }
@@ -803,7 +803,7 @@ export function ListHeaderRow({
   return (
     <div
       className={cn(
-        "grid gap-3 px-4 py-3 border-b border-border bg-muted/50",
+        "grid min-w-max gap-3 px-4 py-3 border-b border-border bg-muted/50",
         cols,
         className
       )}
@@ -948,7 +948,7 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        "grid gap-3 px-4 py-3 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
+        "grid min-w-max gap-3 px-4 py-3 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
         cols,
         onClick &&
           "cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
