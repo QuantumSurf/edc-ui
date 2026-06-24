@@ -25,6 +25,7 @@ import {
 import {
   getRecent,
   addRecent,
+  removeRecent,
   type RecentCatalogEntry,
 } from "@/lib/recentCatalog";
 import {
@@ -35,6 +36,7 @@ import {
   Building2,
   Info,
   Package,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
@@ -185,7 +187,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
       >
         <div className="flex flex-col gap-2 mb-4">
           {/* 빠른 선택: 등록 커넥터/최근 조회 → DSP·DID 자동 채움 (수동 입력은 아래에서 유지) */}
-          {hasQuickSelect && (
+          {peers.length > 0 && (
             <FormField label={t.catalog.quickSelect}>
               <select
                 value={pick}
@@ -193,29 +195,54 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                 className={inputBase}
               >
                 <option value="">{t.catalog.manualEntry}</option>
-                {peers.length > 0 && (
-                  <optgroup label={t.catalog.registeredConnectors}>
-                    {peers.map(c => (
-                      <option key={c.id} value={`conn:${c.id}`}>
-                        {c.name} · {c.bpn}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {recent.length > 0 && (
-                  <optgroup label={t.catalog.recentQueries}>
-                    {recent.map((r, i) => (
-                      <option
-                        key={`${r.url}|${r.counterPartyId}`}
-                        value={`recent:${i}`}
-                      >
-                        {r.counterPartyId}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
+                <optgroup label={t.catalog.registeredConnectors}>
+                  {peers.map(c => (
+                    <option key={c.id} value={`conn:${c.id}`}>
+                      {c.name} · {c.bpn}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </FormField>
+          )}
+          {/* 최근 조회 — 클릭 시 DSP·DID 자동 채움, 우측 X 로 제거 (native option 은 X 불가하여 목록으로) */}
+          {recent.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {t.catalog.recentQueries}
+              </span>
+              {recent.map(r => (
+                <div
+                  key={`${r.url}|${r.counterPartyId}`}
+                  className="flex items-center gap-1 rounded-md border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUrl(r.url);
+                      setCounterPartyId(r.counterPartyId);
+                    }}
+                    className="flex-1 min-w-0 text-left px-2.5 py-1.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded-l-md"
+                  >
+                    <span className="block mono text-[12px] text-foreground truncate">
+                      {r.counterPartyId}
+                    </span>
+                    <span className="block mono text-[10px] text-muted-foreground truncate">
+                      {r.url}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecent(removeRecent(r))}
+                    aria-label={t.common.delete}
+                    title={t.common.delete}
+                    className="flex-shrink-0 mr-1 p-1.5 rounded text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
           {/* DSP Endpoint */}
           <div className="flex flex-col sm:flex-row gap-2">

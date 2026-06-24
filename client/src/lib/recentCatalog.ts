@@ -44,3 +44,16 @@ export function addRecent(entry: RecentCatalogEntry): RecentCatalogEntry[] {
   }
   return next;
 }
+
+/** 특정 (url, counterPartyId) 항목을 최근 목록에서 제거. 갱신된 목록을 반환. */
+export function removeRecent(entry: RecentCatalogEntry): RecentCatalogEntry[] {
+  const next = getRecent().filter(
+    e => !(e.url === entry.url && e.counterPartyId === entry.counterPartyId)
+  );
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next));
+  } catch {
+    /* localStorage 불가 — 무시 */
+  }
+  return next;
+}
