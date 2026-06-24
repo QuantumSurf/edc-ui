@@ -244,13 +244,16 @@ export default function AppSidebar({
             {t.common.appName}
           </p>
         </div>
+        {/* 접기 버튼은 모바일 드로어 닫기 전용. 데스크톱(lg+)은 사이드바가 항상
+            in-flow 로 보여야 하고 다시 펼 컨트롤(햄버거)이 없으므로 lg 이상에서 숨겨
+            "접으면 못 펴는" 상태를 원천 차단한다. */}
         {onCollapse && (
           <button
             type="button"
             onClick={onCollapse}
             aria-label={t.common.collapse}
             title={t.common.collapse}
-            className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70"
+            className="lg:hidden shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400/70"
             style={{ color: C.idle }}
             onMouseEnter={e => {
               e.currentTarget.style.background = C.idleBg;
