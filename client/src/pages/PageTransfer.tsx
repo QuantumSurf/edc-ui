@@ -599,7 +599,7 @@ export default function PageTransfer() {
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <StateBadge name={tr.name} />
+                    <StateBadge name={tr.name} label={(t.transfers.states as Record<string, string>)[tr.name] ?? tr.name} />
                     {startedNoEdr(tr) && (
                       <span
                         title={t.transfers.edrPendingHint}
@@ -695,7 +695,7 @@ export default function PageTransfer() {
                     {tr.id.slice(0, 12)}
                   </span>
                   <div className="flex items-center gap-2">
-                    <StateBadge name={tr.name} />
+                    <StateBadge name={tr.name} label={(t.transfers.states as Record<string, string>)[tr.name] ?? tr.name} />
                     {startedNoEdr(tr) && (
                       <span
                         title={t.transfers.edrPendingHint}

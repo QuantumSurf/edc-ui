@@ -428,7 +428,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <StateBadge name={tr?.name ?? ""} />
+                      <StateBadge name={tr?.name ?? ""} label={(t.transfers.states as Record<string, string>)[tr?.name ?? ""] ?? (tr?.name ?? "")} />
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs text-foreground truncate block">

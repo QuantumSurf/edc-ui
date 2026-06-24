@@ -90,12 +90,16 @@ const STATE_VARIANT: Record<string, BadgeVariant> = {
   INITIAL: "gray",
 };
 
-export function StateBadge({ name }: { name: string }) {
+export function StateBadge({ name, label }: { name: string; label?: string }) {
+  const { t } = useI18n();
   const variant = STATE_VARIANT[name] ?? "gray";
   const isPulse = name === "REQUESTING" || name === "STARTED";
+  // 상태명 한글화: 호출부 label 우선, 없으면 협상 상태 i18n 맵 조회(없으면 원문)
+  const display =
+    label ?? (t.negotiations.states as Record<string, string>)[name] ?? name;
   return (
     <Badge variant={variant} pulse={isPulse}>
-      {name}
+      {display}
     </Badge>
   );
 }

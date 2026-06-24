@@ -629,7 +629,10 @@ function NegotiationDetailSheet({
               {t.negotiations.sectionBasic}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InfoCard label={t.negotiations.col.state} value={target.name} />
+              <InfoCard
+                label={t.negotiations.col.state}
+                value={(t.negotiations.states as Record<string, string>)[target.name] ?? target.name}
+              />
               <InfoCard
                 label={t.negotiations.col.peer}
                 value={target.peer}
@@ -749,6 +752,7 @@ function StateTimeline({
   current: number;
   terminated: boolean;
 }) {
+  const { t } = useI18n();
   const termIdx = terminated
     ? TIMELINE_STATES.findIndex(x => x.code > current)
     : -1;
@@ -799,7 +803,7 @@ function StateTimeline({
             </div>
             <div className={isLast ? "" : "pb-3"}>
               <span className={`text-[12px] tracking-wide ${labelClass}`}>
-                {s.name}
+                {(t.negotiations.states as Record<string, string>)[s.name] ?? s.name}
               </span>
             </div>
           </div>
@@ -812,7 +816,7 @@ function StateTimeline({
           </div>
           <div>
             <span className="text-[12px] font-semibold tracking-wide text-rose-600 dark:text-rose-400">
-              TERMINATED
+              {(t.negotiations.states as Record<string, string>).TERMINATED ?? "TERMINATED"}
             </span>
           </div>
         </div>
