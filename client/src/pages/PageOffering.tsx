@@ -54,7 +54,6 @@ import {
   Code,
   CheckCircle2,
   FileSignature,
-  Wand2,
   Pencil,
   Files,
   Trash2,
@@ -980,7 +979,7 @@ function OfferingWizard({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Wand2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <FileSignature className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="text-[15px] font-semibold text-foreground truncate">
             {isEdit
               ? t.offerings.editWizard
@@ -1097,15 +1096,6 @@ function OfferingWizard({
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
-              <button
-                onClick={() => setStep(1)}
-                disabled={selAssets.length === 0}
-                className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
-              >
-                {t.offerings.step2} &rarr;
-              </button>
-            </div>
           </div>
         )}
 
@@ -1150,21 +1140,6 @@ function OfferingWizard({
                 />
               </>
             )}
-            <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
-              <button
-                onClick={() => setStep(0)}
-                className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
-              >
-                {t.common.prev}
-              </button>
-              <button
-                onClick={() => setStep(2)}
-                disabled={!accessPolicy}
-                className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-1 sm:flex-initial"
-              >
-                {t.offerings.step3} &rarr;
-              </button>
-            </div>
           </div>
         )}
 
@@ -1209,21 +1184,6 @@ function OfferingWizard({
                 />
               </>
             )}
-            <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
-              <button
-                onClick={() => setStep(1)}
-                className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
-              >
-                {t.common.prev}
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                disabled={!contractPolicy}
-                className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-1 sm:flex-initial"
-              >
-                {t.offerings.step4} &rarr;
-              </button>
-            </div>
           </div>
         )}
 
@@ -1314,26 +1274,60 @@ function OfferingWizard({
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-3 mt-2 border-t border-border">
-              <button
-                onClick={() => setStep(2)}
-                className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
-              >
-                {t.common.prev}
-              </button>
-              <button
-                onClick={handlePublish}
-                disabled={submitting}
-                className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60 flex-1 sm:flex-initial"
-              >
-                {submitting
-                  ? t.offerings.publishing
-                  : isEdit
-                    ? t.common.save
-                    : t.offerings.publish}
-              </button>
-            </div>
           </div>
+        )}
+      </div>
+
+      {/* 통일 푸터 (PCF/ShellEditorDialog 패턴): 취소=좌측 버튼, 우측 단계 네비, 패널 하단 고정 */}
+      <div className="flex items-center justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors mr-auto focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          {t.common.cancel}
+        </button>
+        {step > 0 && (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          >
+            {t.common.prev}
+          </button>
+        )}
+        {step === 0 && (
+          <PrimaryActionButton
+            disabled={selAssets.length === 0}
+            onClick={() => setStep(1)}
+          >
+            {t.offerings.step2} &rarr;
+          </PrimaryActionButton>
+        )}
+        {step === 1 && (
+          <PrimaryActionButton
+            disabled={!accessPolicy}
+            onClick={() => setStep(2)}
+          >
+            {t.offerings.step3} &rarr;
+          </PrimaryActionButton>
+        )}
+        {step === 2 && (
+          <PrimaryActionButton
+            disabled={!contractPolicy}
+            onClick={() => setStep(3)}
+          >
+            {t.offerings.step4} &rarr;
+          </PrimaryActionButton>
+        )}
+        {step === 3 && (
+          <PrimaryActionButton disabled={submitting} onClick={handlePublish}>
+            {submitting
+              ? t.offerings.publishing
+              : isEdit
+                ? t.common.save
+                : t.offerings.publish}
+          </PrimaryActionButton>
         )}
       </div>
     </SlidePanel>

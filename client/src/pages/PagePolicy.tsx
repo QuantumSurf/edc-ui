@@ -1568,25 +1568,6 @@ function ODRLBuilder({
             <PlusCircle className="w-3 h-3" /> {t.policies.addConstraint}
           </button>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              onClick={onCancel ?? onDone}
-              className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground"
-            >
-              {t.common.cancel}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={submitting}
-              className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60"
-            >
-              {submitting
-                ? t.policies.saving
-                : isEdit
-                  ? t.common.save
-                  : t.policies.savePoliciy}
-            </button>
-          </div>
         </>
       )}
     </div>
@@ -1642,6 +1623,29 @@ function ODRLBuilder({
           ))}
         </div>
         {mobileTab === "builder" ? builderContent : jsonPreview}
+      </div>
+
+      {/* 통일 푸터 (PCF/ShellEditorDialog 패턴): 패널 하단 고정, 취소=버튼, 저장=프라이머리 */}
+      <div className="flex items-center justify-end gap-2 px-3 py-2.5 border-t border-border bg-muted/20 flex-shrink-0">
+        <button
+          type="button"
+          onClick={onCancel ?? onDone}
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors mr-auto focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          {t.common.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={submitting}
+          className="text-[12px] px-3 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          {submitting
+            ? t.policies.saving
+            : isEdit
+              ? t.common.save
+              : t.policies.savePoliciy}
+        </button>
       </div>
     </SlidePanel>
   );
