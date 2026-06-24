@@ -16,7 +16,7 @@ const ko = {
     next: "다음 →",
     first: "처음",
     last: "마지막",
-    searchTitle: "통합 검색",
+    searchTitle: "검색",
     searchDescription: "커넥터와 페이지를 검색합니다",
     searchPlaceholder: "커넥터 이름·BPN 또는 페이지 검색...",
     searchNoResults: "결과가 없습니다.",
@@ -147,7 +147,7 @@ const ko = {
   // ── Dashboard ──
   dashboard: {
     assets: "자산",
-    contractAgreements: "계약 합의",
+    contractAgreements: "체결 계약",
     dataTransfers: "데이터 전송",
     edrActive: "EDR 활성",
     includingOfferings: "오퍼링 등록 포함",
@@ -410,8 +410,8 @@ const ko = {
       `진행/체결 중인 협상이 ${n}건 있어 삭제할 수 없습니다.`,
     relatedNegotiations: "연관 협상 (최근 5건)",
     noRelatedNegotiations: "이 오퍼링과 연관된 협상이 없습니다.",
-    emptyTitle: "등록된 계약이 없습니다",
-    emptyDesc: "자산과 정책을 묶어 계약을 게시해보세요.",
+    emptyTitle: "등록된 오퍼링이 없습니다",
+    emptyDesc: "자산과 정책을 묶어 오퍼링을 게시해보세요.",
   },
 
   // ── Catalog ──
@@ -471,11 +471,11 @@ const ko = {
     bulkTerminatePartial: (n: number) => `${n}개 협상 종료 실패`,
     sectionBasic: "기본 정보",
     sectionRefs: "참조 식별자",
-    agreementId: "합의 ID",
+    agreementId: "계약 ID",
     counterPartyAddress: "상대 DSP 주소",
     jsonTitle: "협상 JSON (ContractNegotiation)",
     downloadJson: "JSON 다운로드",
-    searchPlaceholder: "ID, 상대방 BPN, 자산 ID, 합의 ID 검색...",
+    searchPlaceholder: "ID, 상대방 BPN, 자산 ID, 계약 ID 검색...",
     states: {
       INITIAL: "초기화",
       REQUESTING: "요청 전송 중",
@@ -499,7 +499,7 @@ const ko = {
     transferStartToast: (id: string) =>
       `데이터 전송을 시작합니다. (협상 ID: ${id})`,
     terminatedToast: (peer: string, duration: string) =>
-      `협상 종료 — ${peer} 와의 협상이 실패하였습니다. (소요: ${duration})`,
+      `협상 종료 — ${peer}와의 협상이 실패했습니다. (소요: ${duration})`,
     resultCount: (shown: number, total: number) =>
       `${shown}건 / 전체 ${total}건`,
     noResults: "해당 상태의 협상이 없습니다.",
@@ -544,7 +544,7 @@ const ko = {
     counterPartyAddressRequired: "Provider DSP 엔드포인트를 입력하세요.",
     endpointRequired: "데이터 수신 엔드포인트 URL을 입력하세요.",
     started: "전송이 시작되었습니다.",
-    startFailed: "전송 시작 실패했습니다.",
+    startFailed: "전송 시작에 실패했습니다.",
     totalVolume: "총 전송량",
     avgDuration: "평균 소요 시간",
     noInflight: "진행 중인 전송이 없습니다.",
@@ -564,7 +564,7 @@ const ko = {
     deleteAll: "전체 삭제",
     deleteAllConfirm:
       "전송 목록을 모두 삭제합니까? (진행 중인 전송은 강제 종료됩니다)",
-    deleteAllSuccess: (n: number) => `${n}건 삭제됐습니다.`,
+    deleteAllSuccess: (n: number) => `${n}건 삭제되었습니다.`,
     fetchData: "데이터 조회",
     fetchSuccess: (size: string) => `데이터 조회 완료 (${size})`,
     fetchFailed: "데이터 조회 실패 (EDR 만료 또는 연결 오류)",
@@ -858,7 +858,7 @@ const ko = {
       "설정 화면의 조직 BPN이 자동 적용됩니다. 변경하려면 설정에서 수정하세요.",
     endpoints: "엔드포인트",
     managementUrl: "Management API URL",
-    dspEndpoint: "DSP 엔드포인트  URL",
+    dspEndpoint: "DSP 엔드포인트 URL",
     authAndRole: "인증 및 역할",
     apiKey: "Management API 키",
     role: "역할",
@@ -960,9 +960,9 @@ const ko = {
     open: "열기",
     statusConfigured: "설정됨",
     sharedNote: "전체 커넥터가 공유합니다",
-    notConfigured: "Identity Hub URL 이 설정되지 않았습니다",
+    notConfigured: "Identity Hub URL이 설정되지 않았습니다",
     notConfiguredHint:
-      "설정 화면 분산 신원 서버에서 Identity Hub URL 을 입력하면 여기에 표시됩니다.",
+      "설정 화면의 분산 신원 서버에서 Identity Hub URL을 입력하면 여기에 표시됩니다.",
     openSettings: "설정 열기",
     monitor: "상태 모니터링",
     statusUp: "정상",
@@ -985,11 +985,11 @@ const ko = {
     noCredentials: "보유한 자격증명이 없습니다.",
     credentialFetchFailed: "자격증명 조회 실패",
     credentialAuthHint:
-      "IdentityHub API 키가 없거나 올바르지 않습니다. 설정 → 분산 신원에서 API 키를 등록하세요.",
+      "IdentityHub API 키가 없거나 올바르지 않습니다. 설정 → 분산 신원 서버에서 API 키를 등록하세요.",
     goToSettings: "설정으로 이동",
-    participantNotConfigured: "참여자 ID 가 설정되지 않았습니다",
+    participantNotConfigured: "참여자 ID가 설정되지 않았습니다",
     participantNotConfiguredHint:
-      "설정 화면 분산 신원 서버에서 참여자 ID 와 API 키를 입력하면 본인 정보를 가져옵니다.",
+      "설정 화면의 분산 신원 서버에서 참여자 ID와 API 키를 입력하면 본인 정보를 가져옵니다.",
     requestFailed: "요청 실패",
   },
 
@@ -1088,9 +1088,9 @@ const ko = {
       contentHint: "최대 256 KB",
       descriptionKo: "설명 (한국어)",
       descriptionEn: "설명 (English)",
-      urnRequired: "URN 은 필수입니다.",
+      urnRequired: "URN은 필수입니다.",
       nameRequired: "이름은 필수입니다.",
-      duplicateUrn: "이미 같은 URN 이 등록되어 있습니다.",
+      duplicateUrn: "이미 같은 URN이 등록되어 있습니다.",
       structureOk: "구조 인식됨",
       structureUnparsed: "구조 분석 불가 — 원문으로 저장됨",
       submit: "등록",
@@ -1131,7 +1131,7 @@ const ko = {
     detail: {
       title: "Shell Descriptor",
       submodels: "Submodel Descriptors",
-      noSubmodels: "Submodel 이 없습니다.",
+      noSubmodels: "Submodel이 없습니다.",
       addSubmodel: "Submodel 추가",
       viewJson: "JSON 보기",
       jsonTitle: "원본 JSON",
@@ -1142,7 +1142,7 @@ const ko = {
     delete: {
       title: "Shell Descriptor 삭제",
       message:
-        "이 Shell 을 정말 삭제하시겠습니까? 연결된 Submodel 도 함께 삭제됩니다.",
+        "이 Shell을 정말 삭제하시겠습니까? 연결된 Submodel도 함께 삭제됩니다.",
     },
     badge: {
       registered: "DTR 등록됨",
@@ -1190,8 +1190,8 @@ const ko = {
       created: (name: string) => `${name} 등록됨`,
       updated: (name: string) => `${name} 수정됨`,
       loadFailed: "Shell 정보를 불러올 수 없습니다.",
-      requiredAasId: "AAS ID 와 idShort 는 필수입니다.",
-      requiredSubmodel: "Submodel 은 ID 와 idShort 가 필수입니다.",
+      requiredAasId: "AAS ID와 idShort는 필수입니다.",
+      requiredSubmodel: "Submodel은 ID와 idShort가 필수입니다.",
       requiredEndpointHref:
         "Endpoint 는 Protocol Information.href 가 필수입니다.",
     },
