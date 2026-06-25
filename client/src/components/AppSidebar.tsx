@@ -520,12 +520,6 @@ function SidebarLink({
           {badge > 99 ? "99+" : badge}
         </span>
       )}
-      {!collapsed && active && (
-        <ChevronRight
-          size={12}
-          style={{ color: C.activeAccent, flexShrink: 0 }}
-        />
-      )}
     </>
   );
 
