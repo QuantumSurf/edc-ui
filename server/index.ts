@@ -10,7 +10,7 @@ import { authMiddleware } from "./middleware/auth.js";
 import { validateConnectorId } from "./middleware/validation.js";
 import { requireConnectorOwnership } from "./middleware/tenant.js";
 import { apiRateLimit } from "./middleware/rateLimit.js";
-import { initDb } from "./lib/db.js";
+import { initDb, getPool } from "./lib/db.js";
 import { startNotificationGenerator } from "./lib/notificationGenerator.js";
 
 // Routes
@@ -69,14 +69,6 @@ async function startServer() {
   }
 
   // ── Security Middleware ─────────────────────────────────────────
-  // JSON body parsing — larger limit only for semantic models (SAMM TTL).
-  // 실효 한계는 semantics.validateBody의 content 256KB(>256KB면 400 "content-too-large").
-  // express 1mb는 JSON 엔벨로프(name/설명 등) 헤드룸을 둔 외곽 가드(>1mb면 413).
-  // [클라 계약 — id 42] 클라는 413(외곽) / 400+"content-too-large"(content) 둘 다 "최대 256 KB"로
-  // 안내해야 메시지·검증이 일치한다. (서버 실효 한계=256KB)
-  app.use("/api/semantics", express.json({ limit: "1mb" }));
-  app.use(express.json({ limit: "10kb" }));
-
   // Security headers
   app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -103,8 +95,32 @@ async function startServer() {
     next();
   });
 
-  // 모든 /api 경로에 일반 rate limit (DoS 차단)
+  // Health probes — 무인증 전용 엔드포인트(/api 밖이라 rate-limit/auth 미적용).
+  // 과거 probe 가 인증 경로 /api/connectors 를 쳐서 prod 401 에도 wget 종료코드 0 → 거짓 정상
+  // 판정 + 무인증 정찰 우려가 있었다. liveness 는 DB 비의존, readiness 는 DB ping.
+  app.get("/healthz", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+  app.get("/readyz", async (_req, res) => {
+    try {
+      await getPool().query("SELECT 1");
+      res.status(200).json({ status: "ready" });
+    } catch {
+      res.status(503).json({ status: "not-ready" });
+    }
+  });
+
+  // rate limit을 body 파서보다 먼저 — 미인증 트래픽이 JSON 파서에 닿기 전에 IP당 처리량 제한
+  // (파서 CPU 비용도 레이트리밋 보호 하에 두기 위함). DoS 차단.
   app.use("/api", apiRateLimit);
+
+  // JSON body parsing — larger limit only for semantic models (SAMM TTL).
+  // 실효 한계는 semantics.validateBody의 content 256KB(>256KB면 400 "content-too-large").
+  // express 1mb는 JSON 엔벨로프(name/설명 등) 헤드룸을 둔 외곽 가드(>1mb면 413).
+  // [클라 계약 — id 42] 클라는 413(외곽) / 400+"content-too-large"(content) 둘 다 "최대 256 KB"로
+  // 안내해야 메시지·검증이 일치한다. (서버 실효 한계=256KB)
+  app.use("/api/semantics", express.json({ limit: "1mb" }));
+  app.use(express.json({ limit: "10kb" }));
 
   // Public auth routes (login/logout) — mounted BEFORE the auth middleware
   app.use("/api/auth", authRouter);

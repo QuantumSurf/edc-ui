@@ -20,6 +20,13 @@ export interface TokenPayload {
 const MIN_SECRET_LENGTH = 32;
 let cachedDevSecret: string | null = null;
 
+// 공개 저장소(docker-compose 등)에 박힌 dev/데모 기본 JWT_SECRET 목록. prod 에서 이 값으로
+// 부팅하면 누구나 이 공개 비밀로 admin 토큰을 위조해 인증을 완전 우회할 수 있다(CWE-798).
+// 길이 검사(32자)만으로는 막지 못하므로 명시적으로 거부한다.
+const KNOWN_WEAK_SECRETS = new Set([
+  "dev-local-secret-change-me-please-32chars",
+]);
+
 function generateRandomSecret(): string {
   // crypto.randomBytes via Node 'crypto' (Node 18+ : globalThis.crypto.getRandomValues)
   const arr = new Uint8Array(48);
@@ -31,6 +38,16 @@ function generateRandomSecret(): string {
 
 function getJwtSecret(): string {
   const s = process.env.JWT_SECRET;
+  // prod 에서 알려진 공개 기본값이면 길이와 무관하게 부팅 거부(fail-closed).
+  if (
+    process.env.NODE_ENV === "production" &&
+    s &&
+    KNOWN_WEAK_SECRETS.has(s)
+  ) {
+    throw new Error(
+      "[AUTH] JWT_SECRET is a known public default value — set a unique secret in production"
+    );
+  }
   if (s && s.length >= MIN_SECRET_LENGTH) return s;
 
   if (process.env.NODE_ENV === "production") {
