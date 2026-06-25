@@ -90,7 +90,10 @@ export function requireRole(...allowed: Role[]) {
  *    tenant-scoped reads now fail-closed (라우트가 no-tenant 403, listConnectors는 throw).
  *  - "demo-token-*" tokens     -> attach req.user with role "viewer" + tenantId="dev"
  *                                 (read routes pass; admin/operator writes blocked).
- *  - Invalid Bearer token      -> pass through WITHOUT req.user (requireRole 401s).
+ *  - Invalid/expired/revoked Bearer token -> 401 (dev 포함). 토큰이 '있는데 나쁘면' 통과시키지
+ *    않는다 — 통과시키면 라우트가 403 no-tenant 를 반환해 클라(api.ts)가 403을 '권한부족'으로만
+ *    처리하고 세션을 못 비워, 무효화된 토큰으로 화면이 깨진 채 멈춘다(재로그인 유도 실패).
+ *    401 이면 클라가 세션을 비우고 로그인으로 복귀한다. (무토큰만 dev 통과)
  * In production every branch returns 401 unless a valid JWT is supplied.
  */
 export async function authMiddleware(
@@ -116,16 +119,17 @@ export async function authMiddleware(
     return next();
   }
 
+  // 토큰이 제공된 이상, 무효/만료/무효화면 dev 에서도 401 — 통과(→403 no-tenant)는 클라가
+  // 세션을 정리하지 못해 화면이 깨진 채 멈추는 원인이 된다. 무토큰만 위에서 dev 통과 처리됨.
+  let payload: TokenPayload;
   try {
-    const payload = verifyToken(token);
-    if (!(await isTokenCurrent(payload))) {
-      if (!IS_PRODUCTION) return next();
-      return res.status(401).json({ error: "token-revoked" });
-    }
-    req.user = payload;
-    return next();
+    payload = verifyToken(token);
   } catch {
-    if (!IS_PRODUCTION) return next();
     return res.status(401).json({ error: "invalid-token" });
   }
+  if (!(await isTokenCurrent(payload))) {
+    return res.status(401).json({ error: "token-revoked" });
+  }
+  req.user = payload;
+  return next();
 }
