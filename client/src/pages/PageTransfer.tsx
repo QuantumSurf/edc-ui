@@ -37,10 +37,11 @@ import {
 } from "@/components/ui-kmx";
 
 const TRANSFER_COLS =
-  "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px_280px]";
+  "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px]";
 import {
   SlidePanel,
   ConfirmActionDialog,
+  InfoCard,
 } from "@/components/DetailDeleteDialogs";
 import { toast } from "sonner";
 import {
@@ -53,6 +54,7 @@ import {
   FileText,
   AlertTriangle,
   X,
+  Copy,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
@@ -226,6 +228,7 @@ export default function PageTransfer() {
 
   const [submitting, setSubmitting] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateFilter>("ALL");
+  const [detailTarget, setDetailTarget] = useState<Transfer | null>(null);
   const [dataViewer, setDataViewer] = useState<{
     tpId: string;
     asset: string;
@@ -350,6 +353,16 @@ export default function PageTransfer() {
     setCurrentPage,
     setPageSize,
   } = usePagination(rows, 10);
+
+  // 상세 패널은 폴링으로 갱신되는 최신 transfers에서 id로 재조회 — 스냅샷 stale 방지.
+  // 목록에서 사라진 항목(예: 전체 삭제)이면 null로 패널을 닫는다.
+  const liveDetailTarget = useMemo(
+    () =>
+      detailTarget
+        ? (transfers.find(tr => tr.id === detailTarget.id) ?? null)
+        : null,
+    [transfers, detailTarget]
+  );
 
   // 파괴적 액션 확인 모달 상태 (네이티브 window.confirm 대체 — 일관된 모달/강조색/취소)
   const [confirmState, setConfirmState] = useState<{
@@ -531,6 +544,19 @@ export default function PageTransfer() {
         />
       )}
 
+      {liveDetailTarget && (
+        <TransferDetailSheet
+          target={liveDetailTarget}
+          startedNoEdr={startedNoEdr(liveDetailTarget)}
+          onClose={() => setDetailTarget(null)}
+          onFetch={() =>
+            handleFetch(liveDetailTarget.id, liveDetailTarget.asset)
+          }
+          onComplete={() => handleComplete(liveDetailTarget.id)}
+          onTerminate={() => handleTerminate(liveDetailTarget.id)}
+        />
+      )}
+
       {/* 파괴적 액션 확인 모달 (완료/종료/전체삭제) */}
       {confirmState && (
         <ConfirmActionDialog
@@ -603,7 +629,6 @@ export default function PageTransfer() {
               <ListColLabel>{t.transfers.col.duration}</ListColLabel>
               <ListColLabel>{t.transfers.col.startedAt}</ListColLabel>
               <ListColLabel>{t.transfers.col.completedAt}</ListColLabel>
-              <ListColLabel>{t.transfers.col.action}</ListColLabel>
             </ListHeaderRow>
             {isError && rows.length === 0 ? (
               <ListError onRetry={() => refetch()} fetching={isFetching} />
@@ -618,7 +643,12 @@ export default function PageTransfer() {
               />
             ) : (
               paginatedData.map(tr => (
-                <ListRow key={tr.id} cols={TRANSFER_COLS}>
+                <ListRow
+                  key={tr.id}
+                  cols={TRANSFER_COLS}
+                  selected={detailTarget?.id === tr.id}
+                  onClick={() => setDetailTarget(tr)}
+                >
                   <div>
                     <span className="text-xs font-bold text-primary">
                       {tr.id.slice(0, 12)}
@@ -661,39 +691,6 @@ export default function PageTransfer() {
                   <div className="text-xs text-foreground truncate">
                     {tr.completedAt ?? "—"}
                   </div>
-                  {/* 액션: STARTED → Fetch·완료·종료 */}
-                  <div>
-                    {tr.name === "STARTED" && (
-                      <div className="flex flex-wrap gap-1">
-                        <button
-                          onClick={() => handleFetch(tr.id, tr.asset)}
-                          title={t.transfers.fetchData}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/15 text-blue-500 font-medium transition-colors whitespace-nowrap"
-                        >
-                          <Download className="w-3.5 h-3.5" />{" "}
-                          {t.transfers.fetchData}
-                        </button>
-                        <RoleGate permission="transaction:write">
-                          <button
-                            onClick={() => handleComplete(tr.id)}
-                            title={t.transfers.completeTransfer}
-                            className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium transition-colors whitespace-nowrap"
-                          >
-                            <CheckCircle className="w-3.5 h-3.5" />{" "}
-                            {t.transfers.completeTransfer}
-                          </button>
-                          <button
-                            onClick={() => handleTerminate(tr.id)}
-                            title={t.transfers.terminateTransfer}
-                            className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-500/15 text-red-500 font-medium transition-colors whitespace-nowrap"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />{" "}
-                            {t.transfers.terminateTransfer}
-                          </button>
-                        </RoleGate>
-                      </div>
-                    )}
-                  </div>
                 </ListRow>
               ))
             )}
@@ -714,7 +711,8 @@ export default function PageTransfer() {
             {paginatedData.map(tr => (
               <div
                 key={tr.id}
-                className="rounded-lg border border-border p-4 bg-muted/20 space-y-1.5"
+                className="rounded-lg border border-border p-4 bg-muted/20 space-y-1.5 cursor-pointer"
+                onClick={() => setDetailTarget(tr)}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-primary">
@@ -729,33 +727,6 @@ export default function PageTransfer() {
                       >
                         <AlertTriangle className="w-3 h-3" />
                       </span>
-                    )}
-                    {tr.name === "STARTED" && (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleFetch(tr.id, tr.asset)}
-                          title={t.transfers.fetchData}
-                          className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/15 text-blue-500"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                        <RoleGate permission="transaction:write">
-                          <button
-                            onClick={() => handleComplete(tr.id)}
-                            title={t.transfers.completeTransfer}
-                            className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          >
-                            <CheckCircle className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleTerminate(tr.id)}
-                            title={t.transfers.terminateTransfer}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-500/15 text-red-500"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                          </button>
-                        </RoleGate>
-                      </div>
                     )}
                   </div>
                 </div>
@@ -889,5 +860,153 @@ export default function PageTransfer() {
         </Card>
       </div>
     </>
+  );
+}
+
+/* ── 전송 상세 패널 ───────────────────────────────────────────── */
+// 목록의 액션(Fetch·완료·종료)을 이전한 상세 SlidePanel. 액션은 기존 STARTED 조건 유지.
+function TransferDetailSheet({
+  target,
+  startedNoEdr,
+  onClose,
+  onFetch,
+  onComplete,
+  onTerminate,
+}: {
+  target: Transfer;
+  startedNoEdr: boolean;
+  onClose: () => void;
+  onFetch: () => void;
+  onComplete: () => void;
+  onTerminate: () => void;
+}) {
+  const { t } = useI18n();
+  const stateLabel =
+    (t.transfers.states as Record<string, string>)[target.name] ?? target.name;
+  return (
+    <SlidePanel open={true} onClose={onClose} className="sm:max-w-2xl">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 flex-wrap pr-8">
+          <ArrowRightLeft className="w-4 h-4 text-primary flex-shrink-0" />
+          <h2 className="text-[15px] font-semibold text-foreground truncate">
+            {t.transfers.title}
+          </h2>
+          <StateBadge name={target.name} label={stateLabel} />
+          {startedNoEdr && (
+            <span
+              title={t.transfers.edrPendingHint}
+              className="inline-flex items-center text-amber-600 dark:text-amber-400"
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+            </span>
+          )}
+          <button
+            onClick={onClose}
+            className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label={t.common.close}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="text-[11px] mono text-muted-foreground truncate">
+            {target.id}
+          </span>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(target.id);
+              toast.success(t.common.copied);
+            }}
+            className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors"
+            aria-label={t.common.copy}
+          >
+            <Copy size={11} />
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-auto p-5 space-y-3 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <InfoCard label={t.transfers.col.state} value={stateLabel} />
+          <InfoCard
+            label={t.transfers.col.type}
+            value={target.transferType ?? "—"}
+          />
+          <InfoCard
+            label={t.transfers.col.assetId}
+            value={target.asset}
+            span
+            mono
+            copyable={target.asset || undefined}
+          />
+          <InfoCard
+            label={t.transfers.agreementId}
+            value={target.agreementId}
+            span
+            mono
+            copyable={target.agreementId || undefined}
+          />
+          <InfoCard label={t.transfers.col.size} value={target.size} />
+          <InfoCard label={t.transfers.col.duration} value={target.t} />
+          <InfoCard
+            label={t.transfers.col.startedAt}
+            value={target.startedAt}
+          />
+          <InfoCard
+            label={t.transfers.col.completedAt}
+            value={target.completedAt}
+          />
+        </div>
+
+        {target.errorDetail && (
+          <div>
+            <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide mb-2">
+              {t.negotiations.errorDetail}
+            </p>
+            <div className="bg-rose-50 dark:bg-rose-500/10 rounded-lg border border-rose-100 dark:border-rose-500/25 px-3 py-2">
+              <p className="text-xs text-rose-700 dark:text-rose-300 break-all">
+                {target.errorDetail}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer — 목록에서 이전한 액션. STARTED일 때만 노출(기존 조건 유지). */}
+      <div className="flex justify-end gap-2 px-5 py-4 bg-muted/30 border-t border-border flex-shrink-0">
+        {target.name === "STARTED" && (
+          <>
+            <button
+              onClick={onFetch}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors"
+            >
+              <Download size={13} /> {t.transfers.fetchData}
+            </button>
+            <RoleGate permission="transaction:write">
+              <button
+                onClick={onComplete}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15 rounded-md transition-colors"
+              >
+                <CheckCircle size={13} /> {t.transfers.completeTransfer}
+              </button>
+              <button
+                onClick={onTerminate}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-100 dark:hover:bg-red-500/15 rounded-md transition-colors"
+              >
+                <XCircle size={13} /> {t.transfers.terminateTransfer}
+              </button>
+            </RoleGate>
+          </>
+        )}
+        <button
+          onClick={onClose}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors"
+        >
+          <X size={13} /> {t.common.close}
+        </button>
+      </div>
+    </SlidePanel>
   );
 }

@@ -311,7 +311,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                   </span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[860px]">
+                  <table className="w-full min-w-[720px]">
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
                         <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">
@@ -328,9 +328,6 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                         </th>
                         <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">
                           {t.negotiations.col.time}
-                        </th>
-                        <th className="px-4 py-3 text-right text-[12px] font-bold text-foreground">
-                          {t.negotiations.col.action}
                         </th>
                       </tr>
                     </thead>
@@ -404,47 +401,6 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                               {n.ts}
                             </span>
                           </td>
-                          <td
-                            className="px-4 py-3 text-right"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                              {n.name === "FINALIZED" && (
-                                <RoleGate permission="transaction:write">
-                                  <button
-                                    onClick={() => handleTransferStart(n)}
-                                    className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
-                                  >
-                                    <Send className="w-3 h-3" />
-                                    {t.negotiations.startTransfer}
-                                  </button>
-                                </RoleGate>
-                              )}
-                              {n.name === "TERMINATED" && (
-                                <button
-                                  onClick={() => handleTerminatedDetail(n)}
-                                  className="text-[11px] px-2 py-1 rounded bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 text-rose-700 dark:text-rose-300 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
-                                >
-                                  <AlertCircle className="w-3 h-3" />
-                                  {t.negotiations.errorDetail}
-                                </button>
-                              )}
-                              {!TERMINAL_STATES.has(n.name) && (
-                                <RoleGate permission="transaction:write">
-                                  <button
-                                    onClick={() => {
-                                      setTerminateTarget(n);
-                                      setTerminateReason("");
-                                    }}
-                                    className="text-[11px] px-2 py-1 rounded bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/10 border border-rose-300 text-rose-600 dark:text-rose-400 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1"
-                                  >
-                                    <XCircle className="w-3 h-3" />
-                                    {t.negotiations.terminate}
-                                  </button>
-                                </RoleGate>
-                              )}
-                            </div>
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -475,12 +431,6 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                     key={n.id}
                     negotiation={n}
                     onSelect={setDetailTarget}
-                    onTransfer={handleTransferStart}
-                    onError={handleTerminatedDetail}
-                    onTerminate={neg => {
-                      setTerminateTarget(neg);
-                      setTerminateReason("");
-                    }}
                   />
                 ))}
                 {rows.length === 0 && (
@@ -523,6 +473,9 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
               setTerminateTarget(detailTarget);
               setTerminateReason("");
             }}
+            onError={() => {
+              handleTerminatedDetail(detailTarget);
+            }}
           />
         )}
 
@@ -545,12 +498,14 @@ function NegotiationDetailSheet({
   onShowJson,
   onTransfer,
   onTerminate,
+  onError,
 }: {
   target: Negotiation;
   onClose: () => void;
   onShowJson: () => void;
   onTransfer: () => void;
   onTerminate: () => void;
+  onError: () => void;
 }) {
   const { t } = useI18n();
   const [entered, setEntered] = useState(false);
@@ -720,6 +675,14 @@ function NegotiationDetailSheet({
               </button>
             </RoleGate>
           )}
+          {target.name === "TERMINATED" && (
+            <button
+              onClick={onError}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-rose-100 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 rounded-lg hover:bg-rose-200 dark:hover:bg-rose-500/25 transition-colors"
+            >
+              <AlertCircle size={13} /> {t.negotiations.errorDetail}
+            </button>
+          )}
           {!isTerminal && (
             <RoleGate permission="transaction:write">
               <button
@@ -866,15 +829,9 @@ function NegotiationJsonDialog({
 function NegotiationCard({
   negotiation: n,
   onSelect,
-  onTransfer,
-  onError,
-  onTerminate,
 }: {
   negotiation: Negotiation;
   onSelect: (n: Negotiation) => void;
-  onTransfer: (n: Negotiation) => void;
-  onError: (n: Negotiation) => void;
-  onTerminate: (n: Negotiation) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -914,44 +871,6 @@ function NegotiationCard({
             {n.assetId}
           </span>
         </div>
-      )}
-      {n.name === "FINALIZED" && (
-        <RoleGate permission="transaction:write">
-          <button
-            onClick={e => {
-              e.stopPropagation();
-              onTransfer(n);
-            }}
-            className="mt-2 w-full text-[11px] py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
-          >
-            {t.negotiations.startTransfer}
-          </button>
-        </RoleGate>
-      )}
-      {n.name === "TERMINATED" && (
-        <button
-          onClick={e => {
-            e.stopPropagation();
-            onError(n);
-          }}
-          className="mt-2 w-full text-[11px] py-1.5 rounded bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 text-rose-700 dark:text-rose-300 font-medium transition-colors"
-        >
-          {t.negotiations.errorDetail}
-        </button>
-      )}
-      {!TERMINAL_STATES.has(n.name) && (
-        <RoleGate permission="transaction:write">
-          <button
-            onClick={e => {
-              e.stopPropagation();
-              onTerminate(n);
-            }}
-            className="mt-2 w-full text-[11px] py-1.5 rounded bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/10 border border-rose-300 text-rose-600 dark:text-rose-400 font-medium transition-colors flex items-center justify-center gap-1"
-          >
-            <XCircle className="w-3 h-3" />
-            {t.negotiations.terminate}
-          </button>
-        </RoleGate>
       )}
     </div>
   );
