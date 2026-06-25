@@ -3,6 +3,7 @@
 
 import { randomUUID } from "crypto";
 import { getPool } from "./db.js";
+import { encryptSecret, decryptSecret } from "./crypto.js";
 
 export interface ConnectorEntry {
   id: string;
@@ -28,7 +29,8 @@ function rowToEntry(row: Record<string, unknown>): ConnectorEntry {
     bpn: row.bpn as string,
     managementUrl: row.management_url as string,
     dspEndpoint: row.dsp_endpoint as string,
-    apiKey: row.api_key as string,
+    // at-rest 암호화 해제 — 레거시 평문은 decryptSecret 가 그대로 통과(이행기 호환).
+    apiKey: decryptSecret(row.api_key as string),
     env: row.env as "PROD" | "STG" | "DEV",
     roles: row.roles as string[],
     dcpVersion: row.dcp_version as string,
@@ -106,7 +108,7 @@ export async function registerConnector(
     entry.bpn,
     entry.managementUrl,
     entry.dspEndpoint,
-    entry.apiKey,
+    encryptSecret(entry.apiKey ?? ""), // at-rest 암호화
     entry.env,
     entry.roles,
     entry.dcpVersion,
@@ -145,10 +147,16 @@ export async function updateConnector(
       const val = updates[key as keyof typeof updates];
       if (val === undefined) continue;
       setClauses.push(`${col} = $${idx}`);
-      // Store empty string as null for optional fields like "did"
-      values.push(
-        val === "" && (col === "did" || col === "identity_hub_url") ? null : val
-      );
+      // API Key 는 at-rest 암호화 후 저장. 그 외 옵션 필드("did" 등)의 빈 문자열은 null.
+      if (col === "api_key" && typeof val === "string") {
+        values.push(encryptSecret(val));
+      } else {
+        values.push(
+          val === "" && (col === "did" || col === "identity_hub_url")
+            ? null
+            : val
+        );
+      }
       idx++;
     }
   }

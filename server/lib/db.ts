@@ -5,6 +5,7 @@ import pg from "pg";
 import { randomUUID } from "crypto";
 import { hashPassword } from "./auth.js";
 import { readVaultSecret, writeVaultSecret } from "./platform.js";
+import { encryptSecret } from "./crypto.js";
 
 const { Pool } = pg;
 
@@ -146,6 +147,16 @@ async function createSchema(): Promise<void> {
   await getPool().query(
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id TEXT;`
   );
+  // Migration: token_version(세션 강제종료) + 로그인 무차별 대입 잠금 컬럼.
+  await getPool().query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;`
+  );
+  await getPool().query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_count INT NOT NULL DEFAULT 0;`
+  );
+  await getPool().query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;`
+  );
 
   // UI 알림: 사용자에게 표시되는 시스템/이벤트 알림
   // tenant_id: 테넌트(조직)별 격리 — 모든 조회/변경은 호출자 테넌트로 스코프된다.
@@ -220,6 +231,18 @@ async function createSchema(): Promise<void> {
   `);
 }
 
+// prod 에서 거부할 흔한 약비번(소문자 비교). 길이 검사만으로는 'password' 등을 못 막는다.
+const WEAK_SEED_PASSWORDS = new Set([
+  "password",
+  "password1",
+  "12345678",
+  "00000000",
+  "admin123",
+  "changeme",
+  "qwerty123",
+  "letmein1",
+]);
+
 /**
  * 첫 부팅 시 기본 데모 계정 시드 (admin/operator).
  * 데모 비밀번호 기본값은 "0000" (환경변수 SEED_*_PASSWORD로 재정의 가능).
@@ -254,10 +277,13 @@ async function seedDb(): Promise<void> {
   const printedCreds: Array<{ email: string; password: string }> = [];
   for (const s of seeds) {
     const envPw = process.env[s.envKey];
-    // 프로덕션에서는 약한 기본 비밀번호("0000") 시드를 거부 — 반드시 SEED_*_PASSWORD(>=8자) 지정.
-    if (process.env.NODE_ENV === "production" && (!envPw || envPw.length < 8)) {
+    // 프로덕션에서는 약한 기본 비밀번호 시드를 거부 — SEED_*_PASSWORD(>=8자, 흔한 약비번 금지).
+    if (
+      process.env.NODE_ENV === "production" &&
+      (!envPw || envPw.length < 8 || WEAK_SEED_PASSWORDS.has(envPw.toLowerCase()))
+    ) {
       throw new Error(
-        `[DB] ${s.envKey} must be set (>=8 chars) in production — refusing to seed a weak default password.`
+        `[DB] ${s.envKey} must be a strong value (>=8 chars, not a common password) in production — refusing to seed a weak default password.`
       );
     }
     const pwPlain = envPw && envPw.length >= 4 ? envPw : "0000";
@@ -443,12 +469,43 @@ async function migrateIdentityHubSettings(): Promise<void> {
   console.log("[DB] IdentityHub settings reconciled (vault alias references)");
 }
 
+/**
+ * 커넥터 EDC API Key 평문 → AES-256-GCM at-rest 암호화(멱등). 이미 enc:v1: 이면 건너뜀.
+ * HUB_APIKEY_SECRET 미설정 시 prod 에서는 encryptSecret 가 throw → 해당 행은 건너뛰고
+ * 경고만 남긴다(부팅 비차단). 평문은 decryptSecret 패스스루로 계속 동작하되, 암호화하려면
+ * 운영자가 HUB_APIKEY_SECRET 을 설정해야 한다.
+ */
+async function migrateConnectorApiKeys(): Promise<void> {
+  const { rows } = await getPool().query<{ id: string; api_key: string }>(
+    `SELECT id, api_key FROM connectors WHERE api_key <> '' AND api_key NOT LIKE 'enc:v1:%'`
+  );
+  if (rows.length === 0) return;
+  let migrated = 0;
+  for (const r of rows) {
+    try {
+      const enc = encryptSecret(r.api_key);
+      await getPool().query(`UPDATE connectors SET api_key = $1 WHERE id = $2`, [
+        enc,
+        r.id,
+      ]);
+      migrated++;
+    } catch (e) {
+      console.warn(
+        `[DB] connector ${r.id} api_key 암호화 실패(HUB_APIKEY_SECRET 확인) — 평문 유지: ${(e as Error).message}`
+      );
+    }
+  }
+  if (migrated > 0)
+    console.log(`[DB] connector api_key ${migrated}건 at-rest 암호화 완료`);
+}
+
 /** Initialize database: create schema + seed */
 export async function initDb(): Promise<void> {
   await createSchema();
   await seedDb();
   await migrateTenants();
   await migrateIdentityHubSettings();
+  await migrateConnectorApiKeys();
   // tenants.bpn 유니크 백스톱 — BPN = 로그인 식별자라는 불변식을 DB 레벨에서 강제한다.
   // 이게 없으면 동시 PUT /settings/tenant 의 isBpnTaken 선검사가 TOCTOU 경합으로 뚫려
   // 동일 BPN 이 두 테넌트에 생겨 로그인 라우팅이 모호해진다(CWE-367). 레거시 중복이 이미

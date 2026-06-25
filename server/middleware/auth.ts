@@ -5,8 +5,23 @@
 
 import type { Request, Response, NextFunction } from "express";
 import { verifyToken, type Role, type TokenPayload } from "../lib/auth.js";
+import { getPool } from "../lib/db.js";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * 토큰이 현재 유효한 세대인지 확인 — users.token_version 과 payload.tv 대조.
+ * 로그아웃/강제차단 시 token_version 을 증가시키면 그 이전 발급 토큰은 즉시 무효화된다(CWE-613).
+ * 배포 전 발급된 토큰(tv 없음)은 tv=0 으로 간주해 기본값 0 과 일치 → 대량 로그아웃 회피.
+ */
+async function isTokenCurrent(payload: TokenPayload): Promise<boolean> {
+  const { rows } = await getPool().query<{ token_version: number }>(
+    `SELECT token_version FROM users WHERE id = $1`,
+    [payload.id]
+  );
+  if (rows.length === 0) return false; // 사용자 삭제됨 → 거부
+  return (payload.tv ?? 0) === (rows[0].token_version ?? 0);
+}
 
 declare global {
   namespace Express {
@@ -17,7 +32,11 @@ declare global {
 }
 
 /** Core JWT auth. Attaches req.user when a valid Bearer token is provided. */
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "missing-token" });
@@ -40,7 +59,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
 
   try {
-    req.user = verifyToken(token);
+    const payload = verifyToken(token);
+    if (!(await isTokenCurrent(payload))) {
+      return res.status(401).json({ error: "token-revoked" });
+    }
+    req.user = payload;
     return next();
   } catch {
     return res.status(401).json({ error: "invalid-token" });
@@ -70,7 +93,7 @@ export function requireRole(...allowed: Role[]) {
  *  - Invalid Bearer token      -> pass through WITHOUT req.user (requireRole 401s).
  * In production every branch returns 401 unless a valid JWT is supplied.
  */
-export function authMiddleware(
+export async function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
@@ -94,7 +117,12 @@ export function authMiddleware(
   }
 
   try {
-    req.user = verifyToken(token);
+    const payload = verifyToken(token);
+    if (!(await isTokenCurrent(payload))) {
+      if (!IS_PRODUCTION) return next();
+      return res.status(401).json({ error: "token-revoked" });
+    }
+    req.user = payload;
     return next();
   } catch {
     if (!IS_PRODUCTION) return next();

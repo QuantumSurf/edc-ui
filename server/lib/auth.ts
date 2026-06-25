@@ -13,6 +13,8 @@ export interface TokenPayload {
   name?: string;
   /** Tenant (organization) the user belongs to. Drives data isolation. */
   tenantId?: string;
+  /** Token version — users.token_version 과 대조해 로그아웃/강제차단 시 토큰을 무효화한다. */
+  tv?: number;
 }
 
 // Dev에서도 매 시작마다 다른 random secret 생성 (이전: 고정 dev secret → 위험)
@@ -108,8 +110,8 @@ export function verifyToken(token: string): TokenPayload {
   // verify도 HS256만 허용 — alg=none 또는 비대칭 혼동 공격 방어.
   const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
   if (typeof decoded === "string") throw new Error("Invalid token payload");
-  const { id, email, role, name, tenantId } = decoded as jwt.JwtPayload &
+  const { id, email, role, name, tenantId, tv } = decoded as jwt.JwtPayload &
     Partial<TokenPayload>;
   if (!id || !email || !role) throw new Error("Incomplete token payload");
-  return { id, email, role: role as Role, name, tenantId };
+  return { id, email, role: role as Role, name, tenantId, tv };
 }
