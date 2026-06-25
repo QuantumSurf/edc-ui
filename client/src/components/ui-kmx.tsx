@@ -787,7 +787,12 @@ export function ListCard({
           <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>
         )}
       </div>
-      <div className="overflow-x-auto">{children}</div>
+      {/* 가로 스크롤 + 공유 폭 래퍼: 내부 min-w-max 가 '가장 넓은 행'의 폭을 정하고,
+          헤더·행은 min-w-full 로 그 폭을 채워 모든 행의 fr 트랙이 동일하게 정렬된다.
+          (행마다 min-w-max 면 내용량에 따라 폭이 달라져 칸이 어긋남) */}
+      <div className="overflow-x-auto">
+        <div className="min-w-max">{children}</div>
+      </div>
     </div>
   );
 }
@@ -806,7 +811,7 @@ export function ListHeaderRow({
   return (
     <div
       className={cn(
-        "grid min-w-max gap-3 px-4 py-3 border-b border-border bg-muted/50",
+        "grid min-w-full gap-3 px-4 py-3 border-b border-border bg-muted/50",
         cols,
         className
       )}
@@ -951,7 +956,7 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        "grid min-w-max gap-3 px-4 py-3 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
+        "grid min-w-full gap-3 px-4 py-3 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
         cols,
         onClick &&
           "cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
