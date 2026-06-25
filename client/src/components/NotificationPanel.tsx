@@ -1,10 +1,11 @@
 // KMX EDC — Notification Panel
 // 디자인: aas-service-hub AlertPanel 과 동일 — 다크 슬라이드오버 + 심각도 필터칩 + 카드형.
 // 동작은 edc 유지: 카드 클릭=읽음+링크이동, 개별 삭제(X), 모두 읽음, 전체 삭제, 조회 실패 시 재시도.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useNotifications } from "@/hooks/useNotifications";
+import { NOTIFY_PREFS_KEY, readPref } from "@/pages/PageSettings";
 import { type NotificationItem } from "@/services/api";
 import { ListError } from "@/components/ui-kmx";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
@@ -24,6 +25,18 @@ import {
 import { cn } from "@/lib/utils";
 
 type NotificationType = "info" | "warn" | "error" | "success";
+
+/* ─── 설정 알림 토글(source → storageKey) ───────────────────────
+ * 설정 페이지의 토글이 실제로 알림 표시를 제어하도록, 알림의 source 를
+ * 해당 토글 키에 매핑해 꺼진 source 는 패널에서 숨긴다.
+ * transfer 성공/실패는 단일 transferFailed 토글에 함께 귀속(별도 성공 토글 없음). */
+const SOURCE_PREF: Record<NotificationItem["source"], string> = {
+  vc: "notify.vcExpiry",
+  negotiation: "notify.negTerminated",
+  transfer: "notify.transferFailed",
+  edr: "notify.edrExpiry",
+  system: "notify.connectorHealth",
+};
 
 /* ─── 심각도(타입)별 아이콘 + 색 — 흰 카드 위 좌측 색 아이콘으로만 구별 ─── */
 const SEVERITY: Record<
@@ -61,8 +74,7 @@ export default function NotificationPanel() {
   const panelOpen = useNotificationStore(s => s.panelOpen);
   const setPanelOpen = useNotificationStore(s => s.setPanelOpen);
   const {
-    notifications: allNotifications,
-    unreadCount,
+    notifications: rawNotifications,
     isError,
     refetch,
     isFetching,
@@ -75,6 +87,23 @@ export default function NotificationPanel() {
 
   const [filter, setFilter] = useState<"all" | NotificationType>("all");
   const [confirmClear, setConfirmClear] = useState(false);
+
+  // 타 탭에서 설정 토글이 바뀌면 storage 이벤트로 강제 리렌더해 게이트를 재평가.
+  // (패널 자체가 닫혔다 열리면 마운트/리렌더로 자연히 최신 prefs 를 읽는다.)
+  const [, bumpPrefs] = useState(0);
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === NOTIFY_PREFS_KEY) bumpPrefs(v => v + 1);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // 설정에서 꺼진 source 는 숨긴다(죽은 토글이 실제로 동작하도록).
+  const allNotifications = rawNotifications.filter(n =>
+    readPref(SOURCE_PREF[n.source] ?? "", true)
+  );
+  const unreadCount = allNotifications.filter(n => !n.read).length;
 
   const counts = {
     info: allNotifications.filter(n => n.type === "info").length,

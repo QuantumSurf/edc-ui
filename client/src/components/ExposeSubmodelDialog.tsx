@@ -11,6 +11,7 @@ import { useConnectorStore } from "@/stores/connectorStore";
 import {
   fetchConnectors,
   createAsset,
+  updateAsset,
   createOffering,
   fetchPolicies,
   fetchShellRaw,
@@ -41,6 +42,11 @@ export interface ExposeTarget {
 // 공용 inputBase 사용 — mono 값 입력의 placeholder는 카탈로그 브라우저와 동일하게 sans로 통일.
 const inputCls = `${inputBase} placeholder:font-sans placeholder:font-normal`;
 
+// axios 에러의 HTTP status 추출(409 멱등 분기용 — id 41).
+function errStatus(e: unknown): number | undefined {
+  return (e as { response?: { status?: number } })?.response?.status;
+}
+
 export function ExposeSubmodelDialog({
   target,
   onClose,
@@ -48,9 +54,10 @@ export function ExposeSubmodelDialog({
 }: {
   target: ExposeTarget | null;
   onClose: () => void;
-  onDone: () => void;
+  // 노출 대상 커넥터 id를 전달해 호출부가 정확한 캐시만 무효화하게 한다(id 37).
+  onDone: (connectorId: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const storeConnector = useConnectorStore(s => s.connector);
   const open = !!target;
 
@@ -124,24 +131,29 @@ export function ExposeSubmodelDialog({
       return;
     }
     const aid = assetId.trim();
+    const assetBody = {
+      id: aid,
+      name: target.idShort || aid,
+      type: "cx-taxo:SubmodelBundle",
+      sem: target.semanticId || "",
+      aasId: target.aasId,
+      submodelId: target.submodelId,
+      dataAddressType: "HttpData",
+      baseUrl: dataSourceUrl.trim(),
+      proxyPath: "true",
+      contentType: "application/json",
+    };
     setBusy(true);
     try {
       // 1) EDC Asset (SubmodelBundle) — data source behind the connector's data plane.
-      await createAsset(
-        {
-          id: aid,
-          name: target.idShort || aid,
-          type: "cx-taxo:SubmodelBundle",
-          sem: target.semanticId || "",
-          aasId: target.aasId,
-          submodelId: target.submodelId,
-          dataAddressType: "HttpData",
-          baseUrl: dataSourceUrl.trim(),
-          proxyPath: "true",
-          contentType: "application/json",
-        },
-        connectorId
-      );
+      // 부분 실패 후 재시도 시 동일 ID가 409로 영구 차단되지 않도록 멱등 처리:
+      // 이미 존재(409)하면 PUT(updateAsset, EDC upsert)으로 갱신한다(id 41).
+      try {
+        await createAsset(assetBody, connectorId);
+      } catch (e) {
+        if (errStatus(e) === 409) await updateAsset(aid, assetBody, connectorId);
+        else throw e;
+      }
     } catch (e) {
       setBusy(false);
       toast.error(`${t.twins.expose.failAsset}: ${(e as Error).message}`);
@@ -159,9 +171,12 @@ export function ExposeSubmodelDialog({
         connectorId
       );
     } catch (e) {
-      setBusy(false);
-      toast.error(`${t.twins.expose.failOffering}: ${(e as Error).message}`);
-      return;
+      // 계약정의가 이미 존재(409)하면 통과하고 링크 단계로 진행(id 41 재시도).
+      if (errStatus(e) !== 409) {
+        setBusy(false);
+        toast.error(`${t.twins.expose.failOffering}: ${(e as Error).message}`);
+        return;
+      }
     }
     try {
       // 3) Link the DTR submodel descriptor's endpoint to the EDC asset.
@@ -169,20 +184,27 @@ export function ExposeSubmodelDialog({
       const subs =
         (raw?.submodelDescriptors as Array<Record<string, unknown>>) ?? [];
       const rawSub = subs.find(s => (s.id as string) === target.submodelId);
-      if (rawSub) {
-        const input = rawSubmodelToInput(rawSub);
-        if (input.endpoints.length === 0) input.endpoints = [newEndpoint()];
-        const pi = input.endpoints[0].protocolInformation;
-        pi.subprotocol = "DSP";
-        pi.dspAssetId = aid;
-        pi.dspEndpoint = connector?.dspEndpoint ?? "";
-        pi.href = dataPlaneHref.trim() || dataSourceUrl.trim();
-        await updateSubmodel(
-          target.aasId,
-          target.submodelId,
-          submodelInputToBody(input)
+      // 대상 서브모델 미발견(DTR 조회 실패 또는 ID 불일치)을 조용히 건너뛰지
+      // 않는다 — endpoint 미연결이 성공으로 오인되면 소비자가 협상 불가(id 38).
+      if (!rawSub) {
+        throw new Error(
+          locale === "ko"
+            ? "트윈에서 대상 서브모델을 찾지 못했습니다 (DTR 조회 실패 또는 ID 불일치)"
+            : "Target submodel not found in the twin (DTR lookup failed or ID mismatch)"
         );
       }
+      const input = rawSubmodelToInput(rawSub);
+      if (input.endpoints.length === 0) input.endpoints = [newEndpoint()];
+      const pi = input.endpoints[0].protocolInformation;
+      pi.subprotocol = "DSP";
+      pi.dspAssetId = aid;
+      pi.dspEndpoint = connector?.dspEndpoint ?? "";
+      pi.href = dataPlaneHref.trim() || dataSourceUrl.trim();
+      await updateSubmodel(
+        target.aasId,
+        target.submodelId,
+        submodelInputToBody(input)
+      );
     } catch (e) {
       setBusy(false);
       toast.error(`${t.twins.expose.failLink}: ${(e as Error).message}`);
@@ -190,7 +212,7 @@ export function ExposeSubmodelDialog({
     }
     setBusy(false);
     toast.success(t.twins.expose.success);
-    onDone();
+    onDone(connectorId);
     onClose();
   };
 

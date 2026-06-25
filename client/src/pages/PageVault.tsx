@@ -1,6 +1,7 @@
 // Vault / KMS — secret & key management view
 // Reads from /api/platform/vault/* (server-side auth to platform-vault).
-// Falls back to demo data when API is unavailable (e.g. dev without platform compose up).
+// 라이브 데이터만 표시한다. 백엔드 미도달/인증 실패/빈 응답을 데모 데이터로 가리지 않고
+// 오류·빈 상태를 그대로 노출해 가짜 시크릿을 진짜처럼 보여주지 않는다.
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -15,7 +16,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
-import { useConnectorStore } from "@/stores/connectorStore";
 import {
   Card,
   SectionHdr,
@@ -44,18 +44,11 @@ import {
   type VaultListResp,
 } from "@/services/api";
 
+// 별칭 문자열로 유형만 분류 — 필터 UX 용도. (만료/생성/알고리즘은 추측하지 않는다)
 function inferType(alias: string): VaultItemType {
   if (alias.includes("cert")) return "certificate";
   if (alias.includes("key")) return "key";
   return "secret";
-}
-
-function inferAlgorithm(alias: string): string {
-  if (alias.includes("private-key")) return "Ed25519";
-  if (alias.includes("public-key")) return "Ed25519";
-  if (alias.includes("aes")) return "AES-256-GCM";
-  if (alias.includes("cert")) return "X.509";
-  return "Bearer";
 }
 
 type VaultItemType = "secret" | "key" | "certificate";
@@ -66,7 +59,7 @@ interface VaultItem {
   algorithm: string;
   created: string;
   lastUsed: string;
-  expiryDays: number | null; // null = no expiry
+  expiryDays: number | null; // null = no expiry / unknown
   value: string; // shown masked
   serverManaged?: boolean; // live Vault — value not exposed by API
 }
@@ -75,87 +68,28 @@ interface VaultBackendInfo {
   backend: string;
   version: string;
   address: string;
-  /** Vault Enterprise namespace — 단일 공유 클러스터에서 커넥터별 격리에 사용 */
-  namespace: string;
-  /** 모든 커넥터가 같은 HA 클러스터를 공유함을 나타내는 안내 문구 */
-  shared: boolean;
-  sealed: boolean;
+  /** Vault status API 는 제공하지 않음 — 라이브로 채울 수 없으면 "—" */
   lastRotation: string;
-  autoRotation: boolean;
+  /** Vault status API 는 제공하지 않음 — 알 수 없으면 null */
+  autoRotation: boolean | null;
+  sealed: boolean;
 }
+
+// status 가 라이브로 확인되기 전의 초기/미확인 백엔드 상태.
+// 하드코딩 주소·버전·회전시각을 사실처럼 노출하지 않도록 모두 "—"/null 로 시작한다.
+const UNKNOWN_BACKEND: VaultBackendInfo = {
+  backend: "—",
+  version: "—",
+  address: "—",
+  lastRotation: "—",
+  autoRotation: null,
+  sealed: false,
+};
 
 // 마스킹은 실제 시크릿 바이트를 노출하지 않는다 — 길이만 대략 힌트한 점(•) 표시.
 function maskValue(v: string) {
   if (!v) return "—";
   return "•".repeat(Math.min(12, Math.max(6, v.length)));
-}
-
-function makeDemoData(connectorId: string): {
-  backend: VaultBackendInfo;
-  items: VaultItem[];
-} {
-  const isProd = connectorId.toLowerCase().includes("prod");
-  const isCons = connectorId.toLowerCase().includes("cons");
-  // 모든 커넥터가 같은 HA 클러스터(vault.kmx.io)를 공유, namespace로 격리.
-  const namespace = isProd ? "kmx/prod" : isCons ? "kmx/cons" : "kmx/dev";
-  const backend: VaultBackendInfo = {
-    backend: "HashiCorp Vault (Shared HA)",
-    version: "1.15.4",
-    address: "https://vault.kmx.io:8200",
-    namespace,
-    shared: true,
-    sealed: false,
-    lastRotation: "2026-04-28 02:15 KST",
-    autoRotation: true,
-  };
-  const items: VaultItem[] = [
-    {
-      alias: "edc:key:asset-encryption",
-      type: "key",
-      algorithm: "AES-256-GCM",
-      created: "2025-11-14",
-      lastUsed: "2026-05-07 09:42",
-      expiryDays: 18,
-      value: "vault-secret-key-aes256-encrypted-base64-payload",
-    },
-    {
-      alias: "edc:key:dsp-signing",
-      type: "key",
-      algorithm: "Ed25519",
-      created: "2026-02-01",
-      lastUsed: "2026-05-07 10:11",
-      expiryDays: 270,
-      value: "MC4CAQAwBQYDK2VwBCIEIH7nGq...",
-    },
-    {
-      alias: "edc:secret:provider-api-token",
-      type: "secret",
-      algorithm: "Bearer",
-      created: "2026-01-22",
-      lastUsed: "2026-05-06 23:04",
-      expiryDays: 4,
-      value: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.demo.payload.signature",
-    },
-    {
-      alias: "edc:cert:dsp-mtls",
-      type: "certificate",
-      algorithm: "X.509 / RSA-2048",
-      created: "2025-09-01",
-      lastUsed: "2026-05-07 09:55",
-      expiryDays: 121,
-      value: "-----BEGIN CERTIFICATE-----MIIDXTCCAk...",
-    },
-    {
-      alias: "edc:secret:onboarding-token",
-      type: "secret",
-      algorithm: "Bearer",
-      created: "2026-04-10",
-      lastUsed: "—",
-      expiryDays: null,
-      value: "ott_2j3k4lmn5opqr6stuv7wxyz",
-    },
-  ];
-  return { backend, items };
 }
 
 function expiryBadge(days: number | null, t: ReturnType<typeof useI18n>["t"]) {
@@ -178,20 +112,17 @@ function typeBadge(type: VaultItemType, t: ReturnType<typeof useI18n>["t"]) {
 }
 
 export default function PageVault() {
-  const { t } = useI18n();
-  const connector = useConnectorStore(s => s.connector);
+  const { t, locale } = useI18n();
 
-  const initial = useMemo(
-    () => makeDemoData(connector?.id ?? "demo"),
-    [connector?.id]
-  );
-  const [backend, setBackend] = useState<VaultBackendInfo>(initial.backend);
-  const [items, setItems] = useState<VaultItem[]>(initial.items);
+  // 전역 Vault 페이지는 특정 커넥터에 종속되지 않는다.
+  // (직전 선택 커넥터의 namespace 를 표시하던 stale 격리 표시 결함 제거)
+  const [backend, setBackend] = useState<VaultBackendInfo>(UNKNOWN_BACKEND);
+  const [items, setItems] = useState<VaultItem[]>([]);
   const [revealed, setRevealed] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"ALL" | VaultItemType>("ALL");
 
-  // ── Live data from /api/platform/vault (graceful fallback to demo) ──
+  // ── Live data from /api/platform/vault ──
   const statusQuery = useQuery<VaultStatus>({
     queryKey: ["platform-vault", "status"],
     queryFn: fetchVaultStatus,
@@ -207,36 +138,47 @@ export default function PageVault() {
     refetchInterval: 60_000,
   });
 
+  // status 가 실제로 라이브 응답으로 확인됐는지 — 봉인 배지/배너의 신뢰성 판정 기준.
+  const statusLive = statusQuery.isSuccess && !!statusQuery.data;
+
   useEffect(() => {
     if (statusQuery.data) {
-      setBackend(prev => ({
-        ...prev,
-        backend: "HashiCorp Vault (Shared HA)",
+      // lastRotation·autoRotation 은 status API 가 제공하지 않으므로 채우지 않는다(추측 금지).
+      setBackend({
+        backend: statusQuery.data.type || "HashiCorp Vault",
         version: statusQuery.data.version,
         address: statusQuery.data.url,
         sealed: statusQuery.data.sealed,
-        shared: true,
-      }));
+        lastRotation: "—",
+        autoRotation: null,
+      });
+    } else if (statusQuery.isError) {
+      // 라이브 실패 — 하드코딩 백엔드 정보를 사실처럼 남기지 않고 미확인 상태로 되돌린다.
+      setBackend(UNKNOWN_BACKEND);
     }
-  }, [statusQuery.data]);
+  }, [statusQuery.data, statusQuery.isError]);
 
   useEffect(() => {
-    if (listQuery.data?.aliases?.length) {
-      const today = new Date().toISOString().slice(0, 10);
+    // 0건 응답도 빈 목록으로 반영되도록 truthy length 게이트 대신 data 존재로 판정.
+    if (listQuery.data) {
       setItems(
-        listQuery.data.aliases.map(alias => ({
+        (listQuery.data.aliases ?? []).map(alias => ({
           alias,
           type: inferType(alias),
-          algorithm: inferAlgorithm(alias),
-          created: today,
+          // /list 는 알고리즘·생성일·만료 정보를 주지 않는다 — 추측해서 위조 배지를 만들지 않는다.
+          algorithm: "—",
+          created: "—",
           lastUsed: "—",
-          expiryDays: alias.includes("aes") ? 365 : null,
+          expiryDays: null,
           value: "",
           serverManaged: true,
         }))
       );
+    } else if (listQuery.isError) {
+      // 라이브 실패 — 데모 잔존분이 filtered/페이지네이션으로 새지 않도록 비운다.
+      setItems([]);
     }
-  }, [listQuery.data]);
+  }, [listQuery.data, listQuery.isError]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -279,7 +221,8 @@ export default function PageVault() {
         {t.vault.title}
       </SectionHdr>
 
-      {backend.sealed && (
+      {/* 봉인 경보는 status 가 라이브로 확인됐을 때만 의미가 있다(데모 sealed:false 로 절대 안 뜨던 결함 제거) */}
+      {statusLive && backend.sealed && (
         <AlertBanner variant="danger">
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold">{t.vault.sealAlertTitle}</span>
@@ -290,13 +233,38 @@ export default function PageVault() {
         </AlertBanner>
       )}
 
+      {/* status 미도달 — 봉인 여부조차 확인 불가함을 명확히 알린다 */}
+      {statusQuery.isError && (
+        <AlertBanner variant="warn">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-semibold">
+              {locale === "ko"
+                ? "Vault 상태를 확인할 수 없습니다"
+                : "Vault status unavailable"}
+            </span>
+            <span className="text-[11px] opacity-90">
+              {locale === "ko"
+                ? "Vault 백엔드에 도달하지 못했습니다. 봉인 여부·주소·버전을 확인할 수 없습니다."
+                : "Could not reach the Vault backend. Seal state, address and version cannot be verified."}
+            </span>
+          </div>
+        </AlertBanner>
+      )}
+
       <Card
         title={
           <CardTitle
             icon={<Server className="w-3.5 h-3.5 text-blue-500" />}
             badge={
-              <Badge variant={backend.sealed ? "red" : "green"}>
-                {backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed}
+              // status 미확인 시 봉인 배지를 'Unknown'(회색)으로 — Unsealed 로 위장하지 않는다
+              <Badge
+                variant={!statusLive ? "gray" : backend.sealed ? "red" : "green"}
+              >
+                {!statusLive
+                  ? t.vault.statusUnknown
+                  : backend.sealed
+                    ? t.vault.statusSealed
+                    : t.vault.statusUnsealed}
               </Badge>
             }
           >
@@ -309,18 +277,24 @@ export default function PageVault() {
             [t.vault.field.backend, backend.backend, false],
             [t.vault.field.version, backend.version, false],
             [t.vault.field.address, backend.address, false],
-            [t.vault.field.namespace, backend.namespace || "—", false],
             [
               t.vault.field.sealed,
-              backend.sealed ? t.vault.statusSealed : t.vault.statusUnsealed,
+              !statusLive
+                ? t.vault.statusUnknown
+                : backend.sealed
+                  ? t.vault.statusSealed
+                  : t.vault.statusUnsealed,
               true,
             ],
             [t.vault.field.lastRotation, backend.lastRotation, false],
             [
               t.vault.field.autoRotation,
-              backend.autoRotation
-                ? t.vault.field.autoRotationOn
-                : t.vault.field.autoRotationOff,
+              // status API 가 제공하지 않는 값 — 추측(ON) 대신 미확인 시 "—"
+              backend.autoRotation == null
+                ? "—"
+                : backend.autoRotation
+                  ? t.vault.field.autoRotationOn
+                  : t.vault.field.autoRotationOff,
               true,
             ],
           ].map(([k, v, asTitle]) => (
@@ -394,11 +368,14 @@ export default function PageVault() {
         }
         className="hidden md:block"
       >
-        {listQuery.isError && items.length === 0 ? (
+        {/* 라이브 실패는 데모 length 에 가리지 않고 항상 에러로 표시 */}
+        {listQuery.isError ? (
           <ListError
             onRetry={() => listQuery.refetch()}
             fetching={listQuery.isFetching}
           />
+        ) : listQuery.isLoading ? (
+          <ListEmpty icon={<Vault />} message={t.common.loading} />
         ) : items.length === 0 ? (
           <ListEmpty icon={<Vault />} message={t.vault.noItems} />
         ) : filtered.length === 0 ? (
@@ -510,11 +487,15 @@ export default function PageVault() {
 
       {/* Mobile stack */}
       <div className="md:hidden flex flex-col gap-3">
-        {listQuery.isError && items.length === 0 ? (
+        {listQuery.isError ? (
           <ListError
             onRetry={() => listQuery.refetch()}
             fetching={listQuery.isFetching}
           />
+        ) : listQuery.isLoading ? (
+          <div className="py-6 text-center text-[13px] text-muted-foreground">
+            {t.common.loading}
+          </div>
         ) : items.length === 0 ? (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
             {t.vault.noItems}

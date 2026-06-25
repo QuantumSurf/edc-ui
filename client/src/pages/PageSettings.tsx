@@ -695,9 +695,10 @@ function ProfileRow({
 }
 
 /* ─── Helper: Toggle Row (persisted via localStorage) ────────── */
-const NOTIFY_PREFS_KEY = "kmx-notify-prefs";
+// NotificationPanel 도 같은 prefs 를 읽어 source 별 알림을 거르므로 키·reader 를 공유.
+export const NOTIFY_PREFS_KEY = "kmx-notify-prefs";
 
-function readPref(key: string, fallback: boolean): boolean {
+export function readPref(key: string, fallback: boolean): boolean {
   try {
     const raw = localStorage.getItem(NOTIFY_PREFS_KEY);
     if (!raw) return fallback;

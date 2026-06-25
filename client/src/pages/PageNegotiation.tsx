@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { fetchNegotiations, terminateNegotiation } from "@/services";
-import { type Negotiation } from "@/lib/data";
+import { type Negotiation, isNegotiationActive } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   DataTablePagination,
@@ -105,7 +105,8 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
     enabled: !!connectorId,
     refetchInterval: query => {
       const data = query.state.data;
-      if (data?.some(n => n.state < 1200)) return 3000;
+      // 진행중(비종단·알려진 상태)만 폴링. 미지 상태(state<=0)는 종단 취급해 무한 폴링 방지.
+      if (data?.some(n => isNegotiationActive(n.state))) return 3000;
       return false;
     },
   });
@@ -128,18 +129,24 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
       );
     }
 
-    // Time range filter (based on n.ts string parseable as Date)
+    // Time range filter — 표시용 ts(로컬라이즈 문자열)는 Date.parse 불가하므로
+    // 머신리더블 createdAt(epoch ms)로 필터. createdAt 미확인이면 보수적으로 통과.
     const range = TIME_RANGES.find(r => r.value === timeRange);
     if (range?.days != null) {
       const cutoff = Date.now() - range.days * 86400_000;
-      filtered = filtered.filter(n => {
-        const ts = Date.parse(n.ts);
-        return Number.isFinite(ts) ? ts >= cutoff : true;
-      });
+      filtered = filtered.filter(n =>
+        n.createdAt != null ? n.createdAt >= cutoff : true
+      );
     }
 
-    // 최신 시각(ts) 내림차순 정렬
-    return [...filtered].sort((a, b) => b.ts.localeCompare(a.ts));
+    // 최신 생성시각(createdAt) 내림차순 정렬. 표시 문자열 정렬은 12시간제 경계에서
+    // 역전되므로 epoch로 정렬하고, 동시각은 id로 결정적 tie-break.
+    return [...filtered].sort((a, b) => {
+      const av = a.createdAt ?? -Infinity;
+      const bv = b.createdAt ?? -Infinity;
+      if (bv !== av) return bv - av;
+      return a.id.localeCompare(b.id);
+    });
   }, [negotiations, filter, search, timeRange]);
 
   const {
@@ -298,6 +305,9 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                   <span className="font-display text-[14px] font-bold text-foreground flex items-center gap-2 truncate">
                     <List className="w-4 h-4 text-primary" />
                     {t.negotiations.listTitle}
+                  </span>
+                  <span className="text-[11px] font-normal text-muted-foreground flex-shrink-0">
+                    {t.negotiations.resultCount(totalItems, negotiations.length)}
                   </span>
                 </div>
                 <div className="overflow-x-auto">
@@ -753,40 +763,32 @@ function StateTimeline({
   terminated: boolean;
 }) {
   const { t } = useI18n();
-  const termIdx = terminated
-    ? TIMELINE_STATES.findIndex(x => x.code > current)
-    : -1;
+  // EDC는 TERMINATED(1300)로 전이하면서 종료 직전 진행 상태를 보존하지 않는다.
+  // 따라서 current(=1300)만으로는 어느 단계에서 실패했는지 복원할 수 없으므로,
+  // 종료 시 진행 단계를 임의로 '완료(녹색)'로 칠하지 않고 전부 미도달(회색)로 두고
+  // 맨 아래 TERMINATED만 빨강으로 표시한다(거짓 '전부 성공' 오해 제거).
   return (
     <div className="flex flex-col">
       {TIMELINE_STATES.map((s, idx) => {
-        const reached = current >= s.code;
+        const reached = !terminated && current >= s.code;
         const isCurrent = current === s.code && !terminated;
         const isLast = idx === TIMELINE_STATES.length - 1 && !terminated;
-        const failed = terminated && termIdx >= 0 && idx >= termIdx;
-        const completed = reached && !isCurrent && !failed;
-        const dotClass = failed
-          ? "bg-rose-500 border-rose-500"
-          : reached
-            ? isCurrent
-              ? "bg-primary border-primary ring-2 ring-primary/30"
-              : "bg-primary border-primary"
-            : "bg-card border-border";
+        const completed = reached && !isCurrent;
+        const dotClass = reached
+          ? isCurrent
+            ? "bg-primary border-primary ring-2 ring-primary/30"
+            : "bg-primary border-primary"
+          : "bg-card border-border";
         const nextReached =
+          !terminated &&
           idx < TIMELINE_STATES.length - 1 &&
           current >= TIMELINE_STATES[idx + 1].code;
-        const lineClass =
-          terminated && termIdx >= 0 && idx >= termIdx
-            ? "bg-rose-300"
-            : nextReached
-              ? "bg-primary"
-              : "bg-border";
-        const labelClass = failed
-          ? "text-rose-600 dark:text-rose-400 font-medium"
-          : isCurrent
-            ? "text-primary font-semibold"
-            : reached
-              ? "text-foreground font-medium"
-              : "text-muted-foreground/50 font-medium";
+        const lineClass = nextReached ? "bg-primary" : "bg-border";
+        const labelClass = isCurrent
+          ? "text-primary font-semibold"
+          : reached
+            ? "text-foreground font-medium"
+            : "text-muted-foreground/50 font-medium";
         return (
           <div key={s.code} className="flex gap-2.5">
             <div className="flex flex-col items-center">

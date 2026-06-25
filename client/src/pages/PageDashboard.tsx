@@ -4,7 +4,12 @@
 import { type Connector } from "@/lib/data";
 import { useI18n } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
-import { fetchNegotiations, fetchTransfers, fetchTrend } from "@/services";
+import {
+  fetchAssets,
+  fetchNegotiations,
+  fetchTransfers,
+  fetchTrend,
+} from "@/services";
 import {
   Card,
   StateBadge,
@@ -83,6 +88,15 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
     refetchInterval: 60_000, // 1분마다 갱신
   });
 
+  // 자산 KPI 는 사이드바와 동일한 ["assets", conn.id] 캐시를 공유해, 자산 추가/삭제 시
+  // 두 표시가 항상 일치하도록 한다(정적 conn.assets 사용 시 한 화면에서 수가 어긋남).
+  const { data: assetList } = useQuery({
+    queryKey: ["assets", conn.id],
+    queryFn: () => fetchAssets(conn.id),
+    staleTime: 60_000,
+  });
+  const assetCount = assetList?.length ?? conn.assets;
+
   // 전송 통계: 완료(COMPLETED) / 진행 중(REQUESTING·STARTED·SUSPENDED)
   const transferStats = useMemo(() => {
     let done = 0,
@@ -129,12 +143,12 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <Package className="w-[18px] h-[18px] text-blue-600 dark:text-blue-400" />
           }
           iconBg="bg-blue-50 dark:bg-blue-500/10"
-          value={conn.assets}
+          value={assetCount}
           title={t.dashboard.assets}
           sub={t.dashboard.includingOfferings}
           trend="up"
           onClick={() => onNav(`/connectors/${conn.id}/assets`)}
-          ariaLabel={`${t.dashboard.assets} ${conn.assets}`}
+          ariaLabel={`${t.dashboard.assets} ${assetCount}`}
         />
         <KpiCard
           icon={

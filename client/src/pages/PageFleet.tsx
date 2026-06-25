@@ -28,6 +28,7 @@ import {
 import {
   SlidePanel,
   DeleteConfirmDialog,
+  ConfirmActionDialog,
 } from "@/components/DetailDeleteDialogs";
 import {
   PlusCircle,
@@ -49,6 +50,7 @@ import {
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConnectorStore } from "@/stores/connectorStore";
 import AddConnectorPanel from "./PageAddConnector";
 
 interface PageFleetProps {
@@ -324,7 +326,15 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         itemName={deleteTarget?.name ?? ""}
         subtitle={deleteTarget?.bpn}
         onConfirm={async () => {
-          if (deleteTarget) await deleteConnector(deleteTarget.id);
+          if (deleteTarget) {
+            await deleteConnector(deleteTarget.id);
+            // 현재 선택 중인 커넥터를 삭제했으면 store 의 stale 선택을 비워
+            // 사이드바 셀렉터/헤더가 사라진 커넥터를 계속 표시하지 않도록 한다.
+            const cur = useConnectorStore.getState().connector;
+            if (cur?.id === deleteTarget.id) {
+              useConnectorStore.getState().selectConnector(null);
+            }
+          }
         }}
         queryKeys={[["connectors"], ["fleet-kpi"]]}
         successMessage={t.fleet.deleted}
@@ -417,8 +427,9 @@ function ConnectorCard({
               {r}
             </Badge>
           ))}
-          <Badge variant="purple">DCP {c.dcp}</Badge>
-          {c.aas && <Badge variant="teal">AAS</Badge>}
+          {/* 서버 응답 필드는 dcpVersion — 'DCP undefined' 방지를 위해 dcpVersion 우선, c.dcp 폴백 */}
+          <Badge variant="purple">DCP {(c as any).dcpVersion ?? c.dcp}</Badge>
+          {/* AAS 배지는 서버에 능력 소스가 없어 제거(항상 미표시였음) */}
           <EnvBadge env={c.env} />
         </div>
       </button>
@@ -489,6 +500,25 @@ function EditConnectorDialog({
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"ok" | "fail" | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
+
+  // 미저장 변경 여부 — 프리필 값과 비교. apiKey 는 빈칸이 아니면 변경으로 간주.
+  const dirty =
+    name !== connector.name ||
+    managementUrl !== ((connector as any).managementUrl ?? "") ||
+    dspEndpoint !== ((connector as any).dspEndpoint ?? "") ||
+    Boolean(apiKey) ||
+    role !== rolesToKey(connector.roles ?? []) ||
+    env !== (connector.env ?? "PROD") ||
+    dcpVersion !== ((connector as any).dcpVersion ?? connector.dcp ?? "1.0") ||
+    did !== ((connector as any).did ?? "");
+
+  // 저장 중에는 닫기 차단(SlidePanel closeDisabled 와 함께), 미저장 변경이 있으면 확인.
+  const requestClose = () => {
+    if (saving) return;
+    if (dirty) setConfirmClose(true);
+    else onClose();
+  };
 
   const handleTest = async () => {
     if (!managementUrl.trim()) return;
@@ -536,7 +566,14 @@ function EditConnectorDialog({
   const inputClass = inputBase;
 
   return (
-    <SlidePanel open onClose={onClose} className="max-w-xl">
+    <SlidePanel
+      open
+      onClose={() => {
+        if (!confirmClose) requestClose();
+      }}
+      closeDisabled={saving}
+      className="max-w-xl"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -546,9 +583,10 @@ function EditConnectorDialog({
           </span>
         </div>
         <button
-          onClick={onClose}
+          onClick={requestClose}
+          disabled={saving}
           aria-label={t.common.close}
-          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="-mr-1 p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0 disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
           <X className="w-4 h-4" />
         </button>
@@ -661,8 +699,9 @@ function EditConnectorDialog({
           {t.addConnector.testConnection}
         </button>
         <button
-          onClick={onClose}
-          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          onClick={requestClose}
+          disabled={saving}
+          className="text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
           {t.fleet.cancel}
         </button>
@@ -675,6 +714,21 @@ function EditConnectorDialog({
           {t.fleet.save}
         </button>
       </div>
+
+      {/* 미저장 변경 가드 */}
+      <ConfirmActionDialog
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        title={t.common.unsavedChanges}
+        description={t.common.unsavedChangesDesc}
+        tone="warn"
+        cancelLabel={t.common.stay}
+        confirmLabel={t.common.leave}
+        onConfirm={() => {
+          setConfirmClose(false);
+          onClose();
+        }}
+      />
     </SlidePanel>
   );
 }

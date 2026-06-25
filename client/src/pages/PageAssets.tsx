@@ -648,6 +648,28 @@ function AssetDetailSheet({
               />
             </div>
           </div>
+
+          {/* 사용자 정의 속성 라운드트립 표시 — 위저드 입력→저장→상세 보기 성립 (id 12) */}
+          {target.customProperties &&
+            Object.keys(target.customProperties).length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <ChevronsRight className="w-3.5 h-3.5 text-primary" />
+                  {t.assets.customProps}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.entries(target.customProperties).map(([k, v]) => (
+                    <InfoCard
+                      key={k}
+                      label={k}
+                      value={v}
+                      mono
+                      copyable={v || undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
 
         {/* Footer */}
@@ -874,7 +896,7 @@ function AssetWizard({
   onCancel?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
   const baseSrc: Asset | null = editTarget ?? duplicateSource ?? null;
@@ -909,7 +931,12 @@ function AssetWizard({
     baseSrc?.baseUrl ?? "https://submodel-server.kmx.io/api/v3/submodel"
   );
   const [proxyPath, setProxyPath] = useState(baseSrc?.proxyPath ?? "true");
-  const [authCode, setAuthCode] = useState("edc:key=kmx-submodel-key");
+  // authCode 초기값: 편집/복제 원본 값(서버가 vault 별칭을 줄 경우) 우선, 없고 편집/복제면 빈 칸으로 둬
+  // 미입력 시 기존 인증을 placeholder로 덮어쓰지 않게 한다. 신규 생성만 데모 placeholder 채움 (id 13).
+  const baseAuthCode = (baseSrc as { authCode?: string } | null)?.authCode;
+  const [authCode, setAuthCode] = useState(
+    baseAuthCode ?? (baseSrc ? "" : "edc:key=kmx-submodel-key")
+  );
   const [proxyQuery, setProxyQuery] = useState(
     baseSrc?.proxyQueryParams ?? "true"
   );
@@ -997,6 +1024,15 @@ function AssetWizard({
         setIdError(t.assets.idDuplicate);
         return false;
       }
+    } catch {
+      // fetchAssetById는 404만 null, 그 외(5xx/타임아웃/네트워크)는 throw.
+      // 중복 여부를 신뢰성 있게 판정 못 하면 '사용 가능'으로 통과시키지 말고 차단(낙관 허용 금지 — id 14).
+      setIdError(
+        locale === "ko"
+          ? "ID 중복 확인에 실패했습니다. 잠시 후 다시 시도해 주세요."
+          : "Failed to verify ID availability. Please try again."
+      );
+      return false;
     } finally {
       setCheckingId(false);
     }
@@ -1013,7 +1049,17 @@ function AssetWizard({
       toast.error(t.assets.httpsRequired);
       return false;
     }
-    if (authCode && !authCode.startsWith("edc:key")) {
+    // authCode는 신규/복제 시 필수(UI required와 일치 — id 15). 편집 시 미입력은 기존 인증 별칭
+    // 보존을 위해 허용(id 13). 값이 있으면 항상 형식 검증.
+    if (!isEdit && !authCode.trim()) {
+      toast.error(
+        locale === "ko"
+          ? "인증 키를 입력해 주세요."
+          : "Authentication key is required."
+      );
+      return false;
+    }
+    if (authCode.trim() && !authCode.startsWith("edc:key")) {
       toast.error(t.assets.authCodeFormat);
       return false;
     }
@@ -1033,7 +1079,8 @@ function AssetWizard({
     baseUrl,
     proxyPath,
     proxyQueryParams: proxyQuery,
-    authCode: `{{${authCode}}}`,
+    // 미입력 시 authCode 키 자체를 미표시(편집 시 기존 인증 별칭 보존 — placeholder로 덮지 않음).
+    ...(authCode.trim() ? { authCode: `{{${authCode}}}` } : {}),
     contentType,
   };
 
@@ -1063,7 +1110,9 @@ function AssetWizard({
         baseUrl,
         proxyPath,
         proxyQueryParams: proxyQuery,
-        authCode,
+        // authCode는 입력했을 때만 전송 — 편집 시 미입력이면 서버가 기존 인증 별칭을 placeholder로
+        // 덮어쓰지 않도록 키 자체를 보내지 않는다 (id 13).
+        ...(authCode.trim() ? { authCode } : {}),
         contentType,
         aasVersion: aasVersion || undefined,
         aasId: aasId || undefined,
@@ -1270,13 +1319,20 @@ function AssetWizard({
                   <option>false</option>
                 </select>
               </FormField>
-              <FormField label={t.assets.authCodeLabel} required>
+              <FormField label={t.assets.authCodeLabel} required={!isEdit}>
                 <input
                   value={authCode}
                   onChange={e => {
                     setAuthCode(e.target.value);
                     markDirty();
                   }}
+                  placeholder={
+                    isEdit
+                      ? locale === "ko"
+                        ? "변경하지 않으려면 비워두세요"
+                        : "Leave blank to keep current key"
+                      : undefined
+                  }
                   className={`${inputBase} mono`}
                 />
                 {authCode && !authCode.startsWith("edc:key") && (

@@ -302,8 +302,11 @@ export default function PageShells() {
       <ExposeSubmodelDialog
         target={exposeTarget}
         onClose={() => setExposeTarget(null)}
-        onDone={() => {
+        onDone={cid => {
           qc.invalidateQueries({ queryKey: ["shells"] });
+          // 노출 직후 해당 커넥터의 자산·계약정의 목록·사이드바 카운트 갱신(id 37).
+          qc.invalidateQueries({ queryKey: ["assets", cid] });
+          qc.invalidateQueries({ queryKey: ["offerings", cid] });
         }}
       />
 
@@ -311,8 +314,10 @@ export default function PageShells() {
       <ExposeDtrDialog
         open={exposeDtrOpen}
         onClose={() => setExposeDtrOpen(false)}
-        onDone={() => {
-          /* registry list unchanged; asset/offering created on connector */
+        onDone={cid => {
+          // registry list unchanged; asset/offering created on connector (id 37).
+          qc.invalidateQueries({ queryKey: ["assets", cid] });
+          qc.invalidateQueries({ queryKey: ["offerings", cid] });
         }}
       />
 
@@ -608,6 +613,14 @@ function rawToEditorState(raw: Record<string, unknown>) {
       value: (s.value as string) ?? "",
     })),
     subs: subsRaw.map(s => rawSubmodelToInput(s)),
+    // DTR PUT은 전체교체라 비모델링 필드(administration·displayName·assetKind
+    // ·extensions 등)가 소실된다. raw 전체를 보존해 submit 시 머지(id 39).
+    raw,
+    // ko/en 외 언어 description 항목 — 편집값으로 덮어쓰지 않고 carry-over(id 40).
+    descriptionRaw: desc.filter(d => {
+      const l = (d.language ?? "").toLowerCase();
+      return !l.startsWith("ko") && !l.startsWith("en");
+    }),
   };
 }
 
@@ -635,6 +648,13 @@ function ShellEditorDialog({
   const [subs, setSubs] = useState<SubmodelInput[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
+  // 편집 시작 시 받은 raw 스냅샷·비-ko/en description 보존(id 39/40).
+  const [rawSnapshot, setRawSnapshot] = useState<Record<string, unknown> | null>(
+    null
+  );
+  const [descriptionRaw, setDescriptionRaw] = useState<
+    Array<{ language?: string; text?: string }>
+  >([]);
 
   const reset = () => {
     setIdShort("");
@@ -644,6 +664,8 @@ function ShellEditorDialog({
     setDescriptionEn("");
     setSpecs([]);
     setSubs([]);
+    setRawSnapshot(null);
+    setDescriptionRaw([]);
   };
 
   // Pre-fill on edit-mode open
@@ -665,6 +687,8 @@ function ShellEditorDialog({
           setDescriptionEn(s.descriptionEn);
           setSpecs(s.specs);
           setSubs(s.subs.length > 0 ? s.subs : []);
+          setRawSnapshot(s.raw);
+          setDescriptionRaw(s.descriptionRaw);
         })
         .finally(() => setLoading(false));
     } else {
@@ -691,20 +715,29 @@ function ShellEditorDialog({
     }
     setSubmitting(true);
     try {
+      // DTR PUT은 전체교체라 edit 시 raw를 base로 머지해 비모델링 필드를
+      // 보존한다(id 39). create 모드는 raw가 없으므로 빈 base.
       const body: Record<string, unknown> = {
+        ...(mode === "edit" && rawSnapshot ? rawSnapshot : {}),
         id: aasId,
         idShort,
         globalAssetId,
         specificAssetIds: specs.filter(s => s.name && s.value),
         submodelDescriptors: subs.map(submodelInputToBody),
       };
-      const descriptions: Array<{ language: string; text: string }> = [];
+      // ko/en 편집값 + 보존된 비-ko/en 언어 항목 머지(id 40).
+      const descriptions: Array<{ language?: string; text?: string }> = [
+        ...descriptionRaw,
+      ];
       if (descriptionKo)
         descriptions.push({ language: "ko", text: descriptionKo });
       if (descriptionEn)
         descriptions.push({ language: "en", text: descriptionEn });
       if (descriptions.length > 0) {
         body.description = descriptions;
+      } else {
+        // 모든 언어가 비었으면 raw에서 가져온 description 키를 남기지 않는다.
+        delete body.description;
       }
       if (mode === "edit") {
         await updateShell(initialAasId!, body);

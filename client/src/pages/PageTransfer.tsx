@@ -14,7 +14,7 @@ import {
   deleteAllTransfers,
   fetchEDRs,
 } from "@/services";
-import { SINK_TYPES, type Transfer } from "@/lib/data";
+import { SINK_TYPES, type Transfer, isTransferActive } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   DataTablePagination,
@@ -259,7 +259,9 @@ export default function PageTransfer() {
     enabled: !!connectorId,
     refetchInterval: query => {
       const list = query.state.data as Transfer[] | undefined;
-      const hasInflight = list?.some(tr => tr.state < 1200);
+      // 진행중(REQUESTING/STARTED)만 빠른 폴링. SUSPENDED는 사용자 개입 전 자동
+      // 재개되지 않으므로 활성에서 제외해 무한 폴링을 종단한다.
+      const hasInflight = list?.some(tr => isTransferActive(tr.state));
       return hasInflight ? 3000 : false;
     },
   });
@@ -269,8 +271,11 @@ export default function PageTransfer() {
     queryKey: ["edrs", connectorId],
     queryFn: () => fetchEDRs(connectorId!),
     enabled: !!connectorId,
-    // transfers 폴링과 동일하게 inflight일 때만 자주 갱신
-    refetchInterval: transfers.some(tr => tr.state < 1200) ? 3000 : false,
+    // transfers 폴링과 동일하게 진행중(REQUESTING/STARTED)일 때만 자주 갱신.
+    // SUSPENDED 잔존 시 무한 폴링을 막기 위해 transfers와 동일 헬퍼 사용.
+    refetchInterval: transfers.some(tr => isTransferActive(tr.state))
+      ? 3000
+      : false,
   });
   const activeEdrTps = useMemo(
     () => new Set(edrs.filter(e => e.left !== 0).map(e => e.tpId)),
@@ -282,6 +287,15 @@ export default function PageTransfer() {
     tr.name === "STARTED" &&
     tr.size === "—" &&
     !activeEdrTps.has(tr.id.slice(0, 12));
+
+  // 커넥터 전환 시 추적 ref를 재시딩한다. 그러지 않으면 새 커넥터의 transfers가
+  // 도착할 때 초기 스냅샷 분기를 건너뛰어(initializedRef가 이미 true), 그 커넥터에
+  // 이미 존재하던 과거 TERMINATED 전송들이 일제히 거짓 실패 토스트로 쏟아진다.
+  useEffect(() => {
+    initializedRef.current = false;
+    toastedRef.current = new Set();
+    userActionRef.current = new Set();
+  }, [connectorId]);
 
   /* ── toast on TERMINATED (신규 실패만, 기존 상태 제외) ─────── */
   useEffect(() => {
@@ -360,8 +374,13 @@ export default function PageTransfer() {
           toastedRef.current.add(tpId);
           await completeTransfer(tpId, connectorId);
           toast.success(t.transfers.completeSuccess);
+          // 전송 상태 변화는 데이터플레인 EDR 발급/만료의 트리거이므로 EDR·통계도 함께 무효화.
           queryClient.invalidateQueries({
             queryKey: ["transfers", connectorId],
+          });
+          queryClient.invalidateQueries({ queryKey: ["edrs", connectorId] });
+          queryClient.invalidateQueries({
+            queryKey: ["edr-stats", connectorId],
           });
         } catch {
           userActionRef.current.delete(tpId);
@@ -438,6 +457,10 @@ export default function PageTransfer() {
           queryClient.invalidateQueries({
             queryKey: ["transfers", connectorId],
           });
+          queryClient.invalidateQueries({ queryKey: ["edrs", connectorId] });
+          queryClient.invalidateQueries({
+            queryKey: ["edr-stats", connectorId],
+          });
         } catch {
           userActionRef.current.delete(tpId);
           toast.error(t.transfers.actionFailed);
@@ -477,7 +500,10 @@ export default function PageTransfer() {
         connectorId
       );
       toast.success(t.transfers.started);
+      // 전송 시작은 EDR 발급 트리거 — EDR 목록·통계도 무효화해 교차 페이지 stale 방지.
       queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
+      queryClient.invalidateQueries({ queryKey: ["edrs", connectorId] });
+      queryClient.invalidateQueries({ queryKey: ["edr-stats", connectorId] });
       setAgreementId("");
       setAssetId("");
       setSinkEndpoint("");

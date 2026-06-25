@@ -12,6 +12,7 @@ import { useConnectorStore } from "@/stores/connectorStore";
 import {
   fetchConnectors,
   createAsset,
+  updateAsset,
   createOffering,
   fetchPolicies,
 } from "@/services";
@@ -30,6 +31,11 @@ const inputCls = `${inputBase} placeholder:font-sans placeholder:font-normal`;
 
 const DTR_URL_DEFAULT = "http://platform-dtr:4243/semantics/registry/api/v3";
 
+// axios 에러의 HTTP status 추출(409 멱등 분기용 — id 41).
+function errStatus(e: unknown): number | undefined {
+  return (e as { response?: { status?: number } })?.response?.status;
+}
+
 export function ExposeDtrDialog({
   open,
   onClose,
@@ -37,7 +43,8 @@ export function ExposeDtrDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onDone: () => void;
+  // 노출 대상 커넥터 id를 전달해 호출부가 정확한 캐시만 무효화하게 한다(id 37).
+  onDone: (connectorId: string) => void;
 }) {
   const { t } = useI18n();
   const storeConnector = useConnectorStore(s => s.connector);
@@ -117,21 +124,26 @@ export function ExposeDtrDialog({
       return;
     }
     const aid = assetId.trim();
+    const assetBody = {
+      id: aid,
+      name: "Digital Twin Registry",
+      type: "cx-taxo:DigitalTwinRegistry",
+      dataAddressType: "HttpData",
+      baseUrl: dtrUrl.trim(),
+      proxyPath: "true",
+      proxyQueryParams: "true",
+      contentType: "application/json",
+    };
     setBusy(true);
     try {
-      await createAsset(
-        {
-          id: aid,
-          name: "Digital Twin Registry",
-          type: "cx-taxo:DigitalTwinRegistry",
-          dataAddressType: "HttpData",
-          baseUrl: dtrUrl.trim(),
-          proxyPath: "true",
-          proxyQueryParams: "true",
-          contentType: "application/json",
-        },
-        connectorId
-      );
+      // 부분 실패 후 재시도 시 동일 ID가 409로 영구 차단되지 않도록 멱등 처리:
+      // 이미 존재(409)하면 PUT(updateAsset, EDC upsert)으로 갱신한다(id 41).
+      try {
+        await createAsset(assetBody, connectorId);
+      } catch (e) {
+        if (errStatus(e) === 409) await updateAsset(aid, assetBody, connectorId);
+        else throw e;
+      }
     } catch (e) {
       setBusy(false);
       toast.error(`${t.twins.exposeDtr.failAsset}: ${(e as Error).message}`);
@@ -148,13 +160,18 @@ export function ExposeDtrDialog({
         connectorId
       );
     } catch (e) {
-      setBusy(false);
-      toast.error(`${t.twins.exposeDtr.failOffering}: ${(e as Error).message}`);
-      return;
+      // 계약정의가 이미 존재(409)하면 노출은 성립한 것으로 보고 통과(id 41).
+      if (errStatus(e) !== 409) {
+        setBusy(false);
+        toast.error(
+          `${t.twins.exposeDtr.failOffering}: ${(e as Error).message}`
+        );
+        return;
+      }
     }
     setBusy(false);
     toast.success(t.twins.exposeDtr.success);
-    onDone();
+    onDone(connectorId);
     onClose();
   };
 

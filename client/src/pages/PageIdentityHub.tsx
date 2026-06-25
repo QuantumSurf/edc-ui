@@ -1,7 +1,7 @@
 // Connector Hub — IdentityHub status page
 // 글로벌 설정의 IdentityHub URL 을 표시하고 외부 링크로 열 수 있게 한다.
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import {
@@ -37,16 +37,22 @@ interface PageIdentityHubProps {
 
 export default function PageIdentityHub({ onNav }: PageIdentityHubProps) {
   const { t } = useI18n();
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(true);
+  // URL 로딩을 react-query 로 — 캐시(재마운트 시 재페치 억제)·일시 실패 1회 재시도 확보.
+  const {
+    data: url = "",
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: ["identity-hub-url"],
+    queryFn: fetchIdentityHubUrl,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
   useEffect(() => {
-    setLoading(true);
-    fetchIdentityHubUrl()
-      .then(v => setUrl(v))
-      .catch(e => toast.error((e as Error).message))
-      .finally(() => setLoading(false));
-  }, []);
+    if (error) toast.error((error as Error).message);
+  }, [error]);
 
   const copy = () => {
     navigator.clipboard.writeText(url);

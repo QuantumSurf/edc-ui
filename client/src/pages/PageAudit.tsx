@@ -80,7 +80,11 @@ interface AuditEvent {
 /* ─── Demo data factory ──────────────────────────────────────── */
 function makeDemoEvents(connectorId: string, locale: string): AuditEvent[] {
   const isProd = connectorId.toLowerCase().includes("prod");
-  const baseDate = Date.now();
+  // 고정 anchor + 결정적 지터를 써서 동일 (connectorId, locale) 입력이 항상 같은
+  // 타임스탬프/requestId/정렬 결과를 내도록 한다. Date.now()·Math.random() 을 쓰면
+  // locale 토글·connector 변경 시 재생성되어 행 순서가 흔들리고 상세 패널이 stale 해진다.
+  // (id 가 2026050800 기반이라 의미상 일치하는 기준값 사용.)
+  const baseDate = Date.parse("2026-05-08T00:00:00Z");
   const min = 60_000;
 
   const tpl: (Omit<AuditEvent, "id" | "timestamp" | "requestId"> & {
@@ -455,7 +459,7 @@ function makeDemoEvents(connectorId: string, locale: string): AuditEvent[] {
         baseDate -
           r * 24 * 60 * min -
           i * 11 * min -
-          Math.floor(Math.random() * 90) * min
+          ((seq * 37) % 90) * min // 결정적 지터(난수 대체)
       );
       const { messageEn, ...rest } = e;
       events.push({
@@ -463,7 +467,7 @@ function makeDemoEvents(connectorId: string, locale: string): AuditEvent[] {
         message: locale === "en" ? messageEn : rest.message,
         id: `evt-${(2026050800 - seq).toString(16)}`,
         timestamp: ts.toISOString(),
-        requestId: `req-${Math.random().toString(36).slice(2, 10)}`,
+        requestId: `req-${(0xa1b2c3 + seq).toString(36)}`, // 결정적 requestId
       });
     });
   }
@@ -811,10 +815,11 @@ export default function PageAudit() {
           )}
           <button
             onClick={() => {
-              exportCsv(filtered);
+              // 화면 표시 순서(정렬+필터)와 CSV 행 순서를 일치시킨다.
+              exportCsv(sorted);
               toast.success(t.audit.exported);
             }}
-            disabled={filtered.length === 0}
+            disabled={sorted.length === 0}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1"
           >
             <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}

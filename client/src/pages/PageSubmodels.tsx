@@ -762,10 +762,12 @@ function SemanticModelEditorDialog({
       const serverMsg = err.response?.data?.error;
       if (serverMsg === "duplicate-urn") {
         toast.error(t.submodels.form.duplicateUrn);
+      } else if (serverMsg === "content-too-large" || err.response?.status === 413) {
+        // 서버 코드(content-too-large)·413 모두 로컬라이즈 메시지로 흡수
+        // (raw 영문 노출 방지 — id 42).
+        toast.error(t.submodels.msg.tooLarge);
       } else if (serverMsg) {
         toast.error(serverMsg);
-      } else if (err.response?.status === 413) {
-        toast.error(t.submodels.msg.tooLarge);
       } else {
         toast.error(err.message ?? t.submodels.msg.saveFailed);
       }

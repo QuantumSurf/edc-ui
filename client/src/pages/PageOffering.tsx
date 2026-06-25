@@ -895,6 +895,25 @@ function OfferingWizard({
     if (open) setStep(0);
   }, [open]);
 
+  // policies 가 비동기로 늦게 도착하면 신규 생성 위저드의 기본 정책(첫 정책)을 채운다.
+  // prev || first 가드로 이미 선택한 값/편집·복제 prefill 은 덮지 않는다.
+  useEffect(() => {
+    if (policies.length === 0) return;
+    const first = policies[0].id;
+    setAccessPolicy(prev => prev || first);
+    setContractPolicy(prev => prev || first);
+  }, [policies]);
+
+  // assets 가 로드/갱신될 때 더 이상 존재하지 않는 선택 자산 ID 를 정리한다.
+  // (자산 삭제 후 편집/복제 시 stale ID 가 재게시되어 잘못된 selector 가 박히는 것 방지.)
+  useEffect(() => {
+    const live = new Set(assets.map(a => a.id));
+    setSelAssets(prev => {
+      const pruned = prev.filter(id => live.has(id));
+      return pruned.length === prev.length ? prev : pruned;
+    });
+  }, [assets]);
+
   const markDirty = () => {
     onDirtyChange?.(true);
   };

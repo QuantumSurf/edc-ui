@@ -9,8 +9,23 @@ import {
   clearAllNotifications,
   type NotificationItem,
 } from "@/services/api";
+import { readPref } from "@/pages/PageSettings";
 
 const QUERY_KEY = ["notifications"] as const;
+
+// 설정 알림 토글(source → storageKey). NotificationPanel 과 동일 매핑을 사용해
+// 사이드바 미읽음 배지도 꺼진 source 를 제외하여 패널과 수가 일치하게 한다.
+const SOURCE_PREF: Record<NotificationItem["source"], string> = {
+  vc: "notify.vcExpiry",
+  negotiation: "notify.negTerminated",
+  transfer: "notify.transferFailed",
+  edr: "notify.edrExpiry",
+  system: "notify.connectorHealth",
+};
+
+function isEnabled(n: NotificationItem): boolean {
+  return readPref(SOURCE_PREF[n.source] ?? "", true);
+}
 
 export function useNotifications() {
   const queryClient = useQueryClient();
@@ -26,7 +41,7 @@ export function useNotifications() {
     refetchInterval: 30_000, // 30초마다 폴링
   });
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.read && isEnabled(n)).length;
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) => markNotificationRead(id),
@@ -117,5 +132,5 @@ export function useUnreadNotificationCount(): number {
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
-  return data.filter(n => !n.read).length;
+  return data.filter(n => !n.read && isEnabled(n)).length;
 }

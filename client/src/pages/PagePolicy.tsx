@@ -252,27 +252,79 @@ interface Constraint {
   rightOperand: string;
 }
 
-/** Parse constraint text like "action: odrl:use" into structured data */
-function parseConstraints(
-  constraint: string
-): { left: string; op: string; right: string }[] {
-  if (!constraint) return [];
-  // Try splitting by semicolons or commas for multiple constraints
-  const parts = constraint
-    .split(/[;,]/)
+/* ── 서버 계약 소비용 로컬 타입 ──────────────────────────────────
+ * 서버 mapPolicy는 구조화된 rules(다중 rule·다중 제약·prohibition/obligation 보존)와
+ * 첫 rule 요약(ruleType/action)을 함께 보낸다. lib/data.ts Policy 타입은 공유(수정 금지)라
+ * 아직 이 필드가 없으므로 여기서 로컬로 확장해 타입세이프하게 소비한다.
+ */
+interface ParsedConstraint {
+  left: string;
+  op: string;
+  right: string;
+}
+interface PolicyRule {
+  ruleType: "permission" | "prohibition" | "obligation";
+  action: string;
+  constraints: ParsedConstraint[];
+}
+type PolicyWithRules = Policy & {
+  rules?: PolicyRule[];
+  ruleType?: string;
+  action?: string;
+};
+
+/**
+ * 정책 제약을 구조화 배열로 추출. 서버가 보내는 구조화 p.rules를 우선 사용하고,
+ * 없으면 레거시 p.constraint("left op right" 토큰을 "; " 구분으로 결합) 문자열을 파싱한다.
+ * (과거: 첫 콜론 기준 분해 + op 항상 'eq' 하드코딩으로 실제 연산자/operand가 깨져 표시 — id 16/19)
+ */
+function policyConstraints(p: Policy): ParsedConstraint[] {
+  const rules = (p as PolicyWithRules).rules;
+  if (Array.isArray(rules) && rules.length > 0) {
+    return rules.flatMap(r => r.constraints ?? []);
+  }
+  return parseConstraints(p.constraint);
+}
+
+/** 정책의 첫 rule 액션 표시값(odrl: 접두 정규화). 서버 미제공 시 'use' 폴백. */
+function policyAction(p: Policy): string {
+  const a = (p as PolicyWithRules).action;
+  const raw = a && a.trim() ? a : "use";
+  return raw.startsWith("odrl:") ? raw : `odrl:${raw}`;
+}
+
+/** 정책의 첫 rule 유형. 서버 미제공 시 permission 폴백. */
+function policyRuleType(p: Policy): "permission" | "prohibition" | "obligation" {
+  const rt = (p as PolicyWithRules).ruleType;
+  return rt === "prohibition" || rt === "obligation" ? rt : "permission";
+}
+
+/**
+ * 레거시 constraint 문자열 파서. 서버 형식은 "left op right" 토큰을 "; "로 결합한 것
+ * (예: "cx-policy:Membership eq active; BusinessPartnerNumber in BPNL...").
+ * 공백 3토큰을 left/op/right로 인식하고 op는 실제 연산자를 보존(eq 하드코딩 제거).
+ */
+function parseConstraints(constraint: string): ParsedConstraint[] {
+  if (!constraint || constraint === "No constraints") return [];
+  return constraint
+    .split(/[;,]/) // 다중 제약 구분자(서버는 "; ", 레거시 ',' 호환)
     .map(s => s.trim())
-    .filter(Boolean);
-  return parts.map(part => {
-    const colonIdx = part.indexOf(":");
-    if (colonIdx > -1) {
-      return {
-        left: part.substring(0, colonIdx).trim(),
-        op: "eq",
-        right: part.substring(colonIdx + 1).trim(),
-      };
-    }
-    return { left: part, op: "", right: "" };
-  });
+    .filter(Boolean)
+    .map(part => {
+      const tokens = part.split(/\s+/);
+      if (tokens.length >= 3) {
+        return {
+          left: tokens[0],
+          op: tokens[1].replace(/^odrl:/, ""),
+          right: tokens.slice(2).join(" "),
+        };
+      }
+      if (tokens.length === 2) {
+        // "action: <value>" 류 레거시(콜론 키:값) — left=키, right=값
+        return { left: tokens[0].replace(/:$/, ""), op: "", right: tokens[1] };
+      }
+      return { left: part, op: "", right: "" };
+    });
 }
 
 export default function PagePolicy() {
@@ -517,14 +569,16 @@ function PolicyJsonDialog({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  // 실제 ruleType/action으로 envelope 구성(과거: permission+use 하드코딩으로 prohibition/transfer 오표시 — id 19/20)
+  const ruleKey = `odrl:${policyRuleType(policy)}`;
   const envelope = {
     "@context": "http://www.w3.org/ns/odrl.jsonld",
     "@type": "Set",
     "@id": policy.id,
-    "odrl:permission": [
+    [ruleKey]: [
       {
-        "odrl:action": "use",
-        "odrl:constraint": parseConstraints(policy.constraint).map(c => ({
+        "odrl:action": policyAction(policy),
+        "odrl:constraint": policyConstraints(policy).map(c => ({
           "odrl:leftOperand": c.left,
           "odrl:operator": {
             "@id": c.op?.startsWith("odrl:") ? c.op : `odrl:${c.op || "eq"}`,
@@ -631,7 +685,7 @@ function PolicyList({
             </thead>
             <tbody className="divide-y divide-border">
               {policies.map(p => {
-                const constraints = parseConstraints(p.constraint);
+                const constraints = policyConstraints(p);
                 return (
                   <tr
                     key={p.id}
@@ -675,9 +729,23 @@ function PolicyList({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant="blue" className="!font-normal">
-                        odrl:use
-                      </Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {policyRuleType(p) !== "permission" && (
+                          <Badge
+                            variant={
+                              policyRuleType(p) === "prohibition"
+                                ? "red"
+                                : "amber"
+                            }
+                            className="!font-normal"
+                          >
+                            {t.policies.ruleLabel[policyRuleType(p)]}
+                          </Badge>
+                        )}
+                        <Badge variant="blue" className="!font-normal">
+                          {policyAction(p)}
+                        </Badge>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1 min-w-0">
@@ -738,7 +806,7 @@ function PolicyList({
       {/* Mobile: Card Stack */}
       <div className="md:hidden flex flex-col gap-2.5">
         {policies.map(p => {
-          const constraints = parseConstraints(p.constraint);
+          const constraints = policyConstraints(p);
           return (
             <div
               key={p.id}
@@ -750,9 +818,19 @@ function PolicyList({
                   <span className="text-xs font-bold text-primary truncate block">
                     {p.id}
                   </span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {policyRuleType(p) !== "permission" && (
+                      <Badge
+                        variant={
+                          policyRuleType(p) === "prohibition" ? "red" : "amber"
+                        }
+                        className="!font-normal"
+                      >
+                        {t.policies.ruleLabel[policyRuleType(p)]}
+                      </Badge>
+                    )}
                     <Badge variant="blue" className="!font-normal">
-                      odrl:use
+                      {policyAction(p)}
                     </Badge>
                   </div>
                 </div>
@@ -836,14 +914,16 @@ function PolicyDetailSheet({
     return () => document.removeEventListener("keydown", onEsc);
   }, [onClose]);
 
-  const constraints = parseConstraints(target.constraint);
+  const constraints = policyConstraints(target);
+  const detailRuleType = policyRuleType(target);
+  const detailAction = policyAction(target);
   const odrlObj = {
     "@context": "http://www.w3.org/ns/odrl.jsonld",
     "@type": "Set",
     "@id": target.id,
-    "odrl:permission": [
+    [`odrl:${detailRuleType}`]: [
       {
-        "odrl:action": "use",
+        "odrl:action": detailAction,
         "odrl:constraint": constraints.map(c => ({
           "odrl:leftOperand": c.left,
           "odrl:operator": { "@id": `odrl:${c.op || "eq"}` },
@@ -875,8 +955,16 @@ function PolicyDetailSheet({
             <h2 className="text-[15px] font-semibold text-foreground truncate">
               {target.id}
             </h2>
+            {detailRuleType !== "permission" && (
+              <Badge
+                variant={detailRuleType === "prohibition" ? "red" : "amber"}
+                className="!font-normal"
+              >
+                {t.policies.ruleLabel[detailRuleType]}
+              </Badge>
+            )}
             <Badge variant="blue" className="!font-normal">
-              odrl:use
+              {detailAction}
             </Badge>
             <Badge
               variant={target.offers > 0 ? "blue" : "gray"}
@@ -909,7 +997,11 @@ function PolicyDetailSheet({
                 mono
                 copyable={target.id}
               />
-              <InfoCard label={t.policies.col.action} value="odrl:use" mono />
+              <InfoCard
+                label={t.policies.col.action}
+                value={detailAction}
+                mono
+              />
               <InfoCard
                 label={t.policies.col.offeringRef}
                 value={t.policies.offeringRef(target.offers)}
@@ -1033,7 +1125,8 @@ function ODRLBuilder({
           rightOperand: "active",
         },
       ];
-    const parsed = parseConstraints(baseSrc.constraint);
+    // 편집/복제는 서버 구조화 rules를 우선 소비(레거시 문자열 폴백 포함)해 라운드트립 정확화.
+    const parsed = policyConstraints(baseSrc);
     if (parsed.length === 0)
       return [
         {
@@ -1063,8 +1156,16 @@ function ODRLBuilder({
   const [submitting, setSubmitting] = useState(false);
   const [constraints, setConstraints] =
     useState<Constraint[]>(initialConstraints);
-  const [ruleType, setRuleType] = useState<RuleType>("permission");
-  const [action, setAction] = useState<string>("use");
+  // 편집/복제 시 ruleType/action을 baseSrc에서 복원(과거: 항상 permission/use로 초기화돼
+  // prohibition/transfer 정책이 편집하면 permission/use로 덮어써지던 round-trip 붕괴 — id 17/18).
+  const [ruleType, setRuleType] = useState<RuleType>(
+    baseSrc ? policyRuleType(baseSrc) : "permission"
+  );
+  const [action, setAction] = useState<string>(() => {
+    if (!baseSrc) return "use";
+    const a = (baseSrc as PolicyWithRules).action;
+    return a && a.trim() ? a.replace(/^odrl:/, "") : "use";
+  });
   const [logicOp, setLogicOp] = useState<LogicOp>("and");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"builder" | "json">("builder");
@@ -1223,26 +1324,25 @@ function ODRLBuilder({
     toast.success(t.policies.templateApplied(tpl.label));
   };
 
+  // 미리보기는 서버 buildPolicyDefinition과 동일한 변환 규칙으로 구성한다(미리보기=저장 정합 — id 17).
+  // action: 콜론 없으면 odrl: 접두 부여 후 { "@id" }. operator도 { "@id" }. logicOp 래핑은 다중 제약일 때만.
   const ruleKey = `odrl:${ruleType}`;
+  const actionId = action.includes(":") ? action : `odrl:${action}`;
   const constraintNodes = constraints.map(c => ({
     "odrl:leftOperand": c.leftOperand,
     "odrl:operator": { "@id": c.operator },
     "odrl:rightOperand": c.rightOperand,
   }));
-  // Wrap multiple constraints with logical operator (and/or/xone) when >1
   const constraintField =
     constraints.length > 1
       ? [{ [`odrl:${logicOp}`]: constraintNodes }]
       : constraintNodes;
+  const rule: Record<string, unknown> = { "odrl:action": { "@id": actionId } };
+  if (constraintField.length) rule["odrl:constraint"] = constraintField;
   const odrlObj = {
     "@context": "http://www.w3.org/ns/odrl.jsonld",
     "@type": "Set",
-    [ruleKey]: [
-      {
-        "odrl:action": action,
-        "odrl:constraint": constraintField,
-      },
-    ],
+    [ruleKey]: [rule],
   };
 
   const handleSave = async () => {

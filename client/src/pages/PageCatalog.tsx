@@ -1,7 +1,7 @@
 // Connector Hub — Catalog Browser (spec 4.5)
 // DSP Endpoint input → catalog query → negotiation start flow
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { fetchCatalog, startNegotiation, fetchConnectors } from "@/services";
@@ -26,6 +26,7 @@ import {
   getRecent,
   addRecent,
   removeRecent,
+  RECENT_KEY,
   type RecentCatalogEntry,
 } from "@/lib/recentCatalog";
 import {
@@ -47,7 +48,7 @@ interface PageCatalogProps {
 }
 
 export default function PageCatalog({ onNav }: PageCatalogProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const connector = useConnectorStore(s => s.connector);
   const connectorId = connector?.id;
   const [url, setUrl] = useState("");
@@ -57,7 +58,18 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pick, setPick] = useState("");
+  // 협상 진행 중인 오퍼 — 해당 행만 비활성+스피너로 표시(전체 행 동시 비활성화 방지).
+  const [pendingOfferId, setPendingOfferId] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentCatalogEntry[]>(() => getRecent());
+
+  // cross-tab 동기화 — 다른 탭에서 최근조회가 바뀌면(storage 이벤트는 타 탭 변경만 도착) 재동기화.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === RECENT_KEY) setRecent(getRecent());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   // 빠른 선택용: 등록된 커넥터(현재 선택 커넥터 제외, dspEndpoint 보유). dsp·did 자동 채움.
   const { data: connectors = [] } = useQuery({
@@ -69,17 +81,32 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
 
   const handlePick = (value: string) => {
     setPick(value);
+    // recent 항목은 아래 버튼 목록에서 직접 처리하므로 select 는 conn: 만 다룬다.
     if (value.startsWith("conn:")) {
       const c = peers.find(p => p.id === value.slice(5));
       if (c) {
         setUrl(c.dspEndpoint ?? "");
-        setCounterPartyId(c.did || c.bpn);
-      }
-    } else if (value.startsWith("recent:")) {
-      const r = recent[Number(value.slice(7))];
-      if (r) {
-        setUrl(r.url);
-        setCounterPartyId(r.counterPartyId);
+        // did 우선, 없으면 bpn 폴백. 둘 다 비면 빈 값 전송을 막고 직접 입력을 유도.
+        const candidate = (c.did || c.bpn || "").trim();
+        if (!candidate) {
+          toast.warning(
+            locale === "ko"
+              ? "이 커넥터에는 사용할 수 있는 DID/BPN 이 없어 직접 입력해야 합니다."
+              : "This connector has no usable DID/BPN — please enter it manually."
+          );
+          return;
+        }
+        // did: 도 표준 BPNL 도 아닌 값은 정규화 없이 그대로 전송되어 audience 불일치(opaque 401) 가능.
+        const normalizable =
+          /^did:/i.test(candidate) || /^BPNL[0-9A-Z]+$/i.test(candidate);
+        if (!normalizable) {
+          toast.warning(
+            locale === "ko"
+              ? "표준 DID/BPN 형식이 아니어서 정규화 없이 그대로 전송됩니다. 조회가 실패하면 값을 확인하세요."
+              : "Not a standard DID/BPN — it will be sent as-is without normalization. Verify the value if the query fails."
+          );
+        }
+        setCounterPartyId(candidate);
       }
     }
   };
@@ -146,7 +173,15 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
     onError: () => {
       toast.error(t.catalog.negotiationFailed);
     },
+    onSettled: () => {
+      setPendingOfferId(null);
+    },
   });
+
+  const handleNegotiate = (o: CatalogOffer) => {
+    setPendingOfferId(o.offerId);
+    negMutation.mutate(o);
+  };
 
   // 현재 커넥터의 DSP 엔드포인트 / DID (참고용)
   const myDsp = connector?.dspEndpoint;
@@ -221,6 +256,8 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                     onClick={() => {
                       setUrl(r.url);
                       setCounterPartyId(r.counterPartyId);
+                      // 빠른선택을 manual-entry 로 되돌려 같은 커넥터 재선택 시에도 onChange 가 발화하게 한다.
+                      setPick("");
                     }}
                     className="flex-1 min-w-0 text-left px-2.5 py-1.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded-l-md"
                   >
@@ -251,7 +288,10 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
               <input
                 type="text"
                 value={url}
-                onChange={e => setUrl(e.target.value)}
+                onChange={e => {
+                  setUrl(e.target.value);
+                  setPick("");
+                }}
                 placeholder={t.catalog.dspPlaceholder}
                 aria-label={t.catalog.dspLabel}
                 className={`${inputBase} pl-8 mono placeholder:font-sans placeholder:font-normal`}
@@ -265,7 +305,10 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
               <input
                 type="text"
                 value={counterPartyId}
-                onChange={e => setCounterPartyId(e.target.value)}
+                onChange={e => {
+                  setCounterPartyId(e.target.value);
+                  setPick("");
+                }}
                 placeholder={t.catalog.bpnPlaceholder}
                 aria-label={t.catalog.bpnLabel}
                 className={`${inputBase} pl-8 mono placeholder:font-sans placeholder:font-normal`}
@@ -306,8 +349,10 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
         {loaded && !error && (
           <CatalogResults
             offers={offers}
-            onNegotiate={o => negMutation.mutate(o)}
-            negotiating={negMutation.isPending}
+            onNegotiate={handleNegotiate}
+            isRowPending={o =>
+              negMutation.isPending && pendingOfferId === o.offerId
+            }
           />
         )}
       </Card>
@@ -319,11 +364,11 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
 function CatalogResults({
   offers,
   onNegotiate,
-  negotiating,
+  isRowPending,
 }: {
   offers: CatalogOffer[];
   onNegotiate: (o: CatalogOffer) => void;
-  negotiating: boolean;
+  isRowPending: (o: CatalogOffer) => boolean;
 }) {
   const { t } = useI18n();
   const {
@@ -403,11 +448,15 @@ function CatalogResults({
                     <RoleGate permission="transaction:write">
                       <button
                         onClick={() => onNegotiate(o)}
-                        disabled={negotiating}
+                        disabled={isRowPending(o)}
                         className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
                       >
                         {t.catalog.startNegotiation}{" "}
-                        <ArrowRight className="w-3 h-3" />
+                        {isRowPending(o) ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <ArrowRight className="w-3 h-3" />
+                        )}
                       </button>
                     </RoleGate>
                   </td>
@@ -459,13 +508,18 @@ function CatalogResults({
             <RoleGate permission="transaction:write">
               <button
                 onClick={() => onNegotiate(o)}
-                disabled={negotiating}
+                disabled={isRowPending(o)}
                 className={cn(
                   "w-full inline-flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                  negotiating && "opacity-60"
+                  isRowPending(o) && "opacity-60"
                 )}
               >
-                {t.catalog.startNegotiation} <ArrowRight className="w-3 h-3" />
+                {t.catalog.startNegotiation}{" "}
+                {isRowPending(o) ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <ArrowRight className="w-3 h-3" />
+                )}
               </button>
             </RoleGate>
           </div>
