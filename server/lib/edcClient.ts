@@ -202,6 +202,7 @@ export function toEdcAssetBody(
     "@id": id,
     properties: {
       name: s(b.name) ?? id,
+      ...(s(b.description) ? { description: s(b.description) } : {}),
       "cx-common:version": s(b.ver) ?? "",
       ...(s(b.type) ? { "dct:type": { "@id": s(b.type) } } : {}),
       ...(s(b.sem) ? { semanticId: s(b.sem) } : {}),

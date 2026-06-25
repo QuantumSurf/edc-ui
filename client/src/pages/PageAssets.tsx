@@ -920,6 +920,8 @@ function AssetWizard({
     baseSrc?.type ?? "cx-taxo:SubmodelBundle"
   );
   const [label, setLabel] = useState(initialName);
+  // 상세에는 description 이 표시되는데 생성 폼엔 입력칸이 없던 누락 보강(편집/복제 시 원본 복원)
+  const [description, setDescription] = useState(baseSrc?.description ?? "");
   const [version, setVersion] = useState(baseSrc?.ver ?? "v3.0");
   const [idError, setIdError] = useState<string | null>(null);
 
@@ -1104,6 +1106,7 @@ function AssetWizard({
         id: assetId,
         type: dctType,
         name: label,
+        description: description || undefined,
         ver: version,
         sem: semanticId || null,
         dataAddressType: addrType,
@@ -1247,6 +1250,16 @@ function AssetWizard({
                   value={label}
                   onChange={e => {
                     setLabel(e.target.value);
+                    markDirty();
+                  }}
+                  className={inputBase}
+                />
+              </FormField>
+              <FormField label={t.assets.description}>
+                <input
+                  value={description}
+                  onChange={e => {
+                    setDescription(e.target.value);
                     markDirty();
                   }}
                   className={inputBase}
