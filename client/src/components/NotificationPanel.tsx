@@ -145,7 +145,9 @@ export default function NotificationPanel() {
         <div className="flex items-center justify-between px-4 h-14 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <BellRing className="w-4 h-4 text-primary" />
-            <span className="font-medium text-xs">{t.notifications.title}</span>
+            <span className="font-semibold text-[15px]">
+              {t.notifications.title}
+            </span>
             {unreadCount > 0 && (
               <span className="h-5 px-1.5 inline-flex items-center rounded-full text-[11px] bg-primary text-primary-foreground font-medium">
                 {unreadCount}
@@ -241,7 +243,7 @@ export default function NotificationPanel() {
                 )}
               </div>
             ) : (
-              <div className="space-y-3 pb-4 pr-2">
+              <div className="divide-y divide-border pb-4 pr-2">
                 {filtered.map(n => {
                   const { Icon, color } =
                     SEVERITY[n.type as NotificationType] ?? SEVERITY.info;
@@ -258,7 +260,13 @@ export default function NotificationPanel() {
                         }
                       }}
                       aria-label={`${n.title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
-                      className="group w-full text-left p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                      className={cn(
+                        // 형제 과반수: 카드 대신 divide-y 행 + 미읽음=좌측 primary 바+옅은 배경(점 대신)
+                        "group w-full text-left px-4 py-3 border-l-2 hover:bg-muted/50 transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+                        !n.read
+                          ? "border-l-primary bg-primary/5"
+                          : "border-l-transparent"
+                      )}
                     >
                       <div className="flex items-start gap-2.5">
                         <Icon
@@ -268,16 +276,13 @@ export default function NotificationPanel() {
                           <div className="flex items-center justify-between gap-2">
                             <p
                               className={cn(
-                                "text-xs break-words text-foreground min-w-0",
+                                "text-[12px] truncate text-foreground min-w-0",
                                 !n.read && "font-semibold"
                               )}
                             >
                               {n.title}
                             </p>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {!n.read && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                              )}
                               <button
                                 onClick={e => {
                                   e.stopPropagation();
@@ -290,24 +295,24 @@ export default function NotificationPanel() {
                               </button>
                             </div>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
                             {n.message}
                           </p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span
                               className={cn(
-                                "text-xs font-medium px-2 py-0.5 rounded-full border border-current/40",
+                                "text-[11px] font-medium px-2 py-0.5 rounded-full border border-current/40",
                                 color
                               )}
                             >
                               {typeLabel(n.type as NotificationType)}
                             </span>
-                            <span className="text-xs font-medium text-foreground/80">
+                            <span className="text-[11px] font-medium text-foreground/80">
                               {t.notifications.sources[
                                 n.source as keyof typeof t.notifications.sources
                               ] ?? n.source}
                             </span>
-                            <span className="text-xs font-medium text-foreground/75 ml-auto whitespace-nowrap flex-shrink-0">
+                            <span className="text-[11px] font-medium text-foreground/75 ml-auto whitespace-nowrap flex-shrink-0">
                               {timeAgo(n.timestamp)}
                             </span>
                           </div>
