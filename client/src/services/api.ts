@@ -38,6 +38,8 @@ http.interceptors.request.use(config => {
 
 // Translate 401/403 into user-visible toasts. Reads i18n lang from localStorage
 // so we don't need React context here.
+// 401 = 인증 만료/무효 → 세션을 비우고 전역 이벤트를 쏴 AuthProvider 가 로그아웃 처리
+// (react-query 캐시 초기화·store 리셋 포함)하게 한다. 403 = 권한 부족이므로 로그아웃 대상 아님.
 http.interceptors.response.use(
   res => res,
   error => {
@@ -53,12 +55,25 @@ http.interceptors.response.use(
             ? "이 작업을 수행할 권한이 없습니다."
             : "You are not allowed to perform this action."
           : lang === "ko"
-            ? "인증이 필요합니다. 다시 로그인해 주세요."
-            : "Authentication required. Please sign in again.";
+            ? "인증이 만료되었습니다. 다시 로그인해 주세요."
+            : "Session expired. Please sign in again.";
       try {
         toast.error(msg);
       } catch {
         /* toaster not mounted */
+      }
+      if (status === 401) {
+        // 토큰 만료/무효 — 세션을 즉시 비우고(이후 요청에 stale 토큰 미부착) AuthProvider 에 만료 신호 전달.
+        try {
+          sessionStorage.removeItem("kmx-edc-auth");
+        } catch {
+          /* ignore */
+        }
+        try {
+          window.dispatchEvent(new Event("kmx-auth-expired"));
+        } catch {
+          /* SSR/비브라우저 — 무시 */
+        }
       }
     }
     return Promise.reject(error);
@@ -150,11 +165,16 @@ export async function fetchAssetById(
   id: string,
   connectorId: string
 ): Promise<Asset | null> {
+  // 404 만 '미존재'(null)로 해석. 5xx/타임아웃/네트워크 등은 호출부가 판정을 보류하도록 재던진다.
+  // (ID 중복검사가 일시 장애를 '사용 가능'으로 오판하지 않게 함 — 호출부 PageAssets.validateStep1)
   try {
     const { data } = await http.get(`/connectors/${connectorId}/assets/${id}`);
     return data;
-  } catch {
-    return null;
+  } catch (err) {
+    if ((err as { response?: { status?: number } })?.response?.status === 404) {
+      return null;
+    }
+    throw err;
   }
 }
 

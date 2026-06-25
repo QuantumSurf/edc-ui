@@ -1,7 +1,9 @@
 // 카탈로그 브라우저 "최근 조회" 기록 — 수동 입력한 외부 커넥터를 재선택하기 위해
 // localStorage에 보관한다. url+counterPartyId 기준 dedupe, 최신 우선, 최대 5건.
 
-const KEY = "kmx.catalog.recent";
+// 저장 키 — cross-tab 동기화(storage 이벤트 구독)를 위해 PageCatalog 에서 import 해 사용한다.
+export const RECENT_KEY = "kmx.catalog.recent";
+const KEY = RECENT_KEY;
 const MAX = 5;
 
 export interface RecentCatalogEntry {

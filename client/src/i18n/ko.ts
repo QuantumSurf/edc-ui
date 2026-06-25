@@ -71,10 +71,8 @@ const ko = {
     offerings: "오퍼링",
     catalog: "카탈로그 브라우저",
     negotiations: "계약 협상",
-    agreements: "체결 계약",
     transfers: "데이터 전송",
     edr: "EDR 토큰",
-    dcp: "Identity Hub",
     vault: "시크릿",
     identityHub: "분산 신원",
     audit: "감사 로그",
@@ -322,6 +320,8 @@ const ko = {
       "membership-active": "Catena-X 멤버십이 활성화된 참여자에게만 사용 허가.",
       "framework-traceability":
         "Traceability 프레임워크 계약을 체결한 참여자만 허가.",
+      "transfer-count-limit":
+        "계약(agreement)당 데이터 전송 횟수를 N회 미만으로 제한.",
       "bpn-allowlist-bmw-vw": "지정된 BPN 두 곳만 사용 허가 (OR 결합).",
       "membership-and-framework":
         "활성 멤버십 AND Data Exchange Governance 프레임워크 동시 충족.",
@@ -762,43 +762,6 @@ const ko = {
     resultCount: (shown: number, total: number) =>
       `${shown}건 / 전체 ${total}건`,
     retentionNotice: "감사 로그는 90일간 보관됩니다.",
-  },
-
-  // ── DCP ──
-  dcp: {
-    title: "Identity Hub 현황",
-    ihStatus: "Identity Hub 상태",
-    stsIssued: "STS 토큰 발급",
-    vpSuccess: "VP 검증 성공",
-    vpFailed: "VP 검증 실패",
-    vcList: "검증가능 자격증명(VC)",
-    renew: "갱신 요청",
-    renewSent: "갱신 요청을 전송합니다.",
-    renewSuccess: "자격증명 갱신 요청이 전송되었습니다.",
-    renewFailed: "갱신 요청 실패",
-    didSettings: "DID / STS 설정",
-    valid: "유효",
-    expiresIn: (days: number) => `${days}일 후 만료`,
-    vcExpireWarning: (days: number) =>
-      `만료 예정 자격증명이 있습니다 (최소 ${days}일 남음). IssuerService에서 갱신 요청을 시작하십시오.`,
-    noVcs: "등록된 자격증명이 없습니다.",
-    loading: "불러오는 중...",
-    addVc: "자격증명 추가",
-    selectExpiry: "만료일 선택",
-    selectVcType: "자격증명 유형 선택",
-    vcAdded: "자격증명이 추가되었습니다.",
-    vcDeleted: "자격증명이 삭제되었습니다.",
-    deleteVc: "삭제",
-    cancel: "취소",
-    save: "저장",
-    stsOk: "STS 정상",
-    todayNoErrors: "오늘 (오류 0)",
-    invalidVcHolder: "유효하지 않은 VC 소지자",
-    expiryDate: "만료일:",
-    participantDid: "참여자 DID",
-    stsTokenUrl: "STS 토큰 URL",
-    credentialServiceUrl: "Credential Service URL",
-    trustedIssuer: "신뢰된 발급자",
   },
 
   // ── Infra ──

@@ -1,5 +1,6 @@
 // Connector Hub — Types & State Maps
 
+// 서버 status 는 'up'|'warn'|'down' 3-state. warn = 부분 장애(일부 API 만 성공).
 export type ConnectorStatus = "up" | "warn" | "down";
 export type EnvType = "PROD" | "STG" | "DEV";
 
@@ -10,6 +11,8 @@ export interface Connector {
   status: ConnectorStatus;
   env: EnvType;
   roles: string[];
+  // 서버 응답 필드는 dcpVersion. 표시 코드에서 (c as any).dcpVersion ?? c.dcp 로 흡수 중
+  // (PagePolicy/PageFleet 정합은 다음 단계 — 이 타입은 현행 유지).
   dcp: string;
   aas: boolean;
   assets: number;
@@ -49,6 +52,7 @@ export interface Policy {
 
 export interface Offering {
   id: string;
+  // 다중 자산 오퍼링은 서버가 쉼표 결합으로 보냄 (예: "asset-a,asset-b").
   asset: string;
   access: string;
   contract: string;
@@ -61,7 +65,10 @@ export interface Negotiation {
   name: string;
   peer: string;
   t: string;
+  // ts = 로컬라이즈된 표시용 문자열. 정렬/시간범위 필터는 표시 문자열이 아닌 createdAt(epoch)로 한다.
   ts: string;
+  // 서버가 보내는 머신리더블 생성시각(epoch ms). 미확인이면 null.
+  createdAt?: number | null;
   errorDetail?: string;
   agreementId?: string;
   assetId?: string;
@@ -208,6 +215,23 @@ export const TRANSFER_STATE_MAP: Record<
   1200: { name: "COMPLETED", label: "전송 완료", variant: "green" },
   1300: { name: "TERMINATED", label: "전송 실패", variant: "red" },
 };
+
+/**
+ * 빠른 폴링(3s) 대상 = 사용자 개입 없이 곧 상태가 바뀌는 진행 중 전송만.
+ * REQUESTING(200)·STARTED(400) 만 해당. SUSPENDED(800)는 자동 재개되지 않으므로 제외해
+ * 영구 폴링을 막는다(COMPLETED/TERMINATED 도 종단). 폴링 종단 판정 헬퍼.
+ */
+export function isTransferActive(state: number): boolean {
+  return state === 200 || state === 400;
+}
+
+/**
+ * 협상 진행 중 = 알려진 비종단 상태(0 초과·1200 미만)만.
+ * 미지 상태(0/음수/NaN)는 종단으로 간주해 무한 폴링을 막는다. 폴링 종단 판정 헬퍼.
+ */
+export function isNegotiationActive(state: number): boolean {
+  return state > 0 && state < 1200;
+}
 
 export const SINK_TYPES = [
   "HttpProxy",

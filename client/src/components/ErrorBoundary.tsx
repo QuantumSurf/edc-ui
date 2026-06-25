@@ -41,11 +41,14 @@ class ErrorBoundary extends Component<Props, State> {
 
             <h2 className="text-xl mb-4">{t.common.errorOccurred}</h2>
 
-            <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
-              <pre className="text-sm text-muted-foreground whitespace-break-spaces">
-                {this.state.error?.stack}
-              </pre>
-            </div>
+            {/* 스택 트레이스는 개발 환경에서만 노출 — 운영에서 내부 경로/구현 세부 정보 노출 방지 */}
+            {import.meta.env.DEV && (
+              <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
+                <pre className="text-sm text-muted-foreground whitespace-break-spaces">
+                  {this.state.error?.stack}
+                </pre>
+              </div>
+            )}
 
             <button
               onClick={() => window.location.reload()}

@@ -9,6 +9,8 @@ import React, {
   useEffect,
 } from "react";
 import axios from "axios";
+import { queryClient } from "@/lib/queryClient";
+import { useConnectorStore } from "@/stores/connectorStore";
 
 export interface AuthUser {
   id?: string;
@@ -41,6 +43,23 @@ const AuthContext = createContext<AuthContextType>({
 
 const SESSION_KEY = "kmx-edc-auth";
 
+/** JWT payload 의 exp(초)를 디코드해 만료 여부를 판정. 디코드 실패 시 만료로 보지 않음(서버 401 이 최종 판정). */
+function isTokenExpired(token?: string): boolean {
+  if (!token) return false;
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return false;
+    const json = JSON.parse(
+      atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+    );
+    const exp = json?.exp;
+    if (typeof exp !== "number") return false;
+    return exp * 1000 <= Date.now();
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const stored = sessionStorage.getItem(SESSION_KEY);
       if (stored) {
-        setUser(JSON.parse(stored));
+        const parsed = JSON.parse(stored) as AuthUser;
+        // 저장된 토큰이 이미 만료됐으면 복원하지 않는다 — 만료된 셸이 잠깐도 뜨지 않게.
+        if (isTokenExpired(parsed.token)) {
+          sessionStorage.removeItem(SESSION_KEY);
+        } else {
+          setUser(parsed);
+        }
       }
     } catch {}
     setIsLoading(false);
@@ -100,6 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const tok = user?.token;
     setUser(null);
     sessionStorage.removeItem(SESSION_KEY);
+    // 테넌트 전환/로그아웃 시 이전 테넌트 데이터가 새 세션에 새지 않도록 캐시·UI 상태를 초기화.
+    queryClient.clear();
+    useConnectorStore.getState().reset();
     // Best-effort server notify (no-op on server today)
     if (tok) {
       axios
@@ -111,6 +139,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .catch(() => {});
     }
   }, [user]);
+
+  // api.ts 인터셉터가 401 에 쏘는 만료 신호 — 세션은 이미 비워졌으므로 로컬 상태/캐시/스토어만 정리.
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null);
+      queryClient.clear();
+      useConnectorStore.getState().reset();
+    };
+    window.addEventListener("kmx-auth-expired", onExpired);
+    return () => window.removeEventListener("kmx-auth-expired", onExpired);
+  }, []);
 
   return (
     <AuthContext.Provider

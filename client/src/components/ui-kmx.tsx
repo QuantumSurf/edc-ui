@@ -94,9 +94,12 @@ export function StateBadge({ name, label }: { name: string; label?: string }) {
   const { t } = useI18n();
   const variant = STATE_VARIANT[name] ?? "gray";
   const isPulse = name === "REQUESTING" || name === "STARTED";
-  // 상태명 한글화: 호출부 label 우선, 없으면 협상 상태 i18n 맵 조회(없으면 원문)
-  const display =
-    label ?? (t.negotiations.states as Record<string, string>)[name] ?? name;
+  // 상태명 한글화: 호출부 label 우선, 없으면 협상 상태 맵 → 전송 전용 상태 맵 순서로 조회(없으면 원문).
+  // 전송 전용 상태(STARTED/SUSPENDED/COMPLETED)는 negotiations.states 에 없으므로 transfers.states 로 폴백해
+  // label 누락 호출부에서도 한글화가 보장된다.
+  const negStates = t.negotiations.states as Record<string, string>;
+  const transferStates = t.transfers.states as Record<string, string>;
+  const display = label ?? negStates[name] ?? transferStates[name] ?? name;
   return (
     <Badge variant={variant} pulse={isPulse}>
       {display}

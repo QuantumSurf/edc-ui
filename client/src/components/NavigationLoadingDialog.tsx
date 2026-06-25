@@ -16,8 +16,12 @@ export default function NavigationLoadingDialog() {
   const { t } = useI18n();
   const navigating = useConnectorStore(s => s.navigating);
   const connector = useConnectorStore(s => s.connector);
+  // 첫 로드(데이터 없음)만 풀스크린 모달로 차단한다. 이미 데이터가 있는 쿼리의 백그라운드 refetch
+  // (폴링 30~60s·창 포커스 등)는 q.state.data 가 존재하므로 제외 — 폴링마다 모달이 깜빡이지 않게.
   const isFetching = useIsFetching({
-    predicate: q => !NON_BLOCKING_QUERY_KEYS.has(q.queryKey?.[0] as string),
+    predicate: q =>
+      !NON_BLOCKING_QUERY_KEYS.has(q.queryKey?.[0] as string) &&
+      q.state.data === undefined,
   });
   const visible = navigating || isFetching > 0;
 

@@ -18,6 +18,8 @@ interface ConnectorStore {
   setNavigating: (v: boolean) => void;
   setSearchOpen: (open: boolean) => void;
   toggleSearch: () => void;
+  /** 로그아웃/테넌트 전환 시 선택 커넥터·전이/검색 상태를 초기화(모듈 싱글톤이라 수동 리셋 필요) */
+  reset: () => void;
 }
 
 export const useConnectorStore = create<ConnectorStore>(set => ({
@@ -33,4 +35,7 @@ export const useConnectorStore = create<ConnectorStore>(set => ({
   setNavigating: v => set({ navigating: v }),
   setSearchOpen: open => set({ searchOpen: open }),
   toggleSearch: () => set(s => ({ searchOpen: !s.searchOpen })),
+  // drawerOpen 은 뷰포트 종속 UI 상태라 보존; 테넌트 데이터에 묶인 상태만 비운다.
+  reset: () =>
+    set({ connector: null, navigating: false, searchOpen: false }),
 }));

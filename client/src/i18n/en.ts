@@ -70,10 +70,8 @@ const en: Translations = {
     offerings: "Offerings",
     catalog: "Catalog Browser",
     negotiations: "Negotiations",
-    agreements: "Agreements",
     transfers: "Data Transfers",
     edr: "EDR Tokens",
-    dcp: "Identity Hub",
     vault: "Secrets",
     identityHub: "DID",
     audit: "Audit Log",
@@ -321,6 +319,8 @@ const en: Translations = {
         "Allow use only for participants with an active Catena-X membership.",
       "framework-traceability":
         "Allow only participants with a signed Traceability framework agreement.",
+      "transfer-count-limit":
+        "Limit the number of data transfers per agreement to under N.",
       "bpn-allowlist-bmw-vw":
         "Allow use for two specified BPNs only (OR combination).",
       "membership-and-framework":
@@ -751,42 +751,6 @@ const en: Translations = {
     emptyDesc: "Try changing the filter criteria.",
     resultCount: (shown: number, total: number) => `${shown} of ${total}`,
     retentionNotice: "Audit logs are retained for 90 days.",
-  },
-
-  dcp: {
-    title: "Identity Hub Overview",
-    ihStatus: "Identity Hub Status",
-    stsIssued: "STS Tokens Issued",
-    vpSuccess: "VP Validation OK",
-    vpFailed: "VP Validation Failed",
-    vcList: "Verifiable Credentials",
-    renew: "Request Renewal",
-    renewSent: "Renewal request sent.",
-    renewSuccess: "Credential renewal request submitted.",
-    renewFailed: "Renewal request failed",
-    didSettings: "DID / STS Settings",
-    valid: "Valid",
-    expiresIn: (days: number) => `Expires in ${days} days`,
-    vcExpireWarning: (days: number) =>
-      `Credentials expiring soon (${days} days remaining). Initiate renewal from IssuerService.`,
-    noVcs: "No verifiable credentials registered.",
-    loading: "Loading...",
-    addVc: "Add Credential",
-    selectExpiry: "Select expiry date",
-    selectVcType: "Select credential type",
-    vcAdded: "Credential added.",
-    vcDeleted: "Credential deleted.",
-    deleteVc: "Delete",
-    cancel: "Cancel",
-    save: "Save",
-    stsOk: "STS OK",
-    todayNoErrors: "Today (0 errors)",
-    invalidVcHolder: "Invalid VC holder",
-    expiryDate: "Expiry:",
-    participantDid: "Participant DID",
-    stsTokenUrl: "STS Token URL",
-    credentialServiceUrl: "Credential Service URL",
-    trustedIssuer: "Trusted Issuer",
   },
 
   infra: {

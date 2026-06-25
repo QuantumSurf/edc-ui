@@ -7,6 +7,7 @@ export type Role = "admin" | "operator" | "viewer";
 
 export type Permission =
   | "connector:write" // register/update/delete connectors
+  | "connector:test" // test-connection (mirrors server operatorOrAdmin)
   | "vc:write" // add/update/delete/renew verifiable credentials
   | "resource:write" // asset / policy / offering CRUD
   | "transaction:write" // negotiation / transfer start/terminate/complete
@@ -14,6 +15,7 @@ export type Permission =
 
 export const PERMISSIONS: Record<Permission, readonly Role[]> = {
   "connector:write": ["admin"],
+  "connector:test": ["admin", "operator"],
   "vc:write": ["admin"],
   "resource:write": ["admin", "operator"],
   "transaction:write": ["admin", "operator"],

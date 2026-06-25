@@ -1,7 +1,7 @@
 // KMX EDC — Reusable Detail + Delete Dialog Components
 // Used by PageAssets, PagePolicy, PageOffering
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -362,11 +362,17 @@ export function DetailPanel({
   const [copied, setCopied] = useState<string | null>(null);
   const [entered, setEntered] = useState(false);
 
-  // Trigger the slide-in transition on mount.
+  // open 이 true 로 바뀔 때마다 슬라이드인을 재생(상주 마운트 소비자 대응).
+  // 마운트 1회만 트리거하면 open 토글 재사용 시 모션이 사라진다.
   useEffect(() => {
+    if (!open) {
+      setEntered(false);
+      return;
+    }
+    setEntered(false); // 시작 상태(translate-x-full) 보장 후 다음 프레임에 진입
     const id = requestAnimationFrame(() => setEntered(true));
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [open]);
 
   // Close on ESC.
   useEffect(() => {
@@ -585,10 +591,16 @@ export function SlidePanel({
   const { t } = useI18n();
   const [entered, setEntered] = useState(false);
 
+  // open 변화에 슬라이드인을 연동(상주 마운트 소비자에서도 매 열기마다 모션 재생).
   useEffect(() => {
+    if (!open) {
+      setEntered(false);
+      return;
+    }
+    setEntered(false);
     const id = requestAnimationFrame(() => setEntered(true));
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -891,14 +903,14 @@ export function JsonViewerDialog({
   const [baseCollapsed, setBaseCollapsed] = useState(false);
   const [resetToken, setResetToken] = useState(0);
 
-  let parsed: unknown;
-  let parsedOk = false;
-  try {
-    parsed = JSON.parse(json);
-    parsedOk = true;
-  } catch {
-    parsedOk = false;
-  }
+  // json 변경 시에만 재파싱 — 검색 키 입력 등 무관한 리렌더에서 큰 JSON 재파싱/참조 변동 방지.
+  const { parsed, parsedOk } = useMemo(() => {
+    try {
+      return { parsed: JSON.parse(json) as unknown, parsedOk: true };
+    } catch {
+      return { parsed: undefined as unknown, parsedOk: false };
+    }
+  }, [json]);
 
   const handleCopy = async () => {
     try {

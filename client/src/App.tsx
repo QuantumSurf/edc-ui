@@ -43,7 +43,8 @@ import PageIdentityHub from "./pages/PageIdentityHub";
 function ConnectorSync({ id }: { id: string }) {
   const selectConnector = useConnectorStore(s => s.selectConnector);
   const setNavigating = useConnectorStore(s => s.setNavigating);
-  const { data: connectors = [] } = useQuery({
+  const [, navigate] = useLocation();
+  const { data: connectors = [], isSuccess } = useQuery({
     queryKey: ["connectors"],
     queryFn: fetchConnectors,
   });
@@ -52,8 +53,15 @@ function ConnectorSync({ id }: { id: string }) {
     if (c) {
       selectConnector(c);
       setNavigating(false);
+    } else if (isSuccess) {
+      // 목록은 받았으나 해당 id 없음(삭제·타 테넌트·오타) → 전역 로딩모달 해제 후 Fleet 로 복귀.
+      // (이 분기가 없으면 navigating 이 영구 true 로 남아 풀스크린 스피너가 멈춤)
+      selectConnector(null);
+      setNavigating(false);
+      navigate("/fleet");
     }
-  }, [id, connectors, selectConnector, setNavigating]);
+    // isSuccess 전(로딩 중)에는 모달 유지
+  }, [id, connectors, isSuccess, selectConnector, setNavigating, navigate]);
   return null;
 }
 
