@@ -25,11 +25,20 @@ export class EdcApiError extends Error {
   }
 }
 
+// 악성/침해된 EDC·DTR 호스트가 거대한 응답으로 BFF 메모리를 고갈시키지 못하도록 응답/요청
+// 바이트 상한을 둔다(axios 기본 무제한). EDC Management 응답은 통상 수KB~수백KB. 환경변수로 조정.
+const EDC_MAX_RESPONSE_BYTES = Number(
+  process.env.EDC_MAX_RESPONSE_BYTES ?? 25 * 1024 * 1024
+);
+
 /** Create an axios instance configured for a specific EDC connector */
 export function createEdcClient(config: EdcClientConfig): AxiosInstance {
   const client = axios.create({
     baseURL: config.managementUrl,
     timeout: config.timeoutMs ?? 10_000,
+    maxContentLength: EDC_MAX_RESPONSE_BYTES,
+    maxBodyLength: EDC_MAX_RESPONSE_BYTES,
+    maxRedirects: 5,
     headers: {
       "Content-Type": "application/json",
       "X-Api-Key": config.apiKey,
@@ -61,6 +70,10 @@ export function createEdcClient(config: EdcClientConfig): AxiosInstance {
       }
       if (error.code === "ECONNREFUSED" || error.code === "ECONNABORTED") {
         throw new EdcApiError(503, `Connector unreachable: ${error.message}`);
+      }
+      // 응답 크기 상한 초과 — OOM 대신 명시적 502 로 거부.
+      if (error.code === "ERR_FR_MAX_CONTENT_LENGTH_EXCEEDED") {
+        throw new EdcApiError(502, "Upstream response too large");
       }
       throw new EdcApiError(500, error.message);
     }

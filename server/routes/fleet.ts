@@ -9,6 +9,10 @@ import {
 } from "express";
 import { listConnectors } from "../lib/connectorRegistry.js";
 import { createEdcClient } from "../lib/edcClient.js";
+import {
+  mapWithConcurrency,
+  FLEET_FANOUT_CONCURRENCY,
+} from "../lib/concurrency.js";
 
 const router = Router();
 
@@ -54,65 +58,68 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
-    const results = await Promise.allSettled(
-      connectors.map(async (conn): Promise<ConnectorKpi> => {
-        const client = createEdcClient({
-          managementUrl: conn.managementUrl,
-          apiKey: conn.apiKey,
-          timeoutMs: 3_000, // 5s → 3s for faster initial response
-        });
+    // 동시성 상한 fan-out(커넥터당 3 outbound). 무제한 병렬은 커넥터가 많은 테넌트에서
+    // 단일 요청으로 BFF 소켓/이벤트루프를 고갈시킬 수 있어 상한을 둔다. 부분 장애는
+    // 커넥터 단위 try/catch 로 흡수해 down 상태로 폴백(allSettled 동등 내성).
+    const perConnector: ConnectorKpi[] = await mapWithConcurrency(
+      connectors,
+      FLEET_FANOUT_CONCURRENCY,
+      async (conn): Promise<ConnectorKpi> => {
+        try {
+          const client = createEdcClient({
+            managementUrl: conn.managementUrl,
+            apiKey: conn.apiKey,
+            timeoutMs: 3_000, // 5s → 3s for faster initial response
+          });
 
-        const [assetsRes, negotiationsRes, transfersRes] =
-          await Promise.allSettled([
-            client.post("/v3/assets/request", JSON_LD_QUERY),
-            client.post("/v3/contractnegotiations/request", JSON_LD_QUERY),
-            client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
-          ]);
+          const [assetsRes, negotiationsRes, transfersRes] =
+            await Promise.allSettled([
+              client.post("/v3/assets/request", JSON_LD_QUERY),
+              client.post("/v3/contractnegotiations/request", JSON_LD_QUERY),
+              client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
+            ]);
 
-        // 3개 모두 성공=up, 0개=down, 일부만=warn(부분 장애).
-        const oks = [assetsRes, negotiationsRes, transfersRes].filter(
-          r => r.status === "fulfilled"
-        ).length;
-        const status: "up" | "warn" | "down" =
-          oks === 0 ? "down" : oks === 3 ? "up" : "warn";
+          // 3개 모두 성공=up, 0개=down, 일부만=warn(부분 장애).
+          const oks = [assetsRes, negotiationsRes, transfersRes].filter(
+            r => r.status === "fulfilled"
+          ).length;
+          const status: "up" | "warn" | "down" =
+            oks === 0 ? "down" : oks === 3 ? "up" : "warn";
 
-        return {
-          id: conn.id,
-          name: conn.name,
-          status,
-          assets:
-            assetsRes.status === "fulfilled"
-              ? Array.isArray(assetsRes.value.data)
-                ? assetsRes.value.data.length
-                : 0
-              : 0,
-          negotiations:
-            negotiationsRes.status === "fulfilled"
-              ? Array.isArray(negotiationsRes.value.data)
-                ? negotiationsRes.value.data.length
-                : 0
-              : 0,
-          transfers:
-            transfersRes.status === "fulfilled"
-              ? Array.isArray(transfersRes.value.data)
-                ? transfersRes.value.data.length
-                : 0
-              : 0,
-        };
-      })
-    );
-
-    const perConnector: ConnectorKpi[] = results.map((r, i) =>
-      r.status === "fulfilled"
-        ? r.value
-        : {
-            id: connectors[i].id,
-            name: connectors[i].name,
+          return {
+            id: conn.id,
+            name: conn.name,
+            status,
+            assets:
+              assetsRes.status === "fulfilled"
+                ? Array.isArray(assetsRes.value.data)
+                  ? assetsRes.value.data.length
+                  : 0
+                : 0,
+            negotiations:
+              negotiationsRes.status === "fulfilled"
+                ? Array.isArray(negotiationsRes.value.data)
+                  ? negotiationsRes.value.data.length
+                  : 0
+                : 0,
+            transfers:
+              transfersRes.status === "fulfilled"
+                ? Array.isArray(transfersRes.value.data)
+                  ? transfersRes.value.data.length
+                  : 0
+                : 0,
+          };
+        } catch {
+          return {
+            id: conn.id,
+            name: conn.name,
             status: "down",
             assets: 0,
             negotiations: 0,
             transfers: 0,
-          }
+          };
+        }
+      }
     );
 
     const up = perConnector.filter(c => c.status === "up").length;

@@ -75,6 +75,17 @@ export async function getConnector(
   return rows.length > 0 ? rowToEntry(rows[0]) : undefined;
 }
 
+/** 테넌트당 등록된 커넥터 수 — 등록 상한 검사용(tenant 스코프라 전 테넌트 수 누출 없음). */
+export async function countConnectorsByTenant(
+  tenantId: string
+): Promise<number> {
+  const { rows } = await getPool().query(
+    "SELECT COUNT(*)::int AS n FROM connectors WHERE tenant_id = $1",
+    [tenantId]
+  );
+  return (rows[0]?.n as number) ?? 0;
+}
+
 export async function registerConnector(
   entry: Omit<ConnectorEntry, "id" | "createdAt" | "tenantId">,
   tenantId: string

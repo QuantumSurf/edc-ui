@@ -13,15 +13,25 @@ import {
   registerConnector,
   updateConnector,
   deleteConnector,
+  countConnectorsByTenant,
 } from "../lib/connectorRegistry.js";
 import { getTenant } from "../lib/tenants.js";
 import { createEdcClient } from "../lib/edcClient.js";
 import { requireRole } from "../middleware/auth.js";
 import { validateDspEndpoint } from "../middleware/validation.js";
+import {
+  mapWithConcurrency,
+  FLEET_FANOUT_CONCURRENCY,
+} from "../lib/concurrency.js";
 
 const router = Router();
 const adminOnly = requireRole("admin");
 const operatorOrAdmin = requireRole("admin", "operator");
+
+// 테넌트당 커넥터 수 상한 — 무제한 등록 후 GET / fan-out(커넥터당 4 outbound) 증폭 DoS 방지.
+const MAX_CONNECTORS_PER_TENANT = Number(
+  process.env.MAX_CONNECTORS_PER_TENANT ?? 100
+);
 
 // SSRF 가드: 서버가 호출하게 될 커넥터 URL(managementUrl/dspEndpoint)이
 // 사설/내부/메타데이터 주소를 가리키지 않도록 검증. (catalog 등과 동일 정책)
@@ -67,9 +77,12 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
     }
     const connectors = await listConnectors(tenantId);
 
-    // Parallel status + resource counts for all connectors
-    const withStatus = await Promise.all(
-      connectors.map(async ({ apiKey, ...safe }) => {
+    // 동시성 상한 fan-out(커넥터당 4 outbound). 무제한 Promise.all 은 커넥터가 많은
+    // 테넌트에서 단일 요청으로 소켓/이벤트루프를 고갈시킬 수 있어 상한을 둔다.
+    const withStatus = await mapWithConcurrency(
+      connectors,
+      FLEET_FANOUT_CONCURRENCY,
+      async ({ apiKey, ...safe }) => {
         // 부분 장애(일부 API만 실패) 표현을 위해 up/warn/down 3-state로 산출.
         let status: "up" | "warn" | "down" = "down";
         let assets = 0,
@@ -109,7 +122,7 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
         // 클라 계약 호환: 카드가 dcpVersion으로 DCP 배지를 표시하므로 dcpVersion을 그대로 노출.
         // (safe에 이미 dcpVersion 포함 — 별도 alias 불필요)
         return { ...safe, status, assets, offers, negs, transfers };
-      })
+      }
     );
 
     res.json(withStatus);
@@ -136,6 +149,11 @@ router.post(
       const ssrfErr = validateConnectorUrls(entry);
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected URL — ${ssrfErr}` });
+        return;
+      }
+      // 테넌트당 커넥터 수 상한 — fan-out 증폭 DoS 방지(tenant 스코프 COUNT).
+      if ((await countConnectorsByTenant(tenantId)) >= MAX_CONNECTORS_PER_TENANT) {
+        res.status(409).json({ error: "connector-limit-reached" });
         return;
       }
       const connector = await registerConnector(entry, tenantId);
