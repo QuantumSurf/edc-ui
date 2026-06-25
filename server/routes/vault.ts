@@ -40,6 +40,19 @@ function isAliasAllowed(alias: string): boolean {
   return ALIAS_PREFIX_ALLOWLIST.some(p => alias === p || alias.startsWith(p));
 }
 
+/** Vault 자체에 도달 못한 경우(미구성·DNS 실패·연결 거부 등)인지 판별. HTTP 응답이 온
+ *  에러(권한·봉인 등)와 구분해, 미도달은 503 으로 깔끔히 처리하기 위함. */
+function isUnreachable(error: unknown): boolean {
+  const e = error as { code?: string; response?: unknown };
+  if (e?.response) return false; // Vault 가 응답함 → 도달은 됨(다른 오류)
+  return (
+    typeof e?.code === "string" &&
+    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ECONNRESET|EHOSTUNREACH/.test(
+      e.code
+    )
+  );
+}
+
 /* ─── GET /status ────────────────────────────────────────────── */
 router.get(
   "/status",
@@ -64,7 +77,13 @@ router.get(
         standby: health.standby === true,
         type: seal.type ?? "shamir",
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      // Vault 미도달/미구성(ENOTFOUND·ECONNREFUSED 등)은 503 으로 명확히 반환한다.
+      // (raw 500 + 내부 호스트명 누출 방지. 클라는 이 에러로 '도달 불가/미구성'을 표시하고
+      //  데모 데이터를 진짜처럼 노출하지 않는다.)
+      if (isUnreachable(error)) {
+        return res.status(503).json({ error: "vault-unreachable" });
+      }
       next(error);
     }
   }
@@ -91,6 +110,10 @@ router.get(
       const e = error as { response?: { status?: number } };
       if (e?.response?.status === 404) {
         return res.json({ aliases: [], total: 0 });
+      }
+      // 미도달/미구성은 503(내부 호스트명 누출 방지).
+      if (isUnreachable(error)) {
+        return res.status(503).json({ error: "vault-unreachable" });
       }
       next(error);
     }
