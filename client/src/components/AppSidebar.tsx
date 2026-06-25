@@ -343,12 +343,15 @@ export default function AppSidebar({
           active={location === "/settings"}
           onNavigate={onNavigate}
         />
+        {/* 항목 사이 얇은 구분선 — 형제 프로젝트(pcf·fl-agent·identityhub 등) 과반수 푸터 형식 통일 */}
+        <div className="h-px mx-1 my-1" style={{ background: C.borderSoft }} />
         <SidebarLink
           icon={Bell}
           label={t.nav.notifications}
           badge={unreadCount}
           onClick={() => openNotifications(true)}
         />
+        <div className="h-px mx-1 my-1" style={{ background: C.borderSoft }} />
         <SidebarLink icon={LogOut} label={t.nav.signOut} onClick={logout} />
       </div>
     </aside>
