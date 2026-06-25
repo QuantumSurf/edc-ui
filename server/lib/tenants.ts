@@ -30,7 +30,14 @@ export async function isBpnTaken(
   return rows.length > 0;
 }
 
-/** Update a tenant's BPN (its organization identifier / login id). */
+/** Postgres unique_violation(23505) 여부 — BPN 유니크 백스톱 충돌 판별용. */
+export function isUniqueViolation(error: unknown): boolean {
+  return (error as { code?: string })?.code === "23505";
+}
+
+/** Update a tenant's BPN (its organization identifier / login id).
+ *  uq_tenants_bpn 유니크 인덱스가 동시 경합/중복을 백스톱하므로, 호출부는
+ *  isUniqueViolation 으로 23505 를 잡아 409 로 매핑해야 한다. */
 export async function updateTenantBpn(
   id: string,
   bpn: string

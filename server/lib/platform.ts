@@ -54,7 +54,21 @@ interface VaultConfig {
   namespace: string;
 }
 
+// prod 에서는 Vault 인프라(URL/토큰)를 env(PLATFORM_VAULT_*)만 신뢰한다. app_settings 런타임
+// 오버라이드를 허용하면 임의 테넌트 admin 이 PUT /settings/vault-config 로 전역 Vault 를 자기
+// 공격 서버로 재지정해 이후 모든 테넌트의 시크릿 쓰기를 가로채 탈취할 수 있다(CWE-639,
+// 크로스테넌트 권한경계 위반). dev 에서만 UI 오버라이드를 허용한다.
+export const VAULT_RUNTIME_CONFIG_ENABLED =
+  process.env.NODE_ENV !== "production";
+
 async function readVaultConfig(): Promise<VaultConfig> {
+  if (!VAULT_RUNTIME_CONFIG_ENABLED) {
+    return {
+      url: VAULT_URL_ENV,
+      token: VAULT_TOKEN_ENV,
+      namespace: VAULT_NAMESPACE_ENV,
+    };
+  }
   try {
     const { rows } = await getPool().query<{ key: string; value: string }>(
       `SELECT key, value FROM app_settings WHERE key IN ('vault_url', 'vault_token', 'vault_namespace')`

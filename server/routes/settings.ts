@@ -16,9 +16,13 @@ import {
   getTenant,
   updateTenantBpn,
   isBpnTaken,
+  isUniqueViolation,
 } from "../lib/tenants.js";
 import { validateDspEndpoint } from "../middleware/validation.js";
-import { writeVaultSecret } from "../lib/platform.js";
+import {
+  writeVaultSecret,
+  VAULT_RUNTIME_CONFIG_ENABLED,
+} from "../lib/platform.js";
 
 const router = Router();
 const writeGuard = requireRole("admin");
@@ -87,12 +91,22 @@ router.put(
         res.status(400).json({ error: "bpn-invalid-format" });
         return;
       }
+      // 선검사(친절한 409). 동시 PUT TOCTOU 는 uq_tenants_bpn 유니크 인덱스가 백스톱한다.
       if (await isBpnTaken(bpn, tenantId)) {
         res.status(409).json({ error: "bpn-already-in-use" });
         return;
       }
-      const updated = await updateTenantBpn(tenantId, bpn);
-      res.json({ name: updated?.name ?? "", bpn: updated?.bpn ?? bpn });
+      try {
+        const updated = await updateTenantBpn(tenantId, bpn);
+        res.json({ name: updated?.name ?? "", bpn: updated?.bpn ?? bpn });
+      } catch (e) {
+        // 유니크 백스톱 충돌(동시 등록 경합) → 409.
+        if (isUniqueViolation(e)) {
+          res.status(409).json({ error: "bpn-already-in-use" });
+          return;
+        }
+        throw e;
+      }
     } catch (error) {
       next(error);
     }
@@ -177,6 +191,12 @@ router.put(
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // prod 에서 Vault 인프라는 env(PLATFORM_VAULT_*)로만 관리한다. 런타임 재지정을 허용하면
+      // 테넌트 admin 이 전역 Vault 를 자기 서버로 돌려 타 테넌트 시크릿을 가로챌 수 있다(CWE-639).
+      if (!VAULT_RUNTIME_CONFIG_ENABLED) {
+        res.status(403).json({ error: "vault-config-env-managed" });
+        return;
+      }
       const body = (req.body ?? {}) as {
         url?: unknown;
         token?: unknown;

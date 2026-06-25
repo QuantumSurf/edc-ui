@@ -449,6 +449,19 @@ export async function initDb(): Promise<void> {
   await seedDb();
   await migrateTenants();
   await migrateIdentityHubSettings();
+  // tenants.bpn 유니크 백스톱 — BPN = 로그인 식별자라는 불변식을 DB 레벨에서 강제한다.
+  // 이게 없으면 동시 PUT /settings/tenant 의 isBpnTaken 선검사가 TOCTOU 경합으로 뚫려
+  // 동일 BPN 이 두 테넌트에 생겨 로그인 라우팅이 모호해진다(CWE-367). 레거시 중복이 이미
+  // 있으면 인덱스 생성이 실패할 수 있어 best-effort(부팅 비차단)로 경고만 남긴다.
+  try {
+    await getPool().query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_bpn ON tenants(bpn);`
+    );
+  } catch (e) {
+    console.warn(
+      `[DB] tenants.bpn 유니크 인덱스 생성 실패(중복 BPN 존재 가능) — 수동 정리 필요: ${(e as Error).message}`
+    );
+  }
   console.log("[DB] Database initialized");
 }
 
