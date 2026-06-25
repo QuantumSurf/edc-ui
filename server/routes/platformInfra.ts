@@ -26,7 +26,9 @@ const router = Router();
 /* ─── /overview ─────────────────────────────────────────────── */
 router.get(
   "/overview",
-  requireRole("admin", "operator", "viewer"),
+  // 전역 인프라 메타데이터는 운영 정보이므로 viewer 차단(최소권한·/connections·/locks와 일관).
+  // 멀티테넌트에서 viewer가 타 테넌트 DB 토폴로지를 정찰하던 경로 차단.
+  requireRole("admin", "operator"),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const pool = getPlatformPool();
@@ -60,7 +62,7 @@ router.get(
 /* ─── /databases ────────────────────────────────────────────── */
 router.get(
   "/databases",
-  requireRole("admin", "operator", "viewer"),
+  requireRole("admin", "operator"),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const pool = getPlatformPool();

@@ -56,7 +56,8 @@ function isUnreachable(error: unknown): boolean {
 /* ─── GET /status ────────────────────────────────────────────── */
 router.get(
   "/status",
-  requireRole("admin", "operator", "viewer"),
+  // Vault 봉인상태·클러스터 식별자·내부 URL은 운영 정보 — viewer 차단(/list·/meta와 일관).
+  requireRole("admin", "operator"),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const vault = await getVaultClient();

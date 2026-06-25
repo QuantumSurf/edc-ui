@@ -35,9 +35,15 @@ export function errorHandler(
     // 전송/내부 실패(fromEdcResponse=false)는 항상 5xx 마스킹.
     if (err.fromEdcResponse) {
       if (privileged) {
+        // 4xx(ODRL/검증) 메시지는 원인 파악용으로 유지. 5xx 본문은 내부 토폴로지
+        // (vault/구성 호스트·alias)를 포함할 수 있어 prod 에서는 admin/operator 에게도 마스킹.
+        const msg =
+          err.status >= 400 && err.status < 500
+            ? err.detail
+            : sanitizeMessage(err.detail);
         res
           .status(err.status)
-          .json({ error: err.detail, source: "edc", actionable: true });
+          .json({ error: msg, source: "edc", actionable: err.status < 500 });
       } else {
         // viewer: 4xx 검증 메시지는 안전하므로 유지, 5xx 내부 상세는 마스킹.
         const msg =
