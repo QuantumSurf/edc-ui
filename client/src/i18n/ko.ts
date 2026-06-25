@@ -850,6 +850,10 @@ const ko = {
   settings: {
     subtitle: "사용자 환경설정 및 시스템 정보",
     appearance: "외관",
+    theme: "테마",
+    themeDesc: "다크/라이트 모드를 선택합니다",
+    themeLight: "라이트",
+    themeDark: "다크",
     language: "언어",
     languageDesc: "UI 표시 언어를 선택합니다",
     profile: "프로필",

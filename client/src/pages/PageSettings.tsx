@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
 import {
   Card,
@@ -21,6 +22,8 @@ import {
   User,
   Bell,
   Monitor,
+  Sun,
+  Moon,
   Info,
   Fingerprint,
   Loader2,
@@ -43,6 +46,7 @@ import { toast } from "sonner";
 export default function PageSettings() {
   const { t } = useI18n();
   const { locale, setLocale } = useI18n();
+  const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const {
     data: sysInfo,
@@ -76,6 +80,44 @@ export default function PageSettings() {
           }
         >
           <div className="space-y-4">
+            {/* Theme — 형제 과반(pcf·identityhub·aas)처럼 설정 외관 카드에 세그먼트 2버튼 */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[13px] font-medium text-foreground">
+                  {t.settings.theme}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t.settings.themeDesc}
+                </div>
+              </div>
+              <div
+                className="flex gap-1"
+                role="group"
+                aria-label={t.settings.theme}
+              >
+                {(
+                  [
+                    ["light", t.settings.themeLight, Sun],
+                    ["dark", t.settings.themeDark, Moon],
+                  ] as const
+                ).map(([mode, lbl, Icon]) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      if (theme !== mode) toggleTheme();
+                    }}
+                    aria-pressed={theme === mode}
+                    className={`flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
+                      theme === mode
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-medium"
+                        : "border-border hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" /> {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
             {/* Language */}
             <div className="flex items-center justify-between">
               <div>

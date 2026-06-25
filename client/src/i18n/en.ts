@@ -834,6 +834,10 @@ const en: Translations = {
   settings: {
     subtitle: "User preferences and system information",
     appearance: "Appearance",
+    theme: "Theme",
+    themeDesc: "Choose dark or light mode",
+    themeLight: "Light",
+    themeDark: "Dark",
     language: "Language",
     languageDesc: "Select UI display language",
     profile: "Profile",
