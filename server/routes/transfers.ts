@@ -267,6 +267,18 @@ router.post(
         return;
       }
 
+      // SSRF 가드: EDR endpoint 는 미신뢰 provider 데이터플레인이 반환한 값이므로,
+      // /start 의 counterPartyAddress 와 동일하게 사설/메타데이터 대역을 차단한다
+      // (이 경로에 가드가 없으면 악성 provider 가 169.254.169.254 등으로 BFF 를 유도해
+      //  내부망 도달 + EDR Bearer 토큰 유출 가능 — 데이터 Pull 경로 일관성 결손 보완).
+      const fetchSsrfErr = validateDspEndpoint(targetUrl);
+      if (fetchSsrfErr) {
+        res
+          .status(502)
+          .json({ error: `Rejected EDR data endpoint: ${fetchSsrfErr}` });
+        return;
+      }
+
       // 2. Provider Data Plane에서 실제 데이터 Pull — 소요시간 측정
       const fetchStart = Date.now();
       const dataRes = await axios.get(targetUrl, {
@@ -398,7 +410,9 @@ router.post(
               req.body?.path,
               req.body?.query
             );
-            if (targetUrl !== null) {
+            // SSRF 가드: /fetch 와 동일하게 EDR endpoint 사설/메타데이터 대역 차단.
+            // 무효 endpoint 면 데이터 Pull 만 건너뛰고 완료(terminate)는 계속 진행.
+            if (targetUrl !== null && validateDspEndpoint(targetUrl) === null) {
               const fetchStart = Date.now();
               const dataRes = await axios.get(targetUrl, {
                 headers: { Authorization: `Bearer ${token}` },
