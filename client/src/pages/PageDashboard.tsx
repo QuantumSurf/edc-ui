@@ -277,6 +277,11 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                     color: "var(--foreground)",
                   }}
                   itemStyle={{ color: "var(--foreground)" }}
+                  formatter={(value: number, name: string) => [
+                    value,
+                    (t.negotiations.states as Record<string, string>)[name] ??
+                      name,
+                  ]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -296,7 +301,9 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                       style={{ background: d.color }}
                     />
                     <span className="text-muted-foreground truncate">
-                      {d.name}
+                      {(t.negotiations.states as Record<string, string>)[
+                        d.name
+                      ] ?? d.name}
                     </span>
                     <span className="font-semibold text-foreground ml-auto">
                       {d.value}
