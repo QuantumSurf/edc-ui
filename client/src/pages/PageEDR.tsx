@@ -22,7 +22,9 @@ import {
   ListError,
 } from "@/components/ui-kmx";
 
-const EDR_COLS = "grid-cols-[170px_1.2fr_2.2fr_1.3fr_120px]";
+// 남은시간(우측정렬 텍스트)과 제공자/엔드포인트가 붙고 authCode 와 빈 공간이 크던 문제 →
+// 남은시간 넓힘·제공자 좁힘·authCode 넓힘으로 재배분(제공자가 authCode 쪽으로 당겨짐).
+const EDR_COLS = "grid-cols-[170px_1.5fr_1.6fr_1.7fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import {
   DataTablePagination,
