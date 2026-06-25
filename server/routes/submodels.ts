@@ -1,5 +1,6 @@
 // KMX EDC — DTR: Submodel Descriptor Routes
 // Path: /api/dtr/shells/:aasId/submodels[/:submodelId]
+// 멀티테넌트: 호출자 테넌트 BPN(Edc-Bpn)으로 DTR 클라이언트를 만들어 셸 풀을 격리한다(id 86).
 
 import {
   Router,
@@ -12,17 +13,31 @@ import {
   encodeAasId,
   mapSubmodelDescriptor,
 } from "../lib/dtrClient.js";
+import { getTenant } from "../lib/tenants.js";
 import { requireRole } from "../middleware/auth.js";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
+
+/** 호출자 테넌트 BPN으로 DTR 클라이언트 생성. tenantId/BPN 없으면 null(호출부 403). */
+async function resolveDtrClient(req: Request) {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) return null;
+  const tenant = await getTenant(tenantId);
+  if (!tenant?.bpn) return null;
+  return getDtrClient(tenant.bpn);
+}
 
 // GET /api/dtr/shells/:aasId/submodels — list submodel descriptors of a shell
 router.get(
   "/shells/:aasId/submodels",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const client = getDtrClient();
+      const client = await resolveDtrClient(req);
+      if (!client) {
+        res.status(403).json({ error: "no-tenant-bpn" });
+        return;
+      }
       const aas = encodeAasId(req.params.aasId);
       const { data } = await client.get(
         `/shell-descriptors/${aas}/submodel-descriptors`
@@ -43,7 +58,11 @@ router.post(
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const client = getDtrClient();
+      const client = await resolveDtrClient(req);
+      if (!client) {
+        res.status(403).json({ error: "no-tenant-bpn" });
+        return;
+      }
       const aas = encodeAasId(req.params.aasId);
       const { data } = await client.post(
         `/shell-descriptors/${aas}/submodel-descriptors`,
@@ -62,7 +81,11 @@ router.put(
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const client = getDtrClient();
+      const client = await resolveDtrClient(req);
+      if (!client) {
+        res.status(403).json({ error: "no-tenant-bpn" });
+        return;
+      }
       const aas = encodeAasId(req.params.aasId);
       const sub = encodeAasId(req.params.submodelId);
       await client.put(
@@ -82,7 +105,11 @@ router.delete(
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const client = getDtrClient();
+      const client = await resolveDtrClient(req);
+      if (!client) {
+        res.status(403).json({ error: "no-tenant-bpn" });
+        return;
+      }
       const aas = encodeAasId(req.params.aasId);
       const sub = encodeAasId(req.params.submodelId);
       await client.delete(

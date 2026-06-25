@@ -79,13 +79,17 @@ export async function dummyVerify(plain: string): Promise<void> {
 }
 
 export function signToken(payload: TokenPayload): string {
+  // 알고리즘을 HS256으로 명시 고정 — 라이브러리 기본 허용 집합 변화나 향후 비대칭 키 도입 시에도
+  // none/혼동(confusion) 공격으로 HS256 외 토큰이 검증 통과하는 회귀를 원천 차단(defense-in-depth).
   return jwt.sign(payload, getJwtSecret(), {
     expiresIn: JWT_EXPIRES_IN,
+    algorithm: "HS256",
   } as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): TokenPayload {
-  const decoded = jwt.verify(token, getJwtSecret());
+  // verify도 HS256만 허용 — alg=none 또는 비대칭 혼동 공격 방어.
+  const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
   if (typeof decoded === "string") throw new Error("Invalid token payload");
   const { id, email, role, name, tenantId } = decoded as jwt.JwtPayload &
     Partial<TokenPayload>;

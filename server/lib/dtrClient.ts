@@ -7,6 +7,8 @@ import axios, { type AxiosInstance, type AxiosError } from "axios";
 export interface DtrClientConfig {
   baseUrl: string; // e.g. http://platform-dtr:4243/semantics/registry
   token?: string; // optional Bearer (prod)
+  // 소유 테넌트 BPN — DTR의 Edc-Bpn 필터 단위. 테넌트별로 셸 풀을 격리한다(id 86).
+  ownerBpn: string;
   timeoutMs?: number;
 }
 
@@ -26,10 +28,9 @@ export function createDtrClient(config: DtrClientConfig): AxiosInstance {
     "Content-Type": "application/json",
   };
   if (config.token) headers["Authorization"] = `Bearer ${config.token}`;
-  // DTR's local profile filters reads by Edc-Bpn matching the owning tenant.
-  // Sending the configured tenant id grants the BFF full visibility.
-  const ownerBpn = process.env.DTR_OWNER_BPN ?? "default-tenant";
-  if (ownerBpn) headers["Edc-Bpn"] = ownerBpn;
+  // DTR의 local 프로파일은 Edc-Bpn 헤더로 소유 테넌트의 셸만 노출/생성하도록 필터한다.
+  // 전역 DTR_OWNER_BPN 단일 BPN(과거)이 아니라 호출자 테넌트 BPN을 사용해 멀티테넌트 격리(id 86).
+  if (config.ownerBpn) headers["Edc-Bpn"] = config.ownerBpn;
 
   const client = axios.create({
     baseURL: `${config.baseUrl.replace(/\/$/, "")}/api/v3`,
@@ -70,18 +71,19 @@ export function createDtrClient(config: DtrClientConfig): AxiosInstance {
   return client;
 }
 
-let cachedClient: AxiosInstance | null = null;
-let cachedKey = "";
+// 테넌트 BPN별 클라이언트 캐시(키에 ownerBpn 포함) — 테넌트별 Edc-Bpn 헤더 격리 유지.
+const dtrClientCache = new Map<string, AxiosInstance>();
 
-export function getDtrClient(): AxiosInstance {
+export function getDtrClient(ownerBpn: string): AxiosInstance {
   const baseUrl =
     process.env.DTR_BASE_URL ?? "http://platform-dtr:4243/semantics/registry";
   const token = process.env.DTR_TOKEN;
-  const key = `${baseUrl}|${token ?? ""}`;
-  if (cachedClient && cachedKey === key) return cachedClient;
-  cachedClient = createDtrClient({ baseUrl, token });
-  cachedKey = key;
-  return cachedClient;
+  const key = `${baseUrl}|${token ?? ""}|${ownerBpn}`;
+  const cached = dtrClientCache.get(key);
+  if (cached) return cached;
+  const client = createDtrClient({ baseUrl, token, ownerBpn });
+  dtrClientCache.set(key, client);
+  return client;
 }
 
 /** Encode AAS identifier per AAS spec (base64url of UTF-8 bytes). */

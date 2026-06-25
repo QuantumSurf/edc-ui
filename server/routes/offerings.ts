@@ -61,11 +61,28 @@ router.post(
             .map((s: string) => s.trim())
             .filter(Boolean)
         : [];
+
+      // fail-fast 검증: access/contract 정책 id와 asset이 비어 있으면 협상 단계가 아니라
+      // 생성 단계에서 즉시 400으로 거부(과거: 잘못된 오퍼링이 협상 단계에서야 실패 — id 74).
+      const accessId = typeof access === "string" ? access.trim() : "";
+      const contractId = typeof contract === "string" ? contract.trim() : "";
+      if (!accessId || !contractId) {
+        res.status(400).json({
+          error:
+            "accessPolicyId(access)와 contractPolicyId(contract)는 필수입니다",
+        });
+        return;
+      }
+      if (assetIds.length === 0) {
+        res.status(400).json({ error: "asset은 최소 1개 이상 필요합니다" });
+        return;
+      }
+
       const edcBody = withJsonLd({
         "@type": "ContractDefinition",
         "@id": id || undefined,
-        accessPolicyId: access,
-        contractPolicyId: contract,
+        accessPolicyId: accessId,
+        contractPolicyId: contractId,
         assetsSelector:
           assetIds.length > 0
             ? [

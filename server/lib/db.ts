@@ -148,9 +148,11 @@ async function createSchema(): Promise<void> {
   );
 
   // UI 알림: 사용자에게 표시되는 시스템/이벤트 알림
+  // tenant_id: 테넌트(조직)별 격리 — 모든 조회/변경은 호출자 테넌트로 스코프된다.
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS notifications (
       id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      tenant_id   TEXT,
       type        TEXT NOT NULL CHECK (type IN ('info', 'warn', 'error', 'success')),
       source      TEXT NOT NULL CHECK (source IN ('system', 'negotiation', 'transfer', 'edr', 'vc')),
       title       TEXT NOT NULL,
@@ -160,15 +162,25 @@ async function createSchema(): Promise<void> {
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+  // Migration: add tenant_id to existing notifications tables (multi-tenant isolation)
+  await getPool().query(
+    `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS tenant_id TEXT;`
+  );
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_notifications_tenant ON notifications(tenant_id, created_at DESC);`
+  );
 
   // Tractus-X 시맨틱 모델 (SAMM): 로컬 보관
   // - urn: 모델 식별자 (e.g. urn:samm:io.catenax.pcf:7.0.0#Pcf)
   // - status: DRAFT / RELEASED / STANDARDIZED / DEPRECATED
   // - model_type: SAMM / BAMM / other (UI 호환용)
   // - content: SAMM TTL/RDF 본문 (수 KB ~ 수십 KB)
+  // tenant_id: 시맨틱 모델도 테넌트별 격리. URN 유니크는 (tenant_id, urn) 복합으로 잡아
+  // 서로 다른 조직이 같은 URN 공간을 공유·덮어쓰지 못하도록 한다.
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS semantic_models (
-      urn             TEXT PRIMARY KEY,
+      tenant_id       TEXT,
+      urn             TEXT NOT NULL,
       name            TEXT NOT NULL,
       version         TEXT NOT NULL DEFAULT '',
       status          TEXT NOT NULL DEFAULT 'DRAFT'
@@ -181,6 +193,18 @@ async function createSchema(): Promise<void> {
       updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+  // Migration: add tenant_id to legacy tables (urn-only PK 시절 데이터 보존).
+  await getPool().query(
+    `ALTER TABLE semantic_models ADD COLUMN IF NOT EXISTS tenant_id TEXT;`
+  );
+  // Migration: 기존 urn-only PK를 (tenant_id, urn) 복합 유니크로 전환(멱등).
+  // - 레거시 PK(semantic_models_pkey) 제거 후 복합 유니크 인덱스 생성.
+  await getPool().query(
+    `ALTER TABLE semantic_models DROP CONSTRAINT IF EXISTS semantic_models_pkey;`
+  );
+  await getPool().query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_semantic_models_tenant_urn ON semantic_models(tenant_id, urn);`
+  );
   await getPool().query(
     `CREATE INDEX IF NOT EXISTS idx_semantic_models_name ON semantic_models(name);`
   );
@@ -217,11 +241,12 @@ async function seedDb(): Promise<void> {
       role: "admin",
       envKey: "SEED_ADMIN_PASSWORD",
     },
-    // 데모 편의: 이용자(소비자, BPNL000000000CON) 계정도 admin 권한으로 로그인.
+    // 이용자(소비자) 데모 계정은 실제 operator 역할로 시드 — admin 전용 RoleGate(connector:write,
+    // vc:write 등)가 제대로 가려지는지 데모/QA에서 검증 가능하도록 한다(과거 admin 강제 승격은 제거).
     {
       email: "operator@kmx.io",
       name: "Ops Engineer",
-      role: "admin",
+      role: "operator",
       envKey: "SEED_OPERATOR_PASSWORD",
     },
   ];
@@ -316,7 +341,8 @@ async function migrateTenants(): Promise<void> {
       name = `Org ${bpn}`;
     } else {
       const lp = u.email.split("@")[0];
-      bpn = `BPNL-DEMO-${lp.toUpperCase()}`;
+      // 표준 BPNL 형식(^BPNL[0-9A-Z]+$)에 맞춰 하이픈 제거 — 카탈로그 counterPartyId 정규화 호환(id 27).
+      bpn = `BPNLDEMO${lp.replace(/[^0-9A-Za-z]/g, "").toUpperCase()}`;
       name = `${lp.charAt(0).toUpperCase()}${lp.slice(1)} Org`;
     }
     const tid = await ensureTenant(name, bpn);
@@ -326,9 +352,10 @@ async function migrateTenants(): Promise<void> {
     ]);
   }
 
-  // 4) 데모 편의: 이용자(소비자) 계정을 admin 권한으로 승격 (이미 시드된 DB에도 반영, 멱등).
+  // 4) 데모 계정 역할 정정(멱등): 과거 admin으로 강제 승격됐던 operator@kmx.io를 operator로 강등.
+  //    RBAC 분리 검증이 가능하도록 admin이 아닌 실제 operator 역할로 되돌린다.
   await pool.query(
-    `UPDATE users SET role = 'admin' WHERE email = 'operator@kmx.io' AND role <> 'admin'`
+    `UPDATE users SET role = 'operator' WHERE email = 'operator@kmx.io' AND role = 'admin'`
   );
 }
 

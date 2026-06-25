@@ -81,6 +81,12 @@ router.put(
         res.status(400).json({ error: "value too long" });
         return;
       }
+      // BPN 형식 검증(근본 차단) — 비표준 값이 저장되면 카탈로그 counterPartyId 정규화가
+      // 실패해 audience 불일치(opaque 401)를 유발하므로 표준 BPNL 형식만 허용한다(id 27).
+      if (!/^BPNL[0-9A-Z]+$/i.test(bpn)) {
+        res.status(400).json({ error: "bpn-invalid-format" });
+        return;
+      }
       if (await isBpnTaken(bpn, tenantId)) {
         res.status(409).json({ error: "bpn-already-in-use" });
         return;

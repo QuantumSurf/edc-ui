@@ -53,6 +53,8 @@ interface CatalogOffer {
   src: string;
   pols: string[];
   offerId: string;
+  // offerPolicy: 협상(ContractRequest)에 그대로 넘기는 전체 정책 객체. 선언↔페이로드 정합(id 80).
+  offerPolicy: Record<string, unknown> | null;
   assetId: string;
   dspEndpoint: string;
   providerDid: string;
@@ -108,9 +110,15 @@ function mapCatalogResponse(
       .map(p => (p?.["@id"] ?? p?.["id"] ?? "") as string)
       .filter(Boolean);
 
-    // offerId: first policy's @id + 전체 policy 객체 (ContractRequest에 raw 인코딩값 그대로 필요)
-    const offerId = rawPols[0] ?? "";
-    const offerPolicy = policies[0] ?? null;
+    // offerId와 offerPolicy를 '동일' 정책 객체에서 일관 선택 — @id(또는 id)를 가진 첫 정책을
+    // 단일 소스로 잡아 둘이 서로 다른 정책에서 나오는 정합성 붕괴를 막는다(id 79).
+    // (negotiations의 {...offerPolicy, "@id": offerId} 합성이 정합성을 유지하도록)
+    const primaryPolicy =
+      policies.find(p => p?.["@id"] ?? p?.["id"]) ?? policies[0] ?? null;
+    const offerId = (primaryPolicy?.["@id"] ??
+      primaryPolicy?.["id"] ??
+      "") as string;
+    const offerPolicy = primaryPolicy;
 
     // pols: 화면 표시용 — 인코딩된 offer @id를 정의ID로 디코딩
     const pols = rawPols.map(decodePolicyId);

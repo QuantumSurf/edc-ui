@@ -14,6 +14,32 @@ import { requireRole } from "../middleware/auth.js";
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
 
+// EDR dataaddress 조회 동시성 상한 — 활성 EDR이 많을 때 무제한 병렬(N+1)로 provider/EDC를
+// 과부하시키지 않도록 제한(id 78). 환경변수로 조정 가능.
+const EDR_FETCH_CONCURRENCY = Number(process.env.EDR_FETCH_CONCURRENCY ?? 6);
+
+/** 동시성 상한을 둔 map — 입력 순서를 보존해 결과 배열을 반환. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(limit, items.length)) },
+    async () => {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) break;
+        results[i] = await fn(items[i], i);
+      }
+    }
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 async function resolveConnector(id: string) {
   const conn = await getConnector(id);
   if (!conn) throw new Error(`Connector ${id} not found`);
@@ -44,8 +70,11 @@ router.post(
         : [];
 
       const now = Date.now();
-      const enriched = await Promise.all(
-        rawList.map(async raw => {
+      // 활성 EDR마다 dataaddress를 동시성 상한 하에 병렬 조회(무제한 N+1 방지 — id 78).
+      const enriched = await mapWithConcurrency(
+        rawList,
+        EDR_FETCH_CONCURRENCY,
+        async raw => {
           const tpId =
             (raw["transferProcessId"] as string) ??
             (raw["@id"] as string) ??
@@ -68,7 +97,7 @@ router.post(
             }
           }
           return raw;
-        })
+        }
       );
 
       res.json(enriched.map(mapEDR));
@@ -93,7 +122,9 @@ router.get(
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      const active = edrs.filter((e: { left: number }) => e.left > 0);
+      // active 정의를 목록 라우트(`!expiresAt || expiresAt > now`)와 일치시킨다(id 81).
+      // left === -1(만료정보 없음)과 left > 0(미래 만료) 모두 활성. left === 0(만료/임박)만 제외.
+      const active = edrs.filter((e: { left: number }) => e.left !== 0);
       const expired = edrs.filter(
         (e: { expiresAt: number }) =>
           e.expiresAt > 0 &&
@@ -101,15 +132,19 @@ router.get(
           e.expiresAt >= todayStart.getTime()
       );
 
-      // Nearest expiry among active EDRs
+      // nearestExpiry는 실제 만료 시각이 있는 EDR(left > 0)만 대상 — left === -1이 항상 최소로
+      // 뽑혀 '가장 임박'으로 오인되는 문제 방지(active 집계와 임박 계산을 분리).
+      const expiringCandidates = active.filter(
+        (e: { left: number }) => e.left > 0
+      );
       const nearest =
-        active.length > 0
-          ? active.reduce(
+        expiringCandidates.length > 0
+          ? expiringCandidates.reduce(
               (
                 min: { left: number; tpId: string; asset: string },
                 e: { left: number; tpId: string; asset: string }
               ) => (e.left < min.left ? e : min),
-              active[0]
+              expiringCandidates[0]
             )
           : null;
 

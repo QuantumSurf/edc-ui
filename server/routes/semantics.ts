@@ -90,8 +90,9 @@ function validateBody(
     return "modelType must be string";
   if (body.content != null) {
     if (typeof body.content !== "string") return "content must be string";
+    // 안정적 에러 코드(duplicate-urn 컨벤션) — 클라가 코드로 로컬라이즈 분기 가능.
     if (Buffer.byteLength(body.content, "utf8") > MAX_CONTENT_BYTES)
-      return "content too large";
+      return "content-too-large";
   }
   if (body.descriptionKo != null && typeof body.descriptionKo !== "string")
     return "descriptionKo must be string";
@@ -100,18 +101,25 @@ function validateBody(
   return null;
 }
 
-// GET /api/semantics/models — list summaries (no content)
+// GET /api/semantics/models — list summaries (no content), tenant-scoped
 router.get(
   "/models",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const tenantId = req.user?.tenantId;
+      // tenantId 없으면 빈 결과(타 테넌트 모델 노출 방지).
+      if (!tenantId) {
+        res.json({ items: [], total: 0 });
+        return;
+      }
       const search =
         typeof req.query.search === "string" ? req.query.search.trim() : "";
-      const params: unknown[] = [];
-      let where = "";
+      // $1=tenant_id, $2=search(있을 때)
+      const params: unknown[] = [tenantId];
+      let where = "WHERE tenant_id = $1";
       if (search) {
         params.push(`%${search.toLowerCase()}%`);
-        where = `WHERE LOWER(urn) LIKE $1 OR LOWER(name) LIKE $1 OR LOWER(description_ko) LIKE $1 OR LOWER(description_en) LIKE $1`;
+        where += ` AND (LOWER(urn) LIKE $2 OR LOWER(name) LIKE $2 OR LOWER(description_ko) LIKE $2 OR LOWER(description_en) LIKE $2)`;
       }
       const { rows } = await getPool().query<SemanticModelRow>(
         `SELECT urn, name, version, status, model_type, content, description_ko, description_en, created_at, updated_at
@@ -127,15 +135,20 @@ router.get(
   }
 );
 
-// GET /api/semantics/models/:urn — fetch single (with content)
+// GET /api/semantics/models/:urn — fetch single (with content), tenant-scoped
 router.get(
   "/models/:urn",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        res.status(404).json({ error: "not-found" });
+        return;
+      }
       const urn = decodeURIComponent(req.params.urn);
       const { rows } = await getPool().query<SemanticModelRow>(
-        `SELECT * FROM semantic_models WHERE urn = $1`,
-        [urn]
+        `SELECT * FROM semantic_models WHERE tenant_id = $1 AND urn = $2`,
+        [tenantId, urn]
       );
       if (rows.length === 0) {
         res.status(404).json({ error: "not-found" });
@@ -148,12 +161,17 @@ router.get(
   }
 );
 
-// POST /api/semantics/models — create
+// POST /api/semantics/models — create (tenant-scoped: URN 유니크는 테넌트 단위)
 router.post(
   "/models",
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        res.status(403).json({ error: "no-tenant" });
+        return;
+      }
       const err = validateBody(req.body ?? {}, { requireUrn: true });
       if (err) {
         res.status(400).json({ error: err });
@@ -161,19 +179,21 @@ router.post(
       }
       const b = req.body as Record<string, unknown>;
       const urn = (b.urn as string).trim();
+      // 중복 검사도 테넌트 스코프 — 같은 URN을 서로 다른 테넌트가 가질 수 있다.
       const dup = await getPool().query(
-        `SELECT 1 FROM semantic_models WHERE urn = $1`,
-        [urn]
+        `SELECT 1 FROM semantic_models WHERE tenant_id = $1 AND urn = $2`,
+        [tenantId, urn]
       );
       if (dup.rowCount && dup.rowCount > 0) {
         res.status(409).json({ error: "duplicate-urn" });
         return;
       }
       const { rows } = await getPool().query<SemanticModelRow>(
-        `INSERT INTO semantic_models (urn, name, version, status, model_type, content, description_ko, description_en)
-       VALUES ($1, $2, $3, COALESCE($4, 'DRAFT'), COALESCE($5, 'SAMM'), COALESCE($6, ''), COALESCE($7, ''), COALESCE($8, ''))
+        `INSERT INTO semantic_models (tenant_id, urn, name, version, status, model_type, content, description_ko, description_en)
+       VALUES ($1, $2, $3, $4, COALESCE($5, 'DRAFT'), COALESCE($6, 'SAMM'), COALESCE($7, ''), COALESCE($8, ''), COALESCE($9, ''))
        RETURNING *`,
         [
+          tenantId,
           urn,
           (b.name as string).trim(),
           (b.version as string | null) ?? "",
@@ -191,12 +211,17 @@ router.post(
   }
 );
 
-// PUT /api/semantics/models/:urn — replace
+// PUT /api/semantics/models/:urn — replace (tenant-scoped)
 router.put(
   "/models/:urn",
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        res.status(403).json({ error: "no-tenant" });
+        return;
+      }
       const urn = decodeURIComponent(req.params.urn);
       const err = validateBody(req.body ?? {}, { requireUrn: false });
       if (err) {
@@ -206,17 +231,18 @@ router.put(
       const b = req.body as Record<string, unknown>;
       const { rows } = await getPool().query<SemanticModelRow>(
         `UPDATE semantic_models
-       SET name = $2,
-           version = COALESCE($3, version),
-           status = COALESCE($4, status),
-           model_type = COALESCE($5, model_type),
-           content = COALESCE($6, content),
-           description_ko = COALESCE($7, description_ko),
-           description_en = COALESCE($8, description_en),
+       SET name = $3,
+           version = COALESCE($4, version),
+           status = COALESCE($5, status),
+           model_type = COALESCE($6, model_type),
+           content = COALESCE($7, content),
+           description_ko = COALESCE($8, description_ko),
+           description_en = COALESCE($9, description_en),
            updated_at = NOW()
-       WHERE urn = $1
+       WHERE tenant_id = $1 AND urn = $2
        RETURNING *`,
         [
+          tenantId,
           urn,
           (b.name as string).trim(),
           (b.version as string | null) ?? null,
@@ -238,16 +264,21 @@ router.put(
   }
 );
 
-// DELETE /api/semantics/models/:urn
+// DELETE /api/semantics/models/:urn (tenant-scoped)
 router.delete(
   "/models/:urn",
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        res.status(403).json({ error: "no-tenant" });
+        return;
+      }
       const urn = decodeURIComponent(req.params.urn);
       const { rowCount } = await getPool().query(
-        `DELETE FROM semantic_models WHERE urn = $1`,
-        [urn]
+        `DELETE FROM semantic_models WHERE tenant_id = $1 AND urn = $2`,
+        [tenantId, urn]
       );
       if (!rowCount) {
         res.status(404).json({ error: "not-found" });

@@ -229,8 +229,10 @@ router.get(
 
 // POST /:id/transfers/:tpId/fetch — EDR로 실제 데이터 Pull + 크기 기록
 // 응답: { data, sizeBytes, contentType }
+// write 가드: 실제 provider 데이터를 추출하므로 admin/operator만 허용(viewer 차단 — id 76).
 router.post(
   "/:id/transfers/:tpId/fetch",
+  writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tpId } = req.params;
@@ -390,22 +392,32 @@ router.post(
           const token = edr["authorization"] as string;
 
           if (endpoint && token) {
-            const fetchStart = Date.now();
-            const dataRes = await axios.get(endpoint, {
-              headers: { Authorization: `Bearer ${token}` },
-              responseType: "arraybuffer",
-              timeout: 30_000,
-            });
-            const fetchDurationMs = Date.now() - fetchStart;
-            const sizeBytes = dataRes.data?.length ?? 0;
+            // 프록시 자산(DTR 등)은 EDR 루트가 빈 응답 → /fetch와 동일하게 하위 경로 허용(id 77).
+            const targetUrl = appendProxyPath(
+              endpoint,
+              req.body?.path,
+              req.body?.query
+            );
+            if (targetUrl !== null) {
+              const fetchStart = Date.now();
+              const dataRes = await axios.get(targetUrl, {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: "arraybuffer",
+                timeout: 30_000,
+              });
+              const fetchDurationMs = Date.now() - fetchStart;
+              const rawSize = dataRes.data?.length ?? 0;
+              // '0'(빈 응답)과 '미측정'을 구분 — 0이면 null로 남겨 통계 왜곡 방지.
+              const sizeBytes = rawSize > 0 ? rawSize : null;
 
-            await getPool().query(
-              `INSERT INTO transfer_metadata (transfer_id, connector_id, size_bytes, fetch_duration_ms)
+              await getPool().query(
+                `INSERT INTO transfer_metadata (transfer_id, connector_id, size_bytes, fetch_duration_ms)
              VALUES ($1, $2, $3, $4)
              ON CONFLICT (transfer_id, connector_id)
              DO UPDATE SET size_bytes = EXCLUDED.size_bytes, fetch_duration_ms = EXCLUDED.fetch_duration_ms`,
-              [tpId, connectorId, sizeBytes, fetchDurationMs]
-            );
+                [tpId, connectorId, sizeBytes, fetchDurationMs]
+              );
+            }
           }
         } catch {
           // EDR 만료 등으로 fetch 실패해도 완료 처리는 계속 진행

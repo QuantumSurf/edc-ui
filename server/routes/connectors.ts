@@ -59,12 +59,19 @@ function countArray(res: {
 // GET / — list the tenant's registered connectors (with live status + counts)
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const connectors = await listConnectors(req.user?.tenantId);
+    // tenant fail-closed: tenantId 없는 토큰은 전체 노출 대신 명시적으로 거부.
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      res.status(403).json({ error: "no-tenant" });
+      return;
+    }
+    const connectors = await listConnectors(tenantId);
 
     // Parallel status + resource counts for all connectors
     const withStatus = await Promise.all(
       connectors.map(async ({ apiKey, ...safe }) => {
-        let status: "up" | "down" = "down";
+        // 부분 장애(일부 API만 실패) 표현을 위해 up/warn/down 3-state로 산출.
+        let status: "up" | "warn" | "down" = "down";
         let assets = 0,
           offers = 0,
           negs = 0,
@@ -90,18 +97,17 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
           negs = countArray(negsRes);
           transfers = countArray(transfersRes);
 
-          // If any call succeeded, connector is up
-          if (
-            [assetsRes, offersRes, negsRes, transfersRes].some(
-              r => r.status === "fulfilled"
-            )
-          ) {
-            status = "up";
-          }
+          // 4개 모두 성공=up, 0개=down, 일부만 성공=warn(부분 장애/열화).
+          const oks = [assetsRes, offersRes, negsRes, transfersRes].filter(
+            r => r.status === "fulfilled"
+          ).length;
+          status = oks === 0 ? "down" : oks === 4 ? "up" : "warn";
         } catch {
           /* all failed → down */
         }
 
+        // 클라 계약 호환: 카드가 dcpVersion으로 DCP 배지를 표시하므로 dcpVersion을 그대로 노출.
+        // (safe에 이미 dcpVersion 포함 — 별도 alias 불필요)
         return { ...safe, status, assets, offers, negs, transfers };
       })
     );
@@ -142,6 +148,8 @@ router.post(
 );
 
 // POST /test-connection — test connectivity before registration
+// [클라 계약] 이 가드는 operator+admin(operatorOrAdmin)이다. 클라 rbac.ts는 이를 미러링하는
+// 권한 키(예: "connector:test": ["admin","operator"])로 표현을 동기화해야 한다(다음 단계 클라 작업).
 router.post(
   "/test-connection",
   operatorOrAdmin,
@@ -197,14 +205,39 @@ router.put(
   adminOnly,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        res.status(403).json({ error: "no-tenant" });
+        return;
+      }
+      // 소유권 확인(IDOR 차단 — 본인 테넌트 커넥터만). requireConnectorOwnership 미들웨어가
+      // 이미 막지만, BPN 강제와 동일 트랜잭션 맥락에서 한 번 더 명시 검증해 fail-closed 유지.
+      const existing = await getConnector(req.params.id);
+      if (!existing || existing.tenantId !== tenantId) {
+        res.status(404).json({ error: "connector-not-found" });
+        return;
+      }
+
       const ssrfErr = validateConnectorUrls(req.body ?? {});
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected URL — ${ssrfErr}` });
         return;
       }
-      const updated = await updateConnector(req.params.id, req.body);
+
+      // POST와 동일한 서버측 불변식: bpn/tenantId/id는 클라이언트 입력을 신뢰하지 않고
+      // 테넌트 조직 BPN으로 재강제한다(임의 bpn 갱신으로 'BPN=테넌트 식별자' 불변식 파괴 차단).
+      const tenant = await getTenant(tenantId);
+      const {
+        bpn: _ignoredBpn,
+        tenantId: _ignoredTid,
+        id: _ignoredId,
+        ...safeBody
+      } = (req.body ?? {}) as Record<string, unknown>;
+      const updates = { ...safeBody, bpn: tenant?.bpn ?? existing.bpn };
+
+      const updated = await updateConnector(req.params.id, updates);
       if (!updated) {
-        res.status(404).json({ error: `Connector ${req.params.id} not found` });
+        res.status(404).json({ error: "connector-not-found" });
         return;
       }
       const { apiKey, ...safe } = updated;
@@ -223,7 +256,8 @@ router.delete(
     try {
       const deleted = await deleteConnector(req.params.id);
       if (!deleted) {
-        res.status(404).json({ error: `Connector ${req.params.id} not found` });
+        // ownership 미들웨어와 동일 계약(코드값)으로 통일 — id 값 노출 제거.
+        res.status(404).json({ error: "connector-not-found" });
         return;
       }
       res.status(204).end();

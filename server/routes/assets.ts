@@ -8,7 +8,12 @@ import {
   type NextFunction,
 } from "express";
 import { getConnector } from "../lib/connectorRegistry.js";
-import { getEdcClient, withJsonLd, mapAsset } from "../lib/edcClient.js";
+import {
+  getEdcClient,
+  withJsonLd,
+  mapAsset,
+  toEdcAssetBody,
+} from "../lib/edcClient.js";
 import { requireRole } from "../middleware/auth.js";
 
 const router = Router();
@@ -50,13 +55,15 @@ router.post(
           const selector = off["assetsSelector"] ?? off["edc:assetsSelector"];
           if (selector) {
             const sel = Array.isArray(selector) ? selector[0] : selector;
-            const assetId =
-              ((sel as Record<string, unknown>)?.["operandRight"] as string) ??
-              ((sel as Record<string, unknown>)?.[
-                "edc:operandRight"
-              ] as string) ??
-              "";
-            if (assetId) offeredAssetIds.add(assetId);
+            // 다중 자산(in 연산자)은 operandRight가 배열 — 각 요소를 모두 Set에 추가(id 72).
+            const right =
+              (sel as Record<string, unknown>)?.["operandRight"] ??
+              (sel as Record<string, unknown>)?.["edc:operandRight"];
+            if (Array.isArray(right)) {
+              for (const r of right) if (r) offeredAssetIds.add(String(r));
+            } else if (right) {
+              offeredAssetIds.add(String(right));
+            }
           }
         }
         for (const a of mapped) {
@@ -74,42 +81,14 @@ router.post(
 );
 
 // POST /:id/assets/create — proxy to POST /v3/assets (create)
-// Accepts simplified client model and transforms to EDC JSON-LD
+// 평면 클라 모델을 toEdcAssetBody로 EDC JSON-LD 변환(customProperties 병합 포함 — id 12).
 router.post(
   "/:id/assets/create",
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { client } = await resolveConnector(req.params.id);
-      const b = req.body as Record<string, string>;
-
-      const edcBody: Record<string, unknown> = {
-        "@context": {
-          "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
-          "cx-common": "https://w3id.org/catenax/ontology/common#",
-          dct: "https://purl.org/dc/terms/",
-          "cx-taxo": "https://w3id.org/catenax/taxonomy#",
-        },
-        "@id": b.id,
-        properties: {
-          name: b.name ?? b.id,
-          "cx-common:version": b.ver ?? "",
-          ...(b.type ? { "dct:type": { "@id": b.type } } : {}),
-          ...(b.sem ? { semanticId: b.sem } : {}),
-          ...(b.aasVersion ? { "kmx:aasVersion": b.aasVersion } : {}),
-          ...(b.aasId ? { "kmx:aasId": b.aasId } : {}),
-          ...(b.submodelId ? { "kmx:submodelId": b.submodelId } : {}),
-        },
-        dataAddress: {
-          type: b.dataAddressType ?? "HttpData",
-          baseUrl: b.baseUrl,
-          proxyPath: b.proxyPath ?? "false",
-          proxyQueryParams: b.proxyQueryParams ?? "false",
-          authCode: b.authCode ? `{{${b.authCode}}}` : undefined,
-          contentType: b.contentType ?? "application/json",
-        },
-      };
-
+      const edcBody = toEdcAssetBody(req.body as Record<string, unknown>);
       const response = await client.post("/v3/assets", edcBody);
       res.json(response.data);
     } catch (error) {
@@ -133,13 +112,19 @@ router.get(
 );
 
 // PUT /:id/assets/:assetId — proxy to PUT /v3/assets (update)
+// create와 동일 변환(toEdcAssetBody)으로 평면→JSON-LD. @id는 URL :assetId로 강제 정합.
+// (과거: withJsonLd raw 전달이라 properties/dataAddress 미구성으로 수정 깨짐 — id 11)
 router.put(
   "/:id/assets/:assetId",
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { client } = await resolveConnector(req.params.id);
-      const response = await client.put("/v3/assets", withJsonLd(req.body));
+      const edcBody = toEdcAssetBody(
+        req.body as Record<string, unknown>,
+        req.params.assetId
+      );
+      const response = await client.put("/v3/assets", edcBody);
       res.json(response.data);
     } catch (error) {
       next(error);

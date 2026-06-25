@@ -15,7 +15,7 @@
 //   plus a DB UNIQUE INDEX guard to prevent duplicates across BFF restarts.
 
 import { getPool } from "./db.js";
-import { listConnectors } from "./connectorRegistry.js";
+import { listAllConnectorsUnsafe } from "./connectorRegistry.js";
 import { getEdcClient, withJsonLd } from "./edcClient.js";
 
 const POLL_INTERVAL_MS = Number(process.env.KMX_NOTIFY_POLL_MS ?? 60_000);
@@ -75,6 +75,8 @@ interface InsertSpec {
   link?: string;
   /** stable key for cross-restart dedup via notification_dedup table */
   dedupKey: string;
+  /** 알림을 소유하는 테넌트(커넥터 소유 테넌트). UI는 자기 테넌트 알림만 조회. */
+  tenantId?: string | null;
 }
 
 /** Persist notification + dedup row. Returns true if newly created. */
@@ -91,9 +93,16 @@ async function insertOnce(spec: InsertSpec): Promise<boolean> {
     return false;
   }
   await pool.query(
-    `INSERT INTO notifications (type, source, title, message, link)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [spec.type, spec.source, spec.title, spec.message, spec.link ?? null]
+    `INSERT INTO notifications (tenant_id, type, source, title, message, link)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      spec.tenantId ?? null,
+      spec.type,
+      spec.source,
+      spec.title,
+      spec.message,
+      spec.link ?? null,
+    ]
   );
   seenKeys.add(spec.dedupKey);
   return true;
@@ -152,6 +161,7 @@ async function pollConnector(conn: {
   name: string;
   managementUrl: string;
   apiKey: string;
+  tenantId?: string | null;
 }): Promise<void> {
   const client = getEdcClient(conn.id, {
     managementUrl: conn.managementUrl,
@@ -185,6 +195,7 @@ async function pollConnector(conn: {
         ),
         link: "/transaction/negotiations",
         dedupKey: makeKey(conn.id, "neg.terminated", id),
+        tenantId: conn.tenantId,
       });
     }
   } catch (e) {
@@ -217,6 +228,7 @@ async function pollConnector(conn: {
           ),
           link: "/transaction/transfers",
           dedupKey: makeKey(conn.id, "transfer.terminated", id),
+          tenantId: conn.tenantId,
         });
       } else if (state === "COMPLETED") {
         await insertOnce({
@@ -226,6 +238,7 @@ async function pollConnector(conn: {
           message: `자산 ${asset} 전송이 정상 완료되었습니다.`,
           link: "/transaction/transfers",
           dedupKey: makeKey(conn.id, "transfer.completed", id),
+          tenantId: conn.tenantId,
         });
       }
     }
@@ -258,6 +271,7 @@ async function pollConnector(conn: {
         message: `Transfer ${tpId.slice(0, 12)} 의 EDR이 ${left}분 후 만료됩니다.`,
         link: "/transaction/edr",
         dedupKey: makeKey(conn.id, `edr.expiring.${today}`, tpId),
+        tenantId: conn.tenantId,
       });
     }
   } catch (e) {
@@ -280,6 +294,7 @@ async function pollConnector(conn: {
         ),
       link: "/system/infra",
       dedupKey: makeKey(conn.id, `connector.unreachable.${today}`, conn.id),
+      tenantId: conn.tenantId,
     });
   }
 }
@@ -290,7 +305,7 @@ let tickCount = 0;
 
 async function tick(): Promise<void> {
   try {
-    const conns = await listConnectors();
+    const conns = await listAllConnectorsUnsafe();
     await runWithConcurrency(conns, POLL_CONCURRENCY, async c => {
       try {
         await pollConnector({
@@ -298,6 +313,7 @@ async function tick(): Promise<void> {
           name: c.name,
           managementUrl: c.managementUrl,
           apiKey: c.apiKey,
+          tenantId: c.tenantId ?? null,
         });
       } catch (err) {
         console.warn(

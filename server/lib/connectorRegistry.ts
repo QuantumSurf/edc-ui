@@ -1,6 +1,7 @@
 // KMX EDC — Connector Registry (PostgreSQL-backed)
 // Manages registered connector endpoints and API keys
 
+import { randomUUID } from "crypto";
 import { getPool } from "./db.js";
 
 export interface ConnectorEntry {
@@ -38,16 +39,29 @@ function rowToEntry(row: Record<string, unknown>): ConnectorEntry {
   };
 }
 
-/** List connectors for a tenant. Pass undefined to list all (internal/migration use only). */
+/**
+ * List a tenant's connectors. tenantId는 필수 — 인자 누락/빈값이면 전체 노출 대신
+ * 명시적으로 실패(fail-closed)해, 어떤 라우트도 실수로 전 테넌트 커넥터를 조회하지 못하게 한다.
+ */
 export async function listConnectors(
-  tenantId?: string
+  tenantId: string
 ): Promise<ConnectorEntry[]> {
-  const { rows } = tenantId
-    ? await getPool().query(
-        "SELECT * FROM connectors WHERE tenant_id = $1 ORDER BY created_at",
-        [tenantId]
-      )
-    : await getPool().query("SELECT * FROM connectors ORDER BY created_at");
+  if (!tenantId) throw new Error("listConnectors: tenantId required");
+  const { rows } = await getPool().query(
+    "SELECT * FROM connectors WHERE tenant_id = $1 ORDER BY created_at",
+    [tenantId]
+  );
+  return rows.map(rowToEntry);
+}
+
+/**
+ * 전 테넌트 커넥터 조회 — 내부/백그라운드/마이그레이션 전용. 라우트에서 호출 금지.
+ * (notificationGenerator의 전역 폴링 등 테넌트 무관 작업만 사용)
+ */
+export async function listAllConnectorsUnsafe(): Promise<ConnectorEntry[]> {
+  const { rows } = await getPool().query(
+    "SELECT * FROM connectors ORDER BY created_at"
+  );
   return rows.map(rowToEntry);
 }
 
@@ -65,11 +79,9 @@ export async function registerConnector(
   entry: Omit<ConnectorEntry, "id" | "createdAt" | "tenantId">,
   tenantId: string
 ): Promise<ConnectorEntry> {
-  // Generate ID: env-NN (next sequence number)
-  const { rows: countRows } = await getPool().query(
-    "SELECT COUNT(*)::int AS cnt FROM connectors"
-  );
-  const id = `${entry.env.toLowerCase()}-${String(countRows[0].cnt + 1).padStart(2, "0")}`;
+  // Generate ID: env 접두 + 충돌 없는 UUID 단편(전역 COUNT(*) 제거 — 동시 등록 PK 충돌 및
+  // 전체 테넌트 커넥터 수 누출 방지). validateConnectorId 정규식(^[a-zA-Z0-9\-_]+$) 충족.
+  const id = `${entry.env.toLowerCase()}-${randomUUID().slice(0, 8)}`;
 
   const sql = `
     INSERT INTO connectors (id, name, bpn, management_url, dsp_endpoint, api_key, env, roles, dcp_version, did, identity_hub_url, tenant_id)

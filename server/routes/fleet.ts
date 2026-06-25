@@ -20,7 +20,8 @@ const JSON_LD_QUERY = {
 interface ConnectorKpi {
   id: string;
   name: string;
-  healthy: boolean;
+  // 부분 장애 표현: up(전부 성공)/warn(일부 성공)/down(전부 실패).
+  status: "up" | "warn" | "down";
   assets: number;
   negotiations: number;
   transfers: number;
@@ -29,7 +30,13 @@ interface ConnectorKpi {
 // GET /kpi — aggregate KPI across the tenant's connectors in parallel
 router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const connectors = await listConnectors(req.user?.tenantId);
+    // tenant fail-closed: tenantId 없는 토큰은 KPI 전체 노출 대신 거부.
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      res.status(403).json({ error: "no-tenant" });
+      return;
+    }
+    const connectors = await listConnectors(tenantId);
 
     // Short-circuit: if no connectors registered, return immediately
     if (connectors.length === 0) {
@@ -62,15 +69,17 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
             client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
           ]);
 
-        // If at least one call succeeded, connector is healthy
-        const healthy = [assetsRes, negotiationsRes, transfersRes].some(
+        // 3개 모두 성공=up, 0개=down, 일부만=warn(부분 장애).
+        const oks = [assetsRes, negotiationsRes, transfersRes].filter(
           r => r.status === "fulfilled"
-        );
+        ).length;
+        const status: "up" | "warn" | "down" =
+          oks === 0 ? "down" : oks === 3 ? "up" : "warn";
 
         return {
           id: conn.id,
           name: conn.name,
-          healthy,
+          status,
           assets:
             assetsRes.status === "fulfilled"
               ? Array.isArray(assetsRes.value.data)
@@ -99,21 +108,22 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
         : {
             id: connectors[i].id,
             name: connectors[i].name,
-            healthy: false,
+            status: "down",
             assets: 0,
             negotiations: 0,
             transfers: 0,
           }
     );
 
-    const up = perConnector.filter(c => c.healthy).length;
-    const down = perConnector.length - up;
+    const up = perConnector.filter(c => c.status === "up").length;
+    const warn = perConnector.filter(c => c.status === "warn").length;
+    const down = perConnector.length - up - warn;
 
     // Match client FleetKPI interface
     res.json({
       totalConnectors: perConnector.length,
       up,
-      warn: 0,
+      warn,
       down,
       totalAssets: perConnector.reduce((sum, c) => sum + c.assets, 0),
       totalOffers: 0,

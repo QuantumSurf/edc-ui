@@ -46,9 +46,34 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // trust proxy 설정 — 리버스 프록시(nginx Ingress) 뒤에서 req.ip가 항상 프록시 IP가 되어
+  // IP 기반 rate limiter(특히 로그인 잠금)가 전역 단일 키로 무력화되는 문제 방지(id 63).
+  // TRUST_PROXY로 신뢰 프록시 홉 수를 제어. 기본값은 안전(0=신뢰 안 함, X-Forwarded-For 무시).
+  //   - 숫자(예: "1"): 신뢰할 프록시 홉 수(가장 가까운 N개) — 일반적 nginx 단일 프록시면 "1".
+  //   - "true": 모든 프록시 신뢰(스푸핑 위험, 비권장).
+  // [배포 결정 필요] 실제 프록시 홉 수에 맞춰 TRUST_PROXY를 설정해야 rate limit이 클라 IP 단위로 동작.
+  const trustProxyEnv = process.env.TRUST_PROXY;
+  if (trustProxyEnv != null && trustProxyEnv !== "") {
+    const asNum = Number(trustProxyEnv);
+    app.set(
+      "trust proxy",
+      trustProxyEnv === "true"
+        ? true
+        : Number.isFinite(asNum)
+          ? asNum
+          : trustProxyEnv // ip/subnet 문자열도 그대로 위임
+    );
+  } else {
+    // 기본 안전값: 프록시 미신뢰(X-Forwarded-* 무시) → req.ip는 소켓 peer IP.
+    app.set("trust proxy", false);
+  }
+
   // ── Security Middleware ─────────────────────────────────────────
-  // JSON body parsing — larger limit only for semantic models (SAMM TTL up to ~256 KB).
-  // All other routes keep a tight 10 KB cap to limit DoS exposure.
+  // JSON body parsing — larger limit only for semantic models (SAMM TTL).
+  // 실효 한계는 semantics.validateBody의 content 256KB(>256KB면 400 "content-too-large").
+  // express 1mb는 JSON 엔벨로프(name/설명 등) 헤드룸을 둔 외곽 가드(>1mb면 413).
+  // [클라 계약 — id 42] 클라는 413(외곽) / 400+"content-too-large"(content) 둘 다 "최대 256 KB"로
+  // 안내해야 메시지·검증이 일치한다. (서버 실효 한계=256KB)
   app.use("/api/semantics", express.json({ limit: "1mb" }));
   app.use(express.json({ limit: "10kb" }));
 

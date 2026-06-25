@@ -18,13 +18,15 @@ import { getEdcClient } from "../lib/edcClient.js";
 
 const router = Router();
 
-/* ─── EDC runtime version cache (queried lazily, refreshed every 1h) ─── */
-let edcVersionCache: { value: string; expiresAt: number } | null = null;
+/* ─── EDC runtime version cache (queried lazily, refreshed every 1h) ───
+ * 캐시를 테넌트별로 분리(키=tenantId) — 남의 테넌트 커넥터 자격증명으로 프로브하던
+ * 전역 동작/전역 캐시 노출 제거(id 85). 자기 테넌트 커넥터만 사용. */
+const edcVersionCache = new Map<string, { value: string; expiresAt: number }>();
 const EDC_VERSION_TTL_MS = 60 * 60 * 1000;
 
-async function probeEdcVersion(): Promise<string | null> {
+async function probeEdcVersion(tenantId: string): Promise<string | null> {
   try {
-    const conns = await listConnectors();
+    const conns = await listConnectors(tenantId);
     if (!conns.length) return null;
     const c = conns[0];
     const client = getEdcClient(c.id, {
@@ -48,15 +50,17 @@ async function probeEdcVersion(): Promise<string | null> {
   }
 }
 
-async function getEdcRuntimeVersion(): Promise<string> {
+async function getEdcRuntimeVersion(tenantId?: string): Promise<string> {
   // Env override always wins.
   if (process.env.EDC_RUNTIME_VERSION) return process.env.EDC_RUNTIME_VERSION;
+  // 테넌트가 없으면 프로브 없이 기본값 — 타 테넌트 커넥터 접근 방지.
+  if (!tenantId) return "v0.16.0";
   const now = Date.now();
-  if (edcVersionCache && edcVersionCache.expiresAt > now)
-    return edcVersionCache.value;
-  const probed = await probeEdcVersion();
+  const cached = edcVersionCache.get(tenantId);
+  if (cached && cached.expiresAt > now) return cached.value;
+  const probed = await probeEdcVersion(tenantId);
   const value = probed ?? "v0.16.0";
-  edcVersionCache = { value, expiresAt: now + EDC_VERSION_TTL_MS };
+  edcVersionCache.set(tenantId, { value, expiresAt: now + EDC_VERSION_TTL_MS });
   return value;
 }
 
@@ -93,7 +97,7 @@ console.log(
 );
 
 /* ─── /info ───────────────────────────────────────────────────────── */
-router.get("/info", async (_req: Request, res: Response) => {
+router.get("/info", async (req: Request, res: Response) => {
   const nodeEnv = process.env.NODE_ENV ?? "development";
   const environment = (
     process.env.APP_ENV ?? (nodeEnv === "production" ? "PROD" : "DEV")
@@ -101,7 +105,8 @@ router.get("/info", async (_req: Request, res: Response) => {
   // apiMode: "Live" when BFF can reach real EDC/Vault/PG (always true in this build).
   // Allow override via env in case a future "Mock" demo build is shipped.
   const apiMode = process.env.API_MODE ?? "Live";
-  const edcRuntime = await getEdcRuntimeVersion();
+  // 호출자 테넌트 커넥터로만 EDC 버전 프로브(테넌트별 캐시) — id 85.
+  const edcRuntime = await getEdcRuntimeVersion(req.user?.tenantId);
 
   res.json({
     connectorHub: connectorHubVersion,
