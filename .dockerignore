@@ -5,3 +5,9 @@ dist
 .manus-logs
 *.md
 *.zip
+# 빌드 컨텍스트에서 시크릿/배포 파일 제외 — COPY . . 로 builder 레이어에 박히는 것 방지.
+.env
+.env.*
+docker-compose*.yml
+.github
+*.log

@@ -27,10 +27,25 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "kmx-edc-ui.serviceAccountName" . }}
+      # 이 BFF 는 K8s API 를 호출하지 않으므로 SA 토큰 자동 마운트를 끈다(침해 시 클러스터 API
+      # 접근·측면이동 차단).
+      automountServiceAccountToken: false
+      # 비root·권한상승 차단·seccomp — 컨테이너 침해 시 blast radius 최소화.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
