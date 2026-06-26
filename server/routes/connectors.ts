@@ -16,6 +16,7 @@ import {
   countConnectorsByTenant,
 } from "../lib/connectorRegistry.js";
 import { getTenant } from "../lib/tenants.js";
+import { getPool } from "../lib/db.js";
 import { createEdcClient } from "../lib/edcClient.js";
 import { requireRole } from "../middleware/auth.js";
 import { validateDspEndpoint } from "../middleware/validation.js";
@@ -131,6 +132,93 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+// GET /:id/counts — 사이드바 배지용 경량 카운트. 6개 리소스를 서버에서 병렬 집계해 '숫자만'
+// 반환한다. 프론트가 6개 풀리스트를 각각 받아 .length 로 세던 over-fetch(페이로드·라운드트립)를
+// 제거한다. 카운트 의미는 기존 사이드바와 일치시킨다:
+//   - transfers: hidden(소프트 삭제) 제외 — 전송 페이지/사이드바와 동일.
+//   - edrs: EDR 목록은 admin/operator 전용(토큰 노출 위험)이라 viewer 에겐 카운트 미반환(기존 동작).
+// (ownership 미들웨어가 /api/connectors/:id 를 이미 보호 — 호출자 테넌트 소유 커넥터만.)
+router.get(
+  "/:id/counts",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const connectorId = req.params.id;
+      const conn = await getConnector(connectorId);
+      if (!conn) {
+        res.status(404).json({ error: "connector-not-found" });
+        return;
+      }
+      const client = createEdcClient({
+        managementUrl: conn.managementUrl,
+        apiKey: conn.apiKey,
+        timeoutMs: 5_000,
+      });
+      const role = req.user?.role;
+      const privileged = role === "admin" || role === "operator";
+
+      const [
+        assetsR,
+        policiesR,
+        offeringsR,
+        negsR,
+        transfersR,
+        hiddenR,
+        edrsR,
+      ] = await Promise.allSettled([
+        client.post("/v3/assets/request", JSON_LD_QUERY),
+        client.post("/v3/policydefinitions/request", JSON_LD_QUERY),
+        client.post("/v3/contractdefinitions/request", JSON_LD_QUERY),
+        client.post("/v3/contractnegotiations/request", JSON_LD_QUERY),
+        client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
+        getPool().query(
+          "SELECT transfer_id FROM transfer_metadata WHERE connector_id = $1 AND hidden = TRUE",
+          [connectorId]
+        ),
+        privileged
+          ? client.post("/v3/edrs/request", JSON_LD_QUERY)
+          : Promise.resolve({ data: null }),
+      ]);
+
+      // transfers: hidden 제외하고 카운트(전송 페이지와 동일 의미).
+      let transfers: number | undefined;
+      if (
+        transfersR.status === "fulfilled" &&
+        Array.isArray(transfersR.value.data)
+      ) {
+        const hidden = new Set<string>(
+          hiddenR.status === "fulfilled"
+            ? (hiddenR.value.rows as { transfer_id: string }[]).map(
+                r => r.transfer_id
+              )
+            : []
+        );
+        transfers = transfersR.value.data.filter(
+          (t: Record<string, unknown>) =>
+            !hidden.has((t["@id"] as string) ?? "")
+        ).length;
+      }
+
+      // 실패/비배열은 undefined(배지 미표시) — 기존 사이드바의 `data?.length`(에러 시 undefined)와 일치.
+      const lenOf = (r: PromiseSettledResult<unknown>): number | undefined => {
+        if (r.status !== "fulfilled") return undefined;
+        const d = (r.value as { data?: unknown })?.data;
+        return Array.isArray(d) ? d.length : undefined;
+      };
+
+      res.json({
+        assets: lenOf(assetsR),
+        policies: lenOf(policiesR),
+        offerings: lenOf(offeringsR),
+        negotiations: lenOf(negsR),
+        transfers,
+        edrs: privileged ? lenOf(edrsR) : undefined,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // POST / — register a new connector under the caller's tenant
 router.post(
   "/",
@@ -152,7 +240,9 @@ router.post(
         return;
       }
       // 테넌트당 커넥터 수 상한 — fan-out 증폭 DoS 방지(tenant 스코프 COUNT).
-      if ((await countConnectorsByTenant(tenantId)) >= MAX_CONNECTORS_PER_TENANT) {
+      if (
+        (await countConnectorsByTenant(tenantId)) >= MAX_CONNECTORS_PER_TENANT
+      ) {
         res.status(409).json({ error: "connector-limit-reached" });
         return;
       }

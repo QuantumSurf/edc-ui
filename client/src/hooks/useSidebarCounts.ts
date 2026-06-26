@@ -1,15 +1,10 @@
 // KMX EDC — Sidebar resource count hook
-// Fetches live counts from the BFF for each resource type
+// BFF 의 경량 count 엔드포인트(GET /connectors/:id/counts)에서 6개 리소스 카운트를 한 번에 받는다.
+// (과거: assets/policies/offerings/negotiations/transfers/edrs 6개 풀리스트를 각각 페치해
+//  .length 로 세던 over-fetch → 단일 경량 요청으로 대체. 페이로드·라운드트립 대폭 절감.)
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  fetchAssets,
-  fetchPolicies,
-  fetchOfferings,
-  fetchNegotiations,
-  fetchTransfers,
-  fetchEDRs,
-} from "@/services";
+import { fetchSidebarCounts } from "@/services";
 
 export interface SidebarCounts {
   assets?: number;
@@ -21,56 +16,11 @@ export interface SidebarCounts {
 }
 
 export function useSidebarCounts(connectorId: string | null): SidebarCounts {
-  const enabled = !!connectorId;
-
-  const { data: assets } = useQuery({
-    queryKey: ["assets", connectorId],
-    queryFn: () => fetchAssets(connectorId!),
-    enabled,
+  const { data } = useQuery({
+    queryKey: ["sidebar-counts", connectorId],
+    queryFn: () => fetchSidebarCounts(connectorId!),
+    enabled: !!connectorId,
     staleTime: 60_000,
   });
-
-  const { data: policies } = useQuery({
-    queryKey: ["policies", connectorId],
-    queryFn: () => fetchPolicies(connectorId!),
-    enabled,
-    staleTime: 60_000,
-  });
-
-  const { data: offerings } = useQuery({
-    queryKey: ["offerings", connectorId],
-    queryFn: () => fetchOfferings(connectorId!),
-    enabled,
-    staleTime: 60_000,
-  });
-
-  const { data: negotiations } = useQuery({
-    queryKey: ["negotiations", connectorId],
-    queryFn: () => fetchNegotiations(connectorId!),
-    enabled,
-    staleTime: 60_000,
-  });
-
-  const { data: transfers } = useQuery({
-    queryKey: ["transfers", connectorId],
-    queryFn: () => fetchTransfers(connectorId!),
-    enabled,
-    staleTime: 60_000,
-  });
-
-  const { data: edrs } = useQuery({
-    queryKey: ["edrs", connectorId],
-    queryFn: () => fetchEDRs(connectorId!),
-    enabled,
-    staleTime: 60_000,
-  });
-
-  return {
-    assets: assets?.length,
-    policies: policies?.length,
-    offerings: offerings?.length,
-    negotiations: negotiations?.length,
-    transfers: transfers?.length,
-    edrs: edrs?.length,
-  };
+  return data ?? {};
 }

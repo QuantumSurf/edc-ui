@@ -155,6 +155,23 @@ export async function fetchFleetKPI(): Promise<FleetKPI> {
   return data;
 }
 
+/** 사이드바 배지용 경량 카운트 — 6개 리소스를 BFF가 서버에서 집계해 숫자만 반환(over-fetch 제거). */
+export interface SidebarCountsResp {
+  assets?: number;
+  policies?: number;
+  offerings?: number;
+  negotiations?: number;
+  transfers?: number;
+  edrs?: number;
+}
+
+export async function fetchSidebarCounts(
+  connectorId: string
+): Promise<SidebarCountsResp> {
+  const { data } = await http.get(`/connectors/${connectorId}/counts`);
+  return data;
+}
+
 /* ── Assets ──────────────────────────────────────────────────── */
 export async function fetchAssets(connectorId: string): Promise<Asset[]> {
   const { data } = await http.post(`/connectors/${connectorId}/assets`, {});
