@@ -6,6 +6,5 @@ node_modules
 
 # Helm 차트 템플릿({{ }} Go template)은 prettier YAML 파서가 못 읽어 에러 → 제외
 helm
-# 서드파티 디버그 스크립트 / 잠금파일 — 포맷 대상 아님
-client/public/__manus__
+# 잠금파일 — 포맷 대상 아님
 pnpm-lock.yaml

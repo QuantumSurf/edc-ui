@@ -108,8 +108,5 @@ temp/
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 
-# Manus version file (auto-generated, not part of source)
-client/public/__manus__/version.json
-
 # OMC (oh-my-claudecode) 작업 상태 — 로컬 전용
 .omc/

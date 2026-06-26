@@ -38,7 +38,7 @@ services:
     container_name: kmx-edc-ui-dev-app
     working_dir: /app
     environment:
-      # NODE_ENV 미설정 → dev 모드(production 가드/CSP 비활성, manus dev 플러그인 활성)
+      # NODE_ENV 미설정 → dev 모드(production 가드/CSP 비활성)
       - DATABASE_URL=postgresql://kmx:${POSTGRES_PASSWORD:-kmx_dev_123}@db:5432/kmx_edc
       # Vite(:3000)가 /api 를 같은 컨테이너의 BFF(:3001)로 프록시
       - BFF_PROXY_TARGET=http://localhost:3001
