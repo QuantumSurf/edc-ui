@@ -562,6 +562,7 @@ function OfferingDetailSheet({
       >
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
+            <FileSignature className="w-4 h-4 text-primary flex-shrink-0" />
             <h2 className="text-[15px] font-semibold text-foreground truncate">
               {target.id}
             </h2>
@@ -1114,7 +1115,6 @@ function OfferingWizard({
                 <JsonTreeView data={assetsSelectorObj} />
               </div>
             )}
-
           </div>
         )}
 
@@ -1292,7 +1292,6 @@ function OfferingWizard({
                 <JsonTreeView data={assetsSelectorObj} />
               </div>
             )}
-
           </div>
         )}
       </div>

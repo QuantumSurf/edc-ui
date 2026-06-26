@@ -556,6 +556,7 @@ function AssetDetailSheet({
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
+            <Package className="w-4 h-4 text-primary flex-shrink-0" />
             <h2 className="text-[15px] font-semibold text-foreground truncate">
               {target.name || target.id}
             </h2>
@@ -1547,7 +1548,11 @@ function AssetWizard({
         )}
         {step === 2 && (
           <PrimaryActionButton disabled={saving} onClick={handleSubmit}>
-            {saving ? t.common.saving : isEdit ? t.common.save : t.assets.finish}
+            {saving
+              ? t.common.saving
+              : isEdit
+                ? t.common.save
+                : t.assets.finish}
           </PrimaryActionButton>
         )}
       </div>

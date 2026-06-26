@@ -307,7 +307,10 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
                     {t.negotiations.listTitle}
                   </span>
                   <span className="text-[11px] font-normal text-muted-foreground flex-shrink-0">
-                    {t.negotiations.resultCount(totalItems, negotiations.length)}
+                    {t.negotiations.resultCount(
+                      totalItems,
+                      negotiations.length
+                    )}
                   </span>
                 </div>
                 <div className="overflow-x-auto">
@@ -544,6 +547,7 @@ function NegotiationDetailSheet({
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 pr-8">
+            <FileText className="w-4 h-4 text-primary flex-shrink-0" />
             <h2 className="text-[15px] font-semibold text-foreground truncate">
               {t.negotiations.title}
             </h2>
@@ -596,7 +600,11 @@ function NegotiationDetailSheet({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <InfoCard
                 label={t.negotiations.col.state}
-                value={(t.negotiations.states as Record<string, string>)[target.name] ?? target.name}
+                value={
+                  (t.negotiations.states as Record<string, string>)[
+                    target.name
+                  ] ?? target.name
+                }
               />
               <InfoCard
                 label={t.negotiations.col.peer}
@@ -768,7 +776,8 @@ function StateTimeline({
             </div>
             <div className={isLast ? "" : "pb-3"}>
               <span className={`text-[12px] tracking-wide ${labelClass}`}>
-                {(t.negotiations.states as Record<string, string>)[s.name] ?? s.name}
+                {(t.negotiations.states as Record<string, string>)[s.name] ??
+                  s.name}
               </span>
             </div>
           </div>
@@ -781,7 +790,8 @@ function StateTimeline({
           </div>
           <div>
             <span className="text-[12px] font-semibold tracking-wide text-rose-600 dark:text-rose-400">
-              {(t.negotiations.states as Record<string, string>).TERMINATED ?? "TERMINATED"}
+              {(t.negotiations.states as Record<string, string>).TERMINATED ??
+                "TERMINATED"}
             </span>
           </div>
         </div>

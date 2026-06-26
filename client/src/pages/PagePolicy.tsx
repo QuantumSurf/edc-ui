@@ -69,7 +69,10 @@ const LEFT_OPERANDS = [
   { value: "cx-policy:FrameworkAgreement", label: "Framework Agreement" },
   { value: "BusinessPartnerNumber", label: "Business Partner Number" },
   { value: "cx-policy:UsagePurpose", label: "Usage Purpose" },
-  { value: "https://w3id.org/kmx/v0.1/ns/transferCount", label: "Transfer Count (공유 횟수)" },
+  {
+    value: "https://w3id.org/kmx/v0.1/ns/transferCount",
+    label: "Transfer Count (공유 횟수)",
+  },
 ];
 
 const OPERATORS = [
@@ -294,7 +297,9 @@ function policyAction(p: Policy): string {
 }
 
 /** 정책의 첫 rule 유형. 서버 미제공 시 permission 폴백. */
-function policyRuleType(p: Policy): "permission" | "prohibition" | "obligation" {
+function policyRuleType(
+  p: Policy
+): "permission" | "prohibition" | "obligation" {
   const rt = (p as PolicyWithRules).ruleType;
   return rt === "prohibition" || rt === "obligation" ? rt : "permission";
 }
@@ -952,6 +957,7 @@ function PolicyDetailSheet({
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
+            <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
             <h2 className="text-[15px] font-semibold text-foreground truncate">
               {target.id}
             </h2>
@@ -1667,7 +1673,6 @@ function ODRLBuilder({
           >
             <PlusCircle className="w-3 h-3" /> {t.policies.addConstraint}
           </button>
-
         </>
       )}
     </div>
