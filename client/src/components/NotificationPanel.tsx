@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useNotifications } from "@/hooks/useNotifications";
-import { NOTIFY_PREFS_KEY, readPref } from "@/pages/PageSettings";
+import { NOTIFY_PREFS_KEY, readPref } from "@/lib/prefs";
 import { type NotificationItem } from "@/services/api";
 import { ListError } from "@/components/ui-kmx";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";

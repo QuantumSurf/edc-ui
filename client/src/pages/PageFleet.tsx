@@ -98,7 +98,8 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
     refetchInterval: 60_000,
     retry: 3,
     retryDelay: attempt => Math.min(1_000 * 2 ** attempt, 8_000),
-    staleTime: 0,
+    // 60초 폴링이 신선도를 담당 — 재마운트/포커스마다 즉시 재페치(staleTime:0)는 불필요.
+    staleTime: 60_000,
   });
   // KPI 조회 실패 시 0(오정보) 대신 "—" 표시
   const kpiVal = (n: number | undefined) => (kpiError ? "—" : (n ?? 0));
@@ -114,7 +115,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
     queryFn: fetchConnectors,
     refetchInterval: 60_000,
     retry: 3,
-    staleTime: 0,
+    staleTime: 60_000,
   });
 
   const list = Array.isArray(connectors) ? connectors : [];

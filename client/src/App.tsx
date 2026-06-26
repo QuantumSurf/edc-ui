@@ -15,29 +15,40 @@ import { queryClient } from "./lib/queryClient";
 import { Route, Switch, useLocation } from "wouter";
 import { useConnectorStore } from "./stores/connectorStore";
 import { fetchConnectors } from "./services";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { I18nContext, getTranslations, type Locale } from "./i18n";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import PageLogin from "./pages/PageLogin";
 
-// Pages
-import PageFleet from "./pages/PageFleet";
-import PageDashboard from "./pages/PageDashboard";
-import PageAssets from "./pages/PageAssets";
-import PagePolicy from "./pages/PagePolicy";
-import PageOffering from "./pages/PageOffering";
-import PageCatalog from "./pages/PageCatalog";
-import PageNegotiation from "./pages/PageNegotiation";
-import PageTransfer from "./pages/PageTransfer";
-import PageEDR from "./pages/PageEDR";
-import PageInfra from "./pages/PageInfra";
-import PageVault from "./pages/PageVault";
-import PageAudit from "./pages/PageAudit";
-import PageSettings from "./pages/PageSettings";
-import PageShells from "./pages/PageShells";
-import PageSubmodels from "./pages/PageSubmodels";
-import PageIdentityHub from "./pages/PageIdentityHub";
+// Pages — route 기반 코드 스플리팅(lazy): 16개 페이지를 단일 초기 번들에서 분리해
+// 페이지별 청크로 나눈다(초기 1.5MB 단일 청크 → 진입 페이지 청크만 로드). recharts 등
+// 무거운 의존성도 이를 쓰는 페이지 청크로만 들어가 차트 없는 페이지에서 비용이 사라진다.
+const PageFleet = lazy(() => import("./pages/PageFleet"));
+const PageDashboard = lazy(() => import("./pages/PageDashboard"));
+const PageAssets = lazy(() => import("./pages/PageAssets"));
+const PagePolicy = lazy(() => import("./pages/PagePolicy"));
+const PageOffering = lazy(() => import("./pages/PageOffering"));
+const PageCatalog = lazy(() => import("./pages/PageCatalog"));
+const PageNegotiation = lazy(() => import("./pages/PageNegotiation"));
+const PageTransfer = lazy(() => import("./pages/PageTransfer"));
+const PageEDR = lazy(() => import("./pages/PageEDR"));
+const PageInfra = lazy(() => import("./pages/PageInfra"));
+const PageVault = lazy(() => import("./pages/PageVault"));
+const PageAudit = lazy(() => import("./pages/PageAudit"));
+const PageSettings = lazy(() => import("./pages/PageSettings"));
+const PageShells = lazy(() => import("./pages/PageShells"));
+const PageSubmodels = lazy(() => import("./pages/PageSubmodels"));
+const PageIdentityHub = lazy(() => import("./pages/PageIdentityHub"));
+
+/** lazy 페이지 청크 로딩 중 표시할 가벼운 폴백 스피너. */
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+    </div>
+  );
+}
 
 /** Sync connector from URL param to Zustand store */
 function ConnectorSync({ id }: { id: string }) {
@@ -79,115 +90,117 @@ function AppRoutes() {
   };
 
   return (
-    <Switch>
-      {/* Fleet Overview (Home) */}
-      <Route path="/">
-        <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
-      </Route>
-      <Route path="/fleet">
-        <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
-      </Route>
+    <Suspense fallback={<RouteFallback />}>
+      <Switch>
+        {/* Fleet Overview (Home) */}
+        <Route path="/">
+          <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
+        </Route>
+        <Route path="/fleet">
+          <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
+        </Route>
 
-      {/* Connector-scoped pages */}
-      <Route path="/connectors/:id/dashboard">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            {connector && <PageDashboard conn={connector} onNav={nav} />}
-          </>
-        )}
-      </Route>
-      <Route path="/connectors/:id/assets">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PageAssets onNav={nav} />
-          </>
-        )}
-      </Route>
-      <Route path="/connectors/:id/policy">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PagePolicy />
-          </>
-        )}
-      </Route>
-      <Route path="/connectors/:id/contract">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PageOffering onNav={nav} />
-          </>
-        )}
-      </Route>
-      <Route path="/connectors/:id/catalog">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PageCatalog onNav={nav} />
-          </>
-        )}
-      </Route>
-      <Route path="/connectors/:id/negotiation">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PageNegotiation onNav={nav} />
-          </>
-        )}
-      </Route>
-      <Route path="/connectors/:id/transfer">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PageTransfer />
-          </>
-        )}
-      </Route>
-      <Route path="/connectors/:id/edr">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PageEDR />
-          </>
-        )}
-      </Route>
-      {/* System pages — global, not connector-scoped */}
-      <Route path="/system/vault">
-        <PageVault />
-      </Route>
-      <Route path="/system/identity-hub">
-        <PageIdentityHub onNav={nav} />
-      </Route>
-      <Route path="/system/audit">
-        <PageAudit />
-      </Route>
-      <Route path="/registry">
-        <PageShells />
-      </Route>
-      <Route path="/submodels">
-        <PageSubmodels />
-      </Route>
-      <Route path="/connectors/:id/infra">
-        {({ id }) => (
-          <>
-            <ConnectorSync id={id} />
-            <PageInfra />
-          </>
-        )}
-      </Route>
+        {/* Connector-scoped pages */}
+        <Route path="/connectors/:id/dashboard">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              {connector && <PageDashboard conn={connector} onNav={nav} />}
+            </>
+          )}
+        </Route>
+        <Route path="/connectors/:id/assets">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PageAssets onNav={nav} />
+            </>
+          )}
+        </Route>
+        <Route path="/connectors/:id/policy">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PagePolicy />
+            </>
+          )}
+        </Route>
+        <Route path="/connectors/:id/contract">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PageOffering onNav={nav} />
+            </>
+          )}
+        </Route>
+        <Route path="/connectors/:id/catalog">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PageCatalog onNav={nav} />
+            </>
+          )}
+        </Route>
+        <Route path="/connectors/:id/negotiation">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PageNegotiation onNav={nav} />
+            </>
+          )}
+        </Route>
+        <Route path="/connectors/:id/transfer">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PageTransfer />
+            </>
+          )}
+        </Route>
+        <Route path="/connectors/:id/edr">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PageEDR />
+            </>
+          )}
+        </Route>
+        {/* System pages — global, not connector-scoped */}
+        <Route path="/system/vault">
+          <PageVault />
+        </Route>
+        <Route path="/system/identity-hub">
+          <PageIdentityHub onNav={nav} />
+        </Route>
+        <Route path="/system/audit">
+          <PageAudit />
+        </Route>
+        <Route path="/registry">
+          <PageShells />
+        </Route>
+        <Route path="/submodels">
+          <PageSubmodels />
+        </Route>
+        <Route path="/connectors/:id/infra">
+          {({ id }) => (
+            <>
+              <ConnectorSync id={id} />
+              <PageInfra />
+            </>
+          )}
+        </Route>
 
-      {/* Settings */}
-      <Route path="/settings">
-        <PageSettings />
-      </Route>
+        {/* Settings */}
+        <Route path="/settings">
+          <PageSettings />
+        </Route>
 
-      {/* Fallback */}
-      <Route>
-        <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
-      </Route>
-    </Switch>
+        {/* Fallback */}
+        <Route>
+          <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
+        </Route>
+      </Switch>
+    </Suspense>
   );
 }
 

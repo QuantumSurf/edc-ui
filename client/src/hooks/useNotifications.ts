@@ -9,7 +9,7 @@ import {
   clearAllNotifications,
   type NotificationItem,
 } from "@/services/api";
-import { readPref } from "@/pages/PageSettings";
+import { readPref } from "@/lib/prefs";
 
 const QUERY_KEY = ["notifications"] as const;
 
@@ -39,6 +39,9 @@ export function useNotifications() {
     queryKey: QUERY_KEY,
     queryFn: fetchNotifications,
     refetchInterval: 30_000, // 30초마다 폴링
+    // useUnreadNotificationCount(사이드바·탑바)와 동일 staleTime으로 통일 — 같은 queryKey라
+    // React Query가 페치를 dedupe하므로 옵저버가 여러 개여도 30초당 1회만 네트워크 호출.
+    staleTime: 15_000,
   });
 
   const unreadCount = notifications.filter(n => !n.read && isEnabled(n)).length;

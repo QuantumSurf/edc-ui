@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
+import { readPref, writePref } from "@/lib/prefs";
 import {
   Card,
   SectionHdr,
@@ -737,31 +738,6 @@ function ProfileRow({
 }
 
 /* ─── Helper: Toggle Row (persisted via localStorage) ────────── */
-// NotificationPanel 도 같은 prefs 를 읽어 source 별 알림을 거르므로 키·reader 를 공유.
-export const NOTIFY_PREFS_KEY = "kmx-notify-prefs";
-
-export function readPref(key: string, fallback: boolean): boolean {
-  try {
-    const raw = localStorage.getItem(NOTIFY_PREFS_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Record<string, boolean>;
-    return typeof parsed[key] === "boolean" ? parsed[key] : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writePref(key: string, value: boolean): void {
-  try {
-    const raw = localStorage.getItem(NOTIFY_PREFS_KEY);
-    const parsed = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
-    parsed[key] = value;
-    localStorage.setItem(NOTIFY_PREFS_KEY, JSON.stringify(parsed));
-  } catch {
-    /* storage may be unavailable */
-  }
-}
-
 function ToggleRow({
   storageKey,
   label,
