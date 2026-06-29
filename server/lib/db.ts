@@ -101,7 +101,11 @@ async function createSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS transfer_metadata (
       transfer_id       TEXT NOT NULL,
       connector_id      TEXT NOT NULL,
-      started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      -- started_at 은 /start(전송 시작) 시에만 명시 세팅. fetch/complete/terminate/삭제 등
+      -- start 가 아닌 INSERT 는 NULL 로 둬 mapTransfer 가 EDC createdAt(실제 전송 시각)으로
+      -- 폴백하게 한다(과거 DEFAULT NOW() 가 모든 INSERT 에 '지금'을 찍어, 이미 완료/실패한 전송을
+      -- fetch 하면 전송 시각이 완료 시각보다 늦게 표시되던 버그 방지).
+      started_at        TIMESTAMPTZ,
       completed_at      TIMESTAMPTZ,
       size_bytes        BIGINT,
       fetch_duration_ms INTEGER,
@@ -115,6 +119,14 @@ async function createSchema(): Promise<void> {
   );
   await getPool().query(
     `ALTER TABLE transfer_metadata ADD COLUMN IF NOT EXISTS fetch_duration_ms INTEGER;`
+  );
+  // Migration(멱등): started_at 의 DEFAULT NOW()/NOT NULL 제거 — start 가 아닌 INSERT 가
+  // started_at 을 '지금'으로 잘못 찍던 것을 막는다(전송/완료 시각 역전 버그 수정).
+  await getPool().query(
+    `ALTER TABLE transfer_metadata ALTER COLUMN started_at DROP DEFAULT;`
+  );
+  await getPool().query(
+    `ALTER TABLE transfer_metadata ALTER COLUMN started_at DROP NOT NULL;`
   );
 
   // 협상 메타데이터: EDC에 완료 시각 필드가 없어 소요시간 계산을 위해 별도 저장
