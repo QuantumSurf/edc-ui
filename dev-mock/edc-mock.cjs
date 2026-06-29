@@ -279,6 +279,58 @@ const edrs = [
   },
 ];
 
+// ── 데모 E2E 진행 시뮬레이션 ──────────────────────────────────────────
+// 카탈로그→협상→전송 전 과정을 데모에서 실제로 체험할 수 있도록, 동적으로 생성된(_dynamic)
+// 협상/전송을 경과 시간에 따라 상태 전이시킨다(협상/전송 페이지 3s 폴링과 맞춤).
+//   협상: REQUESTING(0~4s) → AGREED(4~8s) → FINALIZED(8s~, 상세에서 '전송 시작' 활성)
+//   전송: REQUESTING(0~4s) → STARTED(4s~, EDR 발급 → 데이터 Pull/완료 처리 가능)
+// terminate 로 종단(TERMINATED/COMPLETED)된 항목은 다시 진행시키지 않는다.
+function advanceNegotiations() {
+  const t = Date.now();
+  for (const n of negotiations) {
+    if (!n._dynamic || n.state === "TERMINATED") continue;
+    const el = t - n._startMs;
+    if (el >= 8000) {
+      n.state = "FINALIZED";
+      n.contractAgreementId = n.contractAgreementId || `agreement-${n["@id"]}`;
+    } else if (el >= 4000) {
+      n.state = "AGREED";
+      n.contractAgreementId = n.contractAgreementId || `agreement-${n["@id"]}`;
+    } else {
+      n.state = "REQUESTING";
+    }
+  }
+}
+
+function advanceTransfers() {
+  const t = Date.now();
+  for (const tr of transfers) {
+    if (!tr._dynamic || tr.state === "TERMINATED" || tr.state === "COMPLETED")
+      continue;
+    const el = t - tr._startMs;
+    if (el >= 4000) {
+      if (tr.state !== "STARTED") {
+        tr.state = "STARTED";
+        tr.stateTimestamp = t;
+      }
+      // STARTED 도달 시 EDR 1회 발급 — 데이터 Pull/완료 처리 테스트 가능하게.
+      const tid = tr["@id"];
+      if (!edrs.some(e => e.transferProcessId === tid)) {
+        edrs.unshift({
+          "@id": `edr-${tid}`,
+          transferProcessId: tid,
+          assetId: tr.assetId || "",
+          providerId: "BPNL000000000PRD",
+          createdAt: t,
+          expiresAt: t + 3600 * 1000,
+        });
+      }
+    } else {
+      tr.state = "REQUESTING";
+    }
+  }
+}
+
 // 카탈로그는 '요청 시점'의 현재 오퍼링(contractDefinitions)에서 동적 생성한다.
 // (const 스냅샷이면 모듈 로드 때 1회만 계산돼, CRUD로 새로 만든 오퍼링이 카탈로그
 //  브라우저에 반영되지 않는다.)
@@ -489,12 +541,18 @@ const server = http.createServer((req, res) => {
       return send(res, 200, policies);
     if (method === "POST" && url === "/v3/contractdefinitions/request")
       return send(res, 200, contractDefinitions);
-    if (method === "POST" && url === "/v3/contractnegotiations/request")
+    if (method === "POST" && url === "/v3/contractnegotiations/request") {
+      advanceNegotiations();
       return send(res, 200, negotiations);
-    if (method === "POST" && url === "/v3/transferprocesses/request")
+    }
+    if (method === "POST" && url === "/v3/transferprocesses/request") {
+      advanceTransfers();
       return send(res, 200, transfers);
-    if (method === "POST" && url === "/v3/edrs/request")
+    }
+    if (method === "POST" && url === "/v3/edrs/request") {
+      advanceTransfers();
       return send(res, 200, edrs);
+    }
     if (method === "POST" && url === "/v3/catalog/request")
       return send(res, 200, buildCatalog());
 
@@ -527,6 +585,7 @@ const server = http.createServer((req, res) => {
       });
     }
     if (method === "GET" && url.startsWith("/v3/contractnegotiations/")) {
+      advanceNegotiations();
       const id = url.split("/v3/contractnegotiations/")[1];
       const found = negotiations.find(n => n["@id"] === id);
       if (!found)
@@ -534,6 +593,7 @@ const server = http.createServer((req, res) => {
       return send(res, 200, found);
     }
     if (method === "GET" && url.startsWith("/v3/transferprocesses/")) {
+      advanceTransfers();
       const id = url.split("/v3/transferprocesses/")[1];
       const found = transfers.find(t => t["@id"] === id);
       if (!found)
@@ -661,6 +721,87 @@ const server = http.createServer((req, res) => {
         decodeURIComponent(url.split("/v3/contractdefinitions/")[1])
       );
       return send(res, 204, {});
+    }
+
+    // ── 협상/전송 생명주기 — 카탈로그→협상→전송 전 과정을 데모에서 진행시킨다. ──────
+    // 협상 시작(/request 목록 조회와 구분되는 POST /v3/contractnegotiations).
+    if (method === "POST" && url === "/v3/contractnegotiations") {
+      const b = parsedBody();
+      const id = `neg-${Date.now()}`;
+      negotiations.unshift({
+        "@id": id,
+        state: "REQUESTING",
+        createdAt: Date.now(),
+        _startMs: Date.now(),
+        _dynamic: true,
+        assetId:
+          (b.policy && (b.policy.target || b.policy["odrl:target"])) || "",
+        counterPartyId: b.counterPartyId || "",
+        counterPartyAddress: b.counterPartyAddress || "",
+      });
+      return send(res, 201, {
+        "@id": id,
+        "@type": "IdResponse",
+        createdAt: now,
+      });
+    }
+    // 전송 시작(POST /v3/transferprocesses).
+    if (method === "POST" && url === "/v3/transferprocesses") {
+      const b = parsedBody();
+      const id = `transfer-${Date.now()}`;
+      transfers.unshift({
+        "@id": id,
+        state: "REQUESTING",
+        createdAt: Date.now(),
+        stateTimestamp: Date.now(),
+        _startMs: Date.now(),
+        _dynamic: true,
+        transferType: b.transferType || "HttpData-PULL",
+        contractAgreementId: b.contractId || "",
+        assetId: b.assetId || "",
+        connectorId: "BPNL000000000CON",
+      });
+      return send(res, 201, {
+        "@id": id,
+        "@type": "IdResponse",
+        createdAt: now,
+      });
+    }
+    // 협상 terminate — 동적 협상을 TERMINATED 로 전이(상세 종료 + 실패 표시 테스트).
+    if (
+      method === "POST" &&
+      /^\/v3\/contractnegotiations\/[^/]+\/terminate$/.test(url)
+    ) {
+      const id = url
+        .split("/v3/contractnegotiations/")[1]
+        .replace("/terminate", "");
+      const n = negotiations.find(x => x["@id"] === id);
+      if (n) n.state = "TERMINATED";
+      return send(res, 200, {
+        "@id": id,
+        "@type": "IdResponse",
+        createdAt: now,
+      });
+    }
+    // 전송 terminate — 동적 전송을 TERMINATED 로 전이. /complete 는 terminate 후
+    // user_completed 메타로 COMPLETED 오버레이되므로 상태를 종단으로 만들어야 한다.
+    if (
+      method === "POST" &&
+      /^\/v3\/transferprocesses\/[^/]+\/terminate$/.test(url)
+    ) {
+      const id = url
+        .split("/v3/transferprocesses/")[1]
+        .replace("/terminate", "");
+      const tr = transfers.find(x => x["@id"] === id);
+      if (tr) {
+        tr.state = "TERMINATED";
+        tr.stateTimestamp = Date.now();
+      }
+      return send(res, 200, {
+        "@id": id,
+        "@type": "IdResponse",
+        createdAt: now,
+      });
     }
 
     // 쓰기/삭제/terminate 등 — 동작이 성공한 것처럼 generic 응답
