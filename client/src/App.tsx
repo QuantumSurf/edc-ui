@@ -260,11 +260,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* 사이드바: 모바일=고정 오버레이 드로어 / lg+=in-flow. 닫힘 시 모바일 슬라이드아웃, lg+ 숨김 */}
+      {/* 사이드바: 모바일=고정 오버레이 드로어(drawerOpen 으로 슬라이드) / lg+=항상 in-flow 표시.
+          데스크톱 가시성을 drawerOpen 에 묶으면(lg:hidden) drawerOpen=false 시 사이드바가 사라지는데
+          데스크톱엔 다시 열 UI 가 없어 복구 불능 → lg+ 는 항상 translate-x-0 으로 노출. 데스크톱
+          접기는 sidebarCollapsed(w-16 레일, 재펼침 가능)가 담당. */}
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-40 transition-transform duration-200 lg:static lg:z-auto lg:transition-none",
-          drawerOpen ? "translate-x-0" : "-translate-x-full lg:hidden"
+          drawerOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         <AppSidebar
