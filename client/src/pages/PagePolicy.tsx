@@ -475,7 +475,8 @@ export default function PagePolicy() {
           selectedId={detailTarget?.id}
         />
       )}
-      {connectorId && (
+      {/* 빌더 탭일 때만 마운트 — 닫으면 unmount 되어 폼이 리셋된다(이전 입력 잔존 방지). */}
+      {connectorId && tab === "builder" && (
         <ODRLBuilder
           key={
             (editTarget?.id ?? "") +

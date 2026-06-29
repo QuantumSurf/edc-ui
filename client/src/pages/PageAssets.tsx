@@ -400,22 +400,26 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
             ))}
         </div>
       )}
-      <AssetWizard
-        key={
-          (editTarget?.id ?? "") +
-          "|" +
-          (duplicateSource?.id ?? "") +
-          "|" +
-          (editTarget ? "e" : duplicateSource ? "d" : "n")
-        }
-        open={tab === "wizard"}
-        connectorId={connectorId}
-        editTarget={editTarget}
-        duplicateSource={duplicateSource}
-        onDirtyChange={setWizardDirty}
-        onDone={closeWizard}
-        onCancel={requestCloseWizard}
-      />
+      {/* 위저드 탭일 때만 마운트 — 닫으면 unmount 되어 내부 폼 상태가 리셋된다(닫았다
+          다시 열거나 페이지 이동 후 재진입 시 이전 입력이 남지 않도록). */}
+      {tab === "wizard" && (
+        <AssetWizard
+          key={
+            (editTarget?.id ?? "") +
+            "|" +
+            (duplicateSource?.id ?? "") +
+            "|" +
+            (editTarget ? "e" : duplicateSource ? "d" : "n")
+          }
+          open
+          connectorId={connectorId}
+          editTarget={editTarget}
+          duplicateSource={duplicateSource}
+          onDirtyChange={setWizardDirty}
+          onDone={closeWizard}
+          onCancel={requestCloseWizard}
+        />
+      )}
 
       {/* JSON Viewer */}
       {jsonTarget && (

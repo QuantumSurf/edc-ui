@@ -390,7 +390,8 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
             ))}
         </div>
       )}
-      {connectorId && (
+      {/* 위저드 탭일 때만 마운트 — 닫으면 unmount 되어 폼이 리셋된다(이전 입력 잔존 방지). */}
+      {connectorId && tab === "wizard" && (
         <OfferingWizard
           key={
             (editTarget?.id ?? "") +
