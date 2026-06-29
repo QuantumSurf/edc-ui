@@ -58,16 +58,30 @@ export async function requireAuth(
     return next();
   }
 
+  let payload: TokenPayload;
   try {
-    const payload = verifyToken(token);
-    if (!(await isTokenCurrent(payload))) {
-      return res.status(401).json({ error: "token-revoked" });
-    }
-    req.user = payload;
-    return next();
+    payload = verifyToken(token);
   } catch {
     return res.status(401).json({ error: "invalid-token" });
   }
+  // 토큰 검증(서명/만료)과 token_version 조회를 분리한다 — 일시적 DB 오류는 '토큰 무효'가
+  // 아니므로 401(세션 비움)이 아닌 503(재시도)으로 신호하고, throw 가 async 미들웨어 밖으로
+  // 전파돼 프로세스를 죽이지 않게 한다.
+  let current: boolean;
+  try {
+    current = await isTokenCurrent(payload);
+  } catch (err) {
+    console.error(
+      "[AUTH] token check failed (transient):",
+      (err as Error).message
+    );
+    return res.status(503).json({ error: "auth-unavailable" });
+  }
+  if (!current) {
+    return res.status(401).json({ error: "token-revoked" });
+  }
+  req.user = payload;
+  return next();
 }
 
 /** RBAC check: allow the request only when req.user.role is in `allowed`. */
@@ -127,7 +141,20 @@ export async function authMiddleware(
   } catch {
     return res.status(401).json({ error: "invalid-token" });
   }
-  if (!(await isTokenCurrent(payload))) {
+  // 일시적 DB 오류(커넥션 타임아웃 등)는 토큰 무효가 아니다. 여기서 throw 가 전파되면
+  // async 미들웨어의 unhandled rejection 이 BFF 프로세스 전체를 죽인다(전 사용자 다운).
+  // 503("나중에 다시 시도")으로 신호 — 세션을 비우지 않아 일시 장애 후 자동 복구된다.
+  let current: boolean;
+  try {
+    current = await isTokenCurrent(payload);
+  } catch (err) {
+    console.error(
+      "[AUTH] token check failed (transient):",
+      (err as Error).message
+    );
+    return res.status(503).json({ error: "auth-unavailable" });
+  }
+  if (!current) {
     return res.status(401).json({ error: "token-revoked" });
   }
   req.user = payload;

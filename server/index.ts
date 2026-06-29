@@ -39,6 +39,14 @@ import semanticsRouter from "./routes/semantics.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 프로세스 전역 안전망 — 단일 요청의 처리되지 않은 비동기 거부(예: 인증 미들웨어의 DB
+// 타임아웃)가 BFF 프로세스 전체를 종료시키지 않도록(전 사용자 다운 방지) 로깅만 하고 계속
+// 실행한다. Node ≥15 는 기본적으로 unhandledRejection 시 프로세스를 죽이므로 명시 무력화.
+// (개별 결함은 위 로그로 추적 가능 — 가시성을 유지하면서 가용성을 보존.)
+process.on("unhandledRejection", reason => {
+  console.error("[BFF] unhandledRejection (continuing):", reason);
+});
+
 async function startServer() {
   // ── Database Initialization ────────────────────────────────────
   await initDb();
