@@ -126,8 +126,12 @@ export default function PageLogin() {
             </p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { bpn: "BPNL000000000PRD", pw: "0000", role: t.login.admin },
-                { bpn: "BPNL000000000CON", pw: "0000", role: t.login.operator },
+                { bpn: "BPNL000000000PRD", pw: "0000", role: t.auth.roleAdmin },
+                {
+                  bpn: "BPNL000000000CON",
+                  pw: "0000",
+                  role: t.auth.roleOperator,
+                },
               ].map(({ bpn, pw, role }) => (
                 <button
                   key={bpn}
