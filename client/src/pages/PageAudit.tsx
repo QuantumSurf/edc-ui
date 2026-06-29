@@ -456,10 +456,7 @@ function makeDemoEvents(connectorId: string, locale: string): AuditEvent[] {
     tpl.forEach((e, i) => {
       const seq = r * tpl.length + i;
       const ts = new Date(
-        baseDate -
-          r * 24 * 60 * min -
-          i * 11 * min -
-          ((seq * 37) % 90) * min // 결정적 지터(난수 대체)
+        baseDate - r * 24 * 60 * min - i * 11 * min - ((seq * 37) % 90) * min // 결정적 지터(난수 대체)
       );
       const { messageEn, ...rest } = e;
       events.push({
@@ -925,7 +922,9 @@ export default function PageAudit() {
                 <div>
                   <span
                     className="text-xs text-foreground"
-                    title={new Date(e.timestamp).toLocaleString()}
+                    title={new Date(e.timestamp).toLocaleString(undefined, {
+                      hour12: false,
+                    })}
                   >
                     {formatTs(e.timestamp)}
                   </span>
@@ -1023,7 +1022,11 @@ export default function PageAudit() {
                 {e.message}
               </p>
               <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                <span title={new Date(e.timestamp).toLocaleString()}>
+                <span
+                  title={new Date(e.timestamp).toLocaleString(undefined, {
+                    hour12: false,
+                  })}
+                >
                   <MonoText className="text-[11px] font-normal">
                     {formatTs(e.timestamp)}
                   </MonoText>

@@ -166,8 +166,12 @@ router.get(
           interval: `${gcInterval}s (${Math.round(gcInterval / 60)}분)`,
           batchSize: gcBatchSize,
           grace: `${gcGrace}s`,
-          lastRun: new Date(lastRunMs).toLocaleTimeString("ko-KR"),
-          nextRun: new Date(nextRunMs).toLocaleTimeString("ko-KR"),
+          lastRun: new Date(lastRunMs).toLocaleTimeString("ko-KR", {
+            hour12: false,
+          }),
+          nextRun: new Date(nextRunMs).toLocaleTimeString("ko-KR", {
+            hour12: false,
+          }),
           enabled: true,
         },
       });

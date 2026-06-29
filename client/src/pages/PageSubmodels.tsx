@@ -91,7 +91,9 @@ function formatDate(iso: string, locale: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString(locale === "ko" ? "ko-KR" : "en-US");
+  return d.toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
+    hour12: false,
+  });
 }
 
 export default function PageSubmodels() {
@@ -762,7 +764,10 @@ function SemanticModelEditorDialog({
       const serverMsg = err.response?.data?.error;
       if (serverMsg === "duplicate-urn") {
         toast.error(t.submodels.form.duplicateUrn);
-      } else if (serverMsg === "content-too-large" || err.response?.status === 413) {
+      } else if (
+        serverMsg === "content-too-large" ||
+        err.response?.status === 413
+      ) {
         // 서버 코드(content-too-large)·413 모두 로컬라이즈 메시지로 흡수
         // (raw 영문 노출 방지 — id 42).
         toast.error(t.submodels.msg.tooLarge);

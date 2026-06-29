@@ -449,5 +449,7 @@ function formatTs(iso: string, locale: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleTimeString(locale === "ko" ? "ko-KR" : "en-US");
+  return d.toLocaleTimeString(locale === "ko" ? "ko-KR" : "en-US", {
+    hour12: false,
+  });
 }

@@ -456,13 +456,7 @@ export function mapNegotiation(
   const createdMs =
     typeof raw["createdAt"] === "number" ? (raw["createdAt"] as number) : null;
   const ts = raw["createdAt"]
-    ? new Date(raw["createdAt"] as number).toLocaleString("ko-KR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? fmtDateTimeShort(new Date(raw["createdAt"] as number))
     : "";
   const errorDetail = (raw["errorDetail"] as string) ?? "";
   const agreementId = (raw["contractAgreementId"] as string) ?? "";
@@ -512,24 +506,10 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
   }
 
   const fmtDate = (d: Date | null | undefined) =>
-    d
-      ? d.toLocaleString("ko-KR", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "—";
+    d ? fmtDateTimeShort(d) : "—";
 
   const ts = raw["stateTimestamp"]
-    ? new Date(raw["stateTimestamp"] as number).toLocaleString("ko-KR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? fmtDateTimeShort(new Date(raw["stateTimestamp"] as number))
     : "";
   const transferType = (raw["transferType"] as string) ?? "";
   const mode = transferType.includes("PULL")
@@ -570,15 +550,7 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
   // - 완료/실패 시각 = 종료 상태 시각(meta.completed_at 또는 EDC stateTimestamp)을
   //   상태(COMPLETED=완료 / TERMINATED=실패)에 따라 분기 표시.
   const fmtMs = (ms: unknown) =>
-    typeof ms === "number"
-      ? new Date(ms).toLocaleString("ko-KR", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "—";
+    typeof ms === "number" ? fmtDateTimeShort(new Date(ms)) : "—";
   const startedAt = meta?.started_at
     ? fmtDate(meta.started_at)
     : fmtMs(raw["createdAt"]);
@@ -604,6 +576,20 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
     agreementId,
     connectorId: connId,
   };
+}
+
+/** 표시용 짧은 KST 날짜·시각: "26. 06. 27. 14:44" (2자리 연도 + 24시간 표기).
+ *  목록 컬럼 폭에 맞춰 연도 4→2자리, AM/PM 제거(24h)로 단축 — 긴 형식이 "..."로 잘리던 문제 해소.
+ *  전송/협상/EDR 등 모든 목록·상세의 시각 표시에 공통 적용. */
+export function fmtDateTimeShort(d: Date): string {
+  return d.toLocaleString("ko-KR", {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 export function mapEDR(raw: Record<string, unknown>) {
