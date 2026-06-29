@@ -578,6 +578,82 @@ const server = http.createServer((req, res) => {
       return send(res, 200, ihCredentials);
     }
 
+    // ── 자산/정책/오퍼링 단건 CRUD — 생성/수정/삭제를 in-memory 배열에 반영해 데모에서
+    //    생성 결과가 목록에 즉시 보이게 한다(과거 generic IdResponse 만 줘서 생성한 자산이
+    //    목록에 안 나타나 "생성이 안 됨"으로 보이던 문제). 저장 형태는 EDC JSON-LD 본문 그대로
+    //    (@context 만 제거) — map* 파서가 canned/created 를 동일하게 읽는다.
+    const parsedBody = () => {
+      try {
+        return JSON.parse(body || "{}");
+      } catch {
+        return {};
+      }
+    };
+    const upsert = (arr, raw) => {
+      const entry = { ...raw };
+      delete entry["@context"];
+      const id = entry["@id"] || `gen-${Date.now()}`;
+      entry["@id"] = id;
+      const i = arr.findIndex(x => x["@id"] === id);
+      if (i >= 0) arr[i] = entry;
+      else arr.push(entry);
+      return id;
+    };
+    const removeFrom = (arr, id) => {
+      const i = arr.findIndex(x => x["@id"] === id);
+      if (i >= 0) arr.splice(i, 1);
+    };
+    if ((method === "POST" || method === "PUT") && url === "/v3/assets") {
+      const id = upsert(assets, parsedBody());
+      return send(res, 200, {
+        "@id": id,
+        "@type": "IdResponse",
+        createdAt: now,
+      });
+    }
+    if (method === "DELETE" && url.startsWith("/v3/assets/")) {
+      removeFrom(assets, decodeURIComponent(url.split("/v3/assets/")[1]));
+      return send(res, 204, {});
+    }
+    if (
+      (method === "POST" || method === "PUT") &&
+      url.startsWith("/v3/policydefinitions") &&
+      !url.endsWith("/request")
+    ) {
+      const id = upsert(policies, parsedBody());
+      return send(res, 200, {
+        "@id": id,
+        "@type": "IdResponse",
+        createdAt: now,
+      });
+    }
+    if (method === "DELETE" && url.startsWith("/v3/policydefinitions/")) {
+      removeFrom(
+        policies,
+        decodeURIComponent(url.split("/v3/policydefinitions/")[1])
+      );
+      return send(res, 204, {});
+    }
+    if (
+      (method === "POST" || method === "PUT") &&
+      url.startsWith("/v3/contractdefinitions") &&
+      !url.endsWith("/request")
+    ) {
+      const id = upsert(contractDefinitions, parsedBody());
+      return send(res, 200, {
+        "@id": id,
+        "@type": "IdResponse",
+        createdAt: now,
+      });
+    }
+    if (method === "DELETE" && url.startsWith("/v3/contractdefinitions/")) {
+      removeFrom(
+        contractDefinitions,
+        decodeURIComponent(url.split("/v3/contractdefinitions/")[1])
+      );
+      return send(res, 204, {});
+    }
+
     // 쓰기/삭제/terminate 등 — 동작이 성공한 것처럼 generic 응답
     if (method === "POST" || method === "PUT" || method === "DELETE") {
       return send(res, 200, {
