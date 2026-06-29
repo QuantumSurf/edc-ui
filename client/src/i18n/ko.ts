@@ -802,8 +802,8 @@ const ko = {
   auth: {
     forbidden: "이 작업을 수행할 권한이 없습니다.",
     unauthorized: "인증이 필요합니다. 다시 로그인해 주세요.",
-    roleAdmin: "이용자",
-    roleOperator: "운영자",
+    roleAdmin: "관리자",
+    roleOperator: "이용자",
     roleViewer: "열람자",
   },
 
