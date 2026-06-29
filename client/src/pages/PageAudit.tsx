@@ -923,6 +923,12 @@ export default function PageAudit() {
                   <span
                     className="text-xs text-foreground"
                     title={new Date(e.timestamp).toLocaleString(undefined, {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
                       hour12: false,
                     })}
                   >
@@ -1024,6 +1030,12 @@ export default function PageAudit() {
               <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
                 <span
                   title={new Date(e.timestamp).toLocaleString(undefined, {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
                     hour12: false,
                   })}
                 >

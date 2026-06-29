@@ -167,9 +167,13 @@ router.get(
           batchSize: gcBatchSize,
           grace: `${gcGrace}s`,
           lastRun: new Date(lastRunMs).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
             hour12: false,
           }),
           nextRun: new Date(nextRunMs).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
             hour12: false,
           }),
           enabled: true,
