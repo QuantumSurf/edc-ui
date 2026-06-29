@@ -279,32 +279,41 @@ const edrs = [
   },
 ];
 
-const catalog = {
-  participantId: "BPNL000000000PRD",
-  service: [{ endpointURL: "http://mock-edc:8090/api/v1/dsp" }],
-  "dcat:dataset": contractDefinitions.map(cd => {
-    const assetId = cd.assetsSelector[0].operandRight;
-    const asset = assets.find(a => a["@id"] === assetId) || {};
-    return {
-      "@id": assetId,
-      name: asset.properties?.name ?? assetId,
-      "dct:type": asset.properties?.["dct:type"] ?? { "@id": "cx-taxo:Asset" },
-      "odrl:hasPolicy": [
-        {
-          "@id": cd["@id"],
-          "@type": "odrl:Offer",
-          "odrl:permission": [{ "odrl:action": { "@id": "odrl:use" } }],
+// 카탈로그는 '요청 시점'의 현재 오퍼링(contractDefinitions)에서 동적 생성한다.
+// (const 스냅샷이면 모듈 로드 때 1회만 계산돼, CRUD로 새로 만든 오퍼링이 카탈로그
+//  브라우저에 반영되지 않는다.)
+function buildCatalog() {
+  return {
+    participantId: "BPNL000000000PRD",
+    service: [{ endpointURL: "http://mock-edc:8090/api/v1/dsp" }],
+    "dcat:dataset": contractDefinitions.map(cd => {
+      const sel = cd.assetsSelector && cd.assetsSelector[0];
+      const rawRight = sel && sel.operandRight;
+      const assetId = Array.isArray(rawRight) ? rawRight[0] : rawRight || "";
+      const asset = assets.find(a => a["@id"] === assetId) || {};
+      return {
+        "@id": assetId,
+        name: asset.properties?.name ?? assetId,
+        "dct:type": asset.properties?.["dct:type"] ?? {
+          "@id": "cx-taxo:Asset",
         },
-      ],
-      "dcat:distribution": [
-        {
-          "dcat:accessURL": "http://mock-edc:8090",
-          accessService: { endpointURL: "http://mock-edc:8090/api/v1/dsp" },
-        },
-      ],
-    };
-  }),
-};
+        "odrl:hasPolicy": [
+          {
+            "@id": cd["@id"],
+            "@type": "odrl:Offer",
+            "odrl:permission": [{ "odrl:action": { "@id": "odrl:use" } }],
+          },
+        ],
+        "dcat:distribution": [
+          {
+            "dcat:accessURL": "http://mock-edc:8090",
+            accessService: { endpointURL: "http://mock-edc:8090/api/v1/dsp" },
+          },
+        ],
+      };
+    }),
+  };
+}
 
 const health = {
   isSystemHealthy: true,
@@ -487,7 +496,7 @@ const server = http.createServer((req, res) => {
     if (method === "POST" && url === "/v3/edrs/request")
       return send(res, 200, edrs);
     if (method === "POST" && url === "/v3/catalog/request")
-      return send(res, 200, catalog);
+      return send(res, 200, buildCatalog());
 
     // 단건 조회
     if (method === "GET" && url.startsWith("/v3/assets/")) {
