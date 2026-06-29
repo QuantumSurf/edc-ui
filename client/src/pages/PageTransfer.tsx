@@ -696,8 +696,41 @@ export default function PageTransfer() {
                   <div className="text-xs text-foreground truncate">
                     {tr.startedAt ?? "—"}
                   </div>
-                  <div className="text-xs text-foreground truncate">
-                    {tr.completedAt ?? "—"}
+                  <div className="text-xs text-foreground">
+                    {tr.name === "STARTED" ? (
+                      // 진행 중 행은 완료 시각이 아직 없으므로(—) 그 자리에 동작 버튼을 인라인 표시.
+                      // 버튼 클릭이 행 onClick(상세 패널 열기)으로 전파되지 않게 래퍼에서 차단.
+                      <div
+                        className="flex items-center gap-1 flex-wrap"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => handleFetch(tr.id, tr.asset)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 transition-colors"
+                        >
+                          <Download className="w-3 h-3" />{" "}
+                          {t.transfers.fetchData}
+                        </button>
+                        <RoleGate permission="transaction:write">
+                          <button
+                            onClick={() => handleComplete(tr.id)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15 transition-colors"
+                          >
+                            <CheckCircle className="w-3 h-3" />{" "}
+                            {t.transfers.completeTransfer}
+                          </button>
+                          <button
+                            onClick={() => handleTerminate(tr.id)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-red-500 hover:bg-red-100 dark:hover:bg-red-500/15 transition-colors"
+                          >
+                            <XCircle className="w-3 h-3" />{" "}
+                            {t.transfers.terminateTransfer}
+                          </button>
+                        </RoleGate>
+                      </div>
+                    ) : (
+                      <span className="truncate">{tr.completedAt ?? "—"}</span>
+                    )}
                   </div>
                 </ListRow>
               ))
