@@ -46,7 +46,6 @@ import {
 import { toast } from "sonner";
 import {
   Send,
-  ArrowRightLeft,
   CheckCircle,
   XCircle,
   Download,
@@ -573,7 +572,7 @@ export default function PageTransfer() {
           }}
         />
       )}
-      <SectionHdr icon={<ArrowRightLeft className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<Send className="w-5 h-5 text-primary" />}>
         {t.transfers.title}
       </SectionHdr>
 
@@ -634,7 +633,7 @@ export default function PageTransfer() {
               <ListError onRetry={() => refetch()} fetching={isFetching} />
             ) : rows.length === 0 ? (
               <ListEmpty
-                icon={<ArrowRightLeft />}
+                icon={<Send />}
                 message={
                   stateFilter !== "ALL"
                     ? t.transfers.noFilterResults
@@ -771,7 +770,7 @@ export default function PageTransfer() {
             ))}
             {rows.length === 0 && (
               <ListEmpty
-                icon={<ArrowRightLeft />}
+                icon={<Send />}
                 message={
                   stateFilter !== "ALL"
                     ? t.transfers.noFilterResults
@@ -888,7 +887,7 @@ function TransferDetailSheet({
       {/* Header */}
       <div className="px-5 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 flex-wrap pr-8">
-          <ArrowRightLeft className="w-4 h-4 text-primary flex-shrink-0" />
+          <Send className="w-4 h-4 text-primary flex-shrink-0" />
           <h2 className="text-[15px] font-semibold text-foreground truncate">
             {t.transfers.title}
           </h2>

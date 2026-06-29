@@ -17,6 +17,7 @@ import {
   Search,
   FileText,
   ArrowRightLeft,
+  Send,
   Key,
   ChevronRight,
   ChevronLeft,
@@ -164,7 +165,7 @@ function useNavGroups(): { build: () => NavGroup[] } {
         {
           path: `/connectors/${id}/transfer`,
           label: t.nav.transfers,
-          Icon: ArrowRightLeft,
+          Icon: Send,
           count: c?.transfers,
         },
         {
