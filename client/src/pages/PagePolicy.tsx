@@ -1005,6 +1005,10 @@ function PolicyDetailSheet({
                 copyable={target.id}
               />
               <InfoCard
+                label={t.policies.ruleType}
+                value={t.policies.ruleLabel[detailRuleType]}
+              />
+              <InfoCard
                 label={t.policies.col.action}
                 value={detailAction}
                 mono

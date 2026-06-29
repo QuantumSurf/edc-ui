@@ -598,6 +598,7 @@ function AssetDetailSheet({
               />
               <InfoCard label={t.assets.col.name} value={target.name} />
               <InfoCard label={t.assets.col.type} value={target.type} />
+              <InfoCard label="cx-common:version" value={target.ver} />
               <InfoCard
                 label={t.assets.description}
                 value={target.description}
@@ -623,6 +624,15 @@ function AssetDetailSheet({
                 mono
                 copyable={target.baseUrl || undefined}
               />
+              <InfoCard label={t.assets.proxyPath} value={target.proxyPath} />
+              <InfoCard
+                label={t.assets.proxyQueryParams}
+                value={target.proxyQueryParams}
+              />
+              <InfoCard
+                label={t.assets.contentTypeLabel}
+                value={target.contentType}
+              />
             </div>
           </div>
 
@@ -639,12 +649,20 @@ function AssetDetailSheet({
                 mono
                 copyable={target.sem || undefined}
               />
+              <InfoCard label="kmx:aasVersion" value={target.aasVersion} />
               <InfoCard
                 label="kmx:aasId"
                 value={target.aasId}
                 span
                 mono
                 copyable={target.aasId || undefined}
+              />
+              <InfoCard
+                label="kmx:submodelId"
+                value={target.submodelId}
+                span
+                mono
+                copyable={target.submodelId || undefined}
               />
               <InfoCard
                 label={t.common.digitalTwinRegistry}
