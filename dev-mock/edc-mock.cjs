@@ -492,7 +492,11 @@ const server = http.createServer((req, res) => {
     // 단건 조회
     if (method === "GET" && url.startsWith("/v3/assets/")) {
       const id = decodeURIComponent(url.split("/v3/assets/")[1]);
-      return send(res, 200, assets.find(a => a["@id"] === id) ?? assets[0]);
+      const found = assets.find(a => a["@id"] === id);
+      // 미존재 ID는 실제 EDC처럼 404. (과거 `?? assets[0]` 폴백이 항상 200을 줘서,
+      //  프론트 자산ID 중복검사가 존재하지 않는 ID도 "이미 존재"로 오판하던 버그 방지.)
+      if (!found) return send(res, 404, { message: `Asset not found: ${id}` });
+      return send(res, 200, found);
     }
     if (method === "GET" && /\/v3\/edrs\/[^/]+\/dataaddress$/.test(url)) {
       return send(res, 200, {
@@ -515,19 +519,17 @@ const server = http.createServer((req, res) => {
     }
     if (method === "GET" && url.startsWith("/v3/contractnegotiations/")) {
       const id = url.split("/v3/contractnegotiations/")[1];
-      return send(
-        res,
-        200,
-        negotiations.find(n => n["@id"] === id) ?? negotiations[0]
-      );
+      const found = negotiations.find(n => n["@id"] === id);
+      if (!found)
+        return send(res, 404, { message: `Negotiation not found: ${id}` });
+      return send(res, 200, found);
     }
     if (method === "GET" && url.startsWith("/v3/transferprocesses/")) {
       const id = url.split("/v3/transferprocesses/")[1];
-      return send(
-        res,
-        200,
-        transfers.find(t => t["@id"] === id) ?? transfers[0]
-      );
+      const found = transfers.find(t => t["@id"] === id);
+      if (!found)
+        return send(res, 404, { message: `Transfer not found: ${id}` });
+      return send(res, 200, found);
     }
 
     // 데이터 plane pull (transfer fetch)
