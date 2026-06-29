@@ -212,6 +212,7 @@ const transfers = [
   {
     "@id": "transfer-001",
     state: "COMPLETED",
+    createdAt: h(50),
     stateTimestamp: h(49),
     transferType: "HttpData-PULL",
     contractAgreementId: "agreement-001",
@@ -221,6 +222,7 @@ const transfers = [
   {
     "@id": "transfer-002",
     state: "COMPLETED",
+    createdAt: h(30),
     stateTimestamp: h(29),
     transferType: "HttpData-PULL",
     contractAgreementId: "agreement-002",
@@ -230,6 +232,7 @@ const transfers = [
   {
     "@id": "transfer-003",
     state: "STARTED",
+    createdAt: h(3),
     stateTimestamp: h(2),
     transferType: "HttpData-PULL",
     contractAgreementId: "agreement-003",
@@ -239,6 +242,7 @@ const transfers = [
   {
     "@id": "transfer-004",
     state: "TERMINATED",
+    createdAt: h(20),
     stateTimestamp: h(18),
     transferType: "HttpData-PUSH",
     contractAgreementId: "agreement-002",

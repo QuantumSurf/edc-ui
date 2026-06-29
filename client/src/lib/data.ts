@@ -85,6 +85,7 @@ export interface Transfer {
   ts: string;
   startedAt?: string;
   completedAt?: string;
+  failedAt?: string;
   transferType?: string;
   errorDetail?: string;
   agreementId?: string;

@@ -530,6 +530,7 @@ const en: Translations = {
       duration: "Duration",
       startedAt: "Started",
       completedAt: "Completed",
+      failedAt: "Failed",
       action: "Actions",
     },
     agreementId: "Agreement ID",

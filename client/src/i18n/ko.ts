@@ -535,6 +535,7 @@ const ko = {
       duration: "소요 시간",
       startedAt: "전송 시각",
       completedAt: "완료 시각",
+      failedAt: "실패 시각",
       action: "액션",
     },
     agreementId: "계약 ID",

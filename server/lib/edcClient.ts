@@ -313,21 +313,21 @@ function mapPolicyConstraint(c: Record<string, unknown> | undefined): {
   const leftRaw = c?.["odrl:leftOperand"] ?? c?.["leftOperand"];
   const left =
     typeof leftRaw === "object" && leftRaw !== null
-      ? ((leftRaw as Record<string, unknown>)["@id"] as string) ?? ""
+      ? (((leftRaw as Record<string, unknown>)["@id"] as string) ?? "")
       : ((leftRaw as string) ?? "");
   const opRaw =
     (c?.["odrl:operator"] as Record<string, unknown> | string | undefined) ??
     c?.["operator"];
   const opId =
     typeof opRaw === "object" && opRaw !== null
-      ? ((opRaw as Record<string, unknown>)["@id"] as string) ?? ""
+      ? (((opRaw as Record<string, unknown>)["@id"] as string) ?? "")
       : ((opRaw as string) ?? "");
   const rightRaw = c?.["odrl:rightOperand"] ?? c?.["rightOperand"];
   const right =
     typeof rightRaw === "object" && rightRaw !== null
       ? (((rightRaw as Record<string, unknown>)["@value"] as string) ??
-          ((rightRaw as Record<string, unknown>)["@id"] as string) ??
-          "")
+        ((rightRaw as Record<string, unknown>)["@id"] as string) ??
+        "")
       : ((rightRaw as string) ?? "");
   return { left, op: opId.replace(/^odrl:/, ""), right };
 }
@@ -377,7 +377,7 @@ export function mapPolicy(raw: Record<string, unknown>) {
       const actionRaw = rr?.["odrl:action"] ?? rr?.["action"];
       const action =
         typeof actionRaw === "object" && actionRaw !== null
-          ? ((actionRaw as Record<string, unknown>)["@id"] as string) ?? ""
+          ? (((actionRaw as Record<string, unknown>)["@id"] as string) ?? "")
           : ((actionRaw as string) ?? "");
       rules.push({
         ruleType,
@@ -565,6 +565,29 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
     }
   }
 
+  // 시각 표시: metadata(사용자 액션) 우선, 없으면 EDC 자체 타임스탬프로 폴백.
+  // - 전송 시각 = 시작(meta.started_at 또는 EDC createdAt)
+  // - 완료/실패 시각 = 종료 상태 시각(meta.completed_at 또는 EDC stateTimestamp)을
+  //   상태(COMPLETED=완료 / TERMINATED=실패)에 따라 분기 표시.
+  const fmtMs = (ms: unknown) =>
+    typeof ms === "number"
+      ? new Date(ms).toLocaleString("ko-KR", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
+  const startedAt = meta?.started_at
+    ? fmtDate(meta.started_at)
+    : fmtMs(raw["createdAt"]);
+  const terminalAt = meta?.completed_at
+    ? fmtDate(meta.completed_at)
+    : fmtMs(raw["stateTimestamp"]);
+  const completedAt = stateCode === 1200 ? terminalAt : "—";
+  const failedAt = stateCode === 1300 ? terminalAt : "—";
+
   return {
     id: (raw["@id"] as string) ?? "",
     state: stateCode,
@@ -573,8 +596,9 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
     size,
     t: duration,
     ts,
-    startedAt: fmtDate(meta?.started_at),
-    completedAt: fmtDate(meta?.completed_at),
+    startedAt,
+    completedAt,
+    failedAt,
     transferType: mode,
     errorDetail,
     agreementId,
