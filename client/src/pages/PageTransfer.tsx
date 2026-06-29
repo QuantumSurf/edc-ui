@@ -36,8 +36,10 @@ import {
   inputBase,
 } from "@/components/ui-kmx";
 
+// 자산ID는 내용폭(고정 200px)으로 고정해 유형과 붙이고, 남는 여백은 시각 컬럼(flex)이 흡수.
+// (과거 자산ID가 유일 1.4fr라 모든 여백을 흡수 → 자산ID와 유형 사이 간격이 과도하게 벌어짐)
 const TRANSFER_COLS =
-  "grid-cols-[110px_100px_1.4fr_70px_72px_64px_110px_110px]";
+  "grid-cols-[110px_100px_200px_70px_72px_64px_minmax(130px,1fr)_minmax(130px,1fr)]";
 import {
   SlidePanel,
   ConfirmActionDialog,
