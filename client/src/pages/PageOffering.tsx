@@ -2,7 +2,7 @@
 // 4-step wizard: Asset selection → Access policy → Contract policy → Publish
 // Responsive table↔card, sticky wizard nav on mobile
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
@@ -838,6 +838,8 @@ function OfferingWizard({
   const baseSrc: Offering | null = editTarget ?? duplicateSource ?? null;
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  // 동기 중복 제출 가드 — disabled={submitting}는 React state라 같은 틱 더블클릭을 못 막는다.
+  const submittingRef = useRef(false);
   const steps = [
     t.offerings.step1,
     t.offerings.step2,
@@ -948,12 +950,33 @@ function OfferingWizard({
       : null;
 
   const handlePublish = async () => {
+    // 발행 전 전체 재검증 — 단계 게이트를 통과한 뒤에도(예: Step 4에 머무는 동안
+    // 선택 자산이 삭제되어 prune 효과로 비워지는 경우) 빈 자산/정책으로 발행되지 않도록
+    // 최종 시점에 다시 확인하고, 문제 단계로 되돌린다.
+    if (selAssets.length === 0) {
+      toast.error(t.offerings.selectAssetRequired);
+      setStep(0);
+      return;
+    }
+    if (!accessPolicy) {
+      toast.error(t.offerings.selectAccessRequired);
+      setStep(1);
+      return;
+    }
+    if (!contractPolicy) {
+      toast.error(t.offerings.selectContractRequired);
+      setStep(2);
+      return;
+    }
     const idErr = validateOfferingId(offeringId);
     if (idErr) {
       setOfferingIdError(idErr);
       toast.error(idErr);
       return;
     }
+    // 더블클릭/중복 제출 방지 — 첫 호출 진행 중이면 이후 호출은 즉시 무시(계약 2개 생성 차단).
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const payload = {
@@ -977,6 +1000,7 @@ function OfferingWizard({
       toast.error(
         isEdit ? t.offerings.updateFailed : t.offerings.publishFailed
       );
+      submittingRef.current = false;
       setSubmitting(false);
       return;
     }
@@ -987,6 +1011,7 @@ function OfferingWizard({
       queryClient.invalidateQueries({ queryKey: ["policies", connectorId] });
       queryClient.invalidateQueries({ queryKey: ["assets", connectorId] });
     } catch {}
+    submittingRef.current = false;
     setSubmitting(false);
     onDone();
   };

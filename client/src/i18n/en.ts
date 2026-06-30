@@ -371,6 +371,9 @@ const en: Translations = {
     wizard: "Creation Wizard (4 Steps)",
     searchPlaceholder: "Search offering ID or asset...",
     offeringIdRequired: "Offering ID is required.",
+    selectAssetRequired: "Please select at least one asset.",
+    selectAccessRequired: "Please select an access policy.",
+    selectContractRequired: "Please select a contract policy.",
     col: {
       id: "Offering ID",
       asset: "Asset",

@@ -372,6 +372,9 @@ const ko = {
     wizard: "생성 마법사 (4단계)",
     searchPlaceholder: "계약 ID 또는 자산 검색...",
     offeringIdRequired: "계약 ID를 입력하세요.",
+    selectAssetRequired: "자산을 1개 이상 선택하세요.",
+    selectAccessRequired: "Access 정책을 선택하세요.",
+    selectContractRequired: "Contract 정책을 선택하세요.",
     col: {
       id: "계약 ID",
       asset: "자산",
