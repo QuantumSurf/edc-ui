@@ -1,7 +1,7 @@
 // Connector Hub — Asset Management (spec 4.2)
 // Responsive table↔card, 3-step wizard with validation
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import {
@@ -925,6 +925,8 @@ function AssetWizard({
   const baseSrc: Asset | null = editTarget ?? duplicateSource ?? null;
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  // 동기 중복 제출 가드 — disabled={saving}는 React state라 같은 틱 더블클릭을 못 막는다.
+  const savingRef = useRef(false);
   const steps = [t.assets.step1, t.assets.step2, t.assets.step3];
 
   // Step 1 state — duplicate appends "-copy" to ID, name keeps with " (Copy)"
@@ -1052,11 +1054,7 @@ function AssetWizard({
     } catch {
       // fetchAssetById는 404만 null, 그 외(5xx/타임아웃/네트워크)는 throw.
       // 중복 여부를 신뢰성 있게 판정 못 하면 '사용 가능'으로 통과시키지 말고 차단(낙관 허용 금지 — id 14).
-      setIdError(
-        locale === "ko"
-          ? "ID 중복 확인에 실패했습니다. 잠시 후 다시 시도해 주세요."
-          : "Failed to verify ID availability. Please try again."
-      );
+      setIdError(t.assets.idCheckFailed);
       return false;
     } finally {
       setCheckingId(false);
@@ -1070,18 +1068,22 @@ function AssetWizard({
       toast.error(t.assets.baseUrlRequired);
       return false;
     }
-    if (!baseUrl.startsWith("https://")) {
+    // 시작 문자열만 보면 'https://'(호스트 없음)·'https:// abc' 같은 비정상도 통과하므로
+    // 실제 URL 파싱으로 호스트 유무와 https 프로토콜을 함께 검증한다.
+    let parsedUrl: URL | null = null;
+    try {
+      parsedUrl = new URL(baseUrl.trim());
+    } catch {
+      parsedUrl = null;
+    }
+    if (!parsedUrl || parsedUrl.protocol !== "https:" || !parsedUrl.hostname) {
       toast.error(t.assets.httpsRequired);
       return false;
     }
     // authCode는 신규/복제 시 필수(UI required와 일치 — id 15). 편집 시 미입력은 기존 인증 별칭
     // 보존을 위해 허용(id 13). 값이 있으면 항상 형식 검증.
     if (!isEdit && !authCode.trim()) {
-      toast.error(
-        locale === "ko"
-          ? "인증 키를 입력해 주세요."
-          : "Authentication key is required."
-      );
+      toast.error(t.assets.authCodeRequired);
       return false;
     }
     if (authCode.trim() && !authCode.startsWith("edc:key")) {
@@ -1115,6 +1117,9 @@ function AssetWizard({
       toast.error(t.assets.noConnector);
       return;
     }
+    // 더블클릭/중복 제출 방지 — 첫 호출 진행 중이면 이후 호출은 즉시 무시(자산 2개 생성 차단).
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const customPropsObj = customProps.reduce<Record<string, string>>(
@@ -1168,6 +1173,7 @@ function AssetWizard({
         `${isEdit ? t.assets.updateFailed : t.assets.createFailed}: ${cause}`
       );
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

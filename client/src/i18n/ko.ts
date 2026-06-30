@@ -226,6 +226,8 @@ const ko = {
     baseUrlRequired: "baseUrl은 필수입니다.",
     httpsRequired: "baseUrl은 HTTPS 필수입니다.",
     authCodeFormat: "authCode 별칭은 'edc:key'로 시작해야 합니다.",
+    authCodeRequired: "인증 키를 입력해 주세요.",
+    idCheckFailed: "ID 중복 확인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
     semanticIdFormat: "semanticId는 'urn:samm:' URN 형식이어야 합니다.",
     noConnector: "커넥터를 먼저 선택해야 합니다.",
     deleteBlockedByOffering: "계약에 등록된 자산은 삭제할 수 없습니다.",

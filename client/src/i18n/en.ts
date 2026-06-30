@@ -220,6 +220,8 @@ const en: Translations = {
     baseUrlRequired: "baseUrl is required.",
     httpsRequired: "baseUrl must use HTTPS.",
     authCodeFormat: "authCode alias must start with 'edc:key'.",
+    authCodeRequired: "Authentication key is required.",
+    idCheckFailed: "Failed to verify ID availability. Please try again.",
     semanticIdFormat: "semanticId must be in 'urn:samm:' URN format.",
     noConnector: "Please select a connector first.",
     deleteBlockedByOffering:
