@@ -305,8 +305,12 @@ const ko = {
       "Catena-X 표준 정책 등 외부 ODRL JSON을 붙여넣은 뒤 '적용'을 누르세요. 빌더 화면이 채워집니다.",
     applyJson: "적용",
     jsonInvalid: "잘못된 JSON",
-    jsonNoPermission: "odrl:permission 배열을 찾지 못했습니다.",
+    jsonNoPermission:
+      "permission / prohibition / obligation 규칙 배열을 찾지 못했습니다.",
     jsonNoConstraints: "odrl:constraint를 찾지 못했습니다.",
+    jsonTooLarge: "JSON이 너무 큽니다 (최대 100KB). 내용을 줄여 다시 시도하세요.",
+    jsonTooManyConstraints: (n: number) =>
+      `제약 조건이 너무 많아 ${n}개까지만 가져왔습니다.`,
     jsonImported: "JSON 정책이 빌더에 적용되었습니다.",
     ruleType: "규칙 유형",
     ruleLabel: { permission: "허가", prohibition: "금지", obligation: "의무" },

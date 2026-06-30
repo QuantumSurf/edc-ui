@@ -228,6 +228,12 @@ const LOGIC_OPS: { value: LogicOp; key: "and" | "or" | "xone" }[] = [
   { value: "xone", key: "xone" },
 ];
 
+// JSON 가져오기 방어 상한 — 악의적/실수로 만든 비정상 JSON이 화면을 멈추거나
+// 깨진 데이터를 만들지 않도록 입력 크기·재귀 깊이·제약 개수를 제한한다.
+const JSON_IMPORT_MAX_LEN = 100_000; // 붙여넣기 텍스트 상한(약 100KB)
+const JSON_IMPORT_MAX_DEPTH = 8; // logic wrapper(and/or/xone) 중첩 재귀 깊이 상한
+const JSON_IMPORT_MAX_CONSTRAINTS = 50; // 가져올 제약 개수 상한
+
 type RuleType = "permission" | "prohibition" | "obligation";
 const RULE_TYPES: {
   value: RuleType;
@@ -1188,6 +1194,11 @@ function ODRLBuilder({
 
   // Try to parse pasted JSON into Builder constraints. Returns ok|err.
   const importFromJson = (): boolean => {
+    // ① 대용량 방어 — JSON.parse 이전에 텍스트 크기 상한으로 막는다.
+    if (jsonText.length > JSON_IMPORT_MAX_LEN) {
+      setJsonError(t.policies.jsonTooLarge);
+      return false;
+    }
     try {
       const obj = JSON.parse(jsonText);
       // Detect rule type
@@ -1206,20 +1217,39 @@ function ODRLBuilder({
         return false;
       }
       const first = rules[0] as Record<string, unknown>;
-      const detectedAction = (first["odrl:action"] ??
-        first.action ??
-        "use") as string;
+      // ③ 액션 객체형 처리 — operator처럼 { "@id": "odrl:use" } 형태면 @id를 꺼낸다.
+      const actionRaw = first["odrl:action"] ?? first.action ?? "use";
+      const actionId =
+        typeof actionRaw === "string"
+          ? actionRaw
+          : (((actionRaw as Record<string, unknown>)?.["@id"] as string) ??
+            "use");
+      // 빌더 액션 입력은 접두 없는 값(use, transfer…)을 쓰므로 odrl: 접두를 제거한다.
+      const detectedAction = actionId.startsWith("odrl:")
+        ? actionId.slice("odrl:".length)
+        : actionId;
 
       let detectedLogic: LogicOp = "and";
+      let truncated = false;
       const allConstraints: Constraint[] = [];
-      const flattenConstraint = (c: Record<string, unknown>) => {
+      // ① 깊이 상한 + ② 개수 상한 — 깊게 중첩되거나 제약이 폭증한 JSON으로부터
+      // 무한 재귀/화면 프리즈를 막는다(초과분은 잘라내고 안내).
+      const flattenConstraint = (c: Record<string, unknown>, depth: number) => {
+        if (depth > JSON_IMPORT_MAX_DEPTH) {
+          truncated = true;
+          return;
+        }
+        if (allConstraints.length >= JSON_IMPORT_MAX_CONSTRAINTS) {
+          truncated = true;
+          return;
+        }
         // Logic wrappers
         for (const lo of LOGIC_OPS) {
           const inner = c[`odrl:${lo.key}`] ?? c[lo.key];
           if (Array.isArray(inner)) {
             detectedLogic = lo.value;
             for (const ic of inner)
-              flattenConstraint(ic as Record<string, unknown>);
+              flattenConstraint(ic as Record<string, unknown>, depth + 1);
             return;
           }
         }
@@ -1247,7 +1277,7 @@ function ODRLBuilder({
           permObj.constraint ??
           []) as unknown[];
         if (!Array.isArray(cons)) continue;
-        for (const c of cons) flattenConstraint(c as Record<string, unknown>);
+        for (const c of cons) flattenConstraint(c as Record<string, unknown>, 0);
       }
       if (allConstraints.length === 0) {
         setJsonError(t.policies.jsonNoConstraints);
@@ -1256,11 +1286,16 @@ function ODRLBuilder({
       const parsedId = obj["@id"] ?? obj.id;
       if (parsedId && !isEdit) setPolicyId(String(parsedId));
       setRuleType(detectedRule);
-      setAction(String(detectedAction));
+      setAction(detectedAction);
       setLogicOp(detectedLogic);
       setConstraints(allConstraints);
       setJsonError(null);
       markDirty();
+      // 초과로 일부만 가져온 경우 사용자에게 안내(차단은 아님 — 가져온 만큼은 유효).
+      if (truncated)
+        toast.warning(
+          t.policies.jsonTooManyConstraints(JSON_IMPORT_MAX_CONSTRAINTS)
+        );
       return true;
     } catch (e) {
       setJsonError(

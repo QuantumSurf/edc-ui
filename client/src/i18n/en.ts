@@ -299,8 +299,12 @@ const en: Translations = {
       "Paste an external ODRL policy JSON (e.g. Catena-X standard) and press 'Apply'. The Builder will be populated.",
     applyJson: "Apply",
     jsonInvalid: "Invalid JSON",
-    jsonNoPermission: "No odrl:permission array found.",
+    jsonNoPermission:
+      "No permission / prohibition / obligation rule array found.",
     jsonNoConstraints: "No odrl:constraint found.",
+    jsonTooLarge: "JSON is too large (max 100KB). Please reduce it and retry.",
+    jsonTooManyConstraints: (n: number) =>
+      `Too many constraints — imported only the first ${n}.`,
     jsonImported: "JSON policy applied to Builder.",
     ruleType: "Rule Type",
     ruleLabel: {
