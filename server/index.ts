@@ -7,11 +7,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { auditMiddleware } from "./middleware/audit.js";
 import { validateConnectorId } from "./middleware/validation.js";
 import { requireConnectorOwnership } from "./middleware/tenant.js";
 import { apiRateLimit } from "./middleware/rateLimit.js";
 import { initDb, getPool } from "./lib/db.js";
 import { startNotificationGenerator } from "./lib/notificationGenerator.js";
+import { pruneAuditLogs } from "./lib/audit.js";
 
 // Routes
 import connectorsRouter from "./routes/connectors.js";
@@ -35,6 +37,7 @@ import identityHubRouter from "./routes/identityHub.js";
 import shellsRouter from "./routes/shells.js";
 import submodelsRouter from "./routes/submodels.js";
 import semanticsRouter from "./routes/semantics.js";
+import auditRouter from "./routes/audit.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,6 +139,9 @@ async function startServer() {
   // Authentication (all remaining /api/* routes)
   app.use("/api", authMiddleware);
 
+  // 감사 로그: 인증 직후 mount → req.user 가 채워진 상태로 변이 라우트를 기록(조회는 제외).
+  app.use("/api", auditMiddleware);
+
   // Connector ID validation
   app.use("/api/connectors/:id", validateConnectorId);
   // Tenant isolation: the user's tenant must own the connector (covers all sub-routes)
@@ -164,6 +170,8 @@ async function startServer() {
   app.use("/api/dtr", submodelsRouter);
   // Tractus-X Semantic Models — local Postgres CRUD
   app.use("/api/semantics", semanticsRouter);
+  // Audit Log — 테넌트 범위 보안 이벤트 조회(admin/operator)
+  app.use("/api/audit", auditRouter);
 
   // Error handler (must be after routes)
   app.use(errorHandler);
@@ -194,6 +202,10 @@ async function startServer() {
   startNotificationGenerator().catch(err =>
     console.error("[NotifyGen] failed to start:", err)
   );
+
+  // 감사 로그 보존기간 정리 — 부팅 시 1회 + 6시간 주기(무한 증가 방지). best-effort.
+  void pruneAuditLogs();
+  setInterval(() => void pruneAuditLogs(), 6 * 60 * 60 * 1000);
 }
 
 startServer().catch(console.error);

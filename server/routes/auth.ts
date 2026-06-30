@@ -17,6 +17,7 @@ import {
 import { getTenant } from "../lib/tenants.js";
 import { requireAuth } from "../middleware/auth.js";
 import { loginRateLimit } from "../middleware/rateLimit.js";
+import { recordAudit } from "../lib/audit.js";
 
 const router = Router();
 
@@ -72,6 +73,20 @@ router.post(
       if (rows.length === 0) {
         // 사용자 미존재 시에도 동일한 bcrypt 비용을 소모(타이밍 열거 방지) 후 동일 응답.
         await dummyVerify(password);
+        // 미존재 테넌트(BPN)는 어느 테넌트에도 귀속시킬 수 없어 tenant_id=null 로 기록.
+        void recordAudit({
+          action: "auth.login",
+          category: "AUTH",
+          target: bpn,
+          targetType: "User",
+          result: "FAILURE",
+          actorEmail: bpn,
+          ip: req.ip ?? null,
+          userAgent: (req.headers["user-agent"] as string) ?? null,
+          method: "POST",
+          path: "/api/auth/login",
+          message: "Login failed (unknown tenant)",
+        });
         res.status(401).json({ error: "invalid-credentials" });
         return;
       }
@@ -91,6 +106,22 @@ router.post(
 
       // 계정 잠금 — 잠금 창 내면 비밀번호 검증 없이 차단(무차별 대입 방어).
       if (u.locked_until && new Date(u.locked_until).getTime() > Date.now()) {
+        void recordAudit({
+          tenantId: u.tenant_id ?? null,
+          actorId: u.id,
+          actorEmail: u.email,
+          actorRole: u.role,
+          action: "auth.login",
+          category: "AUTH",
+          target: u.email,
+          targetType: "User",
+          result: "FAILURE",
+          ip: req.ip ?? null,
+          userAgent: (req.headers["user-agent"] as string) ?? null,
+          method: "POST",
+          path: "/api/auth/login",
+          message: "Login blocked (account locked)",
+        });
         res.status(429).json({ error: "account-locked" });
         return;
       }
@@ -111,6 +142,22 @@ router.post(
             [failed, u.id]
           );
         }
+        void recordAudit({
+          tenantId: u.tenant_id ?? null,
+          actorId: u.id,
+          actorEmail: u.email,
+          actorRole: u.role,
+          action: "auth.login",
+          category: "AUTH",
+          target: u.email,
+          targetType: "User",
+          result: "FAILURE",
+          ip: req.ip ?? null,
+          userAgent: (req.headers["user-agent"] as string) ?? null,
+          method: "POST",
+          path: "/api/auth/login",
+          message: "Login failed (bad password)",
+        });
         res.status(401).json({ error: "invalid-credentials" });
         return;
       }
@@ -120,6 +167,23 @@ router.post(
         `UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE id = $1`,
         [u.id]
       );
+
+      void recordAudit({
+        tenantId: u.tenant_id ?? null,
+        actorId: u.id,
+        actorEmail: u.email,
+        actorRole: u.role,
+        action: "auth.login",
+        category: "AUTH",
+        target: u.email,
+        targetType: "User",
+        result: "SUCCESS",
+        ip: req.ip ?? null,
+        userAgent: (req.headers["user-agent"] as string) ?? null,
+        method: "POST",
+        path: "/api/auth/login",
+        message: "Login",
+      });
 
       const token = signToken({
         id: u.id,
@@ -159,6 +223,22 @@ router.post(
           `UPDATE users SET token_version = token_version + 1 WHERE id = $1`,
           [req.user.id]
         );
+        void recordAudit({
+          tenantId: req.user.tenantId ?? null,
+          actorId: req.user.id,
+          actorEmail: req.user.email,
+          actorRole: req.user.role,
+          action: "auth.logout",
+          category: "AUTH",
+          target: req.user.email,
+          targetType: "User",
+          result: "SUCCESS",
+          ip: req.ip ?? null,
+          userAgent: (req.headers["user-agent"] as string) ?? null,
+          method: "POST",
+          path: "/api/auth/logout",
+          message: "Logout",
+        });
       }
       res.status(204).end();
     } catch (err) {

@@ -49,14 +49,34 @@ http.interceptors.response.use(
         (typeof localStorage !== "undefined" &&
           localStorage.getItem("locale")) ||
         "ko";
-      const msg =
-        status === 403
-          ? lang === "ko"
-            ? "이 작업을 수행할 권한이 없습니다."
-            : "You are not allowed to perform this action."
-          : lang === "ko"
+      // 403: 서버가 반환한 required(필요 역할 목록)를 함께 안내해 "어떤 권한이 필요한지" 명시.
+      let msg: string;
+      if (status === 403) {
+        const required = error?.response?.data?.required;
+        const labels: Record<string, string> =
+          lang === "ko"
+            ? { admin: "관리자", operator: "이용자", viewer: "열람자" }
+            : { admin: "Admin", operator: "Operator", viewer: "Viewer" };
+        if (Array.isArray(required) && required.length > 0) {
+          const names = required
+            .map((r: string) => labels[r] ?? r)
+            .join(lang === "ko" ? ", " : " / ");
+          msg =
+            lang === "ko"
+              ? `이 작업은 ${names} 권한이 필요합니다.`
+              : `This action requires the ${names} role.`;
+        } else {
+          msg =
+            lang === "ko"
+              ? "이 작업을 수행할 권한이 없습니다."
+              : "You are not allowed to perform this action.";
+        }
+      } else {
+        msg =
+          lang === "ko"
             ? "인증이 만료되었습니다. 다시 로그인해 주세요."
             : "Session expired. Please sign in again.";
+      }
       try {
         toast.error(msg);
       } catch {
@@ -97,6 +117,13 @@ export async function testConnection(managementUrl: string, apiKey?: string) {
     apiKey,
   });
   return data as { status: "ok" | "fail"; detail: unknown };
+}
+
+/* ── Audit Log ───────────────────────────────────────────────── */
+// 테넌트 범위 감사 로그(최신순). 서버가 클라 AuditEvent 형태로 평탄화해 반환한다.
+export async function fetchAuditEvents(limit = 500): Promise<unknown[]> {
+  const { data } = await http.get("/audit", { params: { limit } });
+  return Array.isArray(data) ? data : [];
 }
 
 export async function registerConnector(entry: {

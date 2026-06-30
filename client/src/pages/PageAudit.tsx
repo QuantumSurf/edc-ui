@@ -3,8 +3,9 @@
 // Click row → JSON detail | Export filtered set as CSV
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
-import { useConnectorStore } from "@/stores/connectorStore";
+import { fetchAuditEvents } from "@/services";
 import {
   SectionHdr,
   Badge,
@@ -13,6 +14,7 @@ import {
   ListHeaderRow,
   ListRow,
   ListEmpty,
+  ListError,
   SortHeader,
   useTableSort,
   sortRows,
@@ -77,399 +79,7 @@ interface AuditEvent {
   payload?: Record<string, unknown>;
 }
 
-/* ─── Demo data factory ──────────────────────────────────────── */
-function makeDemoEvents(connectorId: string, locale: string): AuditEvent[] {
-  const isProd = connectorId.toLowerCase().includes("prod");
-  // 고정 anchor + 결정적 지터를 써서 동일 (connectorId, locale) 입력이 항상 같은
-  // 타임스탬프/requestId/정렬 결과를 내도록 한다. Date.now()·Math.random() 을 쓰면
-  // locale 토글·connector 변경 시 재생성되어 행 순서가 흔들리고 상세 패널이 stale 해진다.
-  // (id 가 2026050800 기반이라 의미상 일치하는 기준값 사용.)
-  const baseDate = Date.parse("2026-05-08T00:00:00Z");
-  const min = 60_000;
-
-  const tpl: (Omit<AuditEvent, "id" | "timestamp" | "requestId"> & {
-    messageEn: string;
-  })[] = [
-    {
-      actor: "admin",
-      actorRole: "admin",
-      action: "auth.login",
-      category: "AUTH",
-      target: "admin",
-      targetType: "User",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.41",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "관리자 로그인 성공",
-      messageEn: "Admin login successful",
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "asset.create",
-      category: "ASSET",
-      target: "kmx-test-asset-1777709569",
-      targetType: "Asset",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "자산 생성",
-      messageEn: "Asset created",
-      payload: {
-        id: "kmx-test-asset-1777709569",
-        type: "data",
-        baseUrl: "https://kmx-prod-01/api/data",
-      },
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "policy.create",
-      category: "POLICY",
-      target: "policy-membership-cx",
-      targetType: "Policy",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "ODRL 정책 생성",
-      messageEn: "ODRL policy created",
-      payload: { id: "policy-membership-cx", action: "use", constraints: 1 },
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "offering.publish",
-      category: "OFFERING",
-      target: "offering-2025-batch-001",
-      targetType: "Offering",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "계약 게시",
-      messageEn: "Contract offering published",
-    },
-    {
-      actor: "consumer-bpn",
-      actorRole: "system",
-      action: "negotiation.requested",
-      category: "NEGOTIATION",
-      target: "neg-7c9e4d11-aa02",
-      targetType: "Negotiation",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "203.0.113.7",
-      userAgent: "EDC/0.7.2 Java/17",
-      message: "협상 요청 수신",
-      messageEn: "Negotiation request received",
-    },
-    {
-      actor: "consumer-bpn",
-      actorRole: "system",
-      action: "negotiation.finalized",
-      category: "NEGOTIATION",
-      target: "neg-7c9e4d11-aa02",
-      targetType: "Negotiation",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "203.0.113.7",
-      userAgent: "EDC/0.7.2 Java/17",
-      message: "계약 성립",
-      messageEn: "Contract agreement finalized",
-    },
-    {
-      actor: "consumer-bpn",
-      actorRole: "system",
-      action: "transfer.started",
-      category: "TRANSFER",
-      target: "tp-f02a18b3-9c41",
-      targetType: "Transfer",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "203.0.113.7",
-      userAgent: "EDC/0.7.2 Java/17",
-      message: "전송 시작 (HttpData)",
-      messageEn: "Transfer started (HttpData)",
-    },
-    {
-      actor: "consumer-bpn",
-      actorRole: "system",
-      action: "transfer.completed",
-      category: "TRANSFER",
-      target: "tp-f02a18b3-9c41",
-      targetType: "Transfer",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "203.0.113.7",
-      userAgent: "EDC/0.7.2 Java/17",
-      message: "전송 완료 (1.2 MB)",
-      messageEn: "Transfer completed (1.2 MB)",
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "vault.key.rotate",
-      category: "VAULT",
-      target: "edc:key:dsp-signing",
-      targetType: "VaultKey",
-      result: "SUCCESS",
-      severity: "WARN",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "Ed25519 서명 키 회전",
-      messageEn: "Ed25519 signing key rotated",
-    },
-    {
-      actor: "system",
-      actorRole: "system",
-      action: "edr.gc.deleted",
-      category: "SYSTEM",
-      target: "edr-gc-batch-2026050801",
-      targetType: "EdrBatch",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "127.0.0.1",
-      userAgent: "kmx-scheduler/1.0",
-      message: "EDR GC 12건 삭제",
-      messageEn: "EDR GC deleted 12 entries",
-    },
-    {
-      actor: "consumer-bpn-bad",
-      actorRole: "system",
-      action: "auth.dsp.token",
-      category: "AUTH",
-      target: "did:web:example.org:bad",
-      targetType: "DID",
-      result: "FAILURE",
-      severity: "WARN",
-      ip: "198.51.100.9",
-      userAgent: "EDC/0.6.x Java/17",
-      message: "STS 토큰 검증 실패 (issuer 미신뢰)",
-      messageEn: "STS token validation failed (untrusted issuer)",
-    },
-    {
-      actor: "consumer-bpn",
-      actorRole: "system",
-      action: "negotiation.terminated",
-      category: "NEGOTIATION",
-      target: "neg-3a91c4ee-bb77",
-      targetType: "Negotiation",
-      result: "FAILURE",
-      severity: "WARN",
-      ip: "203.0.113.7",
-      userAgent: "EDC/0.7.2 Java/17",
-      message: "협상 종료 — Counter-offer 거절",
-      messageEn: "Negotiation terminated — counter-offer rejected",
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "asset.delete",
-      category: "ASSET",
-      target: "obsolete-asset-001",
-      targetType: "Asset",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "자산 삭제",
-      messageEn: "Asset deleted",
-    },
-    {
-      actor: "viewer",
-      actorRole: "viewer",
-      action: "policy.delete",
-      category: "POLICY",
-      target: "policy-restricted-eu",
-      targetType: "Policy",
-      result: "FAILURE",
-      severity: "CRITICAL",
-      ip: "10.0.12.71",
-      userAgent: "Mozilla/5.0 Safari/17",
-      message: "권한 없음 — viewer가 삭제 시도",
-      messageEn: "Permission denied — viewer attempted deletion",
-    },
-    {
-      actor: "admin",
-      actorRole: "admin",
-      action: "connector.update",
-      category: "CONNECTOR",
-      target: connectorId,
-      targetType: "Connector",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.41",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "커넥터 정보 수정",
-      messageEn: "Connector info updated",
-    },
-    {
-      actor: "system",
-      actorRole: "system",
-      action: "vc.expiry.warn",
-      category: "SYSTEM",
-      target: "MembershipCredential",
-      targetType: "VC",
-      result: "SUCCESS",
-      severity: "WARN",
-      ip: "127.0.0.1",
-      userAgent: "kmx-scheduler/1.0",
-      message: "MembershipCredential 23일 후 만료",
-      messageEn: "MembershipCredential expires in 23 days",
-    },
-    {
-      actor: "consumer-bpn",
-      actorRole: "system",
-      action: "transfer.terminated",
-      category: "TRANSFER",
-      target: "tp-77ee99cc-1f01",
-      targetType: "Transfer",
-      result: "FAILURE",
-      severity: "CRITICAL",
-      ip: "203.0.113.7",
-      userAgent: "EDC/0.7.2 Java/17",
-      message: "전송 실패 — Sink 응답 5xx",
-      messageEn: "Transfer failed — sink responded 5xx",
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "policy.update",
-      category: "POLICY",
-      target: "policy-membership-cx",
-      targetType: "Policy",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "정책 제약 조건 추가",
-      messageEn: "Policy constraint added",
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "offering.update",
-      category: "OFFERING",
-      target: "offering-2025-batch-001",
-      targetType: "Offering",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "계약 수정 — 자산 추가",
-      messageEn: "Contract offering updated — asset added",
-    },
-    {
-      actor: "admin",
-      actorRole: "admin",
-      action: "vault.secret.delete",
-      category: "VAULT",
-      target: "edc:secret:legacy-token",
-      targetType: "VaultSecret",
-      result: "SUCCESS",
-      severity: "WARN",
-      ip: "10.0.12.41",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "레거시 시크릿 삭제",
-      messageEn: "Legacy secret deleted",
-    },
-    {
-      actor: "admin",
-      actorRole: "admin",
-      action: "auth.login",
-      category: "AUTH",
-      target: "admin",
-      targetType: "User",
-      result: "FAILURE",
-      severity: "CRITICAL",
-      ip: "45.77.12.4",
-      userAgent: "curl/8.5",
-      message: "비밀번호 불일치 (시도 3회)",
-      messageEn: "Password mismatch (3 attempts)",
-    },
-    {
-      actor: "system",
-      actorRole: "system",
-      action: "connector.health.degraded",
-      category: "CONNECTOR",
-      target: isProd ? "kmx-prod-01" : "kmx-cons-01",
-      targetType: "Connector",
-      result: "FAILURE",
-      severity: "WARN",
-      ip: "127.0.0.1",
-      userAgent: "kmx-monitor/1.0",
-      message: "DSP readiness probe 실패",
-      messageEn: "DSP readiness probe failed",
-    },
-    {
-      actor: "consumer-bpn",
-      actorRole: "system",
-      action: "negotiation.requested",
-      category: "NEGOTIATION",
-      target: "neg-aa11bb22-cc33",
-      targetType: "Negotiation",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "203.0.113.8",
-      userAgent: "EDC/0.7.2 Java/17",
-      message: "협상 요청 수신",
-      messageEn: "Negotiation request received",
-    },
-    {
-      actor: "operator",
-      actorRole: "operator",
-      action: "asset.update",
-      category: "ASSET",
-      target: "kmx-test-asset-1777709569",
-      targetType: "Asset",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.55",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "자산 메타데이터 업데이트",
-      messageEn: "Asset metadata updated",
-    },
-    {
-      actor: "admin",
-      actorRole: "admin",
-      action: "auth.logout",
-      category: "AUTH",
-      target: "admin",
-      targetType: "User",
-      result: "SUCCESS",
-      severity: "INFO",
-      ip: "10.0.12.41",
-      userAgent: "Mozilla/5.0 Chrome/124",
-      message: "로그아웃",
-      messageEn: "Logout",
-    },
-  ];
-
-  // Repeat the base 25 templates 3x with different timestamps (~75 events) so
-  // pagination is exercised meaningfully in dev/demo mode.
-  const REPEAT = 3;
-  const events: AuditEvent[] = [];
-  for (let r = 0; r < REPEAT; r++) {
-    tpl.forEach((e, i) => {
-      const seq = r * tpl.length + i;
-      const ts = new Date(
-        baseDate - r * 24 * 60 * min - i * 11 * min - ((seq * 37) % 90) * min // 결정적 지터(난수 대체)
-      );
-      const { messageEn, ...rest } = e;
-      events.push({
-        ...rest,
-        message: locale === "en" ? messageEn : rest.message,
-        id: `evt-${(2026050800 - seq).toString(16)}`,
-        timestamp: ts.toISOString(),
-        requestId: `req-${(0xa1b2c3 + seq).toString(36)}`, // 결정적 requestId
-      });
-    });
-  }
-  return events;
-}
+/* ─── (제거됨) 데모 데이터 팩토리 — 실제 audit_logs 조회(fetchAuditEvents)로 대체 ─── */
 
 /* ─── Helpers ────────────────────────────────────────────────── */
 function formatTs(iso: string) {
@@ -555,7 +165,9 @@ function exportCsv(rows: AuditEvent[]) {
     "message",
   ];
   const escape = (v: unknown) => {
-    const s = String(v ?? "");
+    let s = String(v ?? "");
+    // CSV 수식 인젝션 방어(CWE-1236): 위험 선두문자는 앞에 ' 를 붙여 텍스트로 강제.
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [
@@ -593,8 +205,6 @@ const CATEGORIES: ("ALL" | AuditCategory)[] = [
 
 export default function PageAudit() {
   const { t, locale } = useI18n();
-  const connector = useConnectorStore(s => s.connector);
-  const connectorId = connector?.id ?? "kmx-prod-01";
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<"ALL" | AuditCategory>("ALL");
@@ -603,9 +213,18 @@ export default function PageAudit() {
   const [range, setRange] = useState<"ALL" | "1D" | "7D" | "30D">("ALL");
   const [selected, setSelected] = useState<AuditEvent | null>(null);
 
+  const {
+    data: rawEvents,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ["audit"],
+    queryFn: () => fetchAuditEvents(500),
+  });
   const allEvents = useMemo(
-    () => makeDemoEvents(connectorId, locale),
-    [connectorId, locale]
+    () => (rawEvents ?? []) as AuditEvent[],
+    [rawEvents]
   );
 
   const filtered = useMemo(() => {
@@ -832,7 +451,9 @@ export default function PageAudit() {
 
       {/* List — Desktop */}
       <ListCard title={t.audit.listTitle} className="hidden md:block">
-        {filtered.length === 0 ? (
+        {isError ? (
+          <ListError onRetry={() => refetch()} fetching={isFetching} />
+        ) : filtered.length === 0 ? (
           <ListEmpty
             icon={<Activity />}
             message={
@@ -989,7 +610,9 @@ export default function PageAudit() {
 
       {/* List — Mobile */}
       <div className="md:hidden flex flex-col gap-2">
-        {filtered.length === 0 ? (
+        {isError ? (
+          <ListError onRetry={() => refetch()} fetching={isFetching} />
+        ) : filtered.length === 0 ? (
           <div className="py-8 text-center text-[13px] text-muted-foreground">
             {t.audit.emptyTitle}
           </div>

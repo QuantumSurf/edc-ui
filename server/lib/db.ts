@@ -241,6 +241,37 @@ async function createSchema(): Promise<void> {
       updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  // 감사 로그(Audit Log): 변이(생성/수정/삭제)·로그인 등 보안 이벤트를 실데이터로 기록.
+  // tenant_id 로 테넌트 격리(조회는 호출자 테넌트로 스코프). actor_*= 행위자, action/category=
+  // 행위 분류, result/severity=결과·심각도, status_code/method/path=기술 컨텍스트.
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id            TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      tenant_id     TEXT,
+      actor_id      TEXT,
+      actor_email   TEXT,
+      actor_role    TEXT,
+      action        TEXT NOT NULL,
+      category      TEXT NOT NULL,
+      target        TEXT,
+      target_type   TEXT,
+      connector_id  TEXT,
+      result        TEXT NOT NULL CHECK (result IN ('SUCCESS', 'FAILURE')),
+      severity      TEXT NOT NULL DEFAULT 'INFO'
+                    CHECK (severity IN ('INFO', 'WARN', 'CRITICAL')),
+      status_code   INTEGER,
+      ip            TEXT,
+      user_agent    TEXT,
+      method        TEXT,
+      path          TEXT,
+      message       TEXT,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_logs(tenant_id, created_at DESC);`
+  );
 }
 
 // prod 에서 거부할 흔한 약비번(소문자 비교). 길이 검사만으로는 'password' 등을 못 막는다.
@@ -292,7 +323,9 @@ async function seedDb(): Promise<void> {
     // 프로덕션에서는 약한 기본 비밀번호 시드를 거부 — SEED_*_PASSWORD(>=8자, 흔한 약비번 금지).
     if (
       process.env.NODE_ENV === "production" &&
-      (!envPw || envPw.length < 8 || WEAK_SEED_PASSWORDS.has(envPw.toLowerCase()))
+      (!envPw ||
+        envPw.length < 8 ||
+        WEAK_SEED_PASSWORDS.has(envPw.toLowerCase()))
     ) {
       throw new Error(
         `[DB] ${s.envKey} must be a strong value (>=8 chars, not a common password) in production — refusing to seed a weak default password.`
@@ -496,10 +529,10 @@ async function migrateConnectorApiKeys(): Promise<void> {
   for (const r of rows) {
     try {
       const enc = encryptSecret(r.api_key);
-      await getPool().query(`UPDATE connectors SET api_key = $1 WHERE id = $2`, [
-        enc,
-        r.id,
-      ]);
+      await getPool().query(
+        `UPDATE connectors SET api_key = $1 WHERE id = $2`,
+        [enc, r.id]
+      );
       migrated++;
     } catch (e) {
       console.warn(
