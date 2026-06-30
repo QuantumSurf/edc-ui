@@ -205,8 +205,29 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { client } = await resolveConnector(req.params.id);
+      const policyId = req.params.policyId;
+      // 계약(ContractDefinition)이 access/contract 정책으로 참조 중인 정책은 삭제 거부 —
+      // 댕글링(유령) 참조 방지. UI는 이미 막지만(offers>0 시 삭제 비활성) 서버 검증이 없어
+      // 우회 가능했음. 목록 API의 offers 계산과 동일한 교차조회를 사용한다.
+      const offRes = await client
+        .post("/v3/contractdefinitions/request", withJsonLd({}))
+        .catch(() => ({ data: [] as unknown[] }));
+      const offerings: unknown[] = Array.isArray(offRes.data) ? offRes.data : [];
+      const referenced = offerings.some(o => {
+        const off = o as Record<string, unknown>;
+        const access = off["accessPolicyId"] ?? off["edc:accessPolicyId"] ?? "";
+        const contract =
+          off["contractPolicyId"] ?? off["edc:contractPolicyId"] ?? "";
+        return access === policyId || contract === policyId;
+      });
+      if (referenced) {
+        res
+          .status(409)
+          .json({ error: "계약에 등록된 정책은 삭제할 수 없습니다" });
+        return;
+      }
       const response = await client.delete(
-        `/v3/policydefinitions/${req.params.policyId}`
+        `/v3/policydefinitions/${policyId}`
       );
       res.json(response.data);
     } catch (error) {
