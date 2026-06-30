@@ -206,6 +206,7 @@ const en: Translations = {
     registered: "Registered",
     unregistered: "Unregistered",
     notSet: "Not set",
+    nameRequired: "Please enter an asset name.",
     step1: "Basic Info",
     step2: "DataAddress",
     step3: "AAS Metadata",

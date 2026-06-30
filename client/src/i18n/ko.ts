@@ -212,6 +212,7 @@ const ko = {
     registered: "등록",
     unregistered: "미등록",
     notSet: "미설정",
+    nameRequired: "자산 이름을 입력해 주세요.",
     step1: "기본 정보",
     step2: "데이터 주소",
     step3: "AAS 메타데이터",

@@ -963,6 +963,7 @@ function AssetWizard({
   const [description, setDescription] = useState(baseSrc?.description ?? "");
   const [version, setVersion] = useState(baseSrc?.ver ?? "v3.0");
   const [idError, setIdError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   // Step 2 state
   const [addrType, setAddrType] = useState(
@@ -1052,6 +1053,11 @@ function AssetWizard({
     const formatErr = validateAssetId(assetId);
     if (formatErr) {
       setIdError(formatErr);
+      return false;
+    }
+    // 자산 이름 필수 — 목록/상세에서 사람이 읽는 식별 라벨로 쓰이므로 빈 값 차단.
+    if (!label.trim()) {
+      setNameError(t.assets.nameRequired);
       return false;
     }
     if (!connectorId || isEdit) {
@@ -1297,11 +1303,12 @@ function AssetWizard({
                   <option value="cx-taxo:BOM">cx-taxo:BOM</option>
                 </select>
               </FormField>
-              <FormField label={t.assets.assetName}>
+              <FormField label={t.assets.assetName} required>
                 <input
                   value={label}
                   onChange={e => {
                     setLabel(e.target.value);
+                    setNameError(null);
                     markDirty();
                   }}
                   list={fhId("asset.name")}
@@ -1311,6 +1318,11 @@ function AssetWizard({
                   id={fhId("asset.name")}
                   options={suggestions["asset.name"]}
                 />
+                {nameError && (
+                  <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
+                    <AlertCircle className="w-3 h-3" /> {nameError}
+                  </div>
+                )}
               </FormField>
               <FormField label={t.assets.description}>
                 <input
