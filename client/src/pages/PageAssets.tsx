@@ -15,6 +15,11 @@ import {
 import { type Asset } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
+  useFieldHistory,
+  fhId,
+  HistoryDatalist,
+} from "@/components/FieldHistory";
+import {
   Card,
   CardTitle,
   Badge,
@@ -928,6 +933,15 @@ function AssetWizard({
   // 동기 중복 제출 가드 — disabled={saving}는 React state라 같은 틱 더블클릭을 못 막는다.
   const savingRef = useRef(false);
   const steps = [t.assets.step1, t.assets.step2, t.assets.step3];
+  // 입력 이력 기반 자동완성 — 반복 입력 필드만(고유 UUID aasId/submodelId·민감 authCode·중복위험 assetId 제외).
+  const { suggestions, record } = useFieldHistory([
+    "asset.name",
+    "asset.baseUrl",
+    "asset.contentType",
+    "asset.sem",
+    "asset.ver",
+    "asset.aasVersion",
+  ]);
 
   // Step 1 state — duplicate appends "-copy" to ID, name keeps with " (Copy)"
   const initialId = editTarget
@@ -1163,6 +1177,15 @@ function AssetWizard({
       await queryClient.invalidateQueries({
         queryKey: ["assets", connectorId],
       });
+      // 입력값을 서버 이력에 기록(다음 작성 시 자동완성). record() 가 빈값은 무시.
+      record([
+        { fieldKey: "asset.name", value: label },
+        { fieldKey: "asset.baseUrl", value: baseUrl },
+        { fieldKey: "asset.contentType", value: contentType },
+        { fieldKey: "asset.sem", value: semanticId },
+        { fieldKey: "asset.ver", value: version },
+        { fieldKey: "asset.aasVersion", value: aasVersion },
+      ]);
       toast.success(isEdit ? t.assets.updateComplete : t.assets.createComplete);
       onDone();
     } catch (err) {
@@ -1281,7 +1304,12 @@ function AssetWizard({
                     setLabel(e.target.value);
                     markDirty();
                   }}
+                  list={fhId("asset.name")}
                   className={inputBase}
+                />
+                <HistoryDatalist
+                  id={fhId("asset.name")}
+                  options={suggestions["asset.name"]}
                 />
               </FormField>
               <FormField label={t.assets.description}>
@@ -1301,7 +1329,12 @@ function AssetWizard({
                     setVersion(e.target.value);
                     markDirty();
                   }}
+                  list={fhId("asset.ver")}
                   className={inputBase}
+                />
+                <HistoryDatalist
+                  id={fhId("asset.ver")}
+                  options={suggestions["asset.ver"]}
                 />
               </FormField>
             </div>
@@ -1340,7 +1373,12 @@ function AssetWizard({
                     setBaseUrl(e.target.value);
                     markDirty();
                   }}
+                  list={fhId("asset.baseUrl")}
                   className={`${inputBase} mono`}
+                />
+                <HistoryDatalist
+                  id={fhId("asset.baseUrl")}
+                  options={suggestions["asset.baseUrl"]}
                 />
                 {baseUrl && !baseUrl.startsWith("https://") && (
                   <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
@@ -1403,7 +1441,12 @@ function AssetWizard({
                     setContentType(e.target.value);
                     markDirty();
                   }}
+                  list={fhId("asset.contentType")}
                   className={inputBase}
+                />
+                <HistoryDatalist
+                  id={fhId("asset.contentType")}
+                  options={suggestions["asset.contentType"]}
                 />
               </FormField>
             </div>
@@ -1435,7 +1478,12 @@ function AssetWizard({
                     markDirty();
                   }}
                   placeholder="urn:samm:io.catenax...."
+                  list={fhId("asset.sem")}
                   className={`${inputBase} mono`}
+                />
+                <HistoryDatalist
+                  id={fhId("asset.sem")}
+                  options={suggestions["asset.sem"]}
                 />
                 {semanticId && semanticId.startsWith("urn:samm:") && (
                   <div className="flex items-center gap-1 mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">
@@ -1450,7 +1498,12 @@ function AssetWizard({
                     setAasVersion(e.target.value);
                     markDirty();
                   }}
+                  list={fhId("asset.aasVersion")}
                   className={inputBase}
+                />
+                <HistoryDatalist
+                  id={fhId("asset.aasVersion")}
+                  options={suggestions["asset.aasVersion"]}
                 />
               </FormField>
             </div>
