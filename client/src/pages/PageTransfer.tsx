@@ -59,6 +59,11 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
+import {
+  useFieldHistory,
+  fhId,
+  HistoryDatalist,
+} from "@/components/FieldHistory";
 
 /* ── helpers ──────────────────────────────────────────────────── */
 const INPUT_CLS = inputBase;
@@ -203,7 +208,7 @@ function DataViewer({
 
 /* ── component ────────────────────────────────────────────────── */
 export default function PageTransfer() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const search = useSearch();
   const qParams = useMemo(() => new URLSearchParams(search), [search]);
 
@@ -216,6 +221,13 @@ export default function PageTransfer() {
   const [counterPartyAddress, setCounterPartyAddress] = useState(
     () => qParams.get("cpa") ?? ""
   );
+  // 입력 이력 기반 자동완성(계약 ID·Provider DSP·자산 ID·Sink endpoint).
+  const { suggestions, record } = useFieldHistory([
+    "transfer.agreementId",
+    "transfer.counterPartyAddress",
+    "transfer.assetId",
+    "transfer.dataSink.endpoint",
+  ]);
 
   // Pre-fill form when navigated from negotiation page
   useEffect(() => {
@@ -496,6 +508,15 @@ export default function PageTransfer() {
       );
       return;
     }
+    // 형식 보강: Provider DSP 엔드포인트는 http(s):// URL 이어야 한다.
+    if (!/^https?:\/\//i.test(counterPartyAddress.trim())) {
+      toast.warning(
+        locale === "ko"
+          ? "Provider DSP 엔드포인트는 http:// 또는 https:// 로 시작해야 합니다."
+          : "Provider DSP endpoint must start with http:// or https://."
+      );
+      return;
+    }
     const isProxy = sinkType === "HttpProxy";
     if (!isProxy && !sinkEndpoint.trim()) {
       toast.warning(t.transfers.endpointRequired);
@@ -514,6 +535,18 @@ export default function PageTransfer() {
         connectorId
       );
       toast.success(t.transfers.started);
+      // 입력값을 서버 이력에 기록(다음 작성 시 자동완성). record() 가 빈값은 무시.
+      record([
+        { fieldKey: "transfer.agreementId", value: agreementId },
+        {
+          fieldKey: "transfer.counterPartyAddress",
+          value: counterPartyAddress,
+        },
+        { fieldKey: "transfer.assetId", value: assetId },
+        ...(sinkType !== "HttpProxy"
+          ? [{ fieldKey: "transfer.dataSink.endpoint", value: sinkEndpoint }]
+          : []),
+      ]);
       // 전송 시작은 EDR 발급 트리거 — EDR 목록·통계도 무효화해 교차 페이지 stale 방지.
       queryClient.invalidateQueries({ queryKey: ["transfers", connectorId] });
       queryClient.invalidateQueries({ queryKey: ["edrs", connectorId] });
@@ -839,7 +872,12 @@ export default function PageTransfer() {
                 value={agreementId}
                 onChange={e => setAgreementId(e.target.value)}
                 placeholder="contract-agreement-id"
+                list={fhId("transfer.agreementId")}
                 className={INPUT_CLS}
+              />
+              <HistoryDatalist
+                id={fhId("transfer.agreementId")}
+                options={suggestions["transfer.agreementId"]}
               />
             </FormField>
 
@@ -852,7 +890,12 @@ export default function PageTransfer() {
                 value={counterPartyAddress}
                 onChange={e => setCounterPartyAddress(e.target.value)}
                 placeholder="http://controlplane:8283/api/v1/dsp/2025-1"
+                list={fhId("transfer.counterPartyAddress")}
                 className={INPUT_CLS}
+              />
+              <HistoryDatalist
+                id={fhId("transfer.counterPartyAddress")}
+                options={suggestions["transfer.counterPartyAddress"]}
               />
             </FormField>
 
@@ -862,7 +905,12 @@ export default function PageTransfer() {
                 value={assetId}
                 onChange={e => setAssetId(e.target.value)}
                 placeholder="asset-id"
+                list={fhId("transfer.assetId")}
                 className={INPUT_CLS}
+              />
+              <HistoryDatalist
+                id={fhId("transfer.assetId")}
+                options={suggestions["transfer.assetId"]}
               />
             </FormField>
 
@@ -887,7 +935,12 @@ export default function PageTransfer() {
                   value={sinkEndpoint}
                   onChange={e => setSinkEndpoint(e.target.value)}
                   placeholder="https://sink.example.com/receive"
+                  list={fhId("transfer.dataSink.endpoint")}
                   className={INPUT_CLS}
+                />
+                <HistoryDatalist
+                  id={fhId("transfer.dataSink.endpoint")}
+                  options={suggestions["transfer.dataSink.endpoint"]}
                 />
               </FormField>
             )}

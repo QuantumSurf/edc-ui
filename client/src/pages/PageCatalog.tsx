@@ -42,6 +42,11 @@ import {
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
+import {
+  useFieldHistory,
+  fhId,
+  HistoryDatalist,
+} from "@/components/FieldHistory";
 
 interface PageCatalogProps {
   onNav: (path: string) => void;
@@ -61,6 +66,11 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
   // 협상 진행 중인 오퍼 — 해당 행만 비활성+스피너로 표시(전체 행 동시 비활성화 방지).
   const [pendingOfferId, setPendingOfferId] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentCatalogEntry[]>(() => getRecent());
+  // 서버 입력 이력 기반 자동완성(개별 필드) — localStorage recent(전체 쌍)와 병행.
+  const { suggestions, record } = useFieldHistory([
+    "catalog.dspEndpoint",
+    "catalog.counterPartyId",
+  ]);
 
   // cross-tab 동기화 — 다른 탭에서 최근조회가 바뀌면(storage 이벤트는 타 탭 변경만 도착) 재동기화.
   useEffect(() => {
@@ -120,6 +130,15 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
       toast.error(t.catalog.bpnRequired);
       return;
     }
+    // 형식 보강: DSP 엔드포인트는 http(s):// URL 이어야 한다(빈값 외 형식 오류 사전 차단).
+    if (!/^https?:\/\//i.test(url.trim())) {
+      toast.error(
+        locale === "ko"
+          ? "DSP 엔드포인트는 http:// 또는 https:// 로 시작해야 합니다."
+          : "DSP endpoint must start with http:// or https://."
+      );
+      return;
+    }
     if (!connectorId) return;
     setLoading(true);
     setError(null);
@@ -128,6 +147,11 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
       setOffers(result);
       setLoaded(true);
       setRecent(addRecent({ url, counterPartyId }));
+      // 조회 성공 시 입력값을 서버 이력에 기록(다음 작성 시 자동완성 제안).
+      record([
+        { fieldKey: "catalog.dspEndpoint", value: url },
+        { fieldKey: "catalog.counterPartyId", value: counterPartyId },
+      ]);
     } catch (err: unknown) {
       // EDC가 돌려준 actionable 에러(4xx 검증·SSRF 거부, 5xx 자격증명/구성 실패 등)는
       // 실제 원인 메시지를 노출, 그 외(전송/내부 마스킹)는 로컬라이즈된 안내 문구를 사용.
@@ -294,7 +318,12 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                 }}
                 placeholder={t.catalog.dspPlaceholder}
                 aria-label={t.catalog.dspLabel}
+                list={fhId("catalog.dspEndpoint")}
                 className={`${inputBase} pl-8 mono placeholder:font-sans placeholder:font-normal`}
+              />
+              <HistoryDatalist
+                id={fhId("catalog.dspEndpoint")}
+                options={suggestions["catalog.dspEndpoint"]}
               />
             </div>
           </div>
@@ -311,7 +340,12 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
                 }}
                 placeholder={t.catalog.bpnPlaceholder}
                 aria-label={t.catalog.bpnLabel}
+                list={fhId("catalog.counterPartyId")}
                 className={`${inputBase} pl-8 mono placeholder:font-sans placeholder:font-normal`}
+              />
+              <HistoryDatalist
+                id={fhId("catalog.counterPartyId")}
+                options={suggestions["catalog.counterPartyId"]}
               />
             </div>
             <PrimaryActionButton

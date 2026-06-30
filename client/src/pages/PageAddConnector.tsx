@@ -13,6 +13,11 @@ import { Plug, Loader2, CheckCircle2, XCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { testConnection, registerConnector, fetchTenantInfo } from "@/services";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  useFieldHistory,
+  fhId,
+  HistoryDatalist,
+} from "@/components/FieldHistory";
 
 interface AddConnectorPanelProps {
   open: boolean;
@@ -32,6 +37,13 @@ export default function AddConnectorPanel({
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  // 입력 이력 기반 자동완성(이름·URL·DID). apiKey 는 민감필드라 제외.
+  const { suggestions, record } = useFieldHistory([
+    "connector.name",
+    "connector.managementUrl",
+    "connector.dspEndpoint",
+    "connector.did",
+  ]);
 
   // Form state
   const [name, setName] = useState("");
@@ -122,6 +134,31 @@ export default function AddConnectorPanel({
       toast.error(t.addConnector.fillRequired);
       return;
     }
+    // 형식 보강: 엔드포인트는 http(s):// URL, DID 는 'did:' 접두(입력 시).
+    if (!/^https?:\/\//i.test(managementUrl.trim())) {
+      toast.error(
+        locale === "ko"
+          ? "Management API URL은 http:// 또는 https:// 로 시작해야 합니다."
+          : "Management API URL must start with http:// or https://."
+      );
+      return;
+    }
+    if (!/^https?:\/\//i.test(dspEndpoint.trim())) {
+      toast.error(
+        locale === "ko"
+          ? "DSP 엔드포인트는 http:// 또는 https:// 로 시작해야 합니다."
+          : "DSP endpoint must start with http:// or https://."
+      );
+      return;
+    }
+    if (did.trim() && !/^did:/i.test(did.trim())) {
+      toast.error(
+        locale === "ko"
+          ? "DID는 'did:' 로 시작해야 합니다."
+          : "DID must start with 'did:'."
+      );
+      return;
+    }
     setRegistering(true);
     try {
       await registerConnector({
@@ -137,6 +174,13 @@ export default function AddConnectorPanel({
       });
       queryClient.invalidateQueries({ queryKey: ["connectors"] });
       queryClient.invalidateQueries({ queryKey: ["fleet-kpi"] });
+      // 입력값을 서버 이력에 기록(다음 작성 시 자동완성). record() 가 빈값(did 등)은 무시.
+      record([
+        { fieldKey: "connector.name", value: name },
+        { fieldKey: "connector.managementUrl", value: managementUrl },
+        { fieldKey: "connector.dspEndpoint", value: dspEndpoint },
+        { fieldKey: "connector.did", value: did },
+      ]);
       toast.success(t.addConnector.registered);
       onClose();
     } catch (err: unknown) {
@@ -188,7 +232,12 @@ export default function AddConnectorPanel({
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="KMX-PROD-03"
+                list={fhId("connector.name")}
                 className={inputClass}
+              />
+              <HistoryDatalist
+                id={fhId("connector.name")}
+                options={suggestions["connector.name"]}
               />
             </FormField>
             {/* 조직 BPN — 읽기전용(설정에서 관리). 어떤 조직으로 등록되는지 컨텍스트 제공 */}
@@ -226,7 +275,12 @@ export default function AddConnectorPanel({
                     setTestResult(null);
                   }}
                   placeholder="https://edc-cp-03.kmx.io/management"
+                  list={fhId("connector.managementUrl")}
                   className={`${inputClass} mono flex-1`}
+                />
+                <HistoryDatalist
+                  id={fhId("connector.managementUrl")}
+                  options={suggestions["connector.managementUrl"]}
                 />
                 {testResult && (
                   <span
@@ -250,7 +304,12 @@ export default function AddConnectorPanel({
                 value={dspEndpoint}
                 onChange={e => setDspEndpoint(e.target.value)}
                 placeholder="https://edc-cp-03.kmx.io/api/v1/dsp"
+                list={fhId("connector.dspEndpoint")}
                 className={`${inputClass} mono`}
+              />
+              <HistoryDatalist
+                id={fhId("connector.dspEndpoint")}
+                options={suggestions["connector.dspEndpoint"]}
               />
             </FormField>
           </div>
@@ -322,7 +381,12 @@ export default function AddConnectorPanel({
                 value={did}
                 onChange={e => setDid(e.target.value)}
                 placeholder="did:web:kmx.io:participants:kmx-prod-03"
+                list={fhId("connector.did")}
                 className={`${inputClass} mono`}
+              />
+              <HistoryDatalist
+                id={fhId("connector.did")}
+                options={suggestions["connector.did"]}
               />
             </FormField>
           </div>
