@@ -38,6 +38,7 @@ import shellsRouter from "./routes/shells.js";
 import submodelsRouter from "./routes/submodels.js";
 import semanticsRouter from "./routes/semantics.js";
 import auditRouter from "./routes/audit.js";
+import fieldHistoryRouter from "./routes/fieldHistory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -172,6 +173,8 @@ async function startServer() {
   app.use("/api/semantics", semanticsRouter);
   // Audit Log — 테넌트 범위 보안 이벤트 조회(admin/operator)
   app.use("/api/audit", auditRouter);
+  // Field History — 작성 폼 자동완성용 입력 이력(테넌트 범위, 인증 사용자)
+  app.use("/api/field-history", fieldHistoryRouter);
 
   // Error handler (must be after routes)
   app.use(errorHandler);

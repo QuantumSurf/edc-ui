@@ -126,6 +126,27 @@ export async function fetchAuditEvents(limit = 500): Promise<unknown[]> {
   return Array.isArray(data) ? data : [];
 }
 
+/* ── Field History (작성 폼 자동완성) ─────────────────────────── */
+// 필드 키 목록에 대한 이전 입력값 제안(테넌트 범위). { [key]: string[] }
+export async function fetchFieldHistory(
+  keys: string[]
+): Promise<Record<string, string[]>> {
+  if (!keys.length) return {};
+  const { data } = await http.get("/field-history", {
+    params: { keys: keys.join(",") },
+  });
+  return data && typeof data === "object" ? data : {};
+}
+
+// 작성 폼 제출 시 입력값 기록(fire-and-forget — 실패해도 본 흐름에 영향 없음).
+export function recordFieldHistory(
+  entries: { fieldKey: string; value: string }[]
+): void {
+  const valid = entries.filter(e => e && e.value && e.value.trim());
+  if (!valid.length) return;
+  void http.post("/field-history", { entries: valid }).catch(() => {});
+}
+
 export async function registerConnector(entry: {
   name: string;
   bpn: string;

@@ -272,6 +272,23 @@ async function createSchema(): Promise<void> {
   await getPool().query(
     `CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_logs(tenant_id, created_at DESC);`
   );
+
+  // 입력 이력(Field History): 작성 폼의 자유텍스트 입력값을 테넌트별로 저장 → 자동완성 제안.
+  // (tenant_id, field_key, value) 복합 PK 로 멱등 upsert, use_count/last_used_at 로 빈도·최근순 정렬.
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS field_history (
+      tenant_id     TEXT NOT NULL,
+      field_key     TEXT NOT NULL,
+      value         TEXT NOT NULL,
+      use_count     INTEGER NOT NULL DEFAULT 1,
+      last_used_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, field_key, value)
+    );
+  `);
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_field_history_lookup
+       ON field_history(tenant_id, field_key, use_count DESC, last_used_at DESC);`
+  );
 }
 
 // prod 에서 거부할 흔한 약비번(소문자 비교). 길이 검사만으로는 'password' 등을 못 막는다.
