@@ -1,7 +1,7 @@
 // Connector Hub — Policy Management with ODRL Builder (spec 4.3)
 // Left/Right Operand dynamic suggestions, responsive JSON preview
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import {
@@ -1165,6 +1165,8 @@ function ODRLBuilder({
   const [policyId, setPolicyId] = useState(initialId);
   const [policyIdError, setPolicyIdError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 동기 중복 제출 가드 — disabled={submitting}는 React state라 같은 틱 더블클릭을 못 막는다.
+  const submittingRef = useRef(false);
   const [constraints, setConstraints] =
     useState<Constraint[]>(initialConstraints);
   // 편집/복제 시 ruleType/action을 baseSrc에서 복원(과거: 항상 permission/use로 초기화돼
@@ -1363,10 +1365,29 @@ function ODRLBuilder({
       toast.error(idErr);
       return;
     }
-    if (constraints.some(c => !c.rightOperand)) {
+    if (constraints.some(c => !c.leftOperand.trim())) {
+      toast.error(t.policies.leftOperandRequired);
+      return;
+    }
+    if (constraints.some(c => !c.rightOperand.trim())) {
       toast.error(t.policies.rightOperandRequired);
       return;
     }
+    // > / < (gt/lt) 비교 연산자는 순서 있는 값(이 앱에선 숫자뿐)에만 의미가 있으므로
+    // 오른쪽 피연산자가 숫자인지 검증한다(예: 공유 횟수 < 5).
+    if (
+      constraints.some(
+        c =>
+          (c.operator === "odrl:gt" || c.operator === "odrl:lt") &&
+          !/^-?\d+(\.\d+)?$/.test(c.rightOperand.trim())
+      )
+    ) {
+      toast.error(t.policies.operandMustBeNumber);
+      return;
+    }
+    // 더블클릭/중복 제출 방지 — 첫 호출이 진행 중이면 이후 호출은 즉시 무시(정책 2개 생성 차단).
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const payload = {
@@ -1394,12 +1415,14 @@ function ODRLBuilder({
       toast.error(isEdit ? t.policies.updateFailed : t.policies.createFailed, {
         description: msg || undefined,
       });
+      submittingRef.current = false;
       setSubmitting(false);
       return;
     }
     try {
       await queryClient.refetchQueries({ queryKey: ["policies", connectorId] });
     } catch {}
+    submittingRef.current = false;
     setSubmitting(false);
     onDone();
   };
@@ -1654,19 +1677,53 @@ function ODRLBuilder({
                   </select>
                 </FormField>
                 <FormField label={t.policies.rightOperand}>
-                  <input
-                    value={c.rightOperand}
-                    onChange={e =>
-                      updateConstraint(idx, "rightOperand", e.target.value)
-                    }
-                    list={`suggestions-${idx}`}
-                    className={`${inputBase} mono`}
-                  />
-                  <datalist id={`suggestions-${idx}`}>
-                    {(RIGHT_OPERAND_SUGGESTIONS[c.leftOperand] ?? []).map(s => (
-                      <option key={s} value={s} />
-                    ))}
-                  </datalist>
+                  {(() => {
+                    // 비교 연산자(> / <)는 순서 있는 값(이 앱에선 숫자)에만 의미가 있으므로
+                    // 입력 시점에 숫자 키패드 힌트 + 안내/경고를 제공한다(저장 전 사전 안내).
+                    const isCompare =
+                      c.operator === "odrl:gt" || c.operator === "odrl:lt";
+                    const numeric = /^-?\d+(\.\d+)?$/.test(
+                      c.rightOperand.trim()
+                    );
+                    const showNumberError =
+                      isCompare && c.rightOperand.trim() !== "" && !numeric;
+                    return (
+                      <>
+                        <input
+                          value={c.rightOperand}
+                          onChange={e =>
+                            updateConstraint(idx, "rightOperand", e.target.value)
+                          }
+                          list={`suggestions-${idx}`}
+                          inputMode={isCompare ? "numeric" : undefined}
+                          className={cn(
+                            inputBase,
+                            "mono",
+                            showNumberError &&
+                              "border-rose-400 focus:border-rose-400 ring-1 ring-rose-400"
+                          )}
+                        />
+                        <datalist id={`suggestions-${idx}`}>
+                          {(RIGHT_OPERAND_SUGGESTIONS[c.leftOperand] ?? []).map(
+                            s => (
+                              <option key={s} value={s} />
+                            )
+                          )}
+                        </datalist>
+                        {isCompare &&
+                          (showNumberError ? (
+                            <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
+                              <AlertCircle className="w-3 h-3" />
+                              {t.policies.operandNumberError}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-[11px] text-muted-foreground">
+                              {t.policies.operandNumberHint}
+                            </div>
+                          ))}
+                      </>
+                    );
+                  })()}
                 </FormField>
               </div>
             </div>

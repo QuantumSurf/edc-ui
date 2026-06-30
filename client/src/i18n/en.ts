@@ -275,7 +275,12 @@ const en: Translations = {
     saving: "Saving...",
     createFailed: "Failed to create policy.",
     policyIdRequired: "Please enter a Policy ID.",
+    leftOperandRequired: "All Constraints must have a Left Operand.",
     rightOperandRequired: "All Constraints must have a Right Operand.",
+    operandMustBeNumber:
+      "The > / < operators require a numeric Right Operand (e.g. Transfer Count).",
+    operandNumberHint: "Comparison (> / <) expects a number (e.g. 5).",
+    operandNumberError: "Only numbers are allowed.",
     idTooLong: "Policy ID must be 128 characters or fewer.",
     idNoSpaces: "Policy ID cannot contain whitespace.",
     idInvalidChars: "Policy ID cannot contain / ? # % & characters.",

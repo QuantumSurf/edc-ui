@@ -281,7 +281,12 @@ const ko = {
     saving: "저장 중...",
     createFailed: "정책 생성에 실패했습니다.",
     policyIdRequired: "정책 ID를 입력하세요.",
+    leftOperandRequired: "모든 제약 조건의 왼쪽 피연산자를 입력하세요.",
     rightOperandRequired: "모든 제약 조건의 오른쪽 피연산자를 입력하세요.",
+    operandMustBeNumber:
+      "> / < 연산자는 오른쪽 피연산자에 숫자를 입력해야 합니다 (예: 공유 횟수).",
+    operandNumberHint: "비교(> / <)에는 숫자를 입력하세요 (예: 5).",
+    operandNumberError: "숫자만 입력할 수 있습니다.",
     idTooLong: "정책 ID는 128자 이하여야 합니다.",
     idNoSpaces: "정책 ID에 공백을 포함할 수 없습니다.",
     idInvalidChars: "정책 ID는 / ? # % & 문자를 포함할 수 없습니다.",
