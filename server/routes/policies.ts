@@ -31,6 +31,28 @@ async function resolveConnector(id: string) {
   };
 }
 
+// 서버 측 정책 제약 검증(이중 방어) — 평면 빌더 경로에만 적용한다(@context 사전조립
+// JSON-LD 경로는 건드리지 않는다). 클라이언트 검증을 우회한 직접 API 호출로도 깨진
+// 정책(빈 피연산자, 비숫자 비교)이 EDC에 저장되는 것을 막는다.
+// 빈 제약 배열(개방형 정책)은 정상이므로 통과시킨다.
+function validatePolicyConstraints(constraints: unknown): string | null {
+  const list = Array.isArray(constraints) ? constraints : [];
+  for (const c of list) {
+    const cc = (c ?? {}) as Record<string, unknown>;
+    if (!String(cc.leftOperand ?? "").trim())
+      return "제약 조건의 leftOperand는 필수입니다";
+    if (!String(cc.rightOperand ?? "").trim())
+      return "제약 조건의 rightOperand는 필수입니다";
+    const op = String(cc.operator ?? "");
+    if (
+      (op === "odrl:gt" || op === "odrl:lt") &&
+      !/^-?\d+(\.\d+)?$/.test(String(cc.rightOperand).trim())
+    )
+      return "비교 연산자(> / <)의 rightOperand는 숫자여야 합니다";
+  }
+  return null;
+}
+
 // POST /:id/policies — proxy to POST /v3/policydefinitions/request (list)
 // Also fetches offerings to count per-policy references
 router.post(
@@ -97,6 +119,15 @@ router.post(
       }
 
       const { policyId, ruleType, action, logicOp, constraints } = req.body;
+      if (!String(policyId ?? "").trim()) {
+        res.status(400).json({ error: "policyId는 필수입니다" });
+        return;
+      }
+      const cErr = validatePolicyConstraints(constraints);
+      if (cErr) {
+        res.status(400).json({ error: cErr });
+        return;
+      }
       const edcBody = buildPolicyDefinition({
         policyId,
         ruleType,
@@ -137,17 +168,25 @@ router.put(
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { client } = await resolveConnector(req.params.id);
       // 이미 완전한 JSON-LD면 그대로, 아니면 빌더로 조립(@id는 URL의 policyId로 강제 정합).
-      const body = req.body?.["@context"]
-        ? req.body
-        : buildPolicyDefinition({
-            policyId: req.params.policyId,
-            ruleType: req.body?.ruleType,
-            action: req.body?.action,
-            logicOp: req.body?.logicOp,
-            constraints: req.body?.constraints,
-          });
+      let body;
+      if (req.body?.["@context"]) {
+        body = req.body;
+      } else {
+        const cErr = validatePolicyConstraints(req.body?.constraints);
+        if (cErr) {
+          res.status(400).json({ error: cErr });
+          return;
+        }
+        body = buildPolicyDefinition({
+          policyId: req.params.policyId,
+          ruleType: req.body?.ruleType,
+          action: req.body?.action,
+          logicOp: req.body?.logicOp,
+          constraints: req.body?.constraints,
+        });
+      }
+      const { client } = await resolveConnector(req.params.id);
       const response = await client.put(
         `/v3/policydefinitions/${req.params.policyId}`,
         body

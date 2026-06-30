@@ -31,6 +31,31 @@ async function resolveConnector(id: string) {
   };
 }
 
+// 서버 측 자산 입력 검증(이중 방어) — 클라이언트 검증을 우회한 직접 API 호출로도 깨진
+// 자산이 EDC에 저장되는 것을 막는다. 단, 기존 정상 데이터를 깨지 않도록 보수적으로:
+//  - baseUrl은 'https 강제'가 아니라 '파싱 가능한 URL'만 확인(내부 클러스터 http 주소 보존).
+//  - id 형식은 생성 시에만 검증(편집은 immutable한 기존 id라 재검증하지 않음).
+function validateAssetBody(
+  b: Record<string, unknown>,
+  opts: { checkId: boolean }
+): string | null {
+  if (opts.checkId) {
+    const id = String(b.id ?? "").trim();
+    if (!id) return "id는 필수입니다";
+    if (id.length > 128 || /[/?#%&\s]/.test(id))
+      return "id 형식이 올바르지 않습니다(공백·/?#%& 불가, 128자 이하)";
+  }
+  const baseUrl = typeof b.baseUrl === "string" ? b.baseUrl.trim() : "";
+  if (baseUrl) {
+    try {
+      new URL(baseUrl);
+    } catch {
+      return "baseUrl 형식이 올바르지 않습니다";
+    }
+  }
+  return null;
+}
+
 // POST /:id/assets — proxy to POST /v3/assets/request (list)
 // Also fetches offerings to determine per-asset offering status
 router.post(
@@ -87,6 +112,13 @@ router.post(
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const vErr = validateAssetBody(req.body as Record<string, unknown>, {
+        checkId: true,
+      });
+      if (vErr) {
+        res.status(400).json({ error: vErr });
+        return;
+      }
       const { client } = await resolveConnector(req.params.id);
       const edcBody = toEdcAssetBody(req.body as Record<string, unknown>);
       const response = await client.post("/v3/assets", edcBody);
@@ -119,6 +151,14 @@ router.put(
   writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // 편집은 id가 immutable한 기존 자산이므로 id 재검증은 생략(레거시 id 보존), baseUrl만 확인.
+      const vErr = validateAssetBody(req.body as Record<string, unknown>, {
+        checkId: false,
+      });
+      if (vErr) {
+        res.status(400).json({ error: vErr });
+        return;
+      }
       const { client } = await resolveConnector(req.params.id);
       const edcBody = toEdcAssetBody(
         req.body as Record<string, unknown>,
