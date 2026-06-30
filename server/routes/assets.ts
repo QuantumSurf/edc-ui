@@ -179,7 +179,33 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { client } = await resolveConnector(req.params.id);
-      const response = await client.delete(`/v3/assets/${req.params.assetId}`);
+      const assetId = req.params.assetId;
+      // 계약(ContractDefinition)이 참조 중인 자산은 삭제 거부 — 댕글링(유령) 참조 방지.
+      // UI는 이미 막지만(offered 시 삭제 비활성), 직접 API 호출/우회로도 막아 무결성을 보장한다.
+      // 목록 API의 offered 계산과 동일한 assetsSelector 교차조회를 사용한다.
+      const offRes = await client
+        .post("/v3/contractdefinitions/request", withJsonLd({}))
+        .catch(() => ({ data: [] as unknown[] }));
+      const offerings: unknown[] = Array.isArray(offRes.data) ? offRes.data : [];
+      const referenced = offerings.some(o => {
+        const off = o as Record<string, unknown>;
+        const selector = off["assetsSelector"] ?? off["edc:assetsSelector"];
+        if (!selector) return false;
+        const sel = (Array.isArray(selector) ? selector[0] : selector) as Record<
+          string,
+          unknown
+        >;
+        const right = sel?.["operandRight"] ?? sel?.["edc:operandRight"];
+        if (Array.isArray(right)) return right.some(r => String(r) === assetId);
+        return right != null && String(right) === assetId;
+      });
+      if (referenced) {
+        res
+          .status(409)
+          .json({ error: "계약에 등록된 자산은 삭제할 수 없습니다" });
+        return;
+      }
+      const response = await client.delete(`/v3/assets/${assetId}`);
       res.json(response.data);
     } catch (error) {
       next(error);
