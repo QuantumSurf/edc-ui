@@ -163,7 +163,9 @@ router.get(
           ? { tpId: nearest.tpId, asset: nearest.asset, left: nearest.left }
           : null,
         gcScheduler: {
-          interval: `${gcInterval}s (${Math.round(gcInterval / 60)}분)`,
+          // 언어 중립 약어(s/m) — 서버는 보는 사용자 언어를 모르므로 '분' 같은 한국어를
+          // 넣지 않는다(영문 모드 누출 방지). 옆의 '300s'·grace '300s'와 일관.
+          interval: `${gcInterval}s (${Math.round(gcInterval / 60)}m)`,
           batchSize: gcBatchSize,
           grace: `${gcGrace}s`,
           lastRun: new Date(lastRunMs).toLocaleTimeString("ko-KR", {
