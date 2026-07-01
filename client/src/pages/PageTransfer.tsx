@@ -129,7 +129,7 @@ function DataViewer({
   return (
     <SlidePanel open={true} onClose={onClose} className="max-w-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 pr-10 border-b border-border bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <FileText className="w-4 h-4 text-primary flex-shrink-0" />
           <p className="text-[15px] font-semibold text-foreground truncate">
@@ -152,13 +152,6 @@ function DataViewer({
             className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={onClose}
-            aria-label={t.common.close}
-            className="-mr-1 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -452,7 +445,9 @@ export default function PageTransfer() {
         connectorId,
         effectivePath || undefined
       );
-      // 모달 표시
+      // 데이터 뷰어 표시 — 상세 패널과 같은 z-50 이라 상세가 열려 있으면 뷰어를 덮어버린다
+      // (상세가 DOM에서 나중 렌더). 뷰어를 열 때 상세 패널을 닫아 바로 보이게 한다.
+      setDetailTarget(null);
       setDataViewer({
         tpId,
         asset,
@@ -1002,13 +997,6 @@ function TransferDetailSheet({
               <AlertTriangle className="w-3.5 h-3.5" />
             </span>
           )}
-          <button
-            onClick={onClose}
-            className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label={t.common.close}
-          >
-            <X size={16} />
-          </button>
         </div>
         <div className="flex items-center gap-1.5 mt-1">
           <span className="text-[11px] mono text-muted-foreground truncate">
