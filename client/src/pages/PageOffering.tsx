@@ -164,6 +164,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
     <>
       <SectionHdr
         icon={<FileSignature className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.offerings}
         action={
           <RoleGate permission="resource:write">
             <PrimaryActionButton

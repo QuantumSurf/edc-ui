@@ -64,6 +64,26 @@ const ko = {
     actions: "액션",
   },
 
+  // ── Page subtitles (SectionHdr 제목 아래 한 줄 설명) ──
+  pageSubtitles: {
+    dashboard: "플릿 전반의 핵심 지표와 최근 활동을 요약합니다.",
+    fleet: "등록된 EDC 커넥터의 상태와 리소스를 한눈에 관리합니다.",
+    assets: "커넥터에 등록된 데이터 자산을 생성·수정·삭제합니다.",
+    policies: "데이터 접근·사용을 제어하는 ODRL 정책을 관리합니다.",
+    offerings: "자산과 정책을 묶어 카탈로그에 게시할 계약을 정의합니다.",
+    negotiations: "거래 상대와의 계약 협상 진행 상태를 추적합니다.",
+    transfers: "협상된 계약에 따른 데이터 전송을 시작하고 관리합니다.",
+    edr: "발급된 EDR(데이터 접근 토큰)의 상태와 만료를 관리합니다.",
+    catalog: "거래 상대의 데이터 카탈로그를 조회하고 협상을 시작합니다.",
+    shells: "디지털 트윈 레지스트리(DTR)의 AAS 쉘 디스크립터를 관리합니다.",
+    submodels: "쉘에 연결된 서브모델 디스크립터를 관리합니다.",
+    vault: "커넥터 시크릿을 보관하는 Vault의 상태와 항목을 확인합니다.",
+    infra: "플랫폼 인프라(PostgreSQL 등)의 상태를 확인합니다.",
+    identityHub: "참여자의 분산 신원(DID)과 자격증명을 확인합니다.",
+    audit: "테넌트의 보안·변경 이벤트 감사 로그를 조회합니다.",
+    settings: "조직·연동·알림 등 서비스 환경을 설정합니다.",
+  },
+
   // ── Navigation ──
   nav: {
     fleetOverview: "커넥터 플릿",

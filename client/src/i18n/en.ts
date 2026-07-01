@@ -64,6 +64,28 @@ const en: Translations = {
     actions: "Actions",
   },
 
+  pageSubtitles: {
+    dashboard: "Fleet-wide KPIs and recent activity at a glance.",
+    fleet: "Monitor and manage your registered EDC connectors and resources.",
+    assets: "Create, edit, and remove data assets registered on the connector.",
+    policies: "Manage ODRL policies that govern data access and usage.",
+    offerings:
+      "Define contract offerings that bind assets and policies for the catalog.",
+    negotiations:
+      "Track the progress of contract negotiations with counterparties.",
+    transfers: "Start and manage data transfers under agreed contracts.",
+    edr: "Manage issued EDR access tokens, their status and expiry.",
+    catalog: "Browse a counterparty's data catalog and start negotiations.",
+    shells: "Manage AAS shell descriptors in the Digital Twin Registry.",
+    submodels: "Manage submodel descriptors linked to the shell.",
+    vault: "Inspect the Vault that stores connector secrets and its entries.",
+    infra: "Inspect platform infrastructure such as PostgreSQL.",
+    identityHub:
+      "View the participant's decentralized identity (DID) and credentials.",
+    audit: "Review the tenant's security and change audit log.",
+    settings: "Configure organization, integrations, and notification preferences.",
+  },
+
   nav: {
     fleetOverview: "Connector Fleet",
     dashboard: "Dashboard",

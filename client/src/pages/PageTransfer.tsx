@@ -602,7 +602,7 @@ export default function PageTransfer() {
           }}
         />
       )}
-      <SectionHdr icon={<Send className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<Send className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.transfers}>
         {t.transfers.title}
       </SectionHdr>
 

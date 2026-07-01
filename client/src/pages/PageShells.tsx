@@ -120,6 +120,7 @@ export default function PageShells() {
     <>
       <SectionHdr
         icon={<BookMarked className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.shells}
         action={
           <div className="flex items-center gap-1.5">
             <button

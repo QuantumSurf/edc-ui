@@ -406,6 +406,7 @@ export default function PagePolicy() {
     <>
       <SectionHdr
         icon={<ShieldCheck className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.policies}
         action={
           <RoleGate permission="resource:write">
             <PrimaryActionButton

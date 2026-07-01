@@ -89,7 +89,7 @@ export default function PageEDR() {
 
   return (
     <>
-      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.edr}>
         {t.edr.title}
       </SectionHdr>
 

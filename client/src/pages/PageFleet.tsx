@@ -129,6 +129,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
       {/* Section Header (KPI 카드는 이 "커넥터 플릿" 제목 아래에 표시) */}
       <SectionHdr
         icon={<LayoutGrid className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.fleet}
         action={
           <RoleGate permission="connector:write">
             <PrimaryActionButton

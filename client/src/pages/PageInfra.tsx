@@ -96,7 +96,7 @@ export default function PageInfra() {
 
   return (
     <>
-      <SectionHdr action={<DataSourceBadge mode={isLive ? "mixed" : "demo"} />}>
+      <SectionHdr action={<DataSourceBadge mode={isLive ? "mixed" : "demo"} />} subtitle={t.pageSubtitles.infra}>
         {t.infra.title}
       </SectionHdr>
 

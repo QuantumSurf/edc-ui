@@ -400,10 +400,16 @@ interface SectionHdrProps {
   children: React.ReactNode;
   action?: React.ReactNode;
   icon?: React.ReactNode;
+  /** 제목 아래 한 줄 부제목(페이지 설명). 있으면 제목과 구분선 사이에 muted 로 표시. */
+  subtitle?: React.ReactNode;
 }
 
-export function SectionHdr({ children, action, icon }: SectionHdrProps) {
-  // breadcrumb(예: 'Provider Org') 서브제목은 제거 — 페이지 위치는 상단바 브레드크럼으로 충분.
+export function SectionHdr({
+  children,
+  action,
+  icon,
+  subtitle,
+}: SectionHdrProps) {
   return (
     <div className="mb-1">
       <div className="flex items-center justify-between gap-2">
@@ -413,6 +419,9 @@ export function SectionHdr({ children, action, icon }: SectionHdrProps) {
         </h1>
         {action}
       </div>
+      {subtitle && (
+        <p className="text-[13px] text-muted-foreground mt-1">{subtitle}</p>
+      )}
       <div className="h-px bg-border mt-1.5" />
     </div>
   );

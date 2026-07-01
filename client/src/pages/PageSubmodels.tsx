@@ -184,6 +184,7 @@ export default function PageSubmodels() {
     <>
       <SectionHdr
         icon={<Shapes className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.submodels}
         action={
           <div className="flex items-center gap-1.5">
             <button

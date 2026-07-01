@@ -322,7 +322,7 @@ export default function PageAudit() {
 
   return (
     <>
-      <SectionHdr icon={<ScrollText className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<ScrollText className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.audit}>
         {t.audit.title}
       </SectionHdr>
 

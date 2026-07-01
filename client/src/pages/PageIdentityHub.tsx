@@ -61,7 +61,7 @@ export default function PageIdentityHub({ onNav }: PageIdentityHubProps) {
 
   return (
     <>
-      <SectionHdr icon={<Fingerprint className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<Fingerprint className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.identityHub}>
         {t.identityHub.title}
       </SectionHdr>
 

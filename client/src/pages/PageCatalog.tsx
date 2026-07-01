@@ -213,7 +213,7 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
 
   return (
     <>
-      <SectionHdr icon={<Search className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<Search className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.catalog}>
         {t.catalog.title}
       </SectionHdr>
 

@@ -61,7 +61,7 @@ export default function PageSettings() {
 
   return (
     <>
-      <SectionHdr icon={<Settings className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<Settings className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.settings}>
         {t.nav.settings}
       </SectionHdr>
 

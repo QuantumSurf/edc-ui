@@ -217,7 +217,7 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
         }}
       />
 
-      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.negotiations}>
         {t.negotiations.title}
       </SectionHdr>
       {/* ── Search & Filter — fl-aggregator TasksPage style ───── */}

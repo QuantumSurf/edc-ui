@@ -161,6 +161,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
     <>
       <SectionHdr
         icon={<Package className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.assets}
         action={
           <RoleGate permission="resource:write">
             <PrimaryActionButton

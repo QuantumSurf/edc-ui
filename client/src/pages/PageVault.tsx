@@ -217,7 +217,7 @@ export default function PageVault() {
 
   return (
     <>
-      <SectionHdr icon={<Vault className="w-5 h-5 text-primary" />}>
+      <SectionHdr icon={<Vault className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.vault}>
         {t.vault.title}
       </SectionHdr>
 
