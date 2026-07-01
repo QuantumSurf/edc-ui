@@ -134,7 +134,7 @@ export default function NotificationPanel() {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/40"
         onClick={close}
         aria-hidden="true"
       />

@@ -988,15 +988,16 @@ function PolicyDetailSheet({
             >
               {t.policies.offeringRef(target.offers)}
             </Badge>
-            <button
-              onClick={onClose}
-              className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              aria-label={t.common.close}
-            >
-              <X size={16} />
-            </button>
           </div>
         </div>
+        {/* 닫기 — identityhub-ui Sheet 와 동일 우상단 절대 위치로 통일 */}
+        <button
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <X className="size-4" />
+        </button>
 
         {/* Body */}
         <div className="flex-1 overflow-auto p-6 space-y-5 text-xs">
