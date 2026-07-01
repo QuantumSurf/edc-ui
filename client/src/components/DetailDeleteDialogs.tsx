@@ -19,6 +19,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/i18n";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import {
   Loader2,
   Pencil,
@@ -359,6 +360,7 @@ export function DetailPanel({
   deleteDisabledReason,
 }: DetailDialogProps) {
   const { t } = useI18n();
+  const panelRef = useDialogA11y<HTMLElement>(open);
   const [copied, setCopied] = useState<string | null>(null);
   const [entered, setEntered] = useState(false);
 
@@ -403,8 +405,12 @@ export function DetailPanel({
         aria-hidden="true"
       />
       <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out",
+          "fixed right-0 top-0 z-50 h-full w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out outline-none",
           entered ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -589,6 +595,7 @@ export function SlidePanel({
   closeDisabled?: boolean;
 }) {
   const { t } = useI18n();
+  const panelRef = useDialogA11y<HTMLElement>(open);
   const [entered, setEntered] = useState(false);
 
   // open 변화에 슬라이드인을 연동(상주 마운트 소비자에서도 매 열기마다 모션 재생).
@@ -625,8 +632,12 @@ export function SlidePanel({
         aria-hidden="true"
       />
       <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out",
+          "fixed right-0 top-0 z-50 h-full w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out outline-none",
           entered ? "translate-x-0" : "translate-x-full",
           className
         )}

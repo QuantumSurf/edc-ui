@@ -2,6 +2,7 @@
 // Sanitizes error messages to prevent information disclosure
 import type { Request, Response, NextFunction } from "express";
 import { EdcApiError } from "../lib/edcClient.js";
+import { DtrApiError } from "../lib/dtrClient.js";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -59,6 +60,19 @@ export function errorHandler(
         ? err.detail
         : sanitizeMessage(err.detail);
     res.status(err.status).json({ error: message, source: "edc" });
+    return;
+  }
+
+  // DTR(디지털 트윈 레지스트리) 업스트림 오류 — EdcApiError 와 동일 정책.
+  // 과거엔 DtrApiError 가 이 분기가 없어 503(미도달)이 5xx 격하로 500 이 되고 4xx 상세도
+  // sanitize 됐다. err.status 를 존중해 503 은 503(재시도 가능)으로, 4xx 검증 상세는 보존한다.
+  if (err instanceof DtrApiError) {
+    console.error(`[BFF] DTR API Error: ${err.status} ${err.detail}`);
+    const msg =
+      err.status >= 400 && err.status < 500
+        ? err.detail
+        : sanitizeMessage(err.detail);
+    res.status(err.status).json({ error: msg, source: "dtr" });
     return;
   }
 
