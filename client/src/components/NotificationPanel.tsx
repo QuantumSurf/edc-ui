@@ -1,6 +1,7 @@
 // KMX EDC — Notification Panel
 // 디자인: aas-service-hub AlertPanel 과 동일 — 다크 슬라이드오버 + 심각도 필터칩 + 카드형.
-// 동작은 edc 유지: 카드 클릭=읽음+링크이동, 개별 삭제(X), 모두 읽음, 전체 삭제, 조회 실패 시 재시도.
+// 동작: 카드 클릭=확인(읽음, DB 기록 보존) + 미확인만 표시, 모두 읽음, 조회 실패 시 재시도.
+// 하드 삭제는 두지 않는다 — 읽은 기록은 백엔드 보존정리(pruneNotifications)가 정리한다.
 import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationStore } from "@/stores/notificationStore";
@@ -8,7 +9,6 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { NOTIFY_PREFS_KEY, readPref } from "@/lib/prefs";
 import { type NotificationItem } from "@/services/api";
 import { ListError } from "@/components/ui-kmx";
-import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import { useI18n } from "@/i18n";
 import {
   BellRing,
@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   X,
   CheckCheck,
-  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,12 +81,10 @@ export default function NotificationPanel() {
     isFetching,
     markAllRead,
     markRead,
-    clearAll,
   } = useNotifications();
   const timeAgo = useTimeAgo();
 
   const [filter, setFilter] = useState<"all" | NotificationType>("all");
-  const [confirmClear, setConfirmClear] = useState(false);
 
   // 타 탭에서 설정 토글이 바뀌면 storage 이벤트로 강제 리렌더해 게이트를 재평가.
   // (패널 자체가 닫혔다 열리면 마운트/리렌더로 자연히 최신 prefs 를 읽는다.)
@@ -183,24 +180,16 @@ export default function NotificationPanel() {
             ))}
           </div>
 
-          {/* Action row — 모두 읽음 / 전체 삭제 */}
-          {allNotifications.length > 0 && (
+          {/* Action row — '모두 읽음'(확인)만. 하드 삭제는 두지 않는다(클릭=확인=기록 보존 원칙,
+              읽은 기록은 백엔드 pruneNotifications 가 정리). */}
+          {unreadCount > 0 && (
             <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllRead}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
-                >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  {t.notifications.markAllRead}
-                </button>
-              )}
               <button
-                onClick={() => setConfirmClear(true)}
-                className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                onClick={markAllRead}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                {t.notifications.clearAll}
+                <CheckCheck className="w-3.5 h-3.5" />
+                {t.notifications.markAllRead}
               </button>
             </div>
           )}
@@ -325,19 +314,6 @@ export default function NotificationPanel() {
         </div>
       </div>
 
-      {/* 전체 삭제 확인 */}
-      <ConfirmActionDialog
-        open={confirmClear}
-        onClose={() => setConfirmClear(false)}
-        tone="danger"
-        title={t.notifications.clearAllConfirmTitle}
-        description={t.notifications.clearAllConfirmDesc}
-        confirmLabel={t.notifications.clearAll}
-        onConfirm={() => {
-          clearAll();
-          setConfirmClear(false);
-        }}
-      />
     </>
   );
 }
