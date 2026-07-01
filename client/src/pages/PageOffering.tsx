@@ -482,6 +482,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
             ["offerings", connectorId],
             ["policies", connectorId],
             ["assets", connectorId],
+            ["sidebar-counts", connectorId],
           ]}
         />
       )}
@@ -1010,6 +1011,9 @@ function OfferingWizard({
       });
       queryClient.invalidateQueries({ queryKey: ["policies", connectorId] });
       queryClient.invalidateQueries({ queryKey: ["assets", connectorId] });
+      queryClient.invalidateQueries({
+        queryKey: ["sidebar-counts", connectorId],
+      });
     } catch {}
     submittingRef.current = false;
     setSubmitting(false);

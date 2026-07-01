@@ -491,7 +491,10 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
           onClose={() => setDeleteTarget(null)}
           itemName={deleteTarget.id}
           onConfirm={() => deleteAsset(deleteTarget.id, connectorId)}
-          queryKeys={[["assets", connectorId]]}
+          queryKeys={[
+            ["assets", connectorId],
+            ["sidebar-counts", connectorId],
+          ]}
         />
       )}
     </>
@@ -1182,6 +1185,9 @@ function AssetWizard({
       }
       await queryClient.invalidateQueries({
         queryKey: ["assets", connectorId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["sidebar-counts", connectorId],
       });
       // 입력값을 서버 이력에 기록(다음 작성 시 자동완성). record() 가 빈값은 무시.
       record([

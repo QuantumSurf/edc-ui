@@ -565,7 +565,10 @@ export default function PagePolicy() {
           onClose={() => setDeleteTarget(null)}
           itemName={deleteTarget.id}
           onConfirm={() => deletePolicy(deleteTarget.id, connectorId)}
-          queryKeys={[["policies", connectorId]]}
+          queryKeys={[
+            ["policies", connectorId],
+            ["sidebar-counts", connectorId],
+          ]}
         />
       )}
     </>
@@ -1456,6 +1459,9 @@ function ODRLBuilder({
     }
     try {
       await queryClient.refetchQueries({ queryKey: ["policies", connectorId] });
+      queryClient.invalidateQueries({
+        queryKey: ["sidebar-counts", connectorId],
+      });
     } catch {}
     submittingRef.current = false;
     setSubmitting(false);
