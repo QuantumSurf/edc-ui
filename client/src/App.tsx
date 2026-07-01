@@ -17,7 +17,7 @@ import { useConnectorStore } from "./stores/connectorStore";
 import { fetchConnectors } from "./services";
 import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { I18nContext, getTranslations, type Locale } from "./i18n";
+import { I18nContext, getTranslations, useI18n, type Locale } from "./i18n";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import PageLogin from "./pages/PageLogin";
 
@@ -209,6 +209,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const drawerOpen = useConnectorStore(s => s.drawerOpen);
   const setDrawerOpen = useConnectorStore(s => s.setDrawerOpen);
   const toggleSearch = useConnectorStore(s => s.toggleSearch);
+  const { t } = useI18n();
 
   // 모바일에서 네비게이션 시 사이드바 자동 닫힘
   const handleNavigate = () => {
@@ -249,6 +250,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* 키보드 사용자용 본문 바로가기 — 평소 숨김, 포커스 시 노출(첫 Tab 대상) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {t.common.skipToContent}
+      </a>
       <NavigationLoadingDialog />
 
       {/* 모바일 backdrop (드로어 열림 시) */}
@@ -279,7 +287,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       {/* 메인 컬럼 */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 overflow-y-auto bg-background outline-none"
+        >
           {/* 모바일/태블릿(<lg)은 하단 탭바 높이만큼 pb-20, 데스크톱은 pb-6 */}
           <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-20 lg:pb-6 flex flex-col gap-5 min-h-full page-enter">
             {children}

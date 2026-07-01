@@ -2,6 +2,7 @@
 const ko = {
   // ── Common ──
   common: {
+    skipToContent: "본문으로 건너뛰기",
     save: "저장",
     cancel: "취소",
     delete: "삭제",

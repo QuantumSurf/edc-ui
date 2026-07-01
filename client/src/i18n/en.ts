@@ -3,6 +3,7 @@ import type { Translations } from "./ko";
 
 const en: Translations = {
   common: {
+    skipToContent: "Skip to content",
     save: "Save",
     cancel: "Cancel",
     delete: "Delete",
