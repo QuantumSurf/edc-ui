@@ -6,6 +6,7 @@
 // - pruneAuditLogs: 보존기간 초과분 정리(무한 증가 방지)
 
 import { getPool } from "./db.js";
+import { auditWriteFailures } from "./metrics.js";
 
 export type AuditResult = "SUCCESS" | "FAILURE";
 export type AuditSeverity = "INFO" | "WARN" | "CRITICAL";
@@ -364,6 +365,7 @@ export async function recordAudit(e: AuditEntry): Promise<void> {
       ]
     );
   } catch (err) {
+    auditWriteFailures.inc();
     console.error("[AUDIT] record failed:", (err as Error).message);
   }
 }

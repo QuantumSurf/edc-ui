@@ -5,6 +5,7 @@
 
 import type { Request, Response, NextFunction } from "express";
 import crypto from "node:crypto";
+import { httpRequestDuration, routeLabel } from "../lib/metrics.js";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -28,6 +29,11 @@ export function requestLog(req: Request, res: Response, next: NextFunction) {
   res.on("finish", () => {
     const ms = Math.round(Number(process.hrtime.bigint() - start) / 1e6);
     const status = res.statusCode;
+    const path = req.originalUrl.split("?")[0];
+    httpRequestDuration.observe(
+      { method: req.method, route: routeLabel(path), status: String(status) },
+      ms / 1000
+    );
     const line = JSON.stringify({
       t: new Date().toISOString(),
       lvl: status >= 500 ? "error" : status >= 400 ? "warn" : "info",

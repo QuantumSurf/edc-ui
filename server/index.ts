@@ -20,6 +20,7 @@ import {
 } from "./lib/notificationGenerator.js";
 import { pruneAuditLogs } from "./lib/audit.js";
 import { pruneFieldHistory } from "./lib/fieldHistory.js";
+import { register as metricsRegister } from "./lib/metrics.js";
 
 // Routes
 import connectorsRouter from "./routes/connectors.js";
@@ -131,6 +132,18 @@ async function startServer() {
       res.status(200).json({ status: "ready" });
     } catch {
       res.status(503).json({ status: "not-ready" });
+    }
+  });
+
+  // Prometheus 메트릭 — /api 밖(무인증), k8s prometheus 스크레이프용(helm podAnnotations
+  // prometheus.io/scrape). 라벨에 tenant 를 넣지 않아 정보 노출/카디널리티 위험이 없다.
+  // (공개 인그레스 노출이 우려되면 NetworkPolicy 로 스크레이프 소스만 허용할 것.)
+  app.get("/metrics", async (_req, res) => {
+    try {
+      res.set("Content-Type", metricsRegister.contentType);
+      res.end(await metricsRegister.metrics());
+    } catch {
+      res.status(500).end();
     }
   });
 

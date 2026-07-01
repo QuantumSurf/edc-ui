@@ -19,6 +19,7 @@ import { getPool } from "./db.js";
 import { listAllConnectorsUnsafe } from "./connectorRegistry.js";
 import { getEdcClient, withJsonLd } from "./edcClient.js";
 import { recordAudit } from "./audit.js";
+import { notificationPollTotal } from "./metrics.js";
 
 const POLL_INTERVAL_MS = Number(process.env.KMX_NOTIFY_POLL_MS ?? 60_000);
 const ENABLED = process.env.KMX_NOTIFY_ENABLED !== "false";
@@ -447,7 +448,9 @@ async function tick(): Promise<void> {
           apiKey: c.apiKey,
           tenantId: c.tenantId ?? null,
         });
+        notificationPollTotal.inc({ result: "success" });
       } catch (err) {
+        notificationPollTotal.inc({ result: "failure" });
         console.warn(
           `[NotifyGen] connector ${c.id} poll error:`,
           (err as Error).message
