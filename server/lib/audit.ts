@@ -62,6 +62,12 @@ const ACTION_LABEL: Record<string, string> = {
   "semantic.post": "Semantic model created",
   "semantic.put": "Semantic model updated",
   "semantic.delete": "Semantic model deleted",
+  // 시스템 이벤트(알림 생성기가 감지 → 감사 로그에도 기록). 행위자 없음(system).
+  "event.negotiation.failed": "Negotiation failed",
+  "event.transfer.failed": "Transfer failed",
+  "event.transfer.completed": "Transfer completed",
+  "event.edr.expiring": "EDR expiring",
+  "event.connector.unreachable": "Connector unreachable",
 };
 
 /** 심각도 도출: 실패(특히 인증/삭제)는 강조, 파괴적 성공은 WARN, 그 외 INFO. */

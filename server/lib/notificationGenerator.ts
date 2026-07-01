@@ -18,6 +18,7 @@ import type { PoolClient } from "pg";
 import { getPool } from "./db.js";
 import { listAllConnectorsUnsafe } from "./connectorRegistry.js";
 import { getEdcClient, withJsonLd } from "./edcClient.js";
+import { recordAudit } from "./audit.js";
 
 const POLL_INTERVAL_MS = Number(process.env.KMX_NOTIFY_POLL_MS ?? 60_000);
 const ENABLED = process.env.KMX_NOTIFY_ENABLED !== "false";
@@ -79,6 +80,18 @@ interface InsertSpec {
   msgKey?: string;
   /** i18n 보간 파라미터(connector/asset/minutes 등). 표시 시 템플릿에 주입. */
   params?: Record<string, unknown>;
+  /** 감사 로그에도 기록할 시스템 이벤트 메타(요구사항: 감사 로그를 통한 시스템 모니터링).
+   *  알림과 동일 dedup 하에 있으므로 '새 이벤트'만 1회 감사에 남는다(폴링마다 도배 X). */
+  audit?: {
+    action: string;
+    category: string;
+    target?: string | null;
+    targetType?: string | null;
+    connectorId?: string | null;
+    result: "SUCCESS" | "FAILURE";
+    severity: "INFO" | "WARN" | "CRITICAL";
+    message: string;
+  };
   /** stable key for cross-restart dedup via notification_dedup table */
   dedupKey: string;
   /** 알림을 소유하는 테넌트(커넥터 소유 테넌트). UI는 자기 테넌트 알림만 조회. */
@@ -112,6 +125,24 @@ async function insertOnce(spec: InsertSpec): Promise<boolean> {
       spec.params ? JSON.stringify(spec.params) : null,
     ]
   );
+  // 시스템 이벤트를 감사 로그에도 기록 — 사용자 작업(감사)과 시스템 이벤트(알림)를
+  // 감사 로그 한 곳에서 통합 모니터링. best-effort(실패해도 알림 흐름 미영향).
+  if (spec.audit) {
+    void recordAudit({
+      tenantId: spec.tenantId ?? null,
+      actorId: null,
+      actorEmail: null,
+      actorRole: null, // 시스템 생성 이벤트(행위자 없음)
+      action: spec.audit.action,
+      category: spec.audit.category,
+      target: spec.audit.target ?? null,
+      targetType: spec.audit.targetType ?? null,
+      connectorId: spec.audit.connectorId ?? null,
+      result: spec.audit.result,
+      severity: spec.audit.severity,
+      message: spec.audit.message,
+    });
+  }
   seenKeys.add(spec.dedupKey);
   return true;
 }
@@ -204,6 +235,16 @@ async function pollConnector(conn: {
         msgKey: "negTerminated",
         params: { connector: conn.name, peer, detail: errorDetail },
         link: "/transaction/negotiations",
+        audit: {
+          action: "event.negotiation.failed",
+          category: "NEGOTIATION",
+          target: id,
+          targetType: "Negotiation",
+          connectorId: conn.id,
+          result: "FAILURE",
+          severity: "WARN",
+          message: `Negotiation failed on ${conn.name}`,
+        },
         dedupKey: makeKey(conn.id, "neg.terminated", id),
         tenantId: conn.tenantId,
       });
@@ -239,6 +280,16 @@ async function pollConnector(conn: {
           msgKey: "transferTerminated",
           params: { connector: conn.name, asset, detail: errorDetail },
           link: "/transaction/transfers",
+          audit: {
+            action: "event.transfer.failed",
+            category: "TRANSFER",
+            target: id,
+            targetType: "Transfer",
+            connectorId: conn.id,
+            result: "FAILURE",
+            severity: "WARN",
+            message: `Transfer of asset ${asset} failed on ${conn.name}`,
+          },
           dedupKey: makeKey(conn.id, "transfer.terminated", id),
           tenantId: conn.tenantId,
         });
@@ -251,6 +302,16 @@ async function pollConnector(conn: {
           msgKey: "transferCompleted",
           params: { connector: conn.name, asset },
           link: "/transaction/transfers",
+          audit: {
+            action: "event.transfer.completed",
+            category: "TRANSFER",
+            target: id,
+            targetType: "Transfer",
+            connectorId: conn.id,
+            result: "SUCCESS",
+            severity: "INFO",
+            message: `Transfer of asset ${asset} completed on ${conn.name}`,
+          },
           dedupKey: makeKey(conn.id, "transfer.completed", id),
           tenantId: conn.tenantId,
         });
@@ -286,6 +347,16 @@ async function pollConnector(conn: {
         msgKey: "edrExpiring",
         params: { connector: conn.name, transfer: tpId.slice(0, 12), minutes: left },
         link: "/transaction/edr",
+        audit: {
+          action: "event.edr.expiring",
+          category: "TRANSFER",
+          target: tpId.slice(0, 12),
+          targetType: "EDR",
+          connectorId: conn.id,
+          result: "FAILURE",
+          severity: "WARN",
+          message: `EDR for transfer ${tpId.slice(0, 12)} expiring in ${left} min on ${conn.name}`,
+        },
         dedupKey: makeKey(conn.id, `edr.expiring.${today}`, tpId),
         tenantId: conn.tenantId,
       });
@@ -315,6 +386,16 @@ async function pollConnector(conn: {
         detail: detail.slice(0, 1800),
       },
       link: "/system/infra",
+      audit: {
+        action: "event.connector.unreachable",
+        category: "CONNECTOR",
+        target: conn.name,
+        targetType: "Connector",
+        connectorId: conn.id,
+        result: "FAILURE",
+        severity: "CRITICAL",
+        message: `Connector ${conn.name} unreachable (${conn.managementUrl})`,
+      },
       dedupKey: makeKey(conn.id, `connector.unreachable.${today}`, conn.id),
       tenantId: conn.tenantId,
     });
