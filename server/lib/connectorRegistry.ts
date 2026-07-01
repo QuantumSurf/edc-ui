@@ -170,9 +170,28 @@ export async function updateConnector(
 }
 
 export async function deleteConnector(id: string): Promise<boolean> {
-  const { rowCount } = await getPool().query(
-    "DELETE FROM connectors WHERE id = $1",
-    [id]
-  );
-  return (rowCount ?? 0) > 0;
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    // 커넥터 종속 메타데이터는 FK 가 없어 커넥터만 지우면 고아 행이 영구 잔존한다.
+    // (verifiable_credentials 는 FK ON DELETE CASCADE 라 자동 정리됨.) 함께 원자적으로 제거.
+    await client.query("DELETE FROM transfer_metadata WHERE connector_id = $1", [
+      id,
+    ]);
+    await client.query(
+      "DELETE FROM negotiation_metadata WHERE connector_id = $1",
+      [id]
+    );
+    const { rowCount } = await client.query(
+      "DELETE FROM connectors WHERE id = $1",
+      [id]
+    );
+    await client.query("COMMIT");
+    return (rowCount ?? 0) > 0;
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
 }

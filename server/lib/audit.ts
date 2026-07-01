@@ -446,3 +446,13 @@ export async function pruneAuditLogs(
     console.error("[AUDIT] prune failed:", (err as Error).message);
   }
 }
+
+/** 테넌트 오프보딩(GDPR 삭제) 시 해당 테넌트의 감사 로그(actor_email·ip 등 PII 포함)를 삭제.
+ *  삭제된 행 수를 반환. 오프보딩 트랜잭션에서 호출한다. */
+export async function deleteAuditForTenant(tenantId: string): Promise<number> {
+  const { rowCount } = await getPool().query(
+    `DELETE FROM audit_logs WHERE tenant_id = $1`,
+    [tenantId]
+  );
+  return rowCount ?? 0;
+}

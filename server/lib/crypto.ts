@@ -50,12 +50,22 @@ export function decryptSecret(stored: string): string {
   if (!stored || !isEncrypted(stored)) return stored;
   const [ivB64, tagB64, ctB64] = stored.slice(ENC_PREFIX.length).split(":");
   if (!ivB64 || !tagB64 || !ctB64) return ""; // 손상된 형식 — 빈 값(노출보다 안전)
-  const iv = Buffer.from(ivB64, "base64");
-  const tag = Buffer.from(tagB64, "base64");
-  const ct = Buffer.from(ctB64, "base64");
-  const decipher = crypto.createDecipheriv("aes-256-gcm", getKey(), iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(ct), decipher.final()]).toString(
-    "utf8"
-  );
+  try {
+    const iv = Buffer.from(ivB64, "base64");
+    const tag = Buffer.from(tagB64, "base64");
+    const ct = Buffer.from(ctB64, "base64");
+    const decipher = crypto.createDecipheriv("aes-256-gcm", getKey(), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ct), decipher.final()]).toString(
+      "utf8"
+    );
+  } catch {
+    // GCM 인증 실패(HUB_APIKEY_SECRET 회전·다른 키로 복원한 백업·손상 등)로 여기서 throw 하면
+    // rowToEntry 를 타는 listConnectors/getConnector 전체가 500 으로 죽어 그 테넌트의 플릿과
+    // 모든 커넥터 화면이 깨진다. 빈 값을 반환해 해당 커넥터만 미인증(EDC 401)으로 격하한다.
+    console.error(
+      "[crypto] api_key 복호화 실패 — HUB_APIKEY_SECRET 회전/불일치 가능성(해당 커넥터만 미인증 처리)"
+    );
+    return "";
+  }
 }

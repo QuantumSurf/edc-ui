@@ -304,7 +304,8 @@ router.post(
       res.json({ status: "ok", detail: response.data });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown error";
-      res.status(502).json({ status: "fail", detail: msg });
+      // 업스트림(커넥터 EDC) 미도달 — Vault/EDC 경로와 동일하게 503 으로 통일(502 혼용 제거).
+      res.status(503).json({ status: "fail", detail: msg });
     }
   }
 );

@@ -488,3 +488,21 @@ export function stopNotificationGenerator(): void {
     timer = null;
   }
 }
+
+/** 읽은 알림 중 보존기간 초과분 삭제 — 무한 증가 방지(best-effort). 미읽음은 보존한다. */
+export async function pruneNotifications(
+  retentionDays = Number(process.env.NOTIFICATION_RETENTION_DAYS ?? 90)
+): Promise<void> {
+  try {
+    await getPool().query(
+      `DELETE FROM notifications
+        WHERE read = TRUE AND created_at < NOW() - ($1 || ' days')::interval`,
+      [String(Math.max(1, Math.floor(retentionDays) || 90))]
+    );
+  } catch (err) {
+    console.error(
+      "[NotifyGen] notification prune failed:",
+      (err as Error).message
+    );
+  }
+}

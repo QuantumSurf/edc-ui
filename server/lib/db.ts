@@ -22,7 +22,9 @@ export function getPool(): pg.Pool {
       connectionString:
         process.env.DATABASE_URL ??
         "postgresql://kmx:kmx_dev_123@localhost:5432/kmx_edc",
-      max: 10,
+      // 멀티테넌트 단일 서버 — 사용자 요청 + 백그라운드 폴러/감사 쓰기가 한 풀을 공유하므로
+      // env 로 상향 조정 가능(기본 20). 너무 작으면 부하 시 pool timeout(5s) 발생.
+      max: Number(process.env.DB_POOL_MAX) || 20,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
     });
@@ -139,6 +141,14 @@ async function createSchema(): Promise<void> {
       PRIMARY KEY (negotiation_id, connector_id)
     );
   `);
+  // 핫 조회는 WHERE connector_id=$1 로만 필터하는데, 복합 PK 의 후행 컬럼은 이 조건을 못 타
+  // 매 목록/카운트/stats 요청이 seq-scan 이 된다. connector_id 단독 인덱스로 커버.
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_transfer_meta_connector ON transfer_metadata(connector_id);`
+  );
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_negotiation_meta_connector ON negotiation_metadata(connector_id);`
+  );
 
   // 사용자 계정 + RBAC 역할 (admin/operator/viewer)
   await getPool().query(`

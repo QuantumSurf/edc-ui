@@ -11,12 +11,15 @@ import { auditMiddleware } from "./middleware/audit.js";
 import { validateConnectorId } from "./middleware/validation.js";
 import { requireConnectorOwnership } from "./middleware/tenant.js";
 import { apiRateLimit } from "./middleware/rateLimit.js";
+import { requestLog } from "./middleware/requestLog.js";
 import { initDb, getPool, closeDb } from "./lib/db.js";
 import {
   startNotificationGenerator,
   stopNotificationGenerator,
+  pruneNotifications,
 } from "./lib/notificationGenerator.js";
 import { pruneAuditLogs } from "./lib/audit.js";
+import { pruneFieldHistory } from "./lib/fieldHistory.js";
 
 // Routes
 import connectorsRouter from "./routes/connectors.js";
@@ -104,7 +107,7 @@ async function startServer() {
       // 프로덕션 CSP: 인라인 스크립트 차단 (Vite dev에서는 제외)
       res.setHeader(
         "Content-Security-Policy",
-        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-src 'none'"
       );
     }
     next();
@@ -124,6 +127,10 @@ async function startServer() {
       res.status(503).json({ status: "not-ready" });
     }
   });
+
+  // 요청별 상관 ID + 완료 로그(구조화 JSON) — rate limit 보다 먼저 두어 429 요청도 reqId·로그를
+  // 갖게 한다. 응답 헤더 X-Request-Id 로 에코해 고객이 문의 시 요청을 특정할 수 있다.
+  app.use("/api", requestLog);
 
   // rate limit을 body 파서보다 먼저 — 미인증 트래픽이 JSON 파서에 닿기 전에 IP당 처리량 제한
   // (파서 CPU 비용도 레이트리밋 보호 하에 두기 위함). DoS 차단.
@@ -209,12 +216,15 @@ async function startServer() {
     console.error("[NotifyGen] failed to start:", err)
   );
 
-  // 감사 로그 보존기간 정리 — 부팅 시 1회 + 6시간 주기(무한 증가 방지). best-effort.
-  void pruneAuditLogs();
-  const pruneInterval = setInterval(
-    () => void pruneAuditLogs(),
-    6 * 60 * 60 * 1000
-  );
+  // 데이터 보존기간 정리 — 부팅 시 1회 + 6시간 주기(무한 증가 방지). best-effort.
+  // 감사로그(90d)·field_history(180d)·읽은 알림(90d)을 각 보존기간 초과분 삭제.
+  const runRetention = () => {
+    void pruneAuditLogs();
+    void pruneFieldHistory();
+    void pruneNotifications();
+  };
+  runRetention();
+  const pruneInterval = setInterval(runRetention, 6 * 60 * 60 * 1000);
 
   // Graceful shutdown — k8s 롤아웃/스케일다운/노드 드레인 시 SIGTERM 을 받으면 새 연결을 끊고
   // in-flight 요청을 마무리한 뒤 폴러·인터벌·DB 풀을 정리하고 종료한다. 미처리 시 in-flight

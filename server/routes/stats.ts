@@ -47,6 +47,10 @@ router.get(
       );
 
       // 시간 슬롯 생성 (현재 시각 기준 hours개)
+      // 라벨은 KST(Asia/Seoul)로 명시 포맷 — d.getHours()는 서버 프로세스 로컬 TZ(컨테이너
+      // 기본 UTC)라 x축이 KST와 9시간 어긋났다. 조인은 epochH(절대)라 TZ 무관하게 정확하고,
+      // 라벨만 KST로 표기한다. (버킷은 정시 경계라 UTC↔KST 정수시 오프셋에도 "HH:00"로 정렬.)
+      const TREND_TZ = process.env.TREND_LABEL_TZ ?? "Asia/Seoul";
       const now = new Date();
       const slots: { label: string; epochH: number }[] = [];
       for (let i = hours - 1; i >= 0; i--) {
@@ -54,7 +58,12 @@ router.get(
         d.setMinutes(0, 0, 0);
         d.setHours(d.getHours() - i);
         slots.push({
-          label: `${String(d.getHours()).padStart(2, "0")}:00`,
+          label: d.toLocaleTimeString("en-GB", {
+            timeZone: TREND_TZ,
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }),
           epochH: Math.floor(d.getTime() / 3_600_000),
         });
       }

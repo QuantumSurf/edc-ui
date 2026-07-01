@@ -618,6 +618,9 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
  *  전송/협상/EDR 등 모든 목록·상세의 시각 표시에 공통 적용. */
 export function fmtDateTimeShort(d: Date): string {
   return d.toLocaleString("ko-KR", {
+    // timeZone 미지정 시 서버 프로세스 로컬 TZ(컨테이너 기본 UTC)로 포맷돼 표시 시각이 KST와
+    // 9시간 어긋난다(트렌드 x축과 동일 버그). KST 로 명시(env DISPLAY_TZ 로 조정 가능).
+    timeZone: process.env.DISPLAY_TZ ?? "Asia/Seoul",
     year: "2-digit",
     month: "2-digit",
     day: "2-digit",
