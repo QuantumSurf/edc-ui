@@ -983,6 +983,7 @@ const en: Translations = {
     empty: "No notifications",
     emptyUnread: "No unread notifications",
     dismiss: "Dismiss",
+    clickToDismiss: "Click to acknowledge and remove",
     tabAll: "All",
     tabUnread: "Unread",
     unreadLabel: "Unread",

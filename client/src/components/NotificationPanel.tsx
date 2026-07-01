@@ -54,7 +54,8 @@ const SEVERITY: Record<
 
 /* ─── 상대 시간 ──────────────────────────────────────────────── */
 function useTimeAgo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const dateLocale = locale === "en" ? "en-US" : "ko-KR";
   return (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const minutes = Math.floor(diff / 60_000);
@@ -62,8 +63,11 @@ function useTimeAgo() {
     if (minutes < 60) return t.notifications.timeAgo.minutesAgo(minutes);
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return t.notifications.timeAgo.hoursAgo(hours);
-    const days = Math.floor(hours / 24);
-    return t.notifications.timeAgo.daysAgo(days);
+    // 24h 초과는 절대 날짜로(AAS-Service 알림창과 동일 — "6월 22일" 형식).
+    return new Date(iso).toLocaleDateString(dateLocale, {
+      month: "short",
+      day: "numeric",
+    });
   };
 }
 
@@ -78,7 +82,6 @@ export default function NotificationPanel() {
     isError,
     refetch,
     isFetching,
-    markRead,
     markAllRead,
     dismiss,
     clearAll,
@@ -118,7 +121,8 @@ export default function NotificationPanel() {
 
   const close = () => setPanelOpen(false);
   const handleClick = (n: NotificationItem) => {
-    markRead(n.id);
+    // AAS-Service 알림창과 동일 — 클릭 = 확인 후 즉시 삭제. 링크가 있으면 이동 후 패널을 닫는다.
+    dismiss(n.id);
     if (n.link) {
       navigate(n.link);
       close();
@@ -243,7 +247,7 @@ export default function NotificationPanel() {
                 )}
               </div>
             ) : (
-              <div className="divide-y divide-border pb-4 pr-2">
+              <div className="space-y-3 pb-4 pr-2">
                 {filtered.map(n => {
                   const { Icon, color } =
                     SEVERITY[n.type as NotificationType] ?? SEVERITY.info;
@@ -272,12 +276,12 @@ export default function NotificationPanel() {
                         }
                       }}
                       aria-label={`${title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
+                      title={t.notifications.clickToDismiss}
                       className={cn(
-                        // 형제 과반수: 카드 대신 divide-y 행 + 미읽음=좌측 primary 바+옅은 배경(점 대신)
-                        "group w-full text-left px-4 py-3 border-l-2 hover:bg-muted/50 transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-                        !n.read
-                          ? "border-l-primary bg-primary/5"
-                          : "border-l-transparent"
+                        // AAS-Service 알림창과 동일 — 간격 있는 개별 카드 + 미읽음=좌측 primary 바.
+                        // 클릭=확인+삭제라 개별 X 버튼은 제거(카드 전체가 삭제 트리거).
+                        "w-full text-left p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+                        !n.read && "border-l-2 border-l-primary bg-primary/5"
                       )}
                     >
                       <div className="flex items-start gap-2.5">
@@ -285,28 +289,14 @@ export default function NotificationPanel() {
                           className={cn("w-4 h-4 mt-0.5 flex-shrink-0", color)}
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p
-                              className={cn(
-                                "text-[12px] truncate text-foreground min-w-0",
-                                !n.read && "font-semibold"
-                              )}
-                            >
-                              {title}
-                            </p>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  dismiss(n.id);
-                                }}
-                                aria-label={t.notifications.dismiss}
-                                className="text-muted-foreground/50 hover:text-foreground opacity-60 group-hover:opacity-100 transition-opacity focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
+                          <p
+                            className={cn(
+                              "text-[12px] truncate text-foreground",
+                              !n.read && "font-semibold"
+                            )}
+                          >
+                            {title}
+                          </p>
                           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
                             {message}
                           </p>

@@ -997,6 +997,7 @@ const ko = {
     empty: "새로운 알림이 없습니다.",
     emptyUnread: "읽지 않은 알림이 없습니다.",
     dismiss: "알림 삭제",
+    clickToDismiss: "클릭하면 확인 후 삭제됩니다",
     tabAll: "전체",
     tabUnread: "안읽음",
     unreadLabel: "읽지 않음",
