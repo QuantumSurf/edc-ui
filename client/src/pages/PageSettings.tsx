@@ -37,9 +37,7 @@ import {
   fetchIdentityHubConfig,
   updateIdentityHubConfig,
   fetchVaultConfig,
-  updateVaultConfig,
   fetchTenantInfo,
-  updateTenantBpn,
 } from "@/services/api";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
@@ -398,27 +396,21 @@ function SettingFooter({
   );
 }
 
-/* ─── Organization BPN (admin only) ──────────────────────────── */
+/* ─── Organization BPN (read-only) ───────────────────────────── */
 // The org's BPN is the tenant's identifier — also the login id, and the BPN
-// applied to every connector registered under this organization.
+// applied to every connector registered under this organization. It is shown
+// for reference only and must not be edited from the UI.
 function OrgBpnSetting() {
   const { t } = useI18n();
-  const { user } = useAuth();
-  const canEdit = user?.role === "admin";
   const [bpn, setBpn] = useState("");
-  const [original, setOriginal] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const reload = () => {
     setLoading(true);
     setLoadError(false);
     fetchTenantInfo()
-      .then(info => {
-        setBpn(info.bpn);
-        setOriginal(info.bpn);
-      })
+      .then(info => setBpn(info.bpn))
       .catch(e => {
         setLoadError(true);
         toast.error((e as Error).message);
@@ -427,50 +419,18 @@ function OrgBpnSetting() {
   };
   useEffect(reload, []);
 
-  const dirty = bpn.trim() !== original && bpn.trim().length > 0;
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      const next = await updateTenantBpn(bpn.trim());
-      setBpn(next.bpn);
-      setOriginal(next.bpn);
-      toast.success(t.settings.orgBpnSaved);
-    } catch (e) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response
-        ?.data?.error;
-      toast.error(
-        msg === "bpn-already-in-use"
-          ? t.settings.orgBpnTaken
-          : (e as Error).message
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (loadError && !loading)
     return <ListError onRetry={reload} fetching={loading} />;
 
   return (
-    <div className="space-y-3">
-      {!canEdit && <ReadOnlyNotice />}
-      <FormField label={t.settings.orgBpn} hint={t.settings.orgBpnHint}>
-        <input
-          value={bpn}
-          onChange={e => setBpn(e.target.value)}
-          placeholder="BPNL000000000000"
-          disabled={loading || !canEdit}
-          className={`${inputBase} mono`}
-        />
-      </FormField>
-      <SettingFooter
-        dirty={dirty}
-        saving={saving || loading}
-        onSave={save}
-        onDiscard={() => setBpn(original)}
+    <FormField label={t.settings.orgBpn}>
+      <input
+        value={bpn}
+        readOnly
+        placeholder="BPNL000000000000"
+        className={`${inputBase} mono`}
       />
-    </div>
+    </FormField>
   );
 }
 
@@ -485,7 +445,6 @@ function IdentityHubConfigSetting() {
   const [participantId, setParticipantId] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [hasApiKey, setHasApiKey] = useState(false);
-  const [original, setOriginal] = useState({ url: "", participantId: "" });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -498,7 +457,6 @@ function IdentityHubConfigSetting() {
         setUrl(c.url);
         setParticipantId(c.participantId);
         setHasApiKey(c.hasApiKey);
-        setOriginal({ url: c.url, participantId: c.participantId });
       })
       .catch(e => {
         setLoadError(true);
@@ -508,16 +466,10 @@ function IdentityHubConfigSetting() {
   };
   useEffect(reload, []);
 
-  const dirty =
-    url !== original.url ||
-    participantId !== original.participantId ||
-    apiKey.length > 0;
+  // URL·참여자ID는 읽기 전용(공유 인프라 / BPN 파생) — 편집 가능한 건 API 키뿐이다.
+  const dirty = apiKey.length > 0;
 
-  const discard = () => {
-    setUrl(original.url);
-    setParticipantId(original.participantId);
-    setApiKey("");
-  };
+  const discard = () => setApiKey("");
 
   const save = async () => {
     setSaving(true);
@@ -530,7 +482,6 @@ function IdentityHubConfigSetting() {
       setUrl(next.url);
       setParticipantId(next.participantId);
       setHasApiKey(next.hasApiKey);
-      setOriginal({ url: next.url, participantId: next.participantId });
       setApiKey("");
       toast.success(t.settings.identityHubConfigSaved);
     } catch (e) {
@@ -552,25 +503,13 @@ function IdentityHubConfigSetting() {
         label={t.settings.identityHubUrl}
         hint={t.settings.identityHubUrlDesc}
       >
-        <input
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder={t.settings.identityHubUrlPlaceholder}
-          disabled={loading || !canEdit}
-          className={inputCls}
-        />
+        <input value={url} readOnly className={inputCls} />
       </FormField>
       <FormField
         label={t.settings.identityHubParticipantId}
         hint={t.settings.identityHubParticipantIdDesc}
       >
-        <input
-          value={participantId}
-          onChange={e => setParticipantId(e.target.value)}
-          placeholder="BPNL000000000000"
-          disabled={loading || !canEdit}
-          className={inputCls}
-        />
+        <input value={participantId} readOnly className={inputCls} />
         {/* 맨 BPN은 서버에서 카탈로그/DSP 요청 시 DID로 정규화됨 — 커넥터 DID와 동일 참가자임을 표시(표시 전용) */}
         {/^BPNL[0-9A-Z]+$/i.test(participantId.trim()) && (
           <p className="text-[10px] text-muted-foreground mt-1 break-all">
@@ -609,19 +548,18 @@ function IdentityHubConfigSetting() {
   );
 }
 
-/* ─── Vault server config (admin only) ───────────────────────── */
+/* ─── Vault server config (read-only diagnostic) ─────────────── */
+// Vault 연결은 플랫폼 인프라(env PLATFORM_VAULT_*)로만 관리한다. 멀티테넌트 SaaS 에서
+// 런타임 재지정을 허용하면 한 테넌트 admin 이 전역 Vault 를 자기 서버로 돌려 타 테넌트
+// 시크릿을 가로챌 수 있어(CWE-639) 서버가 prod 에서 쓰기를 403 으로 막는다. 따라서 이
+// 카드는 현재 연결 상태만 보여주는 읽기 전용 진단 패널이다(토큰 값은 노출하지 않음).
 function VaultConfigSetting() {
   const { t } = useI18n();
-  const { user } = useAuth();
-  const canEdit = user?.role === "admin";
   const [url, setUrl] = useState("");
   const [namespace, setNamespace] = useState("");
-  const [token, setToken] = useState("");
   const [hasToken, setHasToken] = useState(false);
-  const [original, setOriginal] = useState({ url: "", namespace: "" });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const reload = () => {
     setLoading(true);
@@ -631,7 +569,6 @@ function VaultConfigSetting() {
         setUrl(c.url);
         setNamespace(c.namespace);
         setHasToken(c.hasToken);
-        setOriginal({ url: c.url, namespace: c.namespace });
       })
       .catch(e => {
         setLoadError(true);
@@ -641,34 +578,6 @@ function VaultConfigSetting() {
   };
   useEffect(reload, []);
 
-  const dirty =
-    url !== original.url ||
-    namespace !== original.namespace ||
-    token.length > 0;
-
-  const discard = () => {
-    setUrl(original.url);
-    setNamespace(original.namespace);
-    setToken("");
-  };
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      const next = await updateVaultConfig({ url, token, namespace });
-      setUrl(next.url);
-      setNamespace(next.namespace);
-      setHasToken(next.hasToken);
-      setOriginal({ url: next.url, namespace: next.namespace });
-      setToken("");
-      toast.success(t.settings.vaultConfigSaved);
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const inputCls = `${inputBase} mono`;
 
   if (loadError && !loading)
@@ -676,47 +585,26 @@ function VaultConfigSetting() {
 
   return (
     <div className="space-y-3">
-      {!canEdit && <ReadOnlyNotice />}
       <FormField label={t.settings.vaultUrl} hint={t.settings.vaultUrlDesc}>
-        <input
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder="http://platform-vault:8200"
-          disabled={loading || !canEdit}
-          className={inputCls}
-        />
+        <input value={url} readOnly className={inputCls} />
       </FormField>
       <FormField
         label={t.settings.vaultNamespace}
         hint={t.settings.vaultNamespaceDesc}
       >
-        <input
-          value={namespace}
-          onChange={e => setNamespace(e.target.value)}
-          placeholder="kmx/prod"
-          disabled={loading || !canEdit}
-          className={inputCls}
-        />
+        <input value={namespace} readOnly className={inputCls} />
       </FormField>
-      <FormField label={t.settings.vaultToken} hint={t.settings.vaultTokenDesc}>
+      <FormField label={t.settings.vaultToken}>
         <input
           type="password"
-          value={token}
-          onChange={e => setToken(e.target.value)}
+          value=""
+          readOnly
           placeholder={
             hasToken ? t.settings.vaultTokenSet : t.settings.vaultTokenUnset
           }
-          disabled={loading || !canEdit}
-          autoComplete="new-password"
           className={inputCls}
         />
       </FormField>
-      <SettingFooter
-        dirty={dirty}
-        saving={saving || loading}
-        onSave={save}
-        onDiscard={discard}
-      />
     </div>
   );
 }

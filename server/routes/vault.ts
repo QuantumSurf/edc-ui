@@ -1,9 +1,14 @@
 // KMX EDC — Platform Vault management API (read-only).
 //
 // Endpoints (all RBAC-gated):
-//   GET /api/platform/vault/status        — sealed/unsealed/version (admin/operator/viewer)
-//   GET /api/platform/vault/list          — alias list, NO values (admin/operator)
-//   GET /api/platform/vault/meta/:alias   — metadata only (admin/operator)
+//   GET /api/platform/vault/status        — sealed/unsealed/version (admin/operator)
+//   GET /api/platform/vault/list          — caller's OWN aliases only, NO values (admin/operator)
+//   GET /api/platform/vault/meta/:alias   — metadata of caller's OWN alias only (admin/operator)
+//
+// Multi-tenancy: /list and /meta are tenant-scoped. A tenant admin/operator only
+// ever sees its own IdentityHub API-key alias (ih-apikey-{tenantId}); platform
+// infrastructure secrets (dataplane/STS/EDC keys) and other tenants' aliases are
+// never enumerated or readable — the shared vault namespace is otherwise global.
 //
 // Security:
 //   - Secret VALUES are never returned (NF-23 honored).
@@ -20,24 +25,30 @@ import {
 } from "express";
 import { requireRole } from "../middleware/auth.js";
 import { getVaultClient, getVaultUrl } from "../lib/platform.js";
+import { getTenant } from "../lib/tenants.js";
+import { ihApiKeyAlias } from "../lib/identityHubConfig.js";
 
 const router = Router();
 
-/** Whitelist of allowed alias prefixes (defense-in-depth). */
-const ALIAS_PREFIX_ALLOWLIST = [
-  "ih-aes-key",
-  "dataplane-private-key",
-  "dataplane-public-key",
-  "sts-client-secret",
-  "consumer-sts-client-secret",
-  "ih-apikey-", // per-tenant IdentityHub API key (vault-referenced)
-  // EDC-managed aliases — actual prefix varies by extension; cover both forms.
-  "edc:",
-  "edc-",
-];
-
-function isAliasAllowed(alias: string): boolean {
-  return ALIAS_PREFIX_ALLOWLIST.some(p => alias === p || alias.startsWith(p));
+/**
+ * 호출자(테넌트)가 조회할 수 있는 vault 별칭 집합 — 본인 IdentityHub API 키뿐이다.
+ * 단일 vault 네임스페이스를 전 테넌트가 공유하므로, 접두사 allowlist만으로는 한 테넌트
+ * admin 이 타 테넌트의 ih-apikey-{BPN} 별칭(=BPN 열거)과 플랫폼 인프라 시크릿을 모두
+ * 보게 된다. 따라서 본인 소유 별칭만 정확히 매칭해 노출한다. 레거시 BPN 기반 별칭은
+ * tenantId 기반으로 자가 마이그레이션되기 전까지 함께 인정한다.
+ */
+async function ownVaultAliases(
+  tenantId: string | undefined
+): Promise<Set<string>> {
+  if (!tenantId) return new Set();
+  const aliases = new Set<string>([ihApiKeyAlias(tenantId)]);
+  try {
+    const tenant = await getTenant(tenantId);
+    if (tenant?.bpn) aliases.add(`ih-apikey-${tenant.bpn}`);
+  } catch {
+    /* getTenant 실패 → tenantId 기반 별칭만 인정(fail-closed) */
+  }
+  return aliases;
 }
 
 /** Vault 자체에 도달 못한 경우(미구성·DNS 실패·연결 거부 등)인지 판별. HTTP 응답이 온
@@ -95,16 +106,22 @@ router.get(
 router.get(
   "/list",
   requireRole("admin", "operator"),
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // 테넌트 격리: 본인 소유 별칭만 노출. 미보유/무테넌트면 빈 목록(fail-closed).
+      const own = await ownVaultAliases(req.user?.tenantId);
+      if (own.size === 0) {
+        res.json({ aliases: [], total: 0 });
+        return;
+      }
       const vault = await getVaultClient();
       const r = await vault.request({
         method: "LIST",
         url: "/v1/secret/metadata",
       });
       const aliases: string[] = r.data?.data?.keys ?? [];
-      // Defense-in-depth: filter to allowlisted aliases only
-      const filtered = aliases.filter(isAliasAllowed);
+      // 본인 소유 별칭만 통과 — 타 테넌트 별칭·플랫폼 인프라 시크릿 열거 차단.
+      const filtered = aliases.filter(a => own.has(a));
       res.json({ aliases: filtered, total: filtered.length });
     } catch (error: unknown) {
       // 404 from Vault means no secrets — return empty list.
@@ -128,8 +145,10 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const alias = req.params.alias;
-      if (!isAliasAllowed(alias)) {
-        return res.status(403).json({ error: "alias-not-allowed" });
+      // 테넌트 격리: 본인 소유 별칭이 아니면 존재 자체를 드러내지 않도록 404.
+      const own = await ownVaultAliases(req.user?.tenantId);
+      if (!own.has(alias)) {
+        return res.status(404).json({ error: "alias-not-found" });
       }
       const vault = await getVaultClient();
       const r = await vault.get(

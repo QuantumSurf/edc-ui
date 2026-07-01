@@ -9,7 +9,10 @@ import {
 } from "express";
 import { getPool } from "../lib/db.js";
 import { requireRole } from "../middleware/auth.js";
-import { getIdentityHubConfig } from "../lib/identityHubConfig.js";
+import {
+  getIdentityHubConfig,
+  ihApiKeyAlias,
+} from "../lib/identityHubConfig.js";
 import {
   getTenantSetting,
   setTenantSetting,
@@ -296,9 +299,10 @@ router.put(
         participantId
       );
       // API 키는 평문 DB 대신 platform-vault에 저장하고 tenant_settings엔 alias만 기록.
+      // 별칭은 불변 tenantId 기반(ihApiKeyAlias) — 가변 BPN을 쓰면 BPN 반납·재사용 시
+      // 두 테넌트가 같은 vault 키를 공유/덮어쓴다(교차테넌트 시크릿 누수).
       if (apiKey.length > 0) {
-        const tenant = await getTenant(tenantId);
-        const alias = `ih-apikey-${tenant?.bpn || tenantId}`;
+        const alias = ihApiKeyAlias(tenantId);
         await writeVaultSecret(alias, apiKey.trim());
         await setTenantSetting(tenantId, "identity_hub_api_key_alias", alias);
         // 레거시 평문이 남아 있으면 제거(이제 vault가 정본).

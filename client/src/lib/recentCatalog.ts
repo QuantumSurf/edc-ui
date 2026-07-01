@@ -47,6 +47,16 @@ export function addRecent(entry: RecentCatalogEntry): RecentCatalogEntry[] {
   return next;
 }
 
+/** 로그아웃/세션 만료 시 호출 — 같은 브라우저에서 다음 테넌트에게 이전 테넌트의 거래상대
+ *  DSP 엔드포인트·BPN 이 노출되지 않도록 최근 조회 기록을 전부 비운다(교차테넌트 누수 차단). */
+export function clearRecent(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* localStorage 불가(사생활 모드 등) — 무시 */
+  }
+}
+
 /** 특정 (url, counterPartyId) 항목을 최근 목록에서 제거. 갱신된 목록을 반환. */
 export function removeRecent(entry: RecentCatalogEntry): RecentCatalogEntry[] {
   const next = getRecent().filter(
