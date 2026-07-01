@@ -12,6 +12,7 @@ import axios from "axios";
 import { queryClient } from "@/lib/queryClient";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { clearRecent } from "@/lib/recentCatalog";
+import { postLogout } from "@/services/api";
 
 export interface AuthUser {
   id?: string;
@@ -19,7 +20,6 @@ export interface AuthUser {
   name: string;
   role: "admin" | "operator" | "viewer";
   email?: string;
-  token?: string;
   // Tenant (organization) the user belongs to — drives data isolation.
   tenantId?: string;
   tenantName?: string;
@@ -51,74 +51,80 @@ const AuthContext = createContext<AuthContextType>({
 
 const SESSION_KEY = "kmx-edc-auth";
 
-/** JWT payload 의 exp(초)를 디코드해 만료 여부를 판정. 디코드 실패 시 만료로 보지 않음(서버 401 이 최종 판정). */
-function isTokenExpired(token?: string): boolean {
-  if (!token) return false;
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return false;
-    const json = JSON.parse(
-      atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
-    );
-    const exp = json?.exp;
-    if (typeof exp !== "number") return false;
-    return exp * 1000 <= Date.now();
-  } catch {
-    return false;
-  }
+interface ServerUser {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "operator" | "viewer";
+  tenantId?: string;
+  tenantName?: string;
+  tenantBpn?: string;
+}
+
+/** 서버 사용자 응답(/login·/me)을 클라 AuthUser 로 매핑. username 은 이메일 로컬파트. */
+function toAuthUser(u: ServerUser): AuthUser {
+  return {
+    id: u.id,
+    username: u.email.split("@")[0],
+    name: u.name,
+    role: u.role,
+    email: u.email,
+    tenantId: u.tenantId,
+    tenantName: u.tenantName,
+    tenantBpn: u.tenantBpn,
+  };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restore session on mount
+  // 세션 복원 — 세션은 httpOnly 쿠키에 있어 클라가 토큰을 직접 읽지 못한다. 따라서
+  // (1) sessionStorage 프로필로 즉시 UI 를 복원(낙관적)하고,
+  // (2) GET /api/auth/me 로 쿠키 세션을 서버에 검증한다 — 200 이면 최신 프로필로 갱신,
+  //     401/무효면 로그아웃 상태로 정리. bare axios 사용(응답 인터셉터 우회 — 기대된 401).
   useEffect(() => {
+    let cancelled = false;
     try {
       const stored = sessionStorage.getItem(SESSION_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as AuthUser;
-        // 저장된 토큰이 이미 만료됐으면 복원하지 않는다 — 만료된 셸이 잠깐도 뜨지 않게.
-        if (isTokenExpired(parsed.token)) {
-          sessionStorage.removeItem(SESSION_KEY);
-        } else {
-          setUser(parsed);
-        }
-      }
+      if (stored) setUser(JSON.parse(stored) as AuthUser);
     } catch {}
-    setIsLoading(false);
+    axios
+      .get("/api/auth/me", { withCredentials: true })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const profile = toAuthUser(data as ServerUser);
+        setUser(profile);
+        try {
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify(profile));
+        } catch {}
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUser(null);
+        try {
+          sessionStorage.removeItem(SESSION_KEY);
+        } catch {}
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(
     async (tenantId: string, password: string): Promise<LoginResult> => {
       try {
-        const { data } = await axios.post("/api/auth/login", {
-          tenantId: tenantId.trim(),
-          password,
-        });
-        const { token, user: u } = data as {
-          token: string;
-          user: {
-            id: string;
-            email: string;
-            name: string;
-            role: "admin" | "operator" | "viewer";
-            tenantId?: string;
-            tenantName?: string;
-            tenantBpn?: string;
-          };
-        };
-        const authUser: AuthUser = {
-          id: u.id,
-          username: u.email.split("@")[0],
-          name: u.name,
-          role: u.role,
-          email: u.email,
-          token,
-          tenantId: u.tenantId,
-          tenantName: u.tenantName,
-          tenantBpn: u.tenantBpn,
-        };
+        // withCredentials: 서버가 내려주는 Set-Cookie(httpOnly 세션 + CSRF)를 저장하게 한다.
+        const { data } = await axios.post(
+          "/api/auth/login",
+          { tenantId: tenantId.trim(), password },
+          { withCredentials: true }
+        );
+        const { user: u } = data as { user: ServerUser };
+        const authUser = toAuthUser(u);
         setUser(authUser);
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
         return "ok";
@@ -136,24 +142,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    const tok = user?.token;
     setUser(null);
     sessionStorage.removeItem(SESSION_KEY);
     // 테넌트 전환/로그아웃 시 이전 테넌트 데이터가 새 세션에 새지 않도록 캐시·UI 상태를 초기화.
     queryClient.clear();
     useConnectorStore.getState().reset();
     clearRecent(); // localStorage 잔존 거래상대(DSP·BPN) 기록 제거
-    // Best-effort server notify (no-op on server today)
-    if (tok) {
-      axios
-        .post(
-          "/api/auth/logout",
-          {},
-          { headers: { Authorization: `Bearer ${tok}` } }
-        )
-        .catch(() => {});
-    }
-  }, [user]);
+    // 서버 세션 종료(token_version 증가 + 쿠키 삭제). best-effort — 쿠키는 자동 전송된다.
+    void postLogout().catch(() => {});
+  }, []);
 
   // api.ts 인터셉터가 401 에 쏘는 만료 신호 — 세션은 이미 비워졌으므로 로컬 상태/캐시/스토어만 정리.
   useEffect(() => {

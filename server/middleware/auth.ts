@@ -6,8 +6,21 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyToken, type Role, type TokenPayload } from "../lib/auth.js";
 import { getPool } from "../lib/db.js";
+import { AUTH_COOKIE, getCookie, clearAuthCookies } from "../lib/cookies.js";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * 세션 토큰 추출 — httpOnly 쿠키(kmx_token) 우선, 없으면 Authorization: Bearer 폴백.
+ * 쿠키가 웹 클라이언트의 정규 경로이고, Bearer 는 dev 데모토큰/프로그램 API 클라이언트 호환용.
+ */
+function extractToken(req: Request): string | null {
+  const cookieTok = getCookie(req, AUTH_COOKIE);
+  if (cookieTok) return cookieTok;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
+  return null;
+}
 
 /**
  * 토큰이 현재 유효한 세대인지 확인 — users.token_version 과 payload.tv 대조.
@@ -37,11 +50,10 @@ export async function requireAuth(
   res: Response,
   next: NextFunction
 ) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
+  const token = extractToken(req);
+  if (!token) {
     return res.status(401).json({ error: "missing-token" });
   }
-  const token = authHeader.slice(7);
 
   // Development-only: accept legacy demo tokens for smoke tests. These are granted
   // the lowest-privilege role ("viewer") so read routes guarded by
@@ -62,6 +74,9 @@ export async function requireAuth(
   try {
     payload = verifyToken(token);
   } catch {
+    // 토큰은 있으나 서명/만료가 무효 — httpOnly 라 클라가 못 지우는 stale 쿠키를 서버가
+    // 삭제해 재로그인이 깨끗한 최초 경로(무쿠키→csrf 면제)로 복귀하게 한다.
+    clearAuthCookies(res);
     return res.status(401).json({ error: "invalid-token" });
   }
   // 토큰 검증(서명/만료)과 token_version 조회를 분리한다 — 일시적 DB 오류는 '토큰 무효'가
@@ -78,6 +93,9 @@ export async function requireAuth(
     return res.status(503).json({ error: "auth-unavailable" });
   }
   if (!current) {
+    // token_version 불일치(다른 기기 로그아웃/비번변경/강제차단) 또는 사용자 삭제 — stale
+    // 쿠키를 서버가 삭제해 재로그인 lockout(csrf 403)을 방지한다.
+    clearAuthCookies(res);
     return res.status(401).json({ error: "token-revoked" });
   }
   req.user = payload;
@@ -115,12 +133,11 @@ export async function authMiddleware(
   res: Response,
   next: NextFunction
 ) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
+  const token = extractToken(req);
+  if (!token) {
     if (!IS_PRODUCTION) return next();
     return res.status(401).json({ error: "missing-token" });
   }
-  const token = authHeader.slice(7);
 
   if (!IS_PRODUCTION && token.startsWith("demo-token-")) {
     // tenantId="dev" 부여 — 무토큰/데모 경로가 전 테넌트 커넥터를 조회하지 못하게 한다.
@@ -139,6 +156,9 @@ export async function authMiddleware(
   try {
     payload = verifyToken(token);
   } catch {
+    // 토큰은 있으나 서명/만료가 무효 — httpOnly 라 클라가 못 지우는 stale 쿠키를 서버가
+    // 삭제해 재로그인이 깨끗한 최초 경로(무쿠키→csrf 면제)로 복귀하게 한다.
+    clearAuthCookies(res);
     return res.status(401).json({ error: "invalid-token" });
   }
   // 일시적 DB 오류(커넥션 타임아웃 등)는 토큰 무효가 아니다. 여기서 throw 가 전파되면
@@ -155,6 +175,9 @@ export async function authMiddleware(
     return res.status(503).json({ error: "auth-unavailable" });
   }
   if (!current) {
+    // token_version 불일치(다른 기기 로그아웃/비번변경/강제차단) 또는 사용자 삭제 — stale
+    // 쿠키를 서버가 삭제해 재로그인 lockout(csrf 403)을 방지한다.
+    clearAuthCookies(res);
     return res.status(401).json({ error: "token-revoked" });
   }
   req.user = payload;

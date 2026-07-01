@@ -12,6 +12,7 @@ import { validateConnectorId } from "./middleware/validation.js";
 import { requireConnectorOwnership } from "./middleware/tenant.js";
 import { apiRateLimit } from "./middleware/rateLimit.js";
 import { requestLog } from "./middleware/requestLog.js";
+import { csrfProtection } from "./middleware/csrf.js";
 import { initDb, getPool, closeDb, isSchemaReady } from "./lib/db.js";
 import {
   startNotificationGenerator,
@@ -162,6 +163,11 @@ async function startServer() {
   // 안내해야 메시지·검증이 일치한다. (서버 실효 한계=256KB)
   app.use("/api/semantics", express.json({ limit: "1mb" }));
   app.use(express.json({ limit: "10kb" }));
+
+  // CSRF(이중제출) — 쿠키 세션의 변이 요청을 보호. 본문 파서 뒤·인증 라우터 앞에 mount 해
+  // logout/change-password 를 포함한 모든 /api 변이를 커버한다. 안전 메서드·비쿠키(미인증/
+  // Bearer) 요청은 통과시키므로 로그인 최초 요청과 API 클라이언트에 영향이 없다.
+  app.use("/api", csrfProtection);
 
   // Public auth routes (login/logout) — mounted BEFORE the auth middleware
   app.use("/api/auth", authRouter);

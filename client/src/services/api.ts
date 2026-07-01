@@ -20,18 +20,31 @@ import type {
   SemanticModelSummary,
 } from "@/lib/data";
 
-const http = axios.create({ baseURL: "/api", timeout: 15_000 });
+// withCredentials: 세션은 httpOnly 쿠키(kmx_token)로 운반되므로 쿠키를 함께 전송하도록 명시.
+const http = axios.create({
+  baseURL: "/api",
+  timeout: 15_000,
+  withCredentials: true,
+});
 
-// Attach auth token from session storage to every request
-http.interceptors.request.use(config => {
+/** 이중제출 CSRF 토큰(kmx_csrf, 비 httpOnly)을 document.cookie 에서 읽는다. */
+export function readCsrfCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(/(?:^|;\s*)kmx_csrf=([^;]*)/);
   try {
-    const stored = sessionStorage.getItem("kmx-edc-auth");
-    if (stored) {
-      const { token } = JSON.parse(stored);
-      if (token) config.headers.Authorization = `Bearer ${token}`;
-    }
+    return m ? decodeURIComponent(m[1]) : null;
   } catch {
-    /* ignore */
+    return m ? m[1] : null;
+  }
+}
+
+// 변이 요청(POST/PUT/PATCH/DELETE)에 CSRF 토큰 헤더를 부착 — 서버가 kmx_csrf 쿠키와 대조한다.
+// 인증(Bearer) 헤더는 더 이상 부착하지 않는다(세션 = httpOnly 쿠키).
+http.interceptors.request.use(config => {
+  const method = (config.method ?? "get").toUpperCase();
+  if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+    const csrf = readCsrfCookie();
+    if (csrf) config.headers["X-CSRF-Token"] = csrf;
   }
   return config;
 });
@@ -99,6 +112,22 @@ http.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/* ── Auth ────────────────────────────────────────────────────── */
+// 로그아웃 — 서버가 token_version 을 증가시키고 세션 쿠키를 삭제한다. 인터셉터가 붙은 http
+// 인스턴스 대신 bare axios 를 쓴다(로그아웃 실패로 401/403 토스트가 뜨지 않도록). 변이 요청이라
+// CSRF 헤더를 수동 부착한다.
+export async function postLogout(): Promise<void> {
+  const csrf = readCsrfCookie();
+  await axios.post(
+    "/api/auth/logout",
+    {},
+    {
+      withCredentials: true,
+      headers: csrf ? { "X-CSRF-Token": csrf } : {},
+    }
+  );
+}
 
 /* ── Fleet / Connectors ──────────────────────────────────────── */
 export async function fetchConnectors(): Promise<Connector[]> {

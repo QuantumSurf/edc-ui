@@ -19,6 +19,11 @@ import { getTenant } from "../lib/tenants.js";
 import { requireAuth } from "../middleware/auth.js";
 import { loginRateLimit } from "../middleware/rateLimit.js";
 import { recordAudit } from "../lib/audit.js";
+import {
+  setAuthCookies,
+  clearAuthCookies,
+  generateCsrfToken,
+} from "../lib/cookies.js";
 
 const router = Router();
 
@@ -202,8 +207,10 @@ router.post(
         tenantId: u.tenant_id ?? undefined,
         tv: u.token_version ?? 0,
       });
+      // JWT 는 httpOnly 쿠키로만 운반한다(응답 본문에 토큰을 넣지 않음) — XSS 가 토큰을
+      // 읽어 탈취하는 경로를 원천 차단. CSRF 이중제출 토큰(가독 쿠키)을 함께 발급한다.
+      setAuthCookies(res, token, generateCsrfToken());
       res.json({
-        token,
         user: {
           id: u.id,
           email: u.email,
@@ -249,6 +256,7 @@ router.post(
           message: "Logout",
         });
       }
+      clearAuthCookies(res); // 브라우저 세션 쿠키 삭제(서버측 token_version 무효화와 함께)
       res.status(204).end();
     } catch (err) {
       next(err);
@@ -357,6 +365,9 @@ router.post(
         path: "/api/auth/change-password",
         message: "Password changed",
       });
+      // token_version 증가로 현재 쿠키의 토큰도 무효화됨 → 쿠키를 즉시 삭제해 클라를 깨끗이
+      // 로그아웃시킨다(재로그인 필요).
+      clearAuthCookies(res);
       res.status(204).end(); // 토큰 무효화됨 → 클라 재로그인 필요
     } catch (err) {
       next(err);
