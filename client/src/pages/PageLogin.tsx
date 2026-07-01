@@ -60,7 +60,10 @@ export default function PageLogin() {
             autoComplete="off"
           >
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              <label
+                htmlFor="kmx-login-username"
+                className="text-xs font-medium text-muted-foreground mb-1 block"
+              >
                 {t.login.username}
               </label>
               <div className="relative">
@@ -82,7 +85,10 @@ export default function PageLogin() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              <label
+                htmlFor="kmx-login-password"
+                className="text-xs font-medium text-muted-foreground mb-1 block"
+              >
                 {t.login.password}
               </label>
               <div className="relative">

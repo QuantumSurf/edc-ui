@@ -336,6 +336,11 @@ function App() {
     [locale]
   );
 
+  // <html lang> 을 활성 로케일에 맞춘다 — 스크린리더 발음/브라우저 번역 정확도(WCAG 3.1.1).
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">

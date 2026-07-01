@@ -2,6 +2,7 @@
 // Design: Admin Console style | Dark navy sidebar + white cards + light gray bg
 
 import { cn } from "@/lib/utils";
+import { useHorizontalWheelScroll } from "@/hooks/useHorizontalWheelScroll";
 import {
   X,
   AlertTriangle,
@@ -769,6 +770,8 @@ export function ListCard({
   children,
   className,
 }: ListCardProps) {
+  // 세로 마우스 휠 → 가로 스크롤(넓은 목록을 휠로 좌우 이동). 모든 ListCard 목록에 일괄 적용.
+  const scrollRef = useHorizontalWheelScroll<HTMLDivElement>();
   return (
     <div
       className={cn(
@@ -790,7 +793,7 @@ export function ListCard({
       {/* 가로 스크롤 + 공유 폭 래퍼: 내부 min-w-max 가 '가장 넓은 행'의 폭을 정하고,
           헤더·행은 min-w-full 로 그 폭을 채워 모든 행의 fr 트랙이 동일하게 정렬된다.
           (행마다 min-w-max 면 내용량에 따라 폭이 달라져 칸이 어긋남) */}
-      <div className="overflow-x-auto">
+      <div ref={scrollRef} className="overflow-x-auto">
         <div className="min-w-max">{children}</div>
       </div>
     </div>
