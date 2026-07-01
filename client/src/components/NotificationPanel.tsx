@@ -81,7 +81,7 @@ export default function NotificationPanel() {
     refetch,
     isFetching,
     markAllRead,
-    dismiss,
+    markRead,
     clearAll,
   } = useNotifications();
   const timeAgo = useTimeAgo();
@@ -100,9 +100,10 @@ export default function NotificationPanel() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // 설정에서 꺼진 source 는 숨긴다(죽은 토글이 실제로 동작하도록).
-  const allNotifications = rawNotifications.filter(n =>
-    readPref(SOURCE_PREF[n.source] ?? "", true)
+  // 패널은 '읽지 않은(미확인)' 알림만 보여준다 — 클릭하면 markRead 로 DB에는 기록을 남기고
+  // (삭제 X) 여기서 걸러져 뷰에서만 사라진다. 설정에서 꺼진 source 도 함께 숨긴다.
+  const allNotifications = rawNotifications.filter(
+    n => !n.read && readPref(SOURCE_PREF[n.source] ?? "", true)
   );
   const unreadCount = allNotifications.filter(n => !n.read).length;
 
@@ -119,9 +120,9 @@ export default function NotificationPanel() {
 
   const close = () => setPanelOpen(false);
   const handleClick = (n: NotificationItem) => {
-    // AAS-Service 알림창과 동일 — 클릭 = 확인 후 즉시 삭제. 패널은 계속 열어 둬 연속으로
-    // 정리할 수 있게 한다(이동/닫기 없음).
-    dismiss(n.id);
+    // 클릭 = 확인(읽음) 처리 — DB에는 기록을 남기고(삭제 X) 패널의 미확인 목록에서만 사라진다.
+    // 패널은 계속 열어 둬 연속으로 확인할 수 있게 한다(이동/닫기 없음).
+    markRead(n.id);
   };
 
   const typeLabel = (f: "all" | NotificationType): string =>
