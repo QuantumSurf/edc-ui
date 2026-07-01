@@ -73,6 +73,11 @@ interface InsertSpec {
   title: string;
   message: string;
   link?: string;
+  /** i18n 메시지 키(예: "edrExpiring") — 표시 시점에 사용자 언어로 번역한다.
+   *  title/message 는 키 없는 옛 데이터·폴백용으로 유지(한국어). */
+  msgKey?: string;
+  /** i18n 보간 파라미터(connector/asset/minutes 등). 표시 시 템플릿에 주입. */
+  params?: Record<string, unknown>;
   /** stable key for cross-restart dedup via notification_dedup table */
   dedupKey: string;
   /** 알림을 소유하는 테넌트(커넥터 소유 테넌트). UI는 자기 테넌트 알림만 조회. */
@@ -93,8 +98,8 @@ async function insertOnce(spec: InsertSpec): Promise<boolean> {
     return false;
   }
   await pool.query(
-    `INSERT INTO notifications (tenant_id, type, source, title, message, link)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT INTO notifications (tenant_id, type, source, title, message, link, msg_key, msg_params)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       spec.tenantId ?? null,
       spec.type,
@@ -102,6 +107,8 @@ async function insertOnce(spec: InsertSpec): Promise<boolean> {
       spec.title,
       spec.message,
       spec.link ?? null,
+      spec.msgKey ?? null,
+      spec.params ? JSON.stringify(spec.params) : null,
     ]
   );
   seenKeys.add(spec.dedupKey);
@@ -193,6 +200,8 @@ async function pollConnector(conn: {
           0,
           1900
         ),
+        msgKey: "negTerminated",
+        params: { connector: conn.name, peer, detail: errorDetail },
         link: "/transaction/negotiations",
         dedupKey: makeKey(conn.id, "neg.terminated", id),
         tenantId: conn.tenantId,
@@ -226,6 +235,8 @@ async function pollConnector(conn: {
             0,
             1900
           ),
+          msgKey: "transferTerminated",
+          params: { connector: conn.name, asset, detail: errorDetail },
           link: "/transaction/transfers",
           dedupKey: makeKey(conn.id, "transfer.terminated", id),
           tenantId: conn.tenantId,
@@ -236,6 +247,8 @@ async function pollConnector(conn: {
           source: "transfer",
           title: `전송 완료 — ${conn.name}`,
           message: `자산 ${asset} 전송이 정상 완료되었습니다.`,
+          msgKey: "transferCompleted",
+          params: { connector: conn.name, asset },
           link: "/transaction/transfers",
           dedupKey: makeKey(conn.id, "transfer.completed", id),
           tenantId: conn.tenantId,
@@ -269,6 +282,8 @@ async function pollConnector(conn: {
         source: "edr",
         title: `EDR 만료 임박 — ${conn.name}`,
         message: `Transfer ${tpId.slice(0, 12)} 의 EDR이 ${left}분 후 만료됩니다.`,
+        msgKey: "edrExpiring",
+        params: { connector: conn.name, transfer: tpId.slice(0, 12), minutes: left },
         link: "/transaction/edr",
         dedupKey: makeKey(conn.id, `edr.expiring.${today}`, tpId),
         tenantId: conn.tenantId,
@@ -292,6 +307,12 @@ async function pollConnector(conn: {
           0,
           1900
         ),
+      msgKey: "connectorUnreachable",
+      params: {
+        connector: conn.name,
+        url: conn.managementUrl,
+        detail: detail.slice(0, 1800),
+      },
       link: "/system/infra",
       dedupKey: makeKey(conn.id, `connector.unreachable.${today}`, conn.id),
       tenantId: conn.tenantId,

@@ -189,6 +189,14 @@ async function createSchema(): Promise<void> {
   await getPool().query(
     `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS tenant_id TEXT;`
   );
+  // Migration: i18n 지원 — 알림을 완성 문장이 아니라 msg_key + msg_params 로 저장해
+  // 표시 시점에 사용자 언어로 번역한다. (기존 title/message 는 폴백으로 유지)
+  await getPool().query(
+    `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS msg_key TEXT;`
+  );
+  await getPool().query(
+    `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS msg_params JSONB;`
+  );
   await getPool().query(
     `CREATE INDEX IF NOT EXISTS idx_notifications_tenant ON notifications(tenant_id, created_at DESC);`
   );

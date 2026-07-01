@@ -519,6 +519,10 @@ export interface NotificationItem {
   link?: string;
   read: boolean;
   timestamp: string; // ISO string (created_at)
+  // i18n: 서버가 msgKey + params 로 저장한 알림은 표시 시점에 사용자 언어로 번역한다.
+  // 없으면(옛 데이터·수동 생성) title/message 를 그대로 사용(폴백).
+  msgKey?: string | null;
+  params?: Record<string, unknown> | null;
 }
 
 export async function fetchNotifications(): Promise<NotificationItem[]> {

@@ -1001,6 +1001,34 @@ const ko = {
       edr: "EDR",
       vc: "VC",
     },
+    // 서버가 msgKey+params 로 저장한 알림을 표시 시점에 번역. (키 없으면 원본 title/message 폴백)
+    messages: {
+      negTerminated: {
+        title: (p: Record<string, unknown>) => `협상 종료 — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `상대 ${String(p.peer)} 와의 협상이 실패했습니다. ${String(p.detail ?? "")}`.trim(),
+      },
+      transferTerminated: {
+        title: (p: Record<string, unknown>) => `전송 실패 — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `자산 ${String(p.asset)} 전송이 종료되었습니다. ${String(p.detail ?? "")}`.trim(),
+      },
+      transferCompleted: {
+        title: (p: Record<string, unknown>) => `전송 완료 — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `자산 ${String(p.asset)} 전송이 정상 완료되었습니다.`,
+      },
+      edrExpiring: {
+        title: (p: Record<string, unknown>) => `EDR 만료 임박 — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `Transfer ${String(p.transfer)} 의 EDR이 ${String(p.minutes)}분 후 만료됩니다.`,
+      },
+      connectorUnreachable: {
+        title: (p: Record<string, unknown>) => `커넥터 연결 불가: ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `${String(p.url)} 응답 없음 — DSP / 협상 / 전송 작업 중단 가능. (${String(p.detail ?? "")})`,
+      },
+    },
     timeAgo: {
       justNow: "방금 전",
       minutesAgo: (n: number) => `${n}분 전`,

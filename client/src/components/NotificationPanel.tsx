@@ -247,6 +247,18 @@ export default function NotificationPanel() {
                 {filtered.map(n => {
                   const { Icon, color } =
                     SEVERITY[n.type as NotificationType] ?? SEVERITY.info;
+                  // i18n: msgKey+params 가 있으면 사용자 언어로 번역, 없으면 저장된 title/message 폴백.
+                  const tplMap = t.notifications.messages as Record<
+                    string,
+                    | {
+                        title: (p: Record<string, unknown>) => string;
+                        message: (p: Record<string, unknown>) => string;
+                      }
+                    | undefined
+                  >;
+                  const tpl = n.msgKey ? tplMap[n.msgKey] : undefined;
+                  const title = tpl ? tpl.title(n.params ?? {}) : n.title;
+                  const message = tpl ? tpl.message(n.params ?? {}) : n.message;
                   return (
                     <div
                       key={n.id}
@@ -259,7 +271,7 @@ export default function NotificationPanel() {
                           handleClick(n);
                         }
                       }}
-                      aria-label={`${n.title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
+                      aria-label={`${title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
                       className={cn(
                         // 형제 과반수: 카드 대신 divide-y 행 + 미읽음=좌측 primary 바+옅은 배경(점 대신)
                         "group w-full text-left px-4 py-3 border-l-2 hover:bg-muted/50 transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
@@ -280,7 +292,7 @@ export default function NotificationPanel() {
                                 !n.read && "font-semibold"
                               )}
                             >
-                              {n.title}
+                              {title}
                             </p>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               <button
@@ -296,7 +308,7 @@ export default function NotificationPanel() {
                             </div>
                           </div>
                           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                            {n.message}
+                            {message}
                           </p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span

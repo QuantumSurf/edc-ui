@@ -988,6 +988,34 @@ const en: Translations = {
       edr: "EDR",
       vc: "VC",
     },
+    // Translate server notifications (stored as msgKey+params) at display time.
+    messages: {
+      negTerminated: {
+        title: (p: Record<string, unknown>) => `Negotiation terminated — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `Negotiation with ${String(p.peer)} failed. ${String(p.detail ?? "")}`.trim(),
+      },
+      transferTerminated: {
+        title: (p: Record<string, unknown>) => `Transfer failed — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `Transfer of asset ${String(p.asset)} was terminated. ${String(p.detail ?? "")}`.trim(),
+      },
+      transferCompleted: {
+        title: (p: Record<string, unknown>) => `Transfer completed — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `Transfer of asset ${String(p.asset)} completed successfully.`,
+      },
+      edrExpiring: {
+        title: (p: Record<string, unknown>) => `EDR expiring soon — ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `The EDR for transfer ${String(p.transfer)} expires in ${String(p.minutes)} min.`,
+      },
+      connectorUnreachable: {
+        title: (p: Record<string, unknown>) => `Connector unreachable: ${String(p.connector)}`,
+        message: (p: Record<string, unknown>) =>
+          `${String(p.url)} not responding — DSP / negotiation / transfer may be disrupted. (${String(p.detail ?? "")})`,
+      },
+    },
     timeAgo: {
       justNow: "Just now",
       minutesAgo: (n: number) => `${n}m ago`,

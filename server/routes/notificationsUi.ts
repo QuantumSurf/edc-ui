@@ -36,6 +36,7 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
     }
     const { rows } = await getPool().query(
       `SELECT id, type, source, title, message, link, read,
+              msg_key AS "msgKey", msg_params AS "params",
               created_at AS timestamp
        FROM notifications
        WHERE tenant_id = $1
