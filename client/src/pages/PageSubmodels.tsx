@@ -214,8 +214,8 @@ export default function PageSubmodels() {
         {t.submodels.title}
       </SectionHdr>
 
-      {/* Search & Filter — fl-aggregator TasksPage style */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+      {/* Search & Filter — 검색을 카드에 그룹화 (목록 페이지와 통일) */}
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
@@ -227,7 +227,7 @@ export default function PageSubmodels() {
               setCurrentPage(1);
             }}
             aria-label={t.submodels.searchPlaceholder}
-            className={`${inputBase} pl-8`}
+            className={`${inputBase} pl-8 !bg-background`}
           />
         </div>
       </div>

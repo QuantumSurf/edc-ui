@@ -178,8 +178,8 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
         {t.offerings.title}
       </SectionHdr>
 
-      {/* Search */}
-      <div className="flex gap-2">
+      {/* Search — 검색을 카드에 그룹화 (목록 페이지와 통일) */}
+      <div className="flex gap-2 flex-wrap bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -191,7 +191,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
               setCurrentPage(1);
             }}
             aria-label={t.offerings.searchPlaceholder}
-            className={`${inputBase} pl-8 pr-8`}
+            className={`${inputBase} pl-8 pr-8 !bg-background`}
           />
           {search && (
             <button

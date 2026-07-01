@@ -217,26 +217,28 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         />
       </div>
 
-      {/* 검색 (커넥터가 있을 때만) */}
+      {/* 검색 (커넥터가 있을 때만) — 검색을 카드에 그룹화 (목록 페이지와 통일) */}
       {!connectorsLoading && !connectorsError && list.length > 0 && (
-        <div className="relative max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t.fleet.searchPlaceholder}
-            aria-label={t.fleet.searchPlaceholder}
-            className={`${inputBase} pl-8 pr-8`}
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              aria-label={t.common.close}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        <div className="bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t.fleet.searchPlaceholder}
+              aria-label={t.fleet.searchPlaceholder}
+              className={`${inputBase} pl-8 pr-8 !bg-background`}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                aria-label={t.common.close}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
