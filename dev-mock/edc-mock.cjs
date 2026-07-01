@@ -108,7 +108,7 @@ const policies = [
           "odrl:action": { "@id": "odrl:use" },
           "odrl:constraint": [
             {
-              "odrl:leftOperand": "BusinessPartnerNumber",
+              "odrl:leftOperand": "cx-policy:BusinessPartnerNumber",
               "odrl:operator": { "@id": "odrl:eq" },
               "odrl:rightOperand": "BPNL000000000CON",
             },
@@ -125,7 +125,7 @@ const policies = [
           "odrl:action": { "@id": "odrl:use" },
           "odrl:constraint": [
             {
-              "odrl:leftOperand": "Membership",
+              "odrl:leftOperand": "cx-policy:Membership",
               "odrl:operator": { "@id": "odrl:eq" },
               "odrl:rightOperand": "active",
             },
@@ -336,8 +336,25 @@ function advanceTransfers() {
 //  브라우저에 반영되지 않는다.)
 function buildCatalog() {
   return {
+    // 표준 DCAT 카탈로그 봉투 — 실제 Tractus-X EDC 가 DSP catalog 응답으로 돌려주는 형태.
+    "@context": {
+      "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
+      dcat: "http://www.w3.org/ns/dcat#",
+      dct: "http://purl.org/dc/terms/",
+      odrl: "http://www.w3.org/ns/odrl/2/",
+      dspace: "https://w3id.org/dspace/v0.8/",
+    },
+    "@id": "catalog-mock-edc",
+    "@type": "dcat:Catalog",
+    "dspace:participantId": "BPNL000000000PRD",
     participantId: "BPNL000000000PRD",
     service: [{ endpointURL: "http://mock-edc:8090/api/v1/dsp" }],
+    "dcat:service": {
+      "@id": "dataservice-mock-edc",
+      "@type": "dcat:DataService",
+      "dcat:endpointURL": "http://mock-edc:8090/api/v1/dsp",
+      "dct:terms": "dataspace-protocol-http:2025-1",
+    },
     "dcat:dataset": contractDefinitions.map(cd => {
       const sel = cd.assetsSelector && cd.assetsSelector[0];
       const rawRight = sel && sel.operandRight;
@@ -345,6 +362,7 @@ function buildCatalog() {
       const asset = assets.find(a => a["@id"] === assetId) || {};
       return {
         "@id": assetId,
+        "@type": "dcat:Dataset",
         name: asset.properties?.name ?? assetId,
         "dct:type": asset.properties?.["dct:type"] ?? {
           "@id": "cx-taxo:Asset",
@@ -366,6 +384,19 @@ function buildCatalog() {
     }),
   };
 }
+
+// DSP(Dataspace Protocol) 봉투 — 협상/전송 응답에 표준 @type·protocol 을 부여한다.
+const DSP_PROTOCOL = "dataspace-protocol-http:2025-1";
+const withNegEnvelope = n => ({
+  "@type": "ContractNegotiation",
+  protocol: DSP_PROTOCOL,
+  ...n,
+});
+const withTransferEnvelope = t => ({
+  "@type": "TransferProcess",
+  protocol: DSP_PROTOCOL,
+  ...t,
+});
 
 const health = {
   isSystemHealthy: true,
@@ -543,11 +574,11 @@ const server = http.createServer((req, res) => {
       return send(res, 200, contractDefinitions);
     if (method === "POST" && url === "/v3/contractnegotiations/request") {
       advanceNegotiations();
-      return send(res, 200, negotiations);
+      return send(res, 200, negotiations.map(withNegEnvelope));
     }
     if (method === "POST" && url === "/v3/transferprocesses/request") {
       advanceTransfers();
-      return send(res, 200, transfers);
+      return send(res, 200, transfers.map(withTransferEnvelope));
     }
     if (method === "POST" && url === "/v3/edrs/request") {
       advanceTransfers();
@@ -590,7 +621,7 @@ const server = http.createServer((req, res) => {
       const found = negotiations.find(n => n["@id"] === id);
       if (!found)
         return send(res, 404, { message: `Negotiation not found: ${id}` });
-      return send(res, 200, found);
+      return send(res, 200, withNegEnvelope(found));
     }
     if (method === "GET" && url.startsWith("/v3/transferprocesses/")) {
       advanceTransfers();
@@ -598,7 +629,7 @@ const server = http.createServer((req, res) => {
       const found = transfers.find(t => t["@id"] === id);
       if (!found)
         return send(res, 404, { message: `Transfer not found: ${id}` });
-      return send(res, 200, found);
+      return send(res, 200, withTransferEnvelope(found));
     }
 
     // 데이터 plane pull (transfer fetch)

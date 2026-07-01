@@ -814,6 +814,7 @@ function NegotiationJsonDialog({
     "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
     "@id": negotiation.id,
     "@type": "ContractNegotiation",
+    protocol: "dataspace-protocol-http:2025-1",
     state: negotiation.name,
     stateCode: negotiation.state,
     counterPartyId: negotiation.peer,

@@ -62,6 +62,19 @@ export function errorHandler(
     return;
   }
 
+  // body-parser 등 클라이언트 요청 오류(잘못된 JSON=entity.parse.failed, 본문 과대 등)는
+  // 4xx status 를 들고 온다. 이를 존중해 5xx(서버 장애)가 아닌 4xx 로 돌려준다 — 클라가
+  // '서버 오류'로 오인하지 않게 한다(잘못된 JSON → 500 이던 안정화 갭 보완).
+  const cstatus =
+    (err as { status?: number }).status ??
+    (err as { statusCode?: number }).statusCode;
+  if (typeof cstatus === "number" && cstatus >= 400 && cstatus < 500) {
+    const m = err instanceof Error ? err.message : "Bad request";
+    console.warn(`[BFF] Client error ${cstatus}: ${m}`);
+    res.status(cstatus).json({ error: sanitizeMessage(m) });
+    return;
+  }
+
   if (err instanceof Error) {
     console.error("[BFF] Error:", err.message);
     res.status(500).json({ error: sanitizeMessage(err.message) });

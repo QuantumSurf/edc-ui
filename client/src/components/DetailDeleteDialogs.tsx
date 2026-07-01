@@ -1093,7 +1093,17 @@ export function DeleteConfirmDialog({
       toast.success(successMessage ?? t.common.deleted);
       onClose();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      // 서버가 보낸 명확한 메시지(예: 409 참조 무결성)를 우선 노출, 없으면 일반 메시지.
+      const e = err as {
+        response?: { data?: { message?: string; error?: string } };
+        message?: string;
+      };
+      toast.error(
+        e?.response?.data?.message ??
+          e?.response?.data?.error ??
+          e?.message ??
+          "Delete failed"
+      );
     } finally {
       setDeleting(false);
     }
