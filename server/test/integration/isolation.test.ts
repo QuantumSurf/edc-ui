@@ -25,10 +25,10 @@ beforeAll(async () => {
     // 이미 dev 로 pull 된 이미지를 재사용해 빠르게 기동.
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
   } catch (err) {
-    console.warn(
-      "[integration] Docker/testcontainers 미가용 — 격리 통합테스트 skip:",
-      (err as Error).message
-    );
+    const msg = `[integration] Docker/testcontainers 미가용: ${(err as Error).message}`;
+    // 반드시 격리를 검증해야 하는 환경(CI 통합 잡)에서는 조용한 그린 금지 — 명확히 실패시킨다.
+    if (process.env.REQUIRE_INTEGRATION === "1") throw new Error(msg);
+    console.warn(msg + " — 격리 통합테스트 skip");
     return;
   }
 
@@ -82,8 +82,8 @@ async function loginAgent(bpn: string) {
 }
 
 describe("멀티테넌트 격리 (통합, testcontainers Postgres)", () => {
-  it("각 테넌트는 자기 커넥터만 목록에서 본다(양방향 스코프)", async () => {
-    if (!ready) return; // Docker 미가용 → skip
+  it("각 테넌트는 자기 커넥터만 목록에서 본다(양방향 스코프)", async ctx => {
+    if (!ready) ctx.skip(); // Docker 미가용 → 실제 skip(통과 오집계 방지)
     const a = await loginAgent(tenantA.bpn);
     const b = await loginAgent(tenantB.bpn);
 
@@ -100,12 +100,21 @@ describe("멀티테넌트 격리 (통합, testcontainers Postgres)", () => {
     expect(idsB).not.toContain(tenantA.connectorId);
   });
 
-  it("타 테넌트 커넥터 하위 경로 접근은 404 (requireConnectorOwnership — 존재 미노출)", async () => {
-    if (!ready) return;
+  it("타 테넌트 커넥터 하위 경로 접근은 404 (requireConnectorOwnership — 존재 미노출)", async ctx => {
+    if (!ready) ctx.skip();
     const a = await loginAgent(tenantA.bpn);
-    // A 가 B 의 커넥터 counts 조회 시도 → 소유권 미들웨어가 404(교차테넌트, EDC 도달 전 차단).
+
+    // 양성 대조: 자기 커넥터는 소유권 가드를 통과해야 한다 → 404(존재 미노출)가 아니어야 함.
+    // (edc.invalid 라 EDC 집계는 실패해 5xx 일 수 있으나, 404 면 격리 자체가 깨진 것.) 이 대조가
+    // 없으면 '모두에게 안 보이는 전역 고장'도 교차테넌트 404 로 거짓 통과할 수 있다.
+    const own = await a.get(`/api/connectors/${tenantA.connectorId}/counts`);
+    expect(own.status).not.toBe(404);
+
+    // 교차테넌트: A 가 B 의 커넥터 counts 조회 → 소유권 미들웨어가 404(EDC 도달 전 차단) + 존재
+    // 미노출 바디. 상태코드뿐 아니라 사유(connector-not-found)까지 단언한다.
     const res = await a.get(`/api/connectors/${tenantB.connectorId}/counts`);
     expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "connector-not-found" });
 
     // 대칭: B → A 커넥터도 404.
     const b = await loginAgent(tenantB.bpn);
@@ -113,8 +122,8 @@ describe("멀티테넌트 격리 (통합, testcontainers Postgres)", () => {
     expect(res2.status).toBe(404);
   });
 
-  it("무인증 상태로는 세션 쿠키가 없어 로그인 응답이 Set-Cookie(httpOnly)를 내려준다", async () => {
-    if (!ready) return;
+  it("무인증 상태로는 세션 쿠키가 없어 로그인 응답이 Set-Cookie(httpOnly)를 내려준다", async ctx => {
+    if (!ready) ctx.skip();
     const res = await request(app)
       .post("/api/auth/login")
       .send({ tenantId: tenantA.bpn, password: "0000" });

@@ -40,10 +40,31 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      # testcontainers 로 격리된 Postgres 를 띄워 멀티테넌트 격리 회귀를 검증.
+      # ubuntu-latest 러너는 Docker 가 있어 실제 실행된다. REQUIRE_INTEGRATION=1 이면
+      # 컨테이너 기동 실패 시 조용한 그린 대신 명확히 실패시킨다(커버리지 공백 감지).
+      - run: pnpm test:integration
+        env:
+          REQUIRE_INTEGRATION: "1"
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, test]
+    needs: [lint-and-typecheck, test, integration]
     steps:
       - uses: actions/checkout@v4
 

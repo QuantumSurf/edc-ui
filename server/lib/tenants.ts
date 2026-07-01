@@ -236,6 +236,10 @@ export async function purgeArchivedTenants(
   retentionDays: number,
   dryRun: boolean
 ): Promise<PurgeResult[]> {
+  // 하한/정수 클램프 — 음수/0/비정수 입력이 보존창을 무력화(임계값이 NOW() 미래/현재로 이동)해
+  // 방금 아카이브한 테넌트까지 하드삭제하는 것을 차단한다(audit/notification prune 과 동일 방어).
+  // 예: retentionDays=-5 → NOW()-('-5 days') = NOW()+5d → 아카이브 전부 매칭. 기본 폴백 30일.
+  const days = Math.max(1, Math.floor(retentionDays) || 30);
   const { rows: targets } = await getPool().query<{
     id: string;
     bpn: string;
@@ -246,7 +250,7 @@ export async function purgeArchivedTenants(
       WHERE archived_at IS NOT NULL
         AND archived_at < NOW() - ($1 || ' days')::interval
       ORDER BY archived_at`,
-    [String(retentionDays)]
+    [String(days)]
   );
 
   const results: PurgeResult[] = [];
@@ -265,6 +269,20 @@ export async function purgeArchivedTenants(
     const client = await getPool().connect();
     try {
       await client.query("BEGIN");
+      // TOCTOU 가드(CWE-367) — 대상 SELECT 와 이 삭제 트랜잭션 사이에 restoreTenant 로 활성화된
+      // 테넌트가 하드삭제되는 것을 막는다. 행을 FOR UPDATE 로 잠그고 archived_at·보존기간을
+      // 트랜잭션 안에서 재검증 — 그 사이 restore/미충족이면 자식 삭제조차 하지 않고 스킵한다.
+      const guard = await client.query(
+        `SELECT id FROM tenants
+          WHERE id = $1 AND archived_at IS NOT NULL
+            AND archived_at < NOW() - ($2 || ' days')::interval
+          FOR UPDATE`,
+        [t.id, String(days)]
+      );
+      if (guard.rowCount === 0) {
+        await client.query("ROLLBACK");
+        continue;
+      }
       const deleted: Record<string, number> = {};
       // 커넥터 파생 메타(connector_id 로 연결) 먼저 삭제.
       for (const meta of ["transfer_metadata", "negotiation_metadata"]) {

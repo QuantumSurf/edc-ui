@@ -104,6 +104,13 @@ async function run(): Promise<void> {
       const days = Number.isFinite(flags.days)
         ? (flags.days as number)
         : DEFAULT_RETENTION_DAYS;
+      // 음수/0/비정수 --days 는 보존창을 무력화(임계값이 미래/현재로 이동)해 방금 아카이브한
+      // 테넌트까지 하드삭제할 수 있으므로 조기 거부한다. lib 계층도 클램프하지만 여기서 명확히 실패.
+      if (!Number.isInteger(days) || days < 1) {
+        throw new Error(
+          `--days 는 1 이상의 정수여야 합니다(받은 값: ${String(flags.days)}). 보존기간 우회 하드삭제 방지.`
+        );
+      }
       const dryRun = !flags.force;
       const results = await purgeArchivedTenants(days, dryRun);
       if (results.length === 0) {
