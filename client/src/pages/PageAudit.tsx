@@ -44,6 +44,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -450,7 +451,24 @@ export default function PageAudit() {
       >{`${filtered.length}${locale === "ko" ? "건" : " results"}`}</p>
 
       {/* List — Desktop */}
-      <ListCard title={t.audit.listTitle} className="hidden md:block">
+      <ListCard
+        title={t.audit.listTitle}
+        className="hidden md:block"
+        actions={
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label={t.common.refresh}
+            title={t.common.refresh}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-border hover:bg-muted disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          >
+            <RefreshCw
+              className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`}
+            />
+            {t.common.refresh}
+          </button>
+        }
+      >
         {isError ? (
           <ListError onRetry={() => refetch()} fetching={isFetching} />
         ) : filtered.length === 0 ? (
