@@ -74,6 +74,42 @@ spec:
                 configMapKeyRef:
                   name: {{ include "kmx-edc-ui.fullname" . }}-config
                   key: edc-default-url
+            # ── 프로덕션 필수 시크릿 (chart-managed Secret) ──
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: jwt-secret
+            - name: JWT_EXPIRES_IN
+              value: {{ .Values.platform.jwtExpiresIn | quote }}
+            - name: HUB_APIKEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: hub-apikey-secret
+            - name: PLATFORM_VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: platform-vault-token
+            - name: PLATFORM_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: platform-database-url
+            # ── 플랫폼 엔드포인트 (non-secret) ──
+            - name: PLATFORM_VAULT_URL
+              value: {{ .Values.platform.vaultUrl | quote }}
+            - name: PLATFORM_VAULT_NAMESPACE
+              value: {{ .Values.platform.vaultNamespace | quote }}
+            - name: DTR_BASE_URL
+              value: {{ .Values.platform.dtrBaseUrl | quote }}
+            - name: IDENTITY_HUB_URL
+              value: {{ .Values.platform.identityHubUrl | quote }}
+            - name: IDENTITY_HUB_PARTICIPANT_ID
+              value: {{ .Values.platform.identityHubParticipantId | quote }}
+            - name: IDENTITY_HUB_API_KEY
+              value: {{ .Values.platform.identityHubApiKey | quote }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:

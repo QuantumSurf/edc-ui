@@ -45,7 +45,8 @@ resources:
 
 # EDC connector configuration
 edc:
-  apiKey: "password"
+  # REQUIRED — override per environment (values override or --set). 하드코딩 금지.
+  apiKey: ""
   defaultUrl: "https://kmx-edc-cp.prod.kmx.io/management"
 
 # Application environment variables
@@ -53,6 +54,24 @@ env:
   NODE_ENV: production
   PORT: "3001"
   VITE_DISABLE_DEMO: "false"
+
+# Application secrets — REQUIRED in production (helm install fails if unset; app also
+# fail-closes at boot). Provide via a values override / --set / a secret manager.
+secrets:
+  jwtSecret: "" # >=32 chars, not a public default (server/lib/auth.ts guard)
+  hubApikeySecret: "" # AES-256-GCM at-rest key for connector api keys (server/lib/crypto.ts)
+  platformVaultToken: "" # platform Vault token — never 'root'
+  platformDatabaseUrl: "" # platform Postgres URL — not the dev default
+
+# Platform infrastructure endpoints (non-secret) + JWT expiry
+platform:
+  vaultUrl: "http://platform-vault:8200"
+  vaultNamespace: ""
+  dtrBaseUrl: "http://platform-dtr:4243/semantics/registry"
+  jwtExpiresIn: "12h"
+  identityHubUrl: ""
+  identityHubParticipantId: ""
+  identityHubApiKey: ""
 
 # External database (used when postgresql.enabled=false)
 externalDatabase:
@@ -71,7 +90,8 @@ postgresql:
   auth:
     database: kmx_edc
     username: kmx
-    password: "kmx_dev_123"
+    # REQUIRED — set via --set/values override or (preferred) existingSecret. 하드코딩 금지.
+    password: ""
     # set existingSecret to use a pre-created secret instead
     existingSecret: ""
   primary:
