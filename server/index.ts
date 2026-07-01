@@ -12,7 +12,7 @@ import { validateConnectorId } from "./middleware/validation.js";
 import { requireConnectorOwnership } from "./middleware/tenant.js";
 import { apiRateLimit } from "./middleware/rateLimit.js";
 import { requestLog } from "./middleware/requestLog.js";
-import { initDb, getPool, closeDb } from "./lib/db.js";
+import { initDb, getPool, closeDb, isSchemaReady } from "./lib/db.js";
 import {
   startNotificationGenerator,
   stopNotificationGenerator,
@@ -122,6 +122,12 @@ async function startServer() {
   app.get("/readyz", async (_req, res) => {
     try {
       await getPool().query("SELECT 1");
+      // 스키마 버전 게이팅(HA-4) — 마이그레이션 미완료/구버전 파드는 NotReady 로 빠져
+      // 롤링 배포 시 구·신 스키마 파드 동시 서빙으로 인한 일시 오류를 막는다.
+      if (!(await isSchemaReady())) {
+        res.status(503).json({ status: "migrating" });
+        return;
+      }
       res.status(200).json({ status: "ready" });
     } catch {
       res.status(503).json({ status: "not-ready" });

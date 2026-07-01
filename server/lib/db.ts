@@ -596,6 +596,23 @@ async function migrateConnectorApiKeys(): Promise<void> {
     console.log(`[DB] connector api_key ${migrated}건 at-rest 암호화 완료`);
 }
 
+/** 스키마/마이그레이션 버전 — 스키마 변경 시 갱신한다. readiness 게이팅에 사용:
+ *  롤링 배포 때 구버전 파드가 새 스키마로 마이그레이션된 DB 를 만나면 NotReady 로 빠져
+ *  트래픽에서 제외된다(구/신 스키마 파드 동시 서빙으로 인한 일시 500 방지). */
+export const SCHEMA_VERSION = "2026-07-01";
+
+/** 이 프로세스의 SCHEMA_VERSION 이 DB 에 기록된 버전과 일치하는지 — /readyz 게이팅용. */
+export async function isSchemaReady(): Promise<boolean> {
+  try {
+    const { rows } = await getPool().query<{ value: string }>(
+      `SELECT value FROM app_settings WHERE key = 'schema_version'`
+    );
+    return rows[0]?.value === SCHEMA_VERSION;
+  } catch {
+    return false;
+  }
+}
+
 /** Initialize database: create schema + seed */
 export async function initDb(): Promise<void> {
   // 멀티레플리카 콜드스타트에서 여러 레플리카가 스키마 생성/시드/마이그레이션을 shared Postgres 에
@@ -640,7 +657,13 @@ async function runInit(): Promise<void> {
   await getPool().query(
     `CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_bpn ON tenants(bpn);`
   );
-  console.log("[DB] Database initialized");
+  // 스키마 버전 마커 기록 — 마이그레이션 완료 후. /readyz 가 이 값으로 준비 여부를 게이팅한다.
+  await getPool().query(
+    `INSERT INTO app_settings (key, value, updated_at) VALUES ('schema_version', $1, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [SCHEMA_VERSION]
+  );
+  console.log(`[DB] Database initialized (schema ${SCHEMA_VERSION})`);
 }
 
 /** Graceful shutdown */
