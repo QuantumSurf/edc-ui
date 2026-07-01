@@ -430,6 +430,19 @@ export default function PageAudit() {
               {t.audit.clearFilters}
             </button>
           )}
+          {/* 모바일 전용 새로고침 — 데스크톱은 이벤트 목록 제목 옆에 있음(중복 방지 md:hidden) */}
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label={t.common.refresh}
+            title={t.common.refresh}
+            className="md:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`}
+            />
+            {t.common.refresh}
+          </button>
           <button
             onClick={() => {
               // 화면 표시 순서(정렬+필터)와 CSV 행 순서를 일치시킨다.
