@@ -10,7 +10,6 @@ import { type NotificationItem } from "@/services/api";
 import { ListError } from "@/components/ui-kmx";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import { useI18n } from "@/i18n";
-import { useLocation } from "wouter";
 import {
   BellRing,
   BellOff,
@@ -74,7 +73,6 @@ function useTimeAgo() {
 /* ─── Panel ──────────────────────────────────────────────────── */
 export default function NotificationPanel() {
   const { t, locale } = useI18n();
-  const [, navigate] = useLocation();
   const panelOpen = useNotificationStore(s => s.panelOpen);
   const setPanelOpen = useNotificationStore(s => s.setPanelOpen);
   const {
@@ -121,12 +119,9 @@ export default function NotificationPanel() {
 
   const close = () => setPanelOpen(false);
   const handleClick = (n: NotificationItem) => {
-    // AAS-Service 알림창과 동일 — 클릭 = 확인 후 즉시 삭제. 링크가 있으면 이동 후 패널을 닫는다.
+    // AAS-Service 알림창과 동일 — 클릭 = 확인 후 즉시 삭제. 패널은 계속 열어 둬 연속으로
+    // 정리할 수 있게 한다(이동/닫기 없음).
     dismiss(n.id);
-    if (n.link) {
-      navigate(n.link);
-      close();
-    }
   };
 
   const typeLabel = (f: "all" | NotificationType): string =>
