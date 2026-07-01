@@ -397,6 +397,16 @@ async function seedDb(): Promise<void> {
 async function migrateTenants(): Promise<void> {
   const pool = getPool();
 
+  // 1회성 마이그레이션 — 커넥터 BPN 으로부터 테넌트를 자동 생성하는 동작(step 1)을 매 부팅
+  // 반복하면 BPN drift·DB 복원·수동 편집 등으로 로그인 불가한 'Org {bpn}' 고아 테넌트가 계속
+  // 생긴다. app_settings 마커로 최초 1회만 실행한다(이후 테넌트는 명시적 온보딩으로만 생성).
+  const MIGRATION_MARKER = "migration:tenants-from-connectors-v1";
+  const { rows: doneRows } = await pool.query(
+    `SELECT 1 FROM app_settings WHERE key = $1`,
+    [MIGRATION_MARKER]
+  );
+  if (doneRows.length > 0) return;
+
   const ensureTenant = async (name: string, bpn: string): Promise<string> => {
     const { rows } = await pool.query<{ id: string }>(
       `SELECT id FROM tenants WHERE bpn = $1 LIMIT 1`,
@@ -452,6 +462,13 @@ async function migrateTenants(): Promise<void> {
   //    RBAC 분리 검증이 가능하도록 admin이 아닌 실제 operator 역할로 되돌린다.
   await pool.query(
     `UPDATE users SET role = 'operator' WHERE email = 'operator@kmx.io' AND role = 'admin'`
+  );
+
+  // 마커 기록 — 다음 부팅부터 재실행하지 않는다(고아 테넌트 재생성 방지).
+  await pool.query(
+    `INSERT INTO app_settings (key, value, updated_at) VALUES ($1, 'done', NOW())
+     ON CONFLICT (key) DO UPDATE SET value = 'done', updated_at = NOW()`,
+    [MIGRATION_MARKER]
   );
 }
 
@@ -571,6 +588,24 @@ async function migrateConnectorApiKeys(): Promise<void> {
 
 /** Initialize database: create schema + seed */
 export async function initDb(): Promise<void> {
+  // 멀티레플리카 콜드스타트에서 여러 레플리카가 스키마 생성/시드/마이그레이션을 shared Postgres 에
+  // 동시 실행하면 경합이 생긴다(예: migrateTenants 의 ensureTenant 중복 INSERT → 뒤이은 중복 BPN
+  // 가드가 양쪽 부팅을 거부). advisory lock 으로 한 번에 한 레플리카만 초기화하도록 직렬화한다.
+  // (프로세스가 죽으면 세션 종료로 락이 자동 해제된다.)
+  const INIT_LOCK_KEY = 4915231;
+  const lockClient = await getPool().connect();
+  try {
+    await lockClient.query("SELECT pg_advisory_lock($1)", [INIT_LOCK_KEY]);
+    await runInit();
+  } finally {
+    await lockClient
+      .query("SELECT pg_advisory_unlock($1)", [INIT_LOCK_KEY])
+      .catch(() => {});
+    lockClient.release();
+  }
+}
+
+async function runInit(): Promise<void> {
   await createSchema();
   await seedDb();
   await migrateTenants();
@@ -578,17 +613,23 @@ export async function initDb(): Promise<void> {
   await migrateConnectorApiKeys();
   // tenants.bpn 유니크 백스톱 — BPN = 로그인 식별자라는 불변식을 DB 레벨에서 강제한다.
   // 이게 없으면 동시 PUT /settings/tenant 의 isBpnTaken 선검사가 TOCTOU 경합으로 뚫려
-  // 동일 BPN 이 두 테넌트에 생겨 로그인 라우팅이 모호해진다(CWE-367). 레거시 중복이 이미
-  // 있으면 인덱스 생성이 실패할 수 있어 best-effort(부팅 비차단)로 경고만 남긴다.
-  try {
-    await getPool().query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_bpn ON tenants(bpn);`
-    );
-  } catch (e) {
-    console.warn(
-      `[DB] tenants.bpn 유니크 인덱스 생성 실패(중복 BPN 존재 가능) — 수동 정리 필요: ${(e as Error).message}`
+  // 동일 BPN 이 두 테넌트에 생겨 로그인 라우팅(WHERE bpn=$1 ... LIMIT 1)이 모호해진다
+  // (CWE-367) → 사용자가 자기 BPN 으로 로그인했는데 다른 테넌트로 바인딩되는 교차테넌트 로그인.
+  // 멀티테넌트 SaaS 에서 이는 출시 차단급 결함이므로 fail-closed: 중복 BPN 이 존재하면
+  // 조용히 진행(경고만)하지 않고 부팅을 거부해 수동 정리를 강제한다.
+  const dupBpn = await getPool().query<{ bpn: string; n: string }>(
+    `SELECT bpn, COUNT(*) AS n FROM tenants GROUP BY bpn HAVING COUNT(*) > 1`
+  );
+  if (dupBpn.rows.length > 0) {
+    const list = dupBpn.rows.map(r => `${r.bpn}(x${r.n})`).join(", ");
+    throw new Error(
+      `[DB] 중복 BPN 발견 — 멀티테넌트 로그인 격리가 깨집니다(교차테넌트 로그인 위험). ` +
+        `중복을 정리한 뒤 재기동하세요: ${list}`
     );
   }
+  await getPool().query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_bpn ON tenants(bpn);`
+  );
   console.log("[DB] Database initialized");
 }
 

@@ -42,15 +42,32 @@ export async function updateTenantBpn(
   id: string,
   bpn: string
 ): Promise<Tenant | undefined> {
-  const { rows } = await getPool().query<{
-    id: string;
-    name: string;
-    bpn: string;
-  }>(`UPDATE tenants SET bpn = $1 WHERE id = $2 RETURNING id, name, bpn`, [
-    bpn,
-    id,
-  ]);
-  return rows[0];
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query<{
+      id: string;
+      name: string;
+      bpn: string;
+    }>(`UPDATE tenants SET bpn = $1 WHERE id = $2 RETURNING id, name, bpn`, [
+      bpn,
+      id,
+    ]);
+    // BPN 은 소유 커넥터의 식별자(connectors.bpn)에도 반영된다. 함께 갱신하지 않으면
+    // (1) migrateTenants 가 옛 bpn 으로 로그인 불가한 고아 테넌트를 재생성하고,
+    // (2) 커넥터가 로그인/카탈로그 정체성과 다른 bpn 을 광고한다. 원자적으로 전파.
+    await client.query(`UPDATE connectors SET bpn = $1 WHERE tenant_id = $2`, [
+      bpn,
+      id,
+    ]);
+    await client.query("COMMIT");
+    return rows[0];
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 /** Read a single per-tenant setting value (empty string when unset). */

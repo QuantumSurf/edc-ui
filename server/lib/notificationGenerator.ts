@@ -14,6 +14,7 @@
 //   (connector_id, kind, target_id). We track previously-fired keys in memory
 //   plus a DB UNIQUE INDEX guard to prevent duplicates across BFF restarts.
 
+import type { PoolClient } from "pg";
 import { getPool } from "./db.js";
 import { listAllConnectorsUnsafe } from "./connectorRegistry.js";
 import { getEdcClient, withJsonLd } from "./edcClient.js";
@@ -324,7 +325,36 @@ async function pollConnector(conn: {
 
 let tickCount = 0;
 
+// 멀티레플리카에서 폴러가 전 레플리카에서 돌면 커넥터당 N배 EDC 폴링이 발생한다(중복 알림 행은
+// dedup PK 가 막지만 업스트림 폴링 부하는 배가). advisory lock 으로 '리더' 한 레플리카만 폴링하도록
+// 선출한다(비블로킹 try-lock; 리더 사망 시 세션 종료로 락이 풀려 다음 tick 에 다른 레플리카가 승계).
+const NOTIFY_LEADER_LOCK_KEY = 4915232;
+let leaderClient: PoolClient | null = null;
+async function isLeader(): Promise<boolean> {
+  if (leaderClient) return true;
+  const client = await getPool().connect();
+  try {
+    const { rows } = await client.query<{ ok: boolean }>(
+      "SELECT pg_try_advisory_lock($1) AS ok",
+      [NOTIFY_LEADER_LOCK_KEY]
+    );
+    if (rows[0]?.ok) {
+      leaderClient = client; // 락 보유를 위해 연결을 계속 점유
+      client.on("error", () => {
+        leaderClient = null; // 연결 끊기면 리더 자격 상실 → 재선출
+      });
+      return true;
+    }
+    client.release();
+    return false;
+  } catch {
+    client.release();
+    return false;
+  }
+}
+
 async function tick(): Promise<void> {
+  if (!(await isLeader())) return; // 비리더 레플리카는 폴링 생략
   try {
     const conns = await listAllConnectorsUnsafe();
     await runWithConcurrency(conns, POLL_CONCURRENCY, async c => {

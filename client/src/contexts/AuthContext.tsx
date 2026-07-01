@@ -11,6 +11,7 @@ import React, {
 import axios from "axios";
 import { queryClient } from "@/lib/queryClient";
 import { useConnectorStore } from "@/stores/connectorStore";
+import { clearRecent } from "@/lib/recentCatalog";
 
 export interface AuthUser {
   id?: string;
@@ -25,11 +26,18 @@ export interface AuthUser {
   tenantBpn?: string;
 }
 
+export type LoginResult =
+  | "ok"
+  | "invalid"
+  | "ratelimited"
+  | "server"
+  | "network";
+
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (tenantId: string, password: string) => Promise<boolean>;
+  login: (tenantId: string, password: string) => Promise<LoginResult>;
   logout: () => void;
 }
 
@@ -37,7 +45,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  login: async () => false,
+  login: async () => "network",
   logout: () => {},
 });
 
@@ -82,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (tenantId: string, password: string): Promise<boolean> => {
+    async (tenantId: string, password: string): Promise<LoginResult> => {
       try {
         const { data } = await axios.post("/api/auth/login", {
           tenantId: tenantId.trim(),
@@ -113,9 +121,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(authUser);
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
-        return true;
-      } catch {
-        return false;
+        return "ok";
+      } catch (err) {
+        // 실패 원인 구분 — 네트워크/서버 장애를 "비밀번호 틀림"으로 오인하지 않도록.
+        const status = (err as { response?: { status?: number } })?.response
+          ?.status;
+        if (status === 401 || status === 403) return "invalid";
+        if (status === 429) return "ratelimited";
+        if (typeof status === "number" && status >= 500) return "server";
+        return "network";
       }
     },
     []
@@ -128,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 테넌트 전환/로그아웃 시 이전 테넌트 데이터가 새 세션에 새지 않도록 캐시·UI 상태를 초기화.
     queryClient.clear();
     useConnectorStore.getState().reset();
+    clearRecent(); // localStorage 잔존 거래상대(DSP·BPN) 기록 제거
     // Best-effort server notify (no-op on server today)
     if (tok) {
       axios
@@ -146,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       queryClient.clear();
       useConnectorStore.getState().reset();
+      clearRecent();
     };
     window.addEventListener("kmx-auth-expired", onExpired);
     return () => window.removeEventListener("kmx-auth-expired", onExpired);

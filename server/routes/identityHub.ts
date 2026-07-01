@@ -85,6 +85,8 @@ router.get(
         const { data, status } = await axios.get(endpointUrl, {
           timeout: TIMEOUT_MS,
           validateStatus: () => true,
+          // SSRF: 리다이렉트 미추적(자격증명이 실린 요청이 내부/공격 호스트로 유도되는 것 차단).
+          maxRedirects: 0,
         });
         const latencyMs = Date.now() - startedAt;
         const isSystemHealthy = Boolean(
@@ -249,7 +251,12 @@ router.get(
       try {
         const { data, status } = await axios.get(
           `${base}/api/identity/v1alpha/participants/${idPath}/credentials`,
-          { headers, timeout: TIMEOUT_MS, validateStatus: () => true }
+          {
+            headers,
+            timeout: TIMEOUT_MS,
+            validateStatus: () => true,
+            maxRedirects: 0, // SSRF: 리다이렉트 미추적(api-key 유출 차단)
+          }
         );
         if (status >= 200 && status < 300 && Array.isArray(data)) {
           body.credentials = data.map(mapCredential);

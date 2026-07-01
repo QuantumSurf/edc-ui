@@ -27,6 +27,13 @@ import { validateDspEndpoint } from "../middleware/validation.js";
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
 
+// EDR 데이터 pull 응답 크기 상한 — targetUrl 은 미신뢰 provider 데이터플레인이 반환한 EDR
+// endpoint 라, 상한이 없으면 거대한 응답이 arraybuffer 로 전량 버퍼링돼 공유 BFF 를 OOM 시킬 수
+// 있다(단일 프로세스 → 전 테넌트 동시 다운). env EDR_MAX_RESPONSE_BYTES 로 조정(기본 100MB).
+const EDR_MAX_RESPONSE_BYTES = Number(
+  process.env.EDR_MAX_RESPONSE_BYTES ?? 100 * 1024 * 1024
+);
+
 /**
  * EDR endpoint(신뢰된 provider 데이터플레인 URL)에 선택적 하위 경로/쿼리를 안전하게 덧붙인다.
  * 절대 URL / protocol-relative(`//`) 는 호스트 변조 우려로 거부(null 반환).
@@ -285,6 +292,11 @@ router.post(
         headers: { Authorization: `Bearer ${token}` },
         responseType: "arraybuffer",
         timeout: 30_000,
+        // SSRF: 리다이렉트 미추적 — provider 가 30x 로 내부/메타데이터 주소로 유도해 EDR
+        // Bearer 토큰을 탈취하는 것 차단. + 응답 크기 상한으로 OOM(공유 BFF 다운) 방지.
+        maxRedirects: 0,
+        maxContentLength: EDR_MAX_RESPONSE_BYTES,
+        maxBodyLength: EDR_MAX_RESPONSE_BYTES,
       });
       const fetchDurationMs = Date.now() - fetchStart;
 
@@ -418,6 +430,10 @@ router.post(
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: "arraybuffer",
                 timeout: 30_000,
+                // SSRF: 리다이렉트 미추적(EDR 토큰 유출 차단) + 크기 상한(OOM 방지).
+                maxRedirects: 0,
+                maxContentLength: EDR_MAX_RESPONSE_BYTES,
+                maxBodyLength: EDR_MAX_RESPONSE_BYTES,
               });
               const fetchDurationMs = Date.now() - fetchStart;
               const rawSize = dataRes.data?.length ?? 0;

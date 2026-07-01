@@ -17,7 +17,7 @@ import {
 } from "../lib/connectorRegistry.js";
 import { getTenant } from "../lib/tenants.js";
 import { getPool } from "../lib/db.js";
-import { createEdcClient } from "../lib/edcClient.js";
+import { createEdcClient, EDC_QUERY_LIMIT } from "../lib/edcClient.js";
 import { requireRole } from "../middleware/auth.js";
 import { validateDspEndpoint } from "../middleware/validation.js";
 import {
@@ -56,6 +56,8 @@ function validateConnectorUrls(body: {
 const JSON_LD_QUERY = {
   "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
   "@type": "QuerySpec",
+  // limit 미지정 시 EDC 기본 50 으로 카운트가 잘린다(사이드바 배지 과소집계).
+  limit: EDC_QUERY_LIMIT,
 };
 
 function countArray(res: {

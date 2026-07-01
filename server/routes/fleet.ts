@@ -8,7 +8,7 @@ import {
   type NextFunction,
 } from "express";
 import { listConnectors } from "../lib/connectorRegistry.js";
-import { createEdcClient } from "../lib/edcClient.js";
+import { createEdcClient, EDC_QUERY_LIMIT } from "../lib/edcClient.js";
 import {
   mapWithConcurrency,
   FLEET_FANOUT_CONCURRENCY,
@@ -19,6 +19,8 @@ const router = Router();
 const JSON_LD_QUERY = {
   "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
   "@type": "QuerySpec",
+  // limit 미지정 시 EDC 기본 50 으로 KPI 총계(자산/협상/전송)가 과소집계된다.
+  limit: EDC_QUERY_LIMIT,
 };
 
 interface ConnectorKpi {

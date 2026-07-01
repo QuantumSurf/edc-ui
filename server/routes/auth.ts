@@ -10,6 +10,7 @@ import {
 import { getPool } from "../lib/db.js";
 import {
   verifyPassword,
+  hashPassword,
   dummyVerify,
   signToken,
   type Role,
@@ -129,7 +130,14 @@ router.post(
       const ok = await verifyPassword(password, u.password_hash);
       if (!ok) {
         // 실패 카운트 증가, 임계 초과 시 잠금. 계정 단위라 IP 분산·멀티레플리카에도 견고.
-        const failed = (u.failed_login_count ?? 0) + 1;
+        // 위 잠금-활성 가드(locked_until > now → 429)를 통과했으므로, locked_until 이
+        // 설정돼 있으면 이미 '만료된' 잠금이다. 만료된 경우 카운터를 0 부터 다시 센다 —
+        // 그러지 않으면 한번 잠긴 계정은 이후 실패 1번마다 즉시 재잠금되는 무한 루프에 빠지고
+        // (정상 사용자 self-DoS), 공격자는 15분당 1요청으로 특정 계정을 영구 잠글 수 있다.
+        const lockExpired =
+          u.locked_until != null &&
+          new Date(u.locked_until).getTime() <= Date.now();
+        const failed = (lockExpired ? 0 : (u.failed_login_count ?? 0)) + 1;
         if (failed >= LOGIN_MAX_FAILURES) {
           await getPool().query(
             `UPDATE users SET failed_login_count = $1,
@@ -137,8 +145,9 @@ router.post(
             [failed, String(LOGIN_LOCKOUT_MINUTES), u.id]
           );
         } else {
+          // 임계 미만 — 만료된 잠금이 남아 있으면 함께 해제.
           await getPool().query(
-            `UPDATE users SET failed_login_count = $1 WHERE id = $2`,
+            `UPDATE users SET failed_login_count = $1, locked_until = NULL WHERE id = $2`,
             [failed, u.id]
           );
         }
@@ -278,6 +287,77 @@ router.get(
         tenantName: tenant?.name,
         tenantBpn: tenant?.bpn,
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /change-password — 인증된 사용자의 셀프 비밀번호 변경(자격증명 회전).
+router.post(
+  "/change-password",
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const uid = req.user?.id;
+      if (!uid) {
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const { currentPassword, newPassword } = (req.body ?? {}) as {
+        currentPassword?: unknown;
+        newPassword?: unknown;
+      };
+      if (
+        typeof currentPassword !== "string" ||
+        typeof newPassword !== "string"
+      ) {
+        res
+          .status(400)
+          .json({ error: "currentPassword and newPassword required" });
+        return;
+      }
+      // 최소 8자 + 과도 길이 차단(bcrypt 72바이트 truncation 고려한 상한).
+      if (newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LEN) {
+        res.status(400).json({ error: "password-policy" });
+        return;
+      }
+      const { rows } = await getPool().query<{ password_hash: string }>(
+        `SELECT password_hash FROM users WHERE id = $1`,
+        [uid]
+      );
+      if (rows.length === 0) {
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const ok = await verifyPassword(currentPassword, rows[0].password_hash);
+      if (!ok) {
+        res.status(403).json({ error: "current-password-mismatch" });
+        return;
+      }
+      const hash = await hashPassword(newPassword);
+      // token_version 증가 → 기존 발급 토큰 전부 무효화(변경 후 재로그인 강제, 탈취 세션 회수).
+      await getPool().query(
+        `UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2`,
+        [hash, uid]
+      );
+      void recordAudit({
+        tenantId: req.user?.tenantId ?? null,
+        actorId: uid,
+        actorEmail: req.user?.email,
+        actorRole: req.user?.role,
+        action: "auth.change-password",
+        category: "AUTH",
+        target: req.user?.email,
+        targetType: "User",
+        result: "SUCCESS",
+        ip: req.ip ?? null,
+        userAgent: (req.headers["user-agent"] as string) ?? null,
+        method: "POST",
+        path: "/api/auth/change-password",
+        message: "Password changed",
+      });
+      res.status(204).end(); // 토큰 무효화됨 → 클라 재로그인 필요
     } catch (err) {
       next(err);
     }

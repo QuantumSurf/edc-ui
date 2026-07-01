@@ -38,7 +38,9 @@ export function createEdcClient(config: EdcClientConfig): AxiosInstance {
     timeout: config.timeoutMs ?? 10_000,
     maxContentLength: EDC_MAX_RESPONSE_BYTES,
     maxBodyLength: EDC_MAX_RESPONSE_BYTES,
-    maxRedirects: 5,
+    // SSRF: 리다이렉트 미추적 — 호스트 검증 통과 후 30x Location 으로 내부/메타데이터
+    // 주소로 유도돼 X-Api-Key 가 유출되는 것을 차단(EDC Management API 는 리다이렉트 안 함).
+    maxRedirects: 0,
     headers: {
       "Content-Type": "application/json",
       "X-Api-Key": config.apiKey,
@@ -82,16 +84,28 @@ export function createEdcClient(config: EdcClientConfig): AxiosInstance {
   return client;
 }
 
+// EDC QuerySpec 기본 limit — 미지정 시 EDC Management API 는 결과를 50 으로 잘라, 목록·
+// 카운트·플릿 KPI·알림 폴러에서 데이터가 조용히 유실된다. 명시적 상한으로 절단을 방지한다
+// (진짜 커서 페이지네이션은 후속 과제). env EDC_QUERY_LIMIT 로 조정 가능(기본 1000).
+export const EDC_QUERY_LIMIT = Number(process.env.EDC_QUERY_LIMIT) || 1000;
+
 /** Ensure JSON-LD @context is present on request body */
 export function withJsonLd(
   body: Record<string, unknown> = {}
 ): Record<string, unknown> {
   if (body["@context"]) return body;
-  return {
+  const type = body["@type"] ?? "QuerySpec";
+  const out: Record<string, unknown> = {
     "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
-    "@type": body["@type"] ?? "QuerySpec",
+    "@type": type,
     ...body,
   };
+  // QuerySpec 목록 요청에 limit 이 없으면 EDC 기본값(50)에 잘리므로 명시 상한을 넣는다.
+  // (호출자가 limit 을 넘기면 그대로 존중 — 예: 존재확인용 limit:1.)
+  if (type === "QuerySpec" && out["limit"] === undefined) {
+    out["limit"] = EDC_QUERY_LIMIT;
+  }
+  return out;
 }
 
 /* ── Client builder data → EDC JSON-LD builders ──────────────── */
@@ -121,6 +135,11 @@ export interface PolicyBuilderInput {
   }[];
 }
 
+// Catena-X 정책에는 odrl:profile(profile2405)이 필수다(CX-0152 / cx-odrl-profile).
+const CX_POLICY_PROFILE = "cx-policy:profile2405";
+// 복수 값을 받는 operator → rightOperand 를 배열로(쉼표 분리). Catena-X 다중 BPN 등.
+const MULTI_VALUE_OPS = new Set(["odrl:isAnyOf", "odrl:isNoneOf", "odrl:in"]);
+
 export function buildPolicyDefinition(
   input: PolicyBuilderInput
 ): Record<string, unknown> {
@@ -129,12 +148,21 @@ export function buildPolicyDefinition(
   const actionRaw = input.action ?? "use";
   const actionId = actionRaw.includes(":") ? actionRaw : `odrl:${actionRaw}`;
 
-  const constraintNodes = (input.constraints ?? []).map(c => ({
-    "odrl:leftOperand": c.leftOperand,
-    "odrl:operator": { "@id": c.operator },
-    "odrl:rightOperand": c.rightOperand,
-  }));
-  // 다중 제약 + logicOp면 논리연산자로 래핑(클라 미리보기와 동일 구조).
+  const constraintNodes = (input.constraints ?? []).map(c => {
+    // isAnyOf/in 등 복수값 operator 는 rightOperand 를 배열로 직렬화(Catena-X 표준).
+    const right = MULTI_VALUE_OPS.has(c.operator)
+      ? c.rightOperand
+          .split(",")
+          .map(s => s.trim())
+          .filter(Boolean)
+      : c.rightOperand;
+    return {
+      "odrl:leftOperand": c.leftOperand,
+      "odrl:operator": { "@id": c.operator },
+      "odrl:rightOperand": right,
+    };
+  });
+  // 다중 제약 + logicOp면 논리연산자로 래핑(Catena-X profile2405 는 odrl:and 만 지원).
   const constraintField =
     constraintNodes.length > 1 && input.logicOp
       ? [{ [`odrl:${input.logicOp}`]: constraintNodes }]
@@ -145,6 +173,9 @@ export function buildPolicyDefinition(
   };
   if (constraintField.length) rule["odrl:constraint"] = constraintField;
 
+  // @context 는 문서 전체에 cx-policy 프리픽스를 적용한다. 정책 객체에 별도 odrl.jsonld
+  // 컨텍스트를 두면 cx-policy 가 미정의되어 profile/leftOperand 프리픽스 해석이 깨지므로
+  // 명시 odrl: 접두 + 단일 외곽 @context 를 쓴다.
   return {
     "@context": {
       "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
@@ -154,8 +185,8 @@ export function buildPolicyDefinition(
     "@type": "PolicyDefinition",
     "@id": input.policyId,
     policy: {
-      "@context": "http://www.w3.org/ns/odrl.jsonld",
       "@type": "odrl:Set",
+      "odrl:profile": { "@id": CX_POLICY_PROFILE },
       [ruleKey]: [rule],
     },
   };
@@ -323,12 +354,16 @@ function mapPolicyConstraint(c: Record<string, unknown> | undefined): {
       ? (((opRaw as Record<string, unknown>)["@id"] as string) ?? "")
       : ((opRaw as string) ?? "");
   const rightRaw = c?.["odrl:rightOperand"] ?? c?.["rightOperand"];
-  const right =
-    typeof rightRaw === "object" && rightRaw !== null
-      ? (((rightRaw as Record<string, unknown>)["@value"] as string) ??
-        ((rightRaw as Record<string, unknown>)["@id"] as string) ??
+  const extractRight = (v: unknown): string =>
+    typeof v === "object" && v !== null
+      ? (((v as Record<string, unknown>)["@value"] as string) ??
+        ((v as Record<string, unknown>)["@id"] as string) ??
         "")
-      : ((rightRaw as string) ?? "");
+      : ((v as string) ?? "");
+  // 복수값 operator(isAnyOf/in 등)는 rightOperand 가 배열로 온다 → 쉼표 결합해 편집 모델과 일치.
+  const right = Array.isArray(rightRaw)
+    ? rightRaw.map(extractRight).filter(Boolean).join(",")
+    : extractRight(rightRaw);
   return { left, op: opId.replace(/^odrl:/, ""), right };
 }
 

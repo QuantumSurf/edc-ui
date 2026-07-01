@@ -1,6 +1,6 @@
 // Connector Hub — Login Page
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, type LoginResult } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n";
 import { Lock, User, AlertCircle, Loader2 } from "lucide-react";
 
@@ -9,16 +9,16 @@ export default function PageLogin() {
   const { t } = useI18n();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LoginResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(false);
+    setError(null);
     setLoading(true);
-    const ok = await login(username, password);
+    const res = await login(username, password);
     setLoading(false);
-    if (!ok) setError(true);
+    if (res !== "ok") setError(res);
   };
 
   return (
@@ -72,7 +72,7 @@ export default function PageLogin() {
                   value={username}
                   onChange={e => {
                     setUsername(e.target.value);
-                    setError(false);
+                    setError(null);
                   }}
                   placeholder="BPNL000000000000"
                   autoComplete="username"
@@ -94,7 +94,7 @@ export default function PageLogin() {
                   value={password}
                   onChange={e => {
                     setPassword(e.target.value);
-                    setError(false);
+                    setError(null);
                   }}
                   autoComplete="new-password"
                   className="w-full pl-10 pr-3 py-2.5 text-sm border border-border rounded-lg bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent focus:bg-card transition-colors"
@@ -105,7 +105,13 @@ export default function PageLogin() {
             {error && (
               <div className="flex items-center gap-2 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 px-3 py-2 rounded-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {t.login.invalidCredentials}
+                {error === "ratelimited"
+                  ? t.login.rateLimited
+                  : error === "server"
+                    ? t.login.serverError
+                    : error === "network"
+                      ? t.login.networkError
+                      : t.login.invalidCredentials}
               </div>
             )}
 
@@ -139,7 +145,7 @@ export default function PageLogin() {
                   onClick={() => {
                     setUsername(bpn);
                     setPassword(pw);
-                    setError(false);
+                    setError(null);
                   }}
                   className="px-2 py-1.5 rounded-md border border-border hover:bg-muted hover:border-foreground/30 transition-colors text-muted-foreground hover:text-foreground leading-tight"
                 >
