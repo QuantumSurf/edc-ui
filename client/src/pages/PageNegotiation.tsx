@@ -552,14 +552,15 @@ function NegotiationDetailSheet({
               {t.negotiations.title}
             </h2>
             <StateBadge name={target.name} />
-            <button
-              onClick={onClose}
-              className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex-shrink-0"
-              aria-label={t.common.close}
-            >
-              <X size={16} />
-            </button>
           </div>
+          {/* 닫기 — identityhub-ui Sheet 와 동일 우상단 절대 위치로 통일 */}
+          <button
+            onClick={onClose}
+            aria-label={t.common.close}
+            className="absolute top-4 right-4 z-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <X className="size-4" />
+          </button>
           {/* UUID는 보조 식별자 줄로 강등 (복사 가능) */}
           <div className="flex items-center gap-1.5 mt-1">
             <span className="text-[11px] mono text-muted-foreground truncate">

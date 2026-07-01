@@ -385,13 +385,6 @@ function ShellDetailDialog({
           <h2 className="text-[15px] font-semibold text-foreground truncate">
             {shell.idShort || t.twins.detail.title}
           </h2>
-          <button
-            onClick={onClose}
-            className="ml-auto -mr-1 p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label={t.common.close}
-          >
-            <X size={16} />
-          </button>
         </div>
       </div>
 
