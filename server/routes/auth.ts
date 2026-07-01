@@ -71,7 +71,7 @@ router.post(
               t.id AS tenant_id, t.name AS tenant_name, t.bpn AS tenant_bpn
          FROM tenants t
          JOIN users u ON u.tenant_id = t.id
-        WHERE t.bpn = $1
+        WHERE t.bpn = $1 AND t.archived_at IS NULL
         ORDER BY u.created_at
         LIMIT 1`,
         [bpn]

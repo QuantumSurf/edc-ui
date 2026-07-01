@@ -44,6 +44,12 @@ async function createSchema(): Promise<void> {
     );
   `);
 
+  // Migration: 테넌트 오프보딩(H8) — 아카이브(소프트삭제) 타임스탬프. NULL=활성, 값=아카이브 시각.
+  // 로그인/세션을 즉시 차단하고, 보존기간 경과 후 CLI purge 로 하드삭제한다.
+  await getPool().query(
+    `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;`
+  );
+
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS connectors (
       id              TEXT PRIMARY KEY,
@@ -599,7 +605,7 @@ async function migrateConnectorApiKeys(): Promise<void> {
 /** 스키마/마이그레이션 버전 — 스키마 변경 시 갱신한다. readiness 게이팅에 사용:
  *  롤링 배포 때 구버전 파드가 새 스키마로 마이그레이션된 DB 를 만나면 NotReady 로 빠져
  *  트래픽에서 제외된다(구/신 스키마 파드 동시 서빙으로 인한 일시 500 방지). */
-export const SCHEMA_VERSION = "2026-07-01";
+export const SCHEMA_VERSION = "2026-07-02";
 
 /** 이 프로세스의 SCHEMA_VERSION 이 DB 에 기록된 버전과 일치하는지 — /readyz 게이팅용. */
 export async function isSchemaReady(): Promise<boolean> {
