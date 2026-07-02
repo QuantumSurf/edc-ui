@@ -428,6 +428,31 @@ export function SectionHdr({
 }
 
 /* ─── Card ───────────────────────────────────────────────────── */
+/** 목록/조회 페이지 공통 새로고침 버튼. SectionHdr action 또는 카드 actions 에 넣는다.
+ *  onRefresh=refetch, busy=isFetching(회전 애니메이션 + 비활성). */
+export function RefreshButton({
+  onRefresh,
+  busy,
+  label,
+}: {
+  onRefresh: () => void;
+  busy?: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onRefresh}
+      disabled={busy}
+      aria-label={label}
+      title={label}
+      className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border border-border hover:bg-muted disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+    >
+      <RefreshCw className={cn("w-3 h-3", busy && "animate-spin")} />
+      {label}
+    </button>
+  );
+}
+
 interface CardProps {
   title?: React.ReactNode;
   children: React.ReactNode;

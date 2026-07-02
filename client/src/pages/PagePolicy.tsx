@@ -31,6 +31,7 @@ import {
   FormField,
   JsonTreeView,
   PrimaryActionButton,
+  RefreshButton,
   inputBase,
   ListError,
   ListEmpty,
@@ -408,14 +409,21 @@ export default function PagePolicy() {
         icon={<ShieldCheck className="w-5 h-5 text-primary" />}
         subtitle={t.pageSubtitles.policies}
         action={
-          <RoleGate permission="resource:write">
-            <PrimaryActionButton
-              onClick={() => switchTab("builder")}
-              icon={<PlusCircle className="w-3 h-3" />}
-            >
-              {t.policies.createOdrl}
-            </PrimaryActionButton>
-          </RoleGate>
+          <div className="flex items-center gap-1.5">
+            <RefreshButton
+              onRefresh={() => refetch()}
+              busy={isFetching}
+              label={t.common.refresh}
+            />
+            <RoleGate permission="resource:write">
+              <PrimaryActionButton
+                onClick={() => switchTab("builder")}
+                icon={<PlusCircle className="w-3 h-3" />}
+              >
+                {t.policies.createOdrl}
+              </PrimaryActionButton>
+            </RoleGate>
+          </div>
         }
       >
         {t.policies.title}

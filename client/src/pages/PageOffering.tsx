@@ -38,6 +38,7 @@ import {
   FormField,
   JsonTreeView,
   PrimaryActionButton,
+  RefreshButton,
   inputBase,
   ListError,
   ListEmpty,
@@ -166,14 +167,21 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
         icon={<FileSignature className="w-5 h-5 text-primary" />}
         subtitle={t.pageSubtitles.offerings}
         action={
-          <RoleGate permission="resource:write">
-            <PrimaryActionButton
-              onClick={() => switchTab("wizard")}
-              icon={<PlusCircle className="w-3 h-3" />}
-            >
-              {t.offerings.createWizard}
-            </PrimaryActionButton>
-          </RoleGate>
+          <div className="flex items-center gap-1.5">
+            <RefreshButton
+              onRefresh={() => refetch()}
+              busy={isFetching}
+              label={t.common.refresh}
+            />
+            <RoleGate permission="resource:write">
+              <PrimaryActionButton
+                onClick={() => switchTab("wizard")}
+                icon={<PlusCircle className="w-3 h-3" />}
+              >
+                {t.offerings.createWizard}
+              </PrimaryActionButton>
+            </RoleGate>
+          </div>
         }
       >
         {t.offerings.title}

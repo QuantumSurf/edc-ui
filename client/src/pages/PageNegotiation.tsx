@@ -18,6 +18,7 @@ import {
   ListEmpty,
   ListError,
   inputBase,
+  RefreshButton,
 } from "@/components/ui-kmx";
 import {
   ConfirmActionDialog,
@@ -217,7 +218,17 @@ export default function PageNegotiation({ onNav }: PageNegotiationProps) {
         }}
       />
 
-      <SectionHdr icon={<FileText className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.negotiations}>
+      <SectionHdr
+        icon={<FileText className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.negotiations}
+        action={
+          <RefreshButton
+            onRefresh={() => refetch()}
+            busy={isFetching}
+            label={t.common.refresh}
+          />
+        }
+      >
         {t.negotiations.title}
       </SectionHdr>
       {/* ── Search & Filter — fl-aggregator TasksPage style ───── */}

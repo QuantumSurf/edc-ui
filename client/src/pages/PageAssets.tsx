@@ -28,6 +28,7 @@ import {
   FormField,
   JsonTreeView,
   PrimaryActionButton,
+  RefreshButton,
   inputBase,
   ListError,
   ListEmpty,
@@ -163,14 +164,21 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
         icon={<Package className="w-5 h-5 text-primary" />}
         subtitle={t.pageSubtitles.assets}
         action={
-          <RoleGate permission="resource:write">
-            <PrimaryActionButton
-              onClick={() => switchTab("wizard")}
-              icon={<PlusCircle className="w-3 h-3" />}
-            >
-              {t.assets.createWizard}
-            </PrimaryActionButton>
-          </RoleGate>
+          <div className="flex items-center gap-1.5">
+            <RefreshButton
+              onRefresh={() => refetch()}
+              busy={isFetching}
+              label={t.common.refresh}
+            />
+            <RoleGate permission="resource:write">
+              <PrimaryActionButton
+                onClick={() => switchTab("wizard")}
+                icon={<PlusCircle className="w-3 h-3" />}
+              >
+                {t.assets.createWizard}
+              </PrimaryActionButton>
+            </RoleGate>
+          </div>
         }
       >
         {t.assets.title}

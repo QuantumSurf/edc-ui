@@ -20,6 +20,7 @@ import {
   ViewAllLink,
   ListError,
   ListEmpty,
+  RefreshButton,
 } from "@/components/ui-kmx";
 import {
   Package,
@@ -83,7 +84,11 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
     refetchInterval: 30_000,
   });
 
-  const { data: trendData = [] } = useQuery({
+  const {
+    data: trendData = [],
+    refetch: trendRefetch,
+    isFetching: trendFetching,
+  } = useQuery({
     queryKey: ["stats-trend", conn.id],
     queryFn: () => fetchTrend(conn.id, 24),
     refetchInterval: 60_000, // 1분마다 갱신
@@ -133,7 +138,17 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   return (
     <>
       {/* Page Title */}
-      <SectionHdr icon={<LayoutDashboard className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.dashboard}>
+      <SectionHdr
+        icon={<LayoutDashboard className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.dashboard}
+        action={
+          <RefreshButton
+            onRefresh={() => trendRefetch()}
+            busy={trendFetching}
+            label={t.common.refresh}
+          />
+        }
+      >
         {t.nav.dashboard}
       </SectionHdr>
 

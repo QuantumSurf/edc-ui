@@ -20,6 +20,7 @@ import {
   KpiCard,
   FormField,
   PrimaryActionButton,
+  RefreshButton,
   inputBase,
   ListError,
   ListEmpty,
@@ -131,14 +132,21 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         icon={<LayoutGrid className="w-5 h-5 text-primary" />}
         subtitle={t.pageSubtitles.fleet}
         action={
-          <RoleGate permission="connector:write">
-            <PrimaryActionButton
-              onClick={() => setAddOpen(true)}
-              icon={<PlusCircle className="w-3 h-3" />}
-            >
-              {t.common.addConnector}
-            </PrimaryActionButton>
-          </RoleGate>
+          <div className="flex items-center gap-1.5">
+            <RefreshButton
+              onRefresh={() => connectorsRefetch()}
+              busy={connectorsFetching}
+              label={t.common.refresh}
+            />
+            <RoleGate permission="connector:write">
+              <PrimaryActionButton
+                onClick={() => setAddOpen(true)}
+                icon={<PlusCircle className="w-3 h-3" />}
+              >
+                {t.common.addConnector}
+              </PrimaryActionButton>
+            </RoleGate>
+          </div>
         }
       >
         {t.fleet.connectorFleet}

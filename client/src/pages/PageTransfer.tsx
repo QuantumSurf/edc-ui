@@ -34,6 +34,7 @@ import {
   ListError,
   JsonTreeView,
   inputBase,
+  RefreshButton,
 } from "@/components/ui-kmx";
 
 // 자산ID는 내용폭(고정 200px)으로 고정해 유형과 붙이고, 남는 여백은 시각 컬럼(flex)이 흡수.
@@ -604,7 +605,17 @@ export default function PageTransfer() {
           }}
         />
       )}
-      <SectionHdr icon={<Send className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.transfers}>
+      <SectionHdr
+        icon={<Send className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.transfers}
+        action={
+          <RefreshButton
+            onRefresh={() => refetch()}
+            busy={isFetching}
+            label={t.common.refresh}
+          />
+        }
+      >
         {t.transfers.title}
       </SectionHdr>
 

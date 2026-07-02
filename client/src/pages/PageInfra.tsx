@@ -12,6 +12,7 @@ import {
   MonoText,
   DataSourceBadge,
   CardTitle,
+  RefreshButton,
 } from "@/components/ui-kmx";
 import {
   BarChart,
@@ -94,9 +95,29 @@ export default function PageInfra() {
   const isLive =
     !!overviewQuery.data || !!databasesQuery.data?.databases?.length;
 
+  const isFetchingAny =
+    overviewQuery.isFetching || databasesQuery.isFetching || locksQuery.isFetching;
+  const refetchAll = () => {
+    overviewQuery.refetch();
+    databasesQuery.refetch();
+    locksQuery.refetch();
+  };
+
   return (
     <>
-      <SectionHdr action={<DataSourceBadge mode={isLive ? "mixed" : "demo"} />} subtitle={t.pageSubtitles.infra}>
+      <SectionHdr
+        action={
+          <div className="flex items-center gap-1.5">
+            <RefreshButton
+              onRefresh={refetchAll}
+              busy={isFetchingAny}
+              label={t.common.refresh}
+            />
+            <DataSourceBadge mode={isLive ? "mixed" : "demo"} />
+          </div>
+        }
+        subtitle={t.pageSubtitles.infra}
+      >
         {t.infra.title}
       </SectionHdr>
 

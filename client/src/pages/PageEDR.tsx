@@ -13,6 +13,7 @@ import {
   AlertBanner,
   ProgressBar,
   SectionHdr,
+  RefreshButton,
   CardTitle,
   ListCard,
   ListHeaderRow,
@@ -93,7 +94,17 @@ export default function PageEDR() {
 
   return (
     <>
-      <SectionHdr icon={<Key className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.edr}>
+      <SectionHdr
+        icon={<Key className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.edr}
+        action={
+          <RefreshButton
+            onRefresh={() => refetch()}
+            busy={isFetching}
+            label={t.common.refresh}
+          />
+        }
+      >
         {t.edr.title}
       </SectionHdr>
 

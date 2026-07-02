@@ -30,6 +30,7 @@ import {
   ListColLabel,
   ListEmpty,
   ListError,
+  RefreshButton,
 } from "@/components/ui-kmx";
 import {
   DataTablePagination,
@@ -221,7 +222,17 @@ export default function PageVault() {
 
   return (
     <>
-      <SectionHdr icon={<Vault className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.vault}>
+      <SectionHdr
+        icon={<Vault className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.vault}
+        action={
+          <RefreshButton
+            onRefresh={() => listQuery.refetch()}
+            busy={listQuery.isFetching}
+            label={t.common.refresh}
+          />
+        }
+      >
         {t.vault.title}
       </SectionHdr>
 
