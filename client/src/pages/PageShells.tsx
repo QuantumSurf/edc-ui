@@ -242,15 +242,23 @@ export default function PageShells() {
                     {s.globalAssetId || "—"}
                   </span>
                 </div>
-                <div className="hidden lg:block min-w-0">
-                  <div className="flex items-center gap-1">
+                {/* overflow-hidden: min-w-min 래퍼 전환 후 fr 배분폭보다 배지 합이 크면
+                    인접 컬럼(서브모델 수) 위로 겹쳐 그려지는 회귀 방지 — 넘치면 말줄임. */}
+                <div className="hidden lg:block min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-1 min-w-0">
                     {s.specificAssetIds.slice(0, 2).map((sa, i) => (
-                      <Badge key={i} variant="gray">
-                        {sa.name}={sa.value}
+                      <Badge
+                        key={i}
+                        variant="gray"
+                        className="min-w-0 overflow-hidden"
+                      >
+                        <span className="truncate">
+                          {sa.name}={sa.value}
+                        </span>
                       </Badge>
                     ))}
                     {s.specificAssetIds.length > 2 && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0">
                         +{s.specificAssetIds.length - 2}
                       </span>
                     )}

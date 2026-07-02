@@ -76,7 +76,11 @@ export default function PageEDR() {
       enabled: false,
     },
   };
-  const { data: stats = defaultStats } = useQuery({
+  const {
+    data: stats = defaultStats,
+    refetch: statsRefetch,
+    isFetching: statsFetching,
+  } = useQuery({
     queryKey: ["edr-stats", connectorId],
     queryFn: () => fetchEDRStats(connectorId!),
     enabled: !!connectorId,
@@ -99,8 +103,12 @@ export default function PageEDR() {
         subtitle={t.pageSubtitles.edr}
         action={
           <RefreshButton
-            onRefresh={() => refetch()}
-            busy={isFetching}
+            // 목록(edrs)과 KPI 카드(edr-stats)를 함께 갱신 — 페이지 수준 버튼 의미와 일치.
+            onRefresh={() => {
+              refetch();
+              statsRefetch();
+            }}
+            busy={isFetching || statsFetching}
             label={t.common.refresh}
           />
         }

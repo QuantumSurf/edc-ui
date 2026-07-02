@@ -96,7 +96,11 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
 
   // 자산 KPI 는 사이드바와 동일한 ["assets", conn.id] 캐시를 공유해, 자산 추가/삭제 시
   // 두 표시가 항상 일치하도록 한다(정적 conn.assets 사용 시 한 화면에서 수가 어긋남).
-  const { data: assetList } = useQuery({
+  const {
+    data: assetList,
+    refetch: assetsRefetch,
+    isFetching: assetsFetching,
+  } = useQuery({
     queryKey: ["assets", conn.id],
     queryFn: () => fetchAssets(conn.id),
     staleTime: 60_000,
@@ -143,8 +147,17 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
         subtitle={t.pageSubtitles.dashboard}
         action={
           <RefreshButton
-            onRefresh={() => trendRefetch()}
-            busy={trendFetching}
+            // 페이지 수준 새로고침 — 트렌드만이 아닌 4개 소스(KPI·도넛·최근활동) 전부 갱신.
+            // assets 는 사이드바와 캐시 공유라 배지 카운트도 함께 갱신된다.
+            onRefresh={() => {
+              negRefetch();
+              transfersRefetch();
+              trendRefetch();
+              assetsRefetch();
+            }}
+            busy={
+              negFetching || transfersFetching || trendFetching || assetsFetching
+            }
             label={t.common.refresh}
           />
         }
