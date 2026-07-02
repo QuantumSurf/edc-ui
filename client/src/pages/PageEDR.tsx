@@ -28,7 +28,7 @@ import {
 // 부차 컬럼(제공자/엔드포인트·authCode)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 5컬럼.
 // (authCode 의 기존 xl 브레이크포인트는 lg 단일로 통일 — lg 구간 빈 트랙 결함 제거)
 const EDR_COLS =
-  "grid-cols-[minmax(110px,1fr)_minmax(120px,1fr)_90px] lg:grid-cols-[170px_1.5fr_1.6fr_1.7fr_120px]";
+  "grid-cols-[minmax(110px,1fr)_minmax(120px,1fr)_minmax(140px,1.3fr)_90px] lg:grid-cols-[170px_1.5fr_1.6fr_1.7fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import {
   DataTablePagination,
@@ -141,7 +141,7 @@ export default function PageEDR() {
             <ListHeaderRow cols={EDR_COLS}>
               <ListColLabel>{t.edr.col.id}</ListColLabel>
               <ListColLabel>{t.edr.col.remaining}</ListColLabel>
-              <ListColLabel className="hidden lg:block">
+              <ListColLabel>
                 {t.edr.col.provider} / {t.edr.col.endpoint}
               </ListColLabel>
               <ListColLabel className="hidden lg:block">
@@ -289,7 +289,7 @@ function EDRRow({
         </div>
         <ProgressBar value={pct} colorClass={colorClass} />
       </div>
-      <div className="hidden lg:block min-w-0 space-y-0.5">
+      <div className="min-w-0 space-y-0.5">
         <span className="text-xs text-foreground truncate block" title={e.prov}>
           {e.prov}
         </span>
