@@ -199,12 +199,38 @@ services:
           fi
         }
 
+        # 정적 시크릿(dataplane 키쌍·ih-aes-key) 자가복구: platform-vault 는 dev 모드
+        # (인메모리)라 재시작/실링 시 platform-vault-setup 이 넣은 키가 사라진다.
+        # 키 부재 시 EDR 토큰 서명 실패("JWSSigner cannot be generated ... not found")로
+        # 모든 transfer 가 TERMINATED 되므로, 누락 감지 시 재주입한다(멱등).
+        ensure_static_secret() {
+          NAME=$$1; VALUE=$$2
+          if ! docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-platform-vault \
+                vault kv get secret/$$NAME >/dev/null 2>&1; then
+            docker exec -e VAULT_ADDR=$$VADDR -e VAULT_TOKEN=$$VTOKEN kmx-platform-vault \
+              vault kv put secret/$$NAME content="$$VALUE" >/dev/null \
+              && echo "static secret restored (alias=$$NAME)"
+          fi
+        }
+        DP_PRIV="-----BEGIN PRIVATE KEY-----
+        MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgjrO6Yz5FKHKwGeQT
+        wbUGYpePtwdW818H7tDzMO2+ZYyhRANCAAQWa8pxMRlftcbvB/aqfO67rLM2vUIp
+        l2q0D1JMHRkuBglgBtncV7JfHmgiNOM1rYwxEhUawDrvn6vItihv1p0G
+        -----END PRIVATE KEY-----"
+        DP_PUB="-----BEGIN PUBLIC KEY-----
+        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFmvKcTEZX7XG7wf2qnzuu6yzNr1C
+        KZdqtA9STB0ZLgYJYAbZ3FeyXx5oIjTjNa2MMRIVGsA675+ryLYob9adBg==
+        -----END PUBLIC KEY-----"
+
         # 30초마다 누락 점검 후 재주입 (Vault/IH 재시작에도 자동 복구)
         while true; do
           sync_sts_secret sts-client-secret BPNL000000000PRD
           sync_sts_secret consumer-sts-client-secret BPNL000000000CON
           sync_apikey BPNL000000000PRD
           sync_apikey BPNL000000000CON
+          ensure_static_secret dataplane-private-key "$$DP_PRIV"
+          ensure_static_secret dataplane-public-key "$$DP_PUB"
+          ensure_static_secret ih-aes-key "xUIyz5ULSUMR/++dPtL10mneHwwS3mlmL/eZ8SJ/2ws="
           sleep 30
         done
     networks:
