@@ -36,7 +36,11 @@ import {
   usePagination,
 } from "@/components/DataTablePagination";
 
-const VAULT_COLS = "grid-cols-[2.4fr_0.7fr_1fr_0.9fr_1fr_0.8fr]";
+// 반응형: lg 미만은 중요 컬럼(별칭·유형·만료)만 유동폭으로 표시하고
+// 부차 컬럼(알고리즘·생성일·마지막 사용)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 6컬럼.
+// (과거 created=lg / lastUsed=xl 로 단계가 갈려 lg 미만에 빈 트랙이 남던 결함 → lg 단일 브레이크포인트로 통일)
+const VAULT_COLS =
+  "grid-cols-[minmax(140px,1fr)_90px_110px] lg:grid-cols-[2.4fr_0.7fr_1fr_0.9fr_1fr_0.8fr]";
 import {
   fetchVaultStatus,
   fetchVaultList,
@@ -361,6 +365,7 @@ export default function PageVault() {
       {/* Desktop list */}
       <ListCard
         title={t.vault.listTitle}
+        responsive
         actions={
           <span className="text-[11px] text-muted-foreground">
             {t.vault.masked}
@@ -385,11 +390,13 @@ export default function PageVault() {
             <ListHeaderRow cols={VAULT_COLS}>
               <ListColLabel>{t.vault.col.alias}</ListColLabel>
               <ListColLabel>{t.vault.col.type}</ListColLabel>
-              <ListColLabel>{t.vault.col.algorithm}</ListColLabel>
+              <ListColLabel className="hidden lg:block">
+                {t.vault.col.algorithm}
+              </ListColLabel>
               <ListColLabel className="hidden lg:block">
                 {t.vault.col.created}
               </ListColLabel>
-              <ListColLabel className="hidden xl:block">
+              <ListColLabel className="hidden lg:block">
                 {t.vault.col.lastUsed}
               </ListColLabel>
               <ListColLabel>{t.vault.col.expiry}</ListColLabel>
@@ -450,7 +457,7 @@ export default function PageVault() {
                     </div>
                   </div>
                   <div>{typeBadge(it.type, t)}</div>
-                  <div>
+                  <div className="hidden lg:block">
                     <span className="text-xs text-foreground">
                       {it.algorithm}
                     </span>
@@ -462,7 +469,7 @@ export default function PageVault() {
                     {it.created}
                   </div>
                   <div
-                    className="hidden xl:block text-xs text-foreground"
+                    className="hidden lg:block text-xs text-foreground"
                     title={it.lastUsed}
                   >
                     {it.lastUsed}

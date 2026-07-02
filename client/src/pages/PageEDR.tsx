@@ -24,7 +24,11 @@ import {
 
 // 남은시간(우측정렬 텍스트)과 제공자/엔드포인트가 붙고 authCode 와 빈 공간이 크던 문제 →
 // 남은시간 넓힘·제공자 좁힘·authCode 넓힘으로 재배분(제공자가 authCode 쪽으로 당겨짐).
-const EDR_COLS = "grid-cols-[170px_1.5fr_1.6fr_1.7fr_120px]";
+// 반응형: lg 미만은 중요 컬럼(ID·남은시간·상태)만 유동폭으로 표시하고
+// 부차 컬럼(제공자/엔드포인트·authCode)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 5컬럼.
+// (authCode 의 기존 xl 브레이크포인트는 lg 단일로 통일 — lg 구간 빈 트랙 결함 제거)
+const EDR_COLS =
+  "grid-cols-[minmax(110px,1fr)_minmax(120px,1fr)_90px] lg:grid-cols-[170px_1.5fr_1.6fr_1.7fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
 import {
   DataTablePagination,
@@ -126,6 +130,7 @@ export default function PageEDR() {
           </span>
         }
         className="hidden md:block"
+        responsive
       >
         {isError ? (
           <ListError onRetry={() => refetch()} fetching={isFetching} />
@@ -136,10 +141,10 @@ export default function PageEDR() {
             <ListHeaderRow cols={EDR_COLS}>
               <ListColLabel>{t.edr.col.id}</ListColLabel>
               <ListColLabel>{t.edr.col.remaining}</ListColLabel>
-              <ListColLabel>
+              <ListColLabel className="hidden lg:block">
                 {t.edr.col.provider} / {t.edr.col.endpoint}
               </ListColLabel>
-              <ListColLabel className="hidden xl:block">
+              <ListColLabel className="hidden lg:block">
                 {t.edr.col.authCode}
               </ListColLabel>
               <ListColLabel>{t.edr.col.status}</ListColLabel>
@@ -284,7 +289,7 @@ function EDRRow({
         </div>
         <ProgressBar value={pct} colorClass={colorClass} />
       </div>
-      <div className="min-w-0 space-y-0.5">
+      <div className="hidden lg:block min-w-0 space-y-0.5">
         <span className="text-xs text-foreground truncate block" title={e.prov}>
           {e.prov}
         </span>
@@ -309,7 +314,7 @@ function EDRRow({
           )}
         </div>
       </div>
-      <div className="hidden xl:block">
+      <div className="hidden lg:block">
         <div className="flex items-center gap-1">
           <span className="text-xs text-foreground">
             {maskToken(e.authCode ?? "")}

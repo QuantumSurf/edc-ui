@@ -467,6 +467,7 @@ export default function PageAudit() {
       <ListCard
         title={t.audit.listTitle}
         className="hidden md:block"
+        responsive
         actions={
           <button
             onClick={() => refetch()}

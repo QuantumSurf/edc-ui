@@ -32,7 +32,10 @@ import {
   sortRows,
 } from "@/components/ui-kmx";
 
-const SUBMODEL_COLS = "grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
+// 반응형: lg 미만은 중요 컬럼(이름·상태·수정일)만 유동폭으로 표시하고
+// 부차 컬럼(URN·버전·모델타입·크기)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 7컬럼.
+const SUBMODEL_COLS =
+  "grid-cols-[minmax(110px,1.4fr)_90px_minmax(120px,1fr)] lg:grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
 import {
   DataTablePagination,
   usePagination,
@@ -255,8 +258,9 @@ export default function PageSubmodels() {
       )}
 
       {!isLoading && !isError && items.length > 0 && (
-        <ListCard title={t.submodels.listTitle}>
+        <ListCard title={t.submodels.listTitle} responsive>
           <ListHeaderRow cols={SUBMODEL_COLS}>
+            {/* lg 미만은 중요 컬럼(이름·상태·수정일)만 — 부차 컬럼은 hidden lg:block */}
             <SortHeader
               label={t.submodels.col.name}
               columnKey="name"
@@ -264,20 +268,24 @@ export default function PageSubmodels() {
               dir={sortDir}
               onSort={toggleSort}
             />
-            <SortHeader
-              label={t.submodels.col.urn}
-              columnKey="urn"
-              activeKey={sortKey}
-              dir={sortDir}
-              onSort={toggleSort}
-            />
-            <SortHeader
-              label={t.submodels.col.version}
-              columnKey="version"
-              activeKey={sortKey}
-              dir={sortDir}
-              onSort={toggleSort}
-            />
+            <div className="hidden lg:block">
+              <SortHeader
+                label={t.submodels.col.urn}
+                columnKey="urn"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={toggleSort}
+              />
+            </div>
+            <div className="hidden lg:block">
+              <SortHeader
+                label={t.submodels.col.version}
+                columnKey="version"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={toggleSort}
+              />
+            </div>
             <SortHeader
               label={t.submodels.col.status}
               columnKey="status"
@@ -285,29 +293,30 @@ export default function PageSubmodels() {
               dir={sortDir}
               onSort={toggleSort}
             />
-            <SortHeader
-              label={t.submodels.col.modelType}
-              columnKey="modelType"
-              activeKey={sortKey}
-              dir={sortDir}
-              onSort={toggleSort}
-              className="hidden lg:inline-flex"
-            />
-            <SortHeader
-              label={t.submodels.col.size}
-              columnKey="size"
-              activeKey={sortKey}
-              dir={sortDir}
-              onSort={toggleSort}
-              className="hidden xl:inline-flex"
-            />
+            <div className="hidden lg:block">
+              <SortHeader
+                label={t.submodels.col.modelType}
+                columnKey="modelType"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={toggleSort}
+              />
+            </div>
+            <div className="hidden lg:block">
+              <SortHeader
+                label={t.submodels.col.size}
+                columnKey="size"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={toggleSort}
+              />
+            </div>
             <SortHeader
               label={t.submodels.col.updated}
               columnKey="updatedAt"
               activeKey={sortKey}
               dir={sortDir}
               onSort={toggleSort}
-              className="hidden xl:inline-flex"
             />
           </ListHeaderRow>
           {filtered.length === 0 ? (
@@ -328,12 +337,12 @@ export default function PageSubmodels() {
                     {m.name}
                   </span>
                 </div>
-                <div className="min-w-0">
+                <div className="hidden lg:block min-w-0">
                   <span className="text-xs text-foreground truncate block">
                     {m.urn}
                   </span>
                 </div>
-                <div>
+                <div className="hidden lg:block">
                   <span className="text-xs text-foreground">
                     {m.version || "—"}
                   </span>
@@ -344,12 +353,12 @@ export default function PageSubmodels() {
                 <div className="hidden lg:block">
                   <span className="text-xs text-foreground">{m.modelType}</span>
                 </div>
-                <div className="hidden xl:block">
+                <div className="hidden lg:block">
                   <span className="text-xs text-foreground">
                     {formatBytes(m.contentBytes)}
                   </span>
                 </div>
-                <div className="hidden xl:block min-w-0">
+                <div className="min-w-0">
                   <span
                     className="text-xs text-foreground truncate block"
                     title={formatDate(m.updatedAt, locale)}

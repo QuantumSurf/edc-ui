@@ -38,8 +38,10 @@ import {
 
 // 자산ID는 내용폭(고정 200px)으로 고정해 유형과 붙이고, 남는 여백은 시각 컬럼(flex)이 흡수.
 // (과거 자산ID가 유일 1.4fr라 모든 여백을 흡수 → 자산ID와 유형 사이 간격이 과도하게 벌어짐)
+// 반응형: lg 미만은 중요 컬럼(상태·자산ID·유형·완료시각[액션])만 유동폭으로 표시하고
+// 부차 컬럼(전송ID·크기·소요시간·전송시각)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 8컬럼.
 const TRANSFER_COLS =
-  "grid-cols-[110px_100px_200px_70px_72px_64px_minmax(130px,1fr)_minmax(130px,1fr)]";
+  "grid-cols-[96px_minmax(110px,1.3fr)_64px_minmax(150px,1.5fr)] lg:grid-cols-[110px_100px_200px_70px_72px_64px_minmax(130px,1fr)_minmax(130px,1fr)]";
 import {
   SlidePanel,
   ConfirmActionDialog,
@@ -635,6 +637,7 @@ export default function PageTransfer() {
           <ListCard
             title={t.transfers.listTitle}
             className="hidden md:block"
+            responsive
             actions={
               transfers.length > 0 ? (
                 <RoleGate permission="transaction:write">
@@ -650,13 +653,22 @@ export default function PageTransfer() {
             }
           >
             <ListHeaderRow cols={TRANSFER_COLS}>
-              <ListColLabel>{t.transfers.col.id}</ListColLabel>
+              {/* lg 미만은 중요 컬럼(상태·자산ID·유형·완료시각)만 — 부차 컬럼은 hidden lg:block */}
+              <ListColLabel className="hidden lg:block">
+                {t.transfers.col.id}
+              </ListColLabel>
               <ListColLabel>{t.transfers.col.state}</ListColLabel>
               <ListColLabel>{t.transfers.col.assetId}</ListColLabel>
               <ListColLabel>{t.transfers.col.type}</ListColLabel>
-              <ListColLabel>{t.transfers.col.size}</ListColLabel>
-              <ListColLabel>{t.transfers.col.duration}</ListColLabel>
-              <ListColLabel>{t.transfers.col.startedAt}</ListColLabel>
+              <ListColLabel className="hidden lg:block">
+                {t.transfers.col.size}
+              </ListColLabel>
+              <ListColLabel className="hidden lg:block">
+                {t.transfers.col.duration}
+              </ListColLabel>
+              <ListColLabel className="hidden lg:block">
+                {t.transfers.col.startedAt}
+              </ListColLabel>
               <ListColLabel>{t.transfers.col.completedAt}</ListColLabel>
             </ListHeaderRow>
             {isError && rows.length === 0 ? (
@@ -678,7 +690,7 @@ export default function PageTransfer() {
                   selected={detailTarget?.id === tr.id}
                   onClick={() => setDetailTarget(tr)}
                 >
-                  <div>
+                  <div className="hidden lg:block">
                     <span className="text-xs font-bold text-primary">
                       {tr.id.slice(0, 12)}
                     </span>
@@ -719,9 +731,13 @@ export default function PageTransfer() {
                       {tr.transferType ?? "—"}
                     </Badge>
                   </div>
-                  <div className="text-xs text-foreground">{tr.size}</div>
-                  <div className="text-xs text-foreground">{tr.t}</div>
-                  <div className="text-xs text-foreground truncate">
+                  <div className="hidden lg:block text-xs text-foreground">
+                    {tr.size}
+                  </div>
+                  <div className="hidden lg:block text-xs text-foreground">
+                    {tr.t}
+                  </div>
+                  <div className="hidden lg:block text-xs text-foreground truncate">
                     {tr.startedAt ?? "—"}
                   </div>
                   <div className="text-xs text-foreground">

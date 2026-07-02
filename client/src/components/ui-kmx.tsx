@@ -770,6 +770,10 @@ interface ListCardProps {
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  /** 반응형 목록: lg 미만에서 min-w-max(가로 스크롤)를 끄고 컨테이너 폭에 맞춘다. 표가
+   *  반응형 grid-cols(lg 미만 유동폭 + 부차 컬럼 hidden lg:block)를 제공할 때 켠다. lg+ 는
+   *  기존대로 min-w-max(넓은 표는 가로 스크롤) 유지. 미설정 표는 동작 불변. */
+  responsive?: boolean;
 }
 export function ListCard({
   title,
@@ -778,6 +782,7 @@ export function ListCard({
   actions,
   children,
   className,
+  responsive,
 }: ListCardProps) {
   // 세로 마우스 휠 → 가로 스크롤(넓은 목록을 휠로 좌우 이동). 모든 ListCard 목록에 일괄 적용.
   const scrollRef = useHorizontalWheelScroll<HTMLDivElement>();
@@ -803,7 +808,9 @@ export function ListCard({
           헤더·행은 min-w-full 로 그 폭을 채워 모든 행의 fr 트랙이 동일하게 정렬된다.
           (행마다 min-w-max 면 내용량에 따라 폭이 달라져 칸이 어긋남) */}
       <div ref={scrollRef} className="overflow-x-auto">
-        <div className="min-w-max">{children}</div>
+        <div className={responsive ? "lg:min-w-max" : "min-w-max"}>
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -823,7 +830,8 @@ export function ListHeaderRow({
   return (
     <div
       className={cn(
-        "grid min-w-full gap-3 px-4 py-3 border-b border-border bg-muted/50",
+        // lg 미만은 셀 간격·좌우 패딩을 줄여 좁은 화면에서 요소 간 거리를 압축한다.
+        "grid min-w-full gap-2 px-3 py-3 lg:gap-3 lg:px-4 border-b border-border bg-muted/50",
         cols,
         className
       )}
@@ -968,7 +976,7 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        "grid min-w-full gap-3 px-4 py-3 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
+        "grid min-w-full gap-2 px-3 py-3 lg:gap-3 lg:px-4 border-b border-border/60 last:border-0 transition-colors group border-l-2 items-center",
         cols,
         onClick &&
           "cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",

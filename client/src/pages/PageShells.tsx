@@ -28,7 +28,10 @@ import {
   ListError,
 } from "@/components/ui-kmx";
 
-const SHELL_COLS = "grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr]";
+// 반응형: lg 미만은 중요 컬럼(idShort·AAS ID·서브모델 수)만 유동폭으로 표시하고
+// 부차 컬럼(globalAssetId·specificAssetIds)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 5컬럼.
+const SHELL_COLS =
+  "grid-cols-[minmax(90px,1fr)_minmax(120px,1.4fr)_56px] lg:grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr]";
 import {
   DataTablePagination,
   usePagination,
@@ -202,14 +205,14 @@ export default function PageShells() {
 
       {/* List — fl-aggregator ListCard */}
       {!isLoading && !isError && shells.length > 0 && (
-        <ListCard title={t.twins.listTitle}>
+        <ListCard title={t.twins.listTitle} responsive>
           <ListHeaderRow cols={SHELL_COLS}>
             <ListColLabel>{t.twins.col.idShort}</ListColLabel>
             <ListColLabel>{t.twins.col.aasId}</ListColLabel>
             <ListColLabel className="hidden lg:block">
               {t.twins.col.globalAssetId}
             </ListColLabel>
-            <ListColLabel className="hidden md:block">
+            <ListColLabel className="hidden lg:block">
               {t.twins.col.specificAssetIds}
             </ListColLabel>
             <ListColLabel>{t.twins.col.submodels}</ListColLabel>
@@ -239,7 +242,7 @@ export default function PageShells() {
                     {s.globalAssetId || "—"}
                   </span>
                 </div>
-                <div className="hidden md:block min-w-0">
+                <div className="hidden lg:block min-w-0">
                   <div className="flex items-center gap-1">
                     {s.specificAssetIds.slice(0, 2).map((sa, i) => (
                       <Badge key={i} variant="gray">
