@@ -46,8 +46,9 @@ const FSM_COLORS: Record<string, string> = {
   FINALIZED: "#10B981",
   REQUESTING: "#3B82F6",
   OFFERED: "#0EA5E9",
-  ACCEPTED: "#14B8A6",
-  AGREED: "#14B8A6",
+  // ACCEPTED/AGREED: 틸(#14B8A6)은 계약 성립(FINALIZED #10B981 그린)과 구분이 안 돼 앰버로 변경.
+  ACCEPTED: "#F59E0B",
+  AGREED: "#F59E0B",
   VERIFIED: "#6366F1",
   TERMINATED: "#EF4444",
 };

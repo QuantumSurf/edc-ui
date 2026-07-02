@@ -808,12 +808,11 @@ export function ListCard({
           헤더·행은 min-w-full 로 그 폭을 채워 모든 행의 fr 트랙이 동일하게 정렬된다.
           (행마다 min-w-max 면 내용량에 따라 폭이 달라져 칸이 어긋남) */}
       <div ref={scrollRef} className="overflow-x-auto">
-        {/* responsive: lg 미만은 min-w-max 대신 min-w-min — 트랙 합이 컨테이너에 들어가면
-            무효(유동폭 유지), 초과하면(좁은 폰) 래퍼를 그리드 최소폭까지 키워 헤더/행 배경·
-            구분선이 스크롤 전폭을 덮게 한다(끊김 방지). lg+ 는 기존 min-w-max. */}
-        <div className={responsive ? "min-w-min lg:min-w-max" : "min-w-max"}>
-          {children}
-        </div>
+        {/* responsive: 항상 min-w-min — 컨테이너에 들어가면 그리드가 컨테이너 폭을 채워
+            (1fr 컬럼 분배) 잘리지 않고, 초과할 때(좁은 폰)만 래퍼를 그리드 최소폭까지 키워
+            헤더/행 배경·구분선이 스크롤 전폭을 덮은 채 가로 스크롤한다(내용 잘림/배경 끊김 방지).
+            lg:min-w-max 를 쓰면 lg+ 에서 max-content 로 강제 확장돼 넓은 표가 잘리므로 제거. */}
+        <div className={responsive ? "min-w-min" : "min-w-max"}>{children}</div>
       </div>
     </div>
   );
