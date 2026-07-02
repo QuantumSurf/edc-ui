@@ -608,8 +608,8 @@ export default function PageTransfer() {
         {t.transfers.title}
       </SectionHdr>
 
-      {/* ── Filter — fl-aggregator TasksPage style ───────────── */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* ── Filter — 상태 칩을 카드에 그룹화 (목록 페이지 검색/필터 카드와 통일) ── */}
+      <div className="flex flex-wrap items-center gap-1.5 bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
         {ALL_STATE_FILTERS.map(f => (
           <button
             key={f}
@@ -620,7 +620,7 @@ export default function PageTransfer() {
             className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border ${
               stateFilter === f
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                : "bg-background border-border text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             {f === "ALL"
