@@ -1013,6 +1013,7 @@ const ko = {
       success: "완료",
     },
     markAllRead: "모두 읽음 처리",
+    openSettings: "알림 설정",
     clearAll: "전체 삭제",
     empty: "새로운 알림이 없습니다.",
     emptyUnread: "읽지 않은 알림이 없습니다.",

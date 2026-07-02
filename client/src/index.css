@@ -163,6 +163,10 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
+    /* 형제 프로젝트 과반수(6/8) 관례: 본문 14px + 줄간격 1.55. 명시 크기(text-xs 등)는
+       rem 기반이라 영향 없음 — 크기 미지정 요소만 이 기본값을 상속한다. */
+    font-size: 14px;
+    line-height: 1.55;
   }
   h1,
   h2,

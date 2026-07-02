@@ -108,7 +108,7 @@ export default function PageSettings() {
                     aria-pressed={theme === mode}
                     className={`flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                       theme === mode
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-medium"
+                        ? "border-primary bg-primary/10 text-primary font-medium"
                         : "border-border hover:bg-muted text-muted-foreground"
                     }`}
                   >
@@ -140,7 +140,7 @@ export default function PageSettings() {
                     aria-pressed={locale === loc}
                     className={`flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                       locale === loc
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-medium"
+                        ? "border-primary bg-primary/10 text-primary font-medium"
                         : "border-border hover:bg-muted text-muted-foreground"
                     }`}
                   >
@@ -658,7 +658,7 @@ function ToggleRow({
         aria-label={label}
         className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
           on
-            ? "bg-blue-500 justify-end"
+            ? "bg-primary justify-end"
             : "bg-muted-foreground/40 justify-start"
         }`}
       >

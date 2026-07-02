@@ -10,8 +10,9 @@ import { NOTIFY_PREFS_KEY, readPref } from "@/lib/prefs";
 import { type NotificationItem } from "@/services/api";
 import { ListError } from "@/components/ui-kmx";
 import { useI18n } from "@/i18n";
+import { useLocation } from "wouter";
 import {
-  BellRing,
+  Bell,
   BellOff,
   XCircle,
   AlertTriangle,
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   X,
   CheckCheck,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +74,7 @@ function useTimeAgo() {
 /* ─── Panel ──────────────────────────────────────────────────── */
 export default function NotificationPanel() {
   const { t, locale } = useI18n();
+  const [, navigate] = useLocation();
   const panelOpen = useNotificationStore(s => s.panelOpen);
   const setPanelOpen = useNotificationStore(s => s.setPanelOpen);
   const {
@@ -141,13 +144,14 @@ export default function NotificationPanel() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">
-            <BellRing className="w-4 h-4 text-primary" />
+            <Bell className="w-4 h-4 text-primary" />
             <span className="font-semibold text-[15px]">
               {t.notifications.title}
             </span>
             {unreadCount > 0 && (
-              <span className="h-5 px-1.5 inline-flex items-center rounded-full text-[11px] bg-primary text-primary-foreground font-medium">
-                {unreadCount}
+              // 미읽음 배지: rose-500 + 99+ 캡 = 형제 프로젝트 과반수(5/8) 관례.
+              <span className="h-5 px-1.5 inline-flex items-center rounded-full text-[11px] bg-rose-500 text-white font-medium">
+                {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </div>
@@ -180,10 +184,11 @@ export default function NotificationPanel() {
             ))}
           </div>
 
-          {/* Action row — '모두 읽음'(확인)만. 하드 삭제는 두지 않는다(클릭=확인=기록 보존 원칙,
+          {/* Action row — '모두 읽음'(확인) + 우측 '알림 설정' 링크(형제 과반수 5/8 관례,
+              Catena 구현 이식). 하드 삭제는 두지 않는다(클릭=확인=기록 보존 원칙,
               읽은 기록은 백엔드 pruneNotifications 가 정리). */}
-          {unreadCount > 0 && (
-            <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+          <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+            {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
@@ -191,8 +196,18 @@ export default function NotificationPanel() {
                 <CheckCheck className="w-3.5 h-3.5" />
                 {t.notifications.markAllRead}
               </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => {
+                close();
+                navigate("/settings");
+              }}
+              className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+            >
+              <SettingsIcon className="w-3.5 h-3.5" />
+              {t.notifications.openSettings}
+            </button>
+          </div>
 
           {/* List */}
           <ScrollArea className="flex-1">

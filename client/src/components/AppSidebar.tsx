@@ -230,7 +230,8 @@ export default function AppSidebar({
       className={cn(
         "shrink-0 flex flex-col h-screen sidebar-scroll overflow-x-hidden overflow-y-auto bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-200",
         // 데스크톱(lg+)만 레일 폭 적용 — 모바일 드로어는 항상 풀 폭(w-60)으로 펼쳐야 가독성 유지.
-        collapsed ? "w-60 lg:w-16" : "w-60"
+        // 접힘 레일 w-14(56px) = 형제 프로젝트 과반수(6/8) 관례.
+        collapsed ? "w-60 lg:w-14" : "w-60"
       )}
     >
       {/* Brand */}

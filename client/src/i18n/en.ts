@@ -1001,6 +1001,7 @@ const en: Translations = {
       success: "Success",
     },
     markAllRead: "Mark all read",
+    openSettings: "Notification settings",
     clearAll: "Clear all",
     empty: "No notifications",
     emptyUnread: "No unread notifications",
