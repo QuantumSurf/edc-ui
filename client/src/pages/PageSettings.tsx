@@ -246,9 +246,7 @@ export default function PageSettings() {
             <CardTitle
               icon={<Info className="w-3.5 h-3.5 text-blue-500" />}
               badge={
-                sysError ? undefined : (
-                  <DataSourceBadge mode={sysInfo ? "live" : "demo"} />
-                )
+                sysError || !sysInfo ? undefined : <DataSourceBadge />
               }
             >
               <span className="font-bold">{t.settings.systemInfo}</span>

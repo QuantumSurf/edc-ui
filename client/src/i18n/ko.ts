@@ -809,21 +809,7 @@ const ko = {
   // ── Infra ──
   infra: {
     title: "시스템 현황",
-    k8sDeployments: "K8s 배포 현황",
-    ingressPaths: "Ingress 경로",
-    resourceUsage: "리소스 사용률",
-    hikariPool: "HikariCP 커넥션 풀",
-    flywayTitle: "Flyway 마이그레이션 현황 (V1~V9)",
-    leaseHeatmap: "edc_lease 분산락 히트맵 (최근 12분)",
-    ok: "정상",
-    internal: "내부 전용",
-    down: "중단",
-    notExposed: "미노출",
-    success: "성공",
-    hikariActive: "사용 중",
-    hikariIdle: "유휴",
-    hikariWait: "대기",
-    hikariTotal: "전체",
+    unavailable: "라이브 플랫폼 데이터를 사용할 수 없습니다 (권한·설정 확인).",
   },
 
   // ── Login ──
@@ -837,7 +823,6 @@ const ko = {
     serverError: "서버 오류로 로그인하지 못했습니다. 잠시 후 다시 시도하세요",
     networkError: "서버에 연결할 수 없습니다. 네트워크를 확인하세요",
     signingIn: "로그인 중...",
-    demoAccounts: "데모 계정",
     appName: "커넥터 허브",
     appSubtitle: "관리 콘솔",
   },

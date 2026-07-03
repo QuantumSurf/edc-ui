@@ -653,24 +653,13 @@ export function EnvBadge({ env }: { env: string }) {
   return <Badge variant={map[env] ?? "gray"}>{env}</Badge>;
 }
 
-/* ─── Data Source Badge — LIVE / DEMO / MIXED ─────────────────── */
-// Visibility helper to clarify whether a page section reflects real backend
-// data or hardcoded demo content. Use on SectionHdr action or Card title.
-type DataSourceMode = "live" | "demo" | "mixed";
-
-export function DataSourceBadge({ mode }: { mode: DataSourceMode }) {
-  const map: Record<
-    DataSourceMode,
-    { variant: BadgeVariant; label: string; pulse?: boolean }
-  > = {
-    live: { variant: "green", label: "LIVE", pulse: true },
-    demo: { variant: "gray", label: "DEMO" },
-    mixed: { variant: "amber", label: "MIXED" },
-  };
-  const { variant, label, pulse } = map[mode];
+/* ─── Data Source Badge — 라이브 백엔드 데이터 표시 ─────────────── */
+// 이 배지가 붙은 섹션이 실제 백엔드(라이브) 데이터임을 나타낸다.
+// (과거 demo/mixed 모드는 하드코딩 demo 콘텐츠 제거와 함께 삭제됨.)
+export function DataSourceBadge() {
   return (
-    <Badge variant={variant} pulse={pulse}>
-      {label}
+    <Badge variant="green" pulse>
+      LIVE
     </Badge>
   );
 }

@@ -799,21 +799,7 @@ const en: Translations = {
 
   infra: {
     title: "System Overview",
-    k8sDeployments: "K8s Deployments",
-    ingressPaths: "Ingress Paths",
-    resourceUsage: "Resource Usage",
-    hikariPool: "HikariCP Connection Pool",
-    flywayTitle: "Flyway Migrations (V1~V9)",
-    leaseHeatmap: "edc_lease Distributed Lock Heatmap (Last 12 min)",
-    ok: "OK",
-    internal: "INTERNAL",
-    down: "DOWN",
-    notExposed: "Not Exposed",
-    success: "Success",
-    hikariActive: "Active",
-    hikariIdle: "Idle",
-    hikariWait: "Wait",
-    hikariTotal: "Total",
+    unavailable: "Live platform data is unavailable (check permission/config).",
   },
 
   login: {
@@ -826,7 +812,6 @@ const en: Translations = {
     serverError: "Login failed due to a server error. Please try again later",
     networkError: "Cannot reach the server. Please check your network",
     signingIn: "Signing in...",
-    demoAccounts: "Demo Accounts",
     appName: "Connector Hub",
     appSubtitle: "Admin Console",
   },
