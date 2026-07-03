@@ -538,6 +538,23 @@ export async function fetchTrend(
   return data;
 }
 
+// 전송 총계/완료/진행 '정확값'. EDC DB 접속이 설정된 커넥터만 exact:true 로 실제 수치를
+// 준다(목록은 EDC_QUERY_LIMIT 상한에 걸려 카드가 멈추므로). 미설정이면 exact:false →
+// 호출측이 목록 길이로 폴백.
+export interface TransferCounts {
+  exact: boolean;
+  transfers?: number;
+  transfersCompleted?: number;
+  transfersActive?: number;
+}
+
+export async function fetchTransferCounts(
+  connectorId: string
+): Promise<TransferCounts> {
+  const { data } = await http.get(`/connectors/${connectorId}/stats/counts`);
+  return data;
+}
+
 /* ── UI Notifications ─────────────────────────────────────────── */
 export interface NotificationItem {
   id: string;

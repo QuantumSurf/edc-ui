@@ -9,6 +9,7 @@ import {
   type NextFunction,
 } from "express";
 import { getPool } from "../lib/db.js";
+import { getTransferCounts } from "../lib/edcStatsDb.js";
 
 const router = Router();
 
@@ -87,6 +88,26 @@ router.get(
       }));
 
       res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /:id/stats/counts
+// 전송 총계/완료/진행 '정확값'. 목록 조회는 EDC_QUERY_LIMIT 상한이 걸려 대시보드 카드가
+// 상한에서 멈추므로, EDC DB 에 직접 COUNT 해 정확값을 준다(설정된 커넥터만). 미설정이면
+// { exact:false } → 클라이언트가 기존 목록 길이로 폴백.
+router.get(
+  "/:id/stats/counts",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const counts = await getTransferCounts(req.params.id);
+      if (!counts) {
+        res.json({ exact: false });
+        return;
+      }
+      res.json({ exact: true, ...counts });
     } catch (error) {
       next(error);
     }

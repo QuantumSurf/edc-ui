@@ -9,6 +9,7 @@ import {
   fetchNegotiations,
   fetchTransfers,
   fetchTrend,
+  fetchTransferCounts,
 } from "@/services";
 import {
   Card,
@@ -97,6 +98,15 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
     refetchInterval: 30_000, // 트렌드 집계는 무거워 30초마다
   });
 
+  // 전송 '정확 총계'(목록 상한 EDC_QUERY_LIMIT 우회). EDC DB 접속이 설정된 커넥터만
+  // exact:true. 미설정이면 아래에서 목록 길이로 폴백.
+  const { data: transferCounts } = useQuery({
+    queryKey: ["transfer-counts", conn.id],
+    queryFn: () => fetchTransferCounts(conn.id),
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+  });
+
   // 자산 KPI 는 사이드바와 동일한 ["assets", conn.id] 캐시를 공유해, 자산 추가/삭제 시
   // 두 표시가 항상 일치하도록 한다(정적 conn.assets 사용 시 한 화면에서 수가 어긋남).
   const {
@@ -125,6 +135,18 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
     }
     return { done, active };
   }, [transfers]);
+
+  // 표시값: EDC DB 정확 카운트가 있으면 그걸(상한 우회), 없으면 목록 기반으로 폴백.
+  const exactCounts = transferCounts?.exact === true;
+  const transferTotal = exactCounts
+    ? transferCounts?.transfers ?? 0
+    : transfers.length;
+  const transferDone = exactCounts
+    ? transferCounts?.transfersCompleted ?? 0
+    : transferStats.done;
+  const transferActive = exactCounts
+    ? transferCounts?.transfersActive ?? 0
+    : transferStats.active;
 
   // FSM 분포: 실제 negotiations 데이터에서 집계
   const pieData = useMemo(() => {
@@ -187,12 +209,9 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <ArrowRightLeft className="w-[18px] h-[18px] text-sky-600 dark:text-sky-400" />
           }
           iconBg="bg-sky-50 dark:bg-sky-500/10"
-          value={transfersError ? "—" : transfers.length}
+          value={transfersError ? "—" : transferTotal}
           title={t.dashboard.dataTransfers}
-          sub={t.dashboard.completedInProgress(
-            transferStats.done,
-            transferStats.active
-          )}
+          sub={t.dashboard.completedInProgress(transferDone, transferActive)}
           valueColor="text-sky-600 dark:text-sky-400"
           trend="up"
           onClick={() => onNav(`/connectors/${conn.id}/transfer`)}
