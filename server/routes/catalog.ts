@@ -171,7 +171,7 @@ router.post(
   requireRole("admin", "operator", "viewer"),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { dspEndpoint, counterPartyId } = req.body ?? {};
+      const { dspEndpoint, counterPartyId, assetId } = req.body ?? {};
 
       if (!dspEndpoint || typeof dspEndpoint !== "string") {
         res
@@ -217,13 +217,26 @@ router.post(
       }
 
       // Build proper CatalogRequest JSON-LD
-      const catalogRequest = {
+      const catalogRequest: Record<string, unknown> = {
         "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
         "@type": "CatalogRequest",
         counterPartyAddress: normalizedDspEndpoint,
         counterPartyId: normalizedCounterPartyId,
         protocol: DSP_PROTOCOL,
       };
+      // 특정 자산만 조회 — assetId 지정 시 querySpec 필터를 부착해 카탈로그 페이지 한계(기본 상한)를
+      // 우회한다. (대량 오퍼링 중 방금 발행한 자산을 소비자가 확실히 찾도록 — id 폴백 방지)
+      if (typeof assetId === "string" && assetId.trim() && assetId.length <= 256) {
+        catalogRequest["querySpec"] = {
+          filterExpression: [
+            {
+              operandLeft: "https://w3id.org/edc/v0.0.1/ns/id",
+              operator: "=",
+              operandRight: assetId.trim(),
+            },
+          ],
+        };
+      }
 
       // DCP 인증 플로우(STS 토큰 + DID 해석 + VC 검증)에 최소 20~30초 소요 → 60초로 연장
       const response = await client.post(

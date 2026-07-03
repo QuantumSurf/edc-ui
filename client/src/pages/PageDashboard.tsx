@@ -70,7 +70,9 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   } = useQuery({
     queryKey: ["negotiations", conn.id],
     queryFn: () => fetchNegotiations(conn.id),
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
+    // 포커스 안 된 창(예: 관리자/이용자 2창 중 뒤에 있는 것)도 계속 갱신되도록.
+    refetchIntervalInBackground: true,
   });
 
   const {
@@ -81,7 +83,8 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   } = useQuery({
     queryKey: ["transfers", conn.id],
     queryFn: () => fetchTransfers(conn.id),
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
   });
 
   const {
@@ -91,7 +94,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   } = useQuery({
     queryKey: ["stats-trend", conn.id],
     queryFn: () => fetchTrend(conn.id, 24),
-    refetchInterval: 60_000, // 1분마다 갱신
+    refetchInterval: 30_000, // 트렌드 집계는 무거워 30초마다
   });
 
   // 자산 KPI 는 사이드바와 동일한 ["assets", conn.id] 캐시를 공유해, 자산 추가/삭제 시
@@ -385,7 +388,10 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {negotiations.slice(0, 4).map(n => (
+                {[...negotiations]
+                  .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+                  .slice(0, 4)
+                  .map(n => (
                   <tr
                     key={n?.id ?? Math.random()}
                     className="hover:bg-muted/30 transition-colors"
@@ -467,7 +473,10 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {transfers.slice(0, 4).map(tr => (
+                {[...transfers]
+                  .sort((a, b) => String(b.ts).localeCompare(String(a.ts)))
+                  .slice(0, 4)
+                  .map(tr => (
                   <tr
                     key={tr?.id ?? Math.random()}
                     className="hover:bg-muted/30 transition-colors"

@@ -274,7 +274,8 @@ export default function PageTransfer() {
       // 진행중(REQUESTING/STARTED)만 빠른 폴링. SUSPENDED는 사용자 개입 전 자동
       // 재개되지 않으므로 활성에서 제외해 무한 폴링을 종단한다.
       const hasInflight = list?.some(tr => isTransferActive(tr.state));
-      return hasInflight ? 3000 : false;
+      // 진행중이면 3초, 유휴여도 5초 폴링 — 다른 세션/프로세스가 새로 만든 전송도 새로고침 없이 반영.
+      return hasInflight ? 3000 : 5000;
     },
   });
 
@@ -343,10 +344,14 @@ export default function PageTransfer() {
       stateFilter === "ALL"
         ? transfers
         : transfers.filter(tr => tr.name === stateFilter);
-    // 전송 시작 시각(startedAt) 내림차순 정렬 — "—"은 뒤로
+    // 최신순 정렬 — 시작시각(startedAt) 우선, 없으면 상태시각(ts)로 폴백.
+    // (provider 전송은 UI가 시작한 게 아니라 startedAt이 "—"이므로, startedAt만으로 정렬하면
+    //  정렬이 무력화돼 EDC 원본 순서가 나온다. 항상 채워지는 ts를 폴백으로 써 최신순 보장.)
+    const key = (tr: Transfer) =>
+      tr.startedAt && tr.startedAt !== "—" ? tr.startedAt : (tr.ts ?? "");
     return [...filtered].sort((a, b) => {
-      const ta = a.startedAt ?? "";
-      const tb = b.startedAt ?? "";
+      const ta = key(a);
+      const tb = key(b);
       if (!ta && !tb) return 0;
       if (!ta) return 1;
       if (!tb) return -1;

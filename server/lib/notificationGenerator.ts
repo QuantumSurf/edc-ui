@@ -268,8 +268,18 @@ async function pollConnector(conn: {
       const state = tp["state"] as string;
       const id = (tp["@id"] as string) ?? "";
       const asset = (tp["assetId"] as string) ?? "";
-      if (state === "TERMINATED") {
-        const errorDetail = (tp["errorDetail"] as string) ?? "(사유 미상)";
+      // errorDetail 은 문자열 또는 JSON-LD 배열로 온다 → 문자열화. 소비자 정상 완료(/complete →
+      // terminate "Completed by consumer")로 인한 종료는 실패가 아니라 완료로 취급(오알림 방지).
+      const errRaw = tp["errorDetail"];
+      const errStr =
+        typeof errRaw === "string"
+          ? errRaw
+          : errRaw
+            ? JSON.stringify(errRaw)
+            : "";
+      const consumerCompleted = /Completed by consumer/i.test(errStr);
+      if (state === "TERMINATED" && !consumerCompleted) {
+        const errorDetail = errStr || "(사유 미상)";
         await insertOnce({
           type: "error",
           source: "transfer",
@@ -294,7 +304,10 @@ async function pollConnector(conn: {
           dedupKey: makeKey(conn.id, "transfer.terminated", id),
           tenantId: conn.tenantId,
         });
-      } else if (state === "COMPLETED") {
+      } else if (
+        state === "COMPLETED" ||
+        (state === "TERMINATED" && consumerCompleted)
+      ) {
         await insertOnce({
           type: "success",
           source: "transfer",

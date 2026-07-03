@@ -105,6 +105,13 @@ export function withJsonLd(
   if (type === "QuerySpec" && out["limit"] === undefined) {
     out["limit"] = EDC_QUERY_LIMIT;
   }
+  // 기본 정렬: 최신순(createdAt DESC). 정렬 없이 대량 목록을 반환하면 (1) 최신 항목이 페이지
+  // 밖으로 밀려 화면이 stale 하게 보이고 (2) 대량 누적 시 커넥터가 전량 스캔·반환하며 CPU 폭증한다.
+  // sortField 지정 시 EDC 가 인덱스 기반 최신 N건만 반환 → 응답이 급감. 호출자가 주면 존중.
+  if (type === "QuerySpec" && out["sortField"] === undefined) {
+    out["sortField"] = "createdAt";
+    out["sortOrder"] = "DESC";
+  }
   return out;
 }
 
@@ -534,8 +541,20 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
   let stateCode = TRANSFER_STATE_TO_CODE[stateStr] ?? 0;
   let stateName = stateStr;
 
-  // 사용자 완료 처리: EDC TERMINATED → UI COMPLETED 오버레이
-  if (meta?.user_completed && stateStr === "TERMINATED") {
+  // errorDetail 은 실 EDC 에서 문자열 또는 JSON-LD 배열([{"@value":...}])로 온다 → 문자열화.
+  const rawErr = raw["errorDetail"];
+  const errStr =
+    typeof rawErr === "string" ? rawErr : rawErr ? JSON.stringify(rawErr) : "";
+  // 소비자가 정상 완료(/complete → terminate reason "Completed by consumer")한 전송은
+  // provider 측(user_completed 메타 없음)에서도 '전송 실패'가 아니라 '완료'로 표기한다.
+  // (TERMINATED 를 무조건 실패로 보던 오표기 수정 — provider 오탐 팝업/알림 방지)
+  const isConsumerCompletion = /Completed by consumer/i.test(errStr);
+
+  // 사용자 완료 처리 또는 소비자 완료로 인한 종료 → UI COMPLETED 오버레이
+  if (
+    (meta?.user_completed || isConsumerCompletion) &&
+    stateStr === "TERMINATED"
+  ) {
     stateCode = 1200;
     stateName = "COMPLETED";
   }
@@ -552,9 +571,8 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
     : transferType.includes("PUSH")
       ? "PUSH"
       : transferType || "—";
-  const errorDetail = meta?.user_completed
-    ? ""
-    : ((raw["errorDetail"] as string) ?? "");
+  const errorDetail =
+    meta?.user_completed || isConsumerCompletion ? "" : errStr;
   const agreementId =
     (raw["contractAgreementId"] as string) ??
     (raw["agreementId"] as string) ??
