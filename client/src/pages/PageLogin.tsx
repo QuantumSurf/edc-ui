@@ -130,6 +130,39 @@ export default function PageLogin() {
               {loading ? t.login.signingIn : t.login.signIn}
             </button>
           </form>
+
+          {/* Demo accounts hint */}
+          <div className="mt-5 pt-4 border-t border-border">
+            <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+              {t.login.demoAccounts}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { bpn: "BPNL000000000PRD", pw: "0000", role: t.auth.roleAdmin },
+                {
+                  bpn: "BPNL000000000CON",
+                  pw: "0000",
+                  role: t.auth.roleOperator,
+                },
+              ].map(({ bpn, pw, role }) => (
+                <button
+                  key={bpn}
+                  type="button"
+                  onClick={() => {
+                    setUsername(bpn);
+                    setPassword(pw);
+                    setError(null);
+                  }}
+                  className="px-2 py-1.5 rounded-md border border-border hover:bg-muted hover:border-foreground/30 transition-colors text-muted-foreground hover:text-foreground leading-tight"
+                >
+                  <span className="block text-[11px] font-medium">{role}</span>
+                  <span className="block mono text-[9px] text-muted-foreground/70 truncate">
+                    {bpn}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <p className="text-center text-slate-500 text-[11px] mt-4">

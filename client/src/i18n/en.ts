@@ -812,6 +812,7 @@ const en: Translations = {
     serverError: "Login failed due to a server error. Please try again later",
     networkError: "Cannot reach the server. Please check your network",
     signingIn: "Signing in...",
+    demoAccounts: "Demo Accounts",
     appName: "Connector Hub",
     appSubtitle: "Admin Console",
   },

@@ -823,6 +823,7 @@ const ko = {
     serverError: "서버 오류로 로그인하지 못했습니다. 잠시 후 다시 시도하세요",
     networkError: "서버에 연결할 수 없습니다. 네트워크를 확인하세요",
     signingIn: "로그인 중...",
+    demoAccounts: "데모 계정",
     appName: "커넥터 허브",
     appSubtitle: "관리 콘솔",
   },
