@@ -800,6 +800,15 @@ const en: Translations = {
   infra: {
     title: "System Overview",
     unavailable: "Live platform data is unavailable (check permission/config).",
+    pgTitle: "Platform PostgreSQL (shared)",
+    cluster: "Cluster",
+    version: "Version",
+    uptime: "Uptime",
+    databases: "Databases (per connector)",
+    connSuffix: "conn",
+    locks: "Locks",
+    granted: "granted",
+    waiting: "waiting",
   },
 
   login: {

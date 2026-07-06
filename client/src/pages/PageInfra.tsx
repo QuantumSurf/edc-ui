@@ -90,23 +90,27 @@ export default function PageInfra() {
       </SectionHdr>
 
       {isLive ? (
-        <Card title="Platform PostgreSQL (shared)">
+        <Card title={t.infra.pgTitle}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Overview */}
             <div>
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Cluster
+                {t.infra.cluster}
               </div>
               {overviewQuery.data ? (
                 <div className="space-y-1.5">
                   <div className="text-[12px]">
-                    <span className="text-muted-foreground">Version: </span>
+                    <span className="text-muted-foreground">
+                      {t.infra.version}:{" "}
+                    </span>
                     <MonoText className="text-[12px]">
                       {overviewQuery.data.version.split(" on ")[0]}
                     </MonoText>
                   </div>
                   <div className="text-[12px]">
-                    <span className="text-muted-foreground">Uptime: </span>
+                    <span className="text-muted-foreground">
+                      {t.infra.uptime}:{" "}
+                    </span>
                     <span className="font-medium">
                       {formatUptime(overviewQuery.data.uptimeSeconds)}
                     </span>
@@ -128,15 +132,19 @@ export default function PageInfra() {
                     </span>
                   </div>
                 </div>
+              ) : overviewQuery.isFetching ? (
+                <div className="text-[12px] text-muted-foreground">
+                  {t.common.loading}
+                </div>
               ) : (
-                <div className="text-[12px] text-muted-foreground">Loading…</div>
+                <div className="text-[12px] text-muted-foreground">—</div>
               )}
             </div>
 
             {/* Databases */}
             <div className="md:col-span-2">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Databases (DB-per-connector)
+                {t.infra.databases}
               </div>
               {databasesQuery.data?.databases?.length ? (
                 <div className="space-y-1.5">
@@ -151,14 +159,18 @@ export default function PageInfra() {
                       <div className="flex items-center gap-3 text-muted-foreground">
                         <span>{formatBytes(db.sizeBytes)}</span>
                         <Badge variant={db.connections > 0 ? "blue" : "gray"}>
-                          {db.connections} conn
+                          {db.connections} {t.infra.connSuffix}
                         </Badge>
                       </div>
                     </div>
                   ))}
                 </div>
+              ) : databasesQuery.isFetching ? (
+                <div className="text-[12px] text-muted-foreground">
+                  {t.common.loading}
+                </div>
               ) : (
-                <div className="text-[12px] text-muted-foreground">Loading…</div>
+                <div className="text-[12px] text-muted-foreground">—</div>
               )}
             </div>
           </div>
@@ -166,10 +178,12 @@ export default function PageInfra() {
           {/* Locks */}
           {locksQuery.data && (
             <div className="mt-4 pt-3 border-t border-border flex items-center gap-4 text-[12px]">
-              <span className="text-muted-foreground">Locks:</span>
-              <Badge variant="green">{fmtNum(locksQuery.data.granted)} granted</Badge>
+              <span className="text-muted-foreground">{t.infra.locks}:</span>
+              <Badge variant="green">
+                {fmtNum(locksQuery.data.granted)} {t.infra.granted}
+              </Badge>
               <Badge variant={locksQuery.data.waiting > 0 ? "amber" : "gray"}>
-                {fmtNum(locksQuery.data.waiting)} waiting
+                {fmtNum(locksQuery.data.waiting)} {t.infra.waiting}
               </Badge>
             </div>
           )}

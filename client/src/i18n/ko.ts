@@ -811,6 +811,15 @@ const ko = {
   infra: {
     title: "시스템 현황",
     unavailable: "라이브 플랫폼 데이터를 사용할 수 없습니다 (권한·설정 확인).",
+    pgTitle: "플랫폼 PostgreSQL (공유)",
+    cluster: "클러스터",
+    version: "버전",
+    uptime: "가동 시간",
+    databases: "데이터베이스 (커넥터별)",
+    connSuffix: "연결",
+    locks: "락",
+    granted: "부여",
+    waiting: "대기",
   },
 
   // ── Login ──
