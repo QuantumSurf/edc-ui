@@ -395,9 +395,24 @@ function flattenPolicyConstraints(cons: unknown): {
   return out;
 }
 
+// rule constraint의 최상위 논리 래퍼(and/or/xone)를 감지. 래퍼가 없거나 단일 제약이면 "and"
+// (ODRL 기본). 편집 라운드트립에서 OR/XONE 정책이 저장 시 AND로 조용히 변질되던 것을 막기 위해
+// 결합 연산자를 보존해 클라(logicOp 복원)에 전달한다.
+function detectPolicyLogic(cons: unknown): "and" | "or" | "xone" {
+  const arr = Array.isArray(cons) ? cons : [cons];
+  for (const node of arr) {
+    const n = node as Record<string, unknown>;
+    if (n?.["odrl:or"] ?? n?.["or"]) return "or";
+    if (n?.["odrl:xone"] ?? n?.["xone"]) return "xone";
+    if (n?.["odrl:and"] ?? n?.["and"]) return "and";
+  }
+  return "and";
+}
+
 export interface MappedPolicyRule {
   ruleType: "permission" | "prohibition" | "obligation";
   action: string;
+  logic: "and" | "or" | "xone";
   constraints: { left: string; op: string; right: string }[];
 }
 
@@ -421,12 +436,12 @@ export function mapPolicy(raw: Record<string, unknown>) {
         typeof actionRaw === "object" && actionRaw !== null
           ? (((actionRaw as Record<string, unknown>)["@id"] as string) ?? "")
           : ((actionRaw as string) ?? "");
+      const consNode = rr?.["odrl:constraint"] ?? rr?.["constraint"];
       rules.push({
         ruleType,
         action: action.replace(/^odrl:/, ""),
-        constraints: flattenPolicyConstraints(
-          rr?.["odrl:constraint"] ?? rr?.["constraint"]
-        ),
+        logic: detectPolicyLogic(consNode),
+        constraints: flattenPolicyConstraints(consNode),
       });
     }
   }
@@ -449,6 +464,11 @@ export function mapPolicy(raw: Record<string, unknown>) {
     rules,
     ruleType: rules[0]?.ruleType ?? "permission",
     action: rules[0]?.action ?? "",
+    // 다중 제약이 있는 rule의 결합 연산자를 대표값으로 노출(빌더가 편집 진입 시 복원). 없으면 "and".
+    logic:
+      rules.find(r => r.constraints.length > 1)?.logic ??
+      rules[0]?.logic ??
+      "and",
     offers: 0,
   };
 }

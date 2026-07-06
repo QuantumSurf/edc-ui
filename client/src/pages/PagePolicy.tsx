@@ -275,12 +275,14 @@ interface ParsedConstraint {
 interface PolicyRule {
   ruleType: "permission" | "prohibition" | "obligation";
   action: string;
+  logic?: LogicOp;
   constraints: ParsedConstraint[];
 }
 type PolicyWithRules = Policy & {
   rules?: PolicyRule[];
   ruleType?: string;
   action?: string;
+  logic?: string;
 };
 
 /**
@@ -309,6 +311,12 @@ function policyRuleType(
 ): "permission" | "prohibition" | "obligation" {
   const rt = (p as PolicyWithRules).ruleType;
   return rt === "prohibition" || rt === "obligation" ? rt : "permission";
+}
+
+/** 정책의 결합 연산자(and/or/xone). 서버 미제공 시 and 폴백. 편집/복제 라운드트립 복원용. */
+function policyLogic(p: Policy): LogicOp {
+  const l = (p as PolicyWithRules).logic;
+  return l === "or" || l === "xone" ? l : "and";
 }
 
 /**
@@ -1198,7 +1206,11 @@ function ODRLBuilder({
     const a = (baseSrc as PolicyWithRules).action;
     return a && a.trim() ? a.replace(/^odrl:/, "") : "use";
   });
-  const [logicOp, setLogicOp] = useState<LogicOp>("and");
+  // 편집/복제 시 결합 연산자(logicOp)도 baseSrc에서 복원(과거: 항상 "and"로 초기화돼 OR/XONE
+  // 정책을 편집·저장하면 AND로 조용히 변질 — 접근제어 의미 왜곡. ruleType/action 복원과 동일 취지).
+  const [logicOp, setLogicOp] = useState<LogicOp>(() =>
+    baseSrc ? policyLogic(baseSrc) : "and"
+  );
   const [previewOpen, setPreviewOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"builder" | "json">("builder");
   const [editorMode, setEditorMode] = useState<"builder" | "json">("builder");
