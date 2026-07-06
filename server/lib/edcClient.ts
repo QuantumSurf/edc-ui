@@ -314,9 +314,9 @@ export function mapAsset(raw: Record<string, unknown>) {
     sem: jld(p, "semanticId") ?? null,
     offered: true,
     created: jld(raw, "createdAt")
-      ? new Date(jld(raw, "createdAt") as number).toISOString().slice(0, 10)
+      ? fmtDateTimeShort(new Date(jld(raw, "createdAt") as number))
       : jld(p, "createdAt")
-        ? new Date(jld(p, "createdAt") as number).toISOString().slice(0, 10)
+        ? fmtDateTimeShort(new Date(jld(p, "createdAt") as number))
         : "",
     name: jld(p, "name") ?? "",
     description: jld(p, "description") ?? "",

@@ -21,6 +21,9 @@ import {
   listTenants,
   purgeArchivedTenants,
 } from "../lib/tenants.js";
+// 아카이브 시각은 DTO에선 머신리더블 ISO로 두고, 운영자에게 보이는 콘솔 출력만
+// 공용 포맷터로 KST "YYYY-MM-DD HH:mm:ss" 표기(다른 시각 표기와 통일).
+import { fmtDateTimeShort } from "../lib/edcClient.js";
 
 const DEFAULT_RETENTION_DAYS = Number(process.env.OFFBOARD_RETENTION_DAYS ?? 30);
 
@@ -57,7 +60,9 @@ async function run(): Promise<void> {
         `[offboard] 테넌트 ${tenants.length}건 (archived / bpn / name — connectors, users):`
       );
       for (const t of tenants) {
-        const state = t.archivedAt ? `ARCHIVED@${t.archivedAt}` : "active";
+        const state = t.archivedAt
+          ? `ARCHIVED@${fmtDateTimeShort(new Date(t.archivedAt))}`
+          : "active";
         console.log(
           `  [${state}] ${t.bpn}  ${t.name}  — connectors:${t.connectorCount} users:${t.userCount}`
         );
@@ -125,7 +130,7 @@ async function run(): Promise<void> {
         );
         for (const r of results) {
           console.log(
-            `  - ${r.name} (${r.bpn})  archived_at=${r.archivedAt}`
+            `  - ${r.name} (${r.bpn})  archived_at=${fmtDateTimeShort(new Date(r.archivedAt))}`
           );
         }
       } else {
