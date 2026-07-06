@@ -902,6 +902,7 @@ const ko = {
     email: "이메일",
     role: "역할",
     authMethod: "인증 방식",
+    authMethodValue: "BPN + 비밀번호",
     notificationSettings: "알림",
     vcExpiry: "VC 만료 알림",
     vcExpiryDesc: "검증가능 자격증명(VC) 만료 경고",

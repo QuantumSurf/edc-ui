@@ -888,6 +888,7 @@ const en: Translations = {
     email: "Email",
     role: "Role",
     authMethod: "Auth Method",
+    authMethodValue: "BPN + Password",
     notificationSettings: "Notifications",
     vcExpiry: "VC Expiry Alert",
     vcExpiryDesc: "Warn when Verifiable Credentials expire",

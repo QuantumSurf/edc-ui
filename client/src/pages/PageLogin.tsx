@@ -166,7 +166,7 @@ export default function PageLogin() {
         </div>
 
         <p className="text-center text-slate-500 text-[11px] mt-4">
-          {`${t.login.appName} v1.0 · Keycloak OIDC`}
+          {t.login.appName}
         </p>
       </div>
     </div>

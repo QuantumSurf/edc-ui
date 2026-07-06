@@ -186,7 +186,10 @@ export default function PageSettings() {
                 </Badge>
               }
             />
-            <ProfileRow label={t.settings.authMethod} value="Keycloak OIDC" />
+            <ProfileRow
+              label={t.settings.authMethod}
+              value={t.settings.authMethodValue}
+            />
           </div>
         </Card>
 
