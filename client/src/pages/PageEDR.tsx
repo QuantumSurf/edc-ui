@@ -135,8 +135,11 @@ export default function PageEDR() {
         tone="warn"
         confirmLabel={t.edr.copyConfirm}
         onConfirm={() => {
-          if (confirmCopy) navigator.clipboard.writeText(confirmCopy);
-          toast.success(t.edr.authCodeCopied);
+          if (confirmCopy)
+            navigator.clipboard.writeText(confirmCopy).then(
+              () => toast.success(t.edr.authCodeCopied),
+              () => toast.error(t.common.copyFailed)
+            );
           setConfirmCopy(null);
         }}
       />
@@ -323,8 +326,10 @@ function EDRRow({
           {e.endpoint && (
             <button
               onClick={() => {
-                navigator.clipboard.writeText(e.endpoint!);
-                toast.success(t.edr.endpointCopied);
+                navigator.clipboard.writeText(e.endpoint!).then(
+                  () => toast.success(t.edr.endpointCopied),
+                  () => toast.error(t.common.copyFailed)
+                );
               }}
               className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
               aria-label={t.edr.endpoint}

@@ -1874,7 +1874,7 @@ function ODRLBuilder({
             ? t.policies.saving
             : isEdit
               ? t.common.save
-              : t.policies.savePoliciy}
+              : t.policies.savePolicy}
         </button>
       </div>
     </SlidePanel>

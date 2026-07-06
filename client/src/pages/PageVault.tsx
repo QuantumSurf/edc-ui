@@ -209,8 +209,10 @@ export default function PageVault() {
   }, [search, typeFilter, setCurrentPage]);
 
   const onCopy = (alias: string) => {
-    navigator.clipboard.writeText(alias);
-    toast.success(t.vault.aliasCopied);
+    navigator.clipboard.writeText(alias).then(
+      () => toast.success(t.vault.aliasCopied),
+      () => toast.error(t.common.copyFailed)
+    );
   };
 
   const TYPE_FILTERS: Array<{ key: "ALL" | VaultItemType; label: string }> = [
