@@ -754,9 +754,8 @@ const ko = {
     clearFilters: "필터 초기화",
     detailTitle: "이벤트 상세",
     rangeAll: "전체",
-    range1d: "1일",
-    range7d: "7일",
-    range30d: "30일",
+    dateFrom: "시작일",
+    dateTo: "종료일",
     resultSuccess: "성공",
     resultFailure: "실패",
     severityInfo: "정보",
@@ -803,7 +802,7 @@ const ko = {
     emptyDesc: "필터 조건을 변경해보세요.",
     resultCount: (shown: number, total: number) =>
       `${shown}건 / 전체 ${total}건`,
-    retentionNotice: "감사 로그는 90일간 보관됩니다.",
+    retentionNotice: "감사 로그는 3년간 보관됩니다.",
   },
 
   // ── Infra ──

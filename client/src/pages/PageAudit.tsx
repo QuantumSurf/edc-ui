@@ -136,11 +136,48 @@ function resultBadge(r: AuditResult, t: ReturnType<typeof useI18n>["t"]) {
   );
 }
 
-function withinRange(iso: string, range: "ALL" | "1D" | "7D" | "30D") {
-  if (range === "ALL") return true;
-  const days = range === "1D" ? 1 : range === "7D" ? 7 : 30;
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  return new Date(iso).getTime() >= cutoff;
+/* ─── 기간 필터 (시작일~종료일, 뷰어 로컬 시간대의 하루 경계 기준) ─── */
+function toDateInput(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function daysAgoInput(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return toDateInput(d);
+}
+/** 프리셋 → 시작일/종료일(종료일=오늘). 기본 기간은 "7D"(최근 1주일). */
+function presetRange(key: "1D" | "7D" | "30D"): { from: string; to: string } {
+  const days = key === "1D" ? 1 : key === "7D" ? 7 : 30;
+  return { from: daysAgoInput(days), to: toDateInput(new Date()) };
+}
+/** 현재 from/to 가 어느 프리셋과 일치하는지(버튼 하이라이트용). 없으면 null(=커스텀 범위). */
+function activePresetKey(
+  from: string,
+  to: string
+): "ALL" | "1D" | "7D" | "30D" | null {
+  if (!from && !to) return "ALL";
+  if (to !== toDateInput(new Date())) return null;
+  if (from === daysAgoInput(1)) return "1D";
+  if (from === daysAgoInput(7)) return "7D";
+  if (from === daysAgoInput(30)) return "30D";
+  return null;
+}
+/** 감사 이벤트(ISO UTC)가 [from 00:00 ~ to 23:59:59.999](로컬) 안에 드는지. 빈 값이면 그 경계 없음. */
+function withinDateRange(iso: string, from: string, to: string): boolean {
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return true;
+  if (from) {
+    const fromMs = new Date(`${from}T00:00:00`).getTime();
+    if (!isNaN(fromMs) && t < fromMs) return false;
+  }
+  if (to) {
+    const toMs = new Date(`${to}T23:59:59.999`).getTime();
+    if (!isNaN(toMs) && t > toMs) return false;
+  }
+  return true;
 }
 
 /* ─── CSV Export ─────────────────────────────────────────────── */
@@ -206,7 +243,9 @@ export default function PageAudit() {
   const [category, setCategory] = useState<"ALL" | AuditCategory>("ALL");
   const [result, setResult] = useState<"ALL" | AuditResult>("ALL");
   const [severity, setSeverity] = useState<"ALL" | AuditSeverity>("ALL");
-  const [range, setRange] = useState<"ALL" | "1D" | "7D" | "30D">("ALL");
+  // 기간: 시작일~종료일(YYYY-MM-DD, 빈 문자열=경계 없음). 기본 최근 1주일(7D).
+  const [dateFrom, setDateFrom] = useState<string>(() => presetRange("7D").from);
+  const [dateTo, setDateTo] = useState<string>(() => presetRange("7D").to);
   const [selected, setSelected] = useState<AuditEvent | null>(null);
 
   const {
@@ -229,7 +268,7 @@ export default function PageAudit() {
       if (category !== "ALL" && e.category !== category) return false;
       if (result !== "ALL" && e.result !== result) return false;
       if (severity !== "ALL" && e.severity !== severity) return false;
-      if (!withinRange(e.timestamp, range)) return false;
+      if (!withinDateRange(e.timestamp, dateFrom, dateTo)) return false;
       if (q) {
         const haystack =
           `${e.actor} ${e.action} ${e.target} ${e.message}`.toLowerCase();
@@ -237,7 +276,7 @@ export default function PageAudit() {
       }
       return true;
     });
-  }, [allEvents, search, category, result, severity, range]);
+  }, [allEvents, search, category, result, severity, dateFrom, dateTo]);
 
   // 컬럼 헤더 클릭 정렬 (기본: 최신순)
   const { sortKey, sortDir, toggleSort } = useTableSort("timestamp", "desc");
@@ -289,7 +328,8 @@ export default function PageAudit() {
     category,
     result,
     severity,
-    range,
+    dateFrom,
+    dateTo,
     sortKey,
     sortDir,
     setCurrentPage,
@@ -308,12 +348,14 @@ export default function PageAudit() {
     SYSTEM: t.audit.catSystem,
   };
 
+  // 기본 기간(최근 1주일)에서 벗어났거나 다른 필터가 걸렸을 때만 '초기화' 노출.
+  const rangeIsDefault = activePresetKey(dateFrom, dateTo) === "7D";
   const hasActiveFilter =
     !!search ||
     category !== "ALL" ||
     result !== "ALL" ||
     severity !== "ALL" ||
-    range !== "ALL";
+    !rangeIsDefault;
 
   return (
     <>
@@ -392,22 +434,6 @@ export default function PageAudit() {
           </select>
         </label>
 
-        {/* 기간 */}
-        <div className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-          {(["ALL", "1D", "7D", "30D"] as const).map(r => (
-            <RangeBtn key={r} active={range === r} onClick={() => setRange(r)}>
-              {r === "ALL"
-                ? t.audit.rangeAll
-                : r === "1D"
-                  ? t.audit.range1d
-                  : r === "7D"
-                    ? t.audit.range7d
-                    : t.audit.range30d}
-            </RangeBtn>
-          ))}
-        </div>
-
         {/* 우측: 초기화 + 내보내기 */}
         <div className="flex items-center gap-2 ml-auto">
           {hasActiveFilter && (
@@ -417,7 +443,8 @@ export default function PageAudit() {
                 setCategory("ALL");
                 setResult("ALL");
                 setSeverity("ALL");
-                setRange("ALL");
+                setDateFrom(presetRange("7D").from);
+                setDateTo(presetRange("7D").to);
               }}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors"
             >
@@ -449,6 +476,57 @@ export default function PageAudit() {
           >
             <Download className="w-3.5 h-3.5" /> {t.audit.exportCsv}
           </button>
+        </div>
+
+        {/* 기간: 시작일~종료일 + 비우기 + 프리셋 — basis-full 로 검색창 아래 별도 행(기본 최근 1주일) */}
+        <div className="basis-full w-full flex flex-wrap items-center gap-x-2 gap-y-2 pt-2.5 mt-0.5 border-t border-border/60">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={e => setDateFrom(e.target.value)}
+            aria-label={t.audit.dateFrom}
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:light] dark:[color-scheme:dark]"
+          />
+          <span className="text-[12px] text-muted-foreground">~</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={e => setDateTo(e.target.value)}
+            aria-label={t.audit.dateTo}
+            className="text-[12px] border border-border rounded-md bg-background text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:light] dark:[color-scheme:dark]"
+          />
+          <button
+            onClick={() => {
+              setDateFrom("");
+              setDateTo("");
+            }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          >
+            {t.common.clear}
+          </button>
+          <div className="flex items-center gap-1.5 sm:ml-1">
+            {(["ALL", "1D", "7D", "30D"] as const).map(r => (
+              <RangeBtn
+                key={r}
+                active={activePresetKey(dateFrom, dateTo) === r}
+                onClick={() => {
+                  if (r === "ALL") {
+                    setDateFrom("");
+                    setDateTo("");
+                  } else {
+                    const pr = presetRange(r);
+                    setDateFrom(pr.from);
+                    setDateTo(pr.to);
+                  }
+                }}
+              >
+                {r === "ALL" ? t.audit.rangeAll : r}
+              </RangeBtn>
+            ))}
+          </div>
         </div>
       </div>
 

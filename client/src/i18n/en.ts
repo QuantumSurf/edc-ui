@@ -746,9 +746,8 @@ const en: Translations = {
     clearFilters: "Clear filters",
     detailTitle: "Event Detail",
     rangeAll: "All",
-    range1d: "1d",
-    range7d: "7d",
-    range30d: "30d",
+    dateFrom: "Start date",
+    dateTo: "End date",
     resultSuccess: "Success",
     resultFailure: "Failure",
     severityInfo: "Info",
@@ -794,7 +793,7 @@ const en: Translations = {
     emptyTitle: "No matching events",
     emptyDesc: "Try changing the filter criteria.",
     resultCount: (shown: number, total: number) => `${shown} of ${total}`,
-    retentionNotice: "Audit logs are retained for 90 days.",
+    retentionNotice: "Audit logs are retained for 3 years.",
   },
 
   infra: {
