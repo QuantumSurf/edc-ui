@@ -57,6 +57,8 @@ spec:
               value: {{ .Values.env.PORT | quote }}
             - name: VITE_DISABLE_DEMO
               value: {{ .Values.env.VITE_DISABLE_DEMO | quote }}
+            - name: TRUST_PROXY
+              value: {{ .Values.env.TRUST_PROXY | quote }}
             - name: EDC_API_KEY
               valueFrom:
                 secretKeyRef:

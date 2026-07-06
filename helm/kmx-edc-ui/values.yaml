@@ -54,6 +54,9 @@ env:
   NODE_ENV: production
   PORT: "3001"
   VITE_DISABLE_DEMO: "false"
+  # 신뢰할 역방향 프록시 홉 수. nginx 인그레스 단일 프록시면 "1"(req.ip가 실제 클라 IP가 되도록).
+  # 비어 있으면 앱이 trust proxy=false로 폴백 → rate limit이 프록시 IP로 붕괴(미인증 로그인 DoS).
+  TRUST_PROXY: "1"
 
 # Application secrets — REQUIRED in production (helm install fails if unset; app also
 # fail-closes at boot). Provide via a values override / --set / a secret manager.

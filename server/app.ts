@@ -69,6 +69,13 @@ export function buildApp(): Express {
   } else {
     // 기본 안전값: 프록시 미신뢰(X-Forwarded-* 무시) → req.ip는 소켓 peer IP.
     app.set("trust proxy", false);
+    // 프로덕션에서 역방향 프록시(nginx 인그레스) 뒤인데 TRUST_PROXY가 없으면 req.ip가 프록시
+    // 단일 IP로 붕괴해 IP rate limit이 전역 버킷이 된다(미인증 로그인 DoS). 부팅 시 크게 경고.
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        '[SECURITY] TRUST_PROXY 미설정 — 프록시 뒤 배포라면 req.ip가 붕괴해 rate limit이 무력화됩니다. helm env.TRUST_PROXY(nginx 단일 프록시면 "1")를 설정하세요.'
+      );
+    }
   }
 
   // ── Security Middleware ─────────────────────────────────────────
