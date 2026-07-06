@@ -113,8 +113,10 @@ router.post(
 );
 
 // GET /:id/edrs/stats — compute EDR statistics from live data
+// EDR 통계도 목록 라우트와 동일하게 admin/operator 전용(문서화된 'EDR=admin/operator' 정책 일치).
 router.get(
   "/:id/edrs/stats",
+  writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { client } = await resolveConnector(req.params.id);

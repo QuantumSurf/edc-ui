@@ -236,6 +236,35 @@ router.post(
       // ignoring any client-supplied bpn. tenant_id is likewise forced from the token.
       const tenant = await getTenant(tenantId);
       const entry = { ...req.body, bpn: tenant?.bpn ?? req.body?.bpn };
+      // 필수 필드 타입/값 검증 — 누락/오타가 500(예: env 미지정 → env.toLowerCase())으로 새거나
+      // 임의 env/roles가 저장되는 것을 막고 400으로 명확히 거부한다.
+      if (
+        typeof entry.name !== "string" ||
+        !entry.name.trim() ||
+        typeof entry.managementUrl !== "string" ||
+        !entry.managementUrl.trim() ||
+        typeof entry.dspEndpoint !== "string" ||
+        !entry.dspEndpoint.trim()
+      ) {
+        res
+          .status(400)
+          .json({ error: "name, managementUrl, dspEndpoint are required" });
+        return;
+      }
+      if (entry.env !== "PROD" && entry.env !== "STG" && entry.env !== "DEV") {
+        res.status(400).json({ error: "env must be one of PROD/STG/DEV" });
+        return;
+      }
+      if (
+        entry.roles != null &&
+        !(
+          Array.isArray(entry.roles) &&
+          entry.roles.every((r: unknown) => typeof r === "string")
+        )
+      ) {
+        res.status(400).json({ error: "roles must be an array of strings" });
+        return;
+      }
       const ssrfErr = validateConnectorUrls(entry);
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected URL — ${ssrfErr}` });

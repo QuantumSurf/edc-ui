@@ -170,8 +170,11 @@ router.put(
 // GET /api/system/settings/vault-config
 // Returns the Vault connection config. The token VALUE is never returned —
 // only a boolean indicating whether one is stored.
+// 플랫폼 Vault URL/네임스페이스는 인프라 설정이라 admin 전용(쓰기 PUT과 동일 least-privilege) —
+// viewer/operator 에게 전역 Vault 엔드포인트를 노출하지 않는다.
 router.get(
   "/settings/vault-config",
+  writeGuard,
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const [url, token, namespace] = await Promise.all([

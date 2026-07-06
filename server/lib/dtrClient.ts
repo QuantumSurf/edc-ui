@@ -4,6 +4,12 @@
 
 import axios, { type AxiosInstance, type AxiosError } from "axios";
 
+// DTR 응답 크기 상한 — DTR가 거대한 페이로드를 반환해도 공유 BFF가 전량 버퍼링으로 OOM되지
+// 않도록(shells 조회 limit 우회 등 대비). env DTR_MAX_RESPONSE_BYTES 로 조정(기본 16MB).
+const DTR_MAX_RESPONSE_BYTES = Number(
+  process.env.DTR_MAX_RESPONSE_BYTES ?? 16 * 1024 * 1024
+);
+
 export interface DtrClientConfig {
   baseUrl: string; // e.g. http://platform-dtr:4243/semantics/registry
   token?: string; // optional Bearer (prod)
@@ -36,6 +42,8 @@ export function createDtrClient(config: DtrClientConfig): AxiosInstance {
     baseURL: `${config.baseUrl.replace(/\/$/, "")}/api/v3`,
     timeout: config.timeoutMs ?? 10_000,
     headers,
+    maxContentLength: DTR_MAX_RESPONSE_BYTES,
+    maxBodyLength: DTR_MAX_RESPONSE_BYTES,
   });
 
   client.interceptors.response.use(

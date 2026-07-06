@@ -329,19 +329,21 @@ export default function PageSettings() {
           <IdentityHubConfigSetting />
         </Card>
 
-        {/* ── Vault Server ────────────────────────────────────── */}
-        <Card
-          title={
-            <CardTitle icon={<Vault className="w-3.5 h-3.5 text-blue-500" />}>
-              <span className="font-bold">{t.settings.vaultServer}</span>
-            </CardTitle>
-          }
-        >
-          <p className="text-[11px] text-muted-foreground mb-3">
-            {t.settings.vaultServerDesc}
-          </p>
-          <VaultConfigSetting />
-        </Card>
+        {/* ── Vault Server (플랫폼 인프라 설정 — admin 전용, 서버 GET vault-config도 admin 가드) ── */}
+        {user?.role === "admin" && (
+          <Card
+            title={
+              <CardTitle icon={<Vault className="w-3.5 h-3.5 text-blue-500" />}>
+                <span className="font-bold">{t.settings.vaultServer}</span>
+              </CardTitle>
+            }
+          >
+            <p className="text-[11px] text-muted-foreground mb-3">
+              {t.settings.vaultServerDesc}
+            </p>
+            <VaultConfigSetting />
+          </Card>
+        )}
       </div>
     </>
   );
