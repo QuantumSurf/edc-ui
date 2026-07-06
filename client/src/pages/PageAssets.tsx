@@ -895,16 +895,18 @@ function AssetCard({ asset: a }: { asset: Asset }) {
 
 /* ─── Asset Type Badge ───────────────────────────────────────── */
 function AssetTypeBadge({ type }: { type: string }) {
+  // 실제 자산 type은 "cx-taxo:SubmodelBundle" 형태 → 접두어를 벗긴 짧은 라벨로 매핑·표시한다
+  // (과거: 짧은 키(Bundle/PCF…)로 매핑해 어떤 타입과도 불일치 → 항상 gray + 접두어째 노출).
+  const short = type.replace(/^cx-taxo:/, "");
   const map: Record<string, "blue" | "sky" | "purple" | "amber" | "teal"> = {
-    Bundle: "blue",
+    SubmodelBundle: "blue",
+    DigitalTwinRegistry: "purple",
     PCF: "sky",
-    DTR: "purple",
     BOM: "amber",
-    QA: "teal",
   };
   return (
-    <Badge variant={map[type] ?? "gray"} className="!font-normal">
-      {type}
+    <Badge variant={map[short] ?? "gray"} className="!font-normal">
+      {short || "—"}
     </Badge>
   );
 }
@@ -957,16 +959,18 @@ function AssetWizard({
   ]);
 
   // Step 1 state — duplicate appends "-copy" to ID, name keeps with " (Copy)"
+  // 신규 생성은 빈 값에서 시작(과거: 데모 샘플값이 프리필돼 그대로 발행되던 문제). 예시는
+  // 각 입력의 placeholder로만 노출. 편집/복제는 원본/사본 값을 유지.
   const initialId = editTarget
     ? editTarget.id
     : duplicateSource
       ? `${duplicateSource.id}-copy`
-      : "kmx-new-asset-v1";
+      : "";
   const initialName = editTarget
     ? (editTarget.name ?? "")
     : duplicateSource
       ? `${duplicateSource.name ?? duplicateSource.id}${t.assets.copySuffix}`
-      : "Serial Part Bundle v3";
+      : "";
   const [assetId, setAssetId] = useState(initialId);
   const [dctType, setDctType] = useState(
     baseSrc?.type ?? "cx-taxo:SubmodelBundle"
@@ -974,7 +978,7 @@ function AssetWizard({
   const [label, setLabel] = useState(initialName);
   // 상세에는 description 이 표시되는데 생성 폼엔 입력칸이 없던 누락 보강(편집/복제 시 원본 복원)
   const [description, setDescription] = useState(baseSrc?.description ?? "");
-  const [version, setVersion] = useState(baseSrc?.ver ?? "v3.0");
+  const [version, setVersion] = useState(baseSrc?.ver ?? "");
   const [idError, setIdError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
@@ -982,9 +986,7 @@ function AssetWizard({
   const [addrType, setAddrType] = useState(
     baseSrc?.dataAddressType ?? "HttpData"
   );
-  const [baseUrl, setBaseUrl] = useState(
-    baseSrc?.baseUrl ?? "https://submodel-server.kmx.io/api/v3/submodel"
-  );
+  const [baseUrl, setBaseUrl] = useState(baseSrc?.baseUrl ?? "");
   const [proxyPath, setProxyPath] = useState(baseSrc?.proxyPath ?? "true");
   // authCode 초기값: 편집/복제 원본 값(서버가 vault 별칭을 줄 경우) 우선, 없고 편집/복제면 빈 칸으로 둬
   // 미입력 시 기존 인증을 placeholder로 덮어쓰지 않게 한다. 신규 생성만 데모 placeholder 채움 (id 13).

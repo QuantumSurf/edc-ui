@@ -67,6 +67,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   const {
     data: negotiations = [],
     isError: negError,
+    isLoading: negLoading,
     refetch: negRefetch,
     isFetching: negFetching,
   } = useQuery({
@@ -385,6 +386,10 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
       >
         {negError ? (
           <ListError onRetry={() => negRefetch()} fetching={negFetching} />
+        ) : negLoading ? (
+          <div className="py-8 text-center text-[12px] text-muted-foreground">
+            {t.common.loading}
+          </div>
         ) : negotiations.length === 0 ? (
           <ListEmpty icon={<FileText />} message={t.dashboard.noResults} />
         ) : (

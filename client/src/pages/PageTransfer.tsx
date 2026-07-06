@@ -887,6 +887,17 @@ export default function PageTransfer() {
                 }
               />
             )}
+            {/* 모바일도 페이지네이션 노출 — 없으면 최신 10건 이후 전송에 접근 불가(데스크톱과 동일 상태 공유) */}
+            {totalItems > 0 && (
+              <DataTablePagination
+                totalItems={totalItems}
+                pageSize={pageSize}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                rowsPerPageLabel={t.common.rowsPerPage}
+              />
+            )}
           </div>
         </div>
 
