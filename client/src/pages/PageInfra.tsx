@@ -3,6 +3,7 @@
 // (과거의 하드코딩 demo 카드 — k8s/ingress/resource/hikari/flyway/lease — 는 제거됨.)
 
 import { useI18n } from "@/i18n";
+import { fmtNum } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -166,9 +167,9 @@ export default function PageInfra() {
           {locksQuery.data && (
             <div className="mt-4 pt-3 border-t border-border flex items-center gap-4 text-[12px]">
               <span className="text-muted-foreground">Locks:</span>
-              <Badge variant="green">{locksQuery.data.granted} granted</Badge>
+              <Badge variant="green">{fmtNum(locksQuery.data.granted)} granted</Badge>
               <Badge variant={locksQuery.data.waiting > 0 ? "amber" : "gray"}>
-                {locksQuery.data.waiting} waiting
+                {fmtNum(locksQuery.data.waiting)} waiting
               </Badge>
             </div>
           )}

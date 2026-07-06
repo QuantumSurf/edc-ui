@@ -2,6 +2,7 @@
 // Reusable page navigation for list views
 
 import { useI18n } from "@/i18n";
+import { fmtNum } from "@/lib/format";
 import {
   ChevronLeft,
   ChevronRight,
@@ -55,7 +56,7 @@ export function Pagination({
   return (
     <div className="flex items-center justify-between pt-3 border-t border-border mt-2">
       <span className="text-[12px] text-muted-foreground">
-        {start}–{end} / {total}
+        {fmtNum(start)}–{fmtNum(end)} / {fmtNum(total)}
       </span>
 
       <div className="flex items-center gap-1">

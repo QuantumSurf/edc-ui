@@ -4,6 +4,7 @@
  * edc 고유: 커넥터 종속 네비(플릿 → 커넥터 선택 → OPS/PROVIDE/TRANSACTION) 기능 유지.
  */
 import { cn } from "@/lib/utils";
+import { fmtNum } from "@/lib/format";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -511,7 +512,7 @@ function SidebarLink({
                 }
           }
         >
-          {count}
+          {fmtNum(count)}
         </span>
       )}
       {!collapsed && badge !== undefined && badge > 0 && (

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
+import { fmtNum } from "@/lib/format";
 import { type Connector } from "@/lib/data";
 import {
   fetchFleetKPI,
@@ -103,7 +104,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
     staleTime: 60_000,
   });
   // KPI 조회 실패 시 0(오정보) 대신 "—" 표시
-  const kpiVal = (n: number | undefined) => (kpiError ? "—" : (n ?? 0));
+  const kpiVal = (n: number | undefined) => (kpiError ? "—" : fmtNum(n ?? 0));
 
   const {
     data: connectors = [],
@@ -451,28 +452,28 @@ function ConnectorCard({
         {stat(
           <Database className="w-3 h-3 opacity-60" />,
           t.fleet.assets,
-          c.assets,
+          fmtNum(c.assets),
           "assets",
           `${c.name} — ${t.fleet.assets}`
         )}
         {stat(
           <Package className="w-3 h-3 opacity-60" />,
           t.fleet.offers,
-          c.offers,
+          fmtNum(c.offers),
           "contract",
           `${c.name} — ${t.fleet.offers}`
         )}
         {stat(
           <FileText className="w-3 h-3 opacity-60" />,
           t.fleet.negotiations,
-          c.negs,
+          fmtNum(c.negs),
           "negotiation",
           `${c.name} — ${t.fleet.negotiations}`
         )}
         {stat(
           <ArrowRightLeft className="w-3 h-3 opacity-60" />,
           t.fleet.transfers,
-          c.transfers,
+          fmtNum(c.transfers),
           "transfer",
           `${c.name} — ${t.fleet.transfers}`
         )}

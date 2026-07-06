@@ -16,6 +16,7 @@ import {
   deleteOffering,
 } from "@/services";
 import { type Asset, type Policy, type Offering } from "@/lib/data";
+import { fmtNum } from "@/lib/format";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   DeleteConfirmDialog,
@@ -350,7 +351,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
                                 : "text-foreground"
                             )}
                           >
-                            {o.cnt}
+                            {fmtNum(o.cnt)}
                           </span>
                         </div>
                       </td>
@@ -594,7 +595,7 @@ function OfferingDetailSheet({
                   target.cnt > 0 ? "bg-emerald-500" : "bg-muted-foreground/40"
                 )}
               />
-              {t.offerings.contractCount}: {target.cnt}
+              {t.offerings.contractCount}: {fmtNum(target.cnt)}
             </span>
           </div>
         </div>
@@ -812,7 +813,7 @@ function OfferingCard({ offering: o }: { offering: Offering }) {
         <Badge variant="purple" className="text-[11px]">
           {o.contract || "—"}
         </Badge>
-        <span className="ml-auto font-semibold text-foreground">{o.cnt}</span>
+        <span className="ml-auto font-semibold text-foreground">{fmtNum(o.cnt)}</span>
       </div>
     </div>
   );

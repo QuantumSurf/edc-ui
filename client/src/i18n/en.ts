@@ -1,5 +1,6 @@
 // KMX EDC — English translations
 import type { Translations } from "./ko";
+import { fmtNum } from "@/lib/format";
 
 const en: Translations = {
   common: {
@@ -130,7 +131,7 @@ const en: Translations = {
     down: "Down",
     needsCheck: "Needs attention",
     todayTransfers: "Today's Transfers",
-    assetsRegistered: (n: number) => `${n} assets registered`,
+    assetsRegistered: (n: number) => `${fmtNum(n)} assets registered`,
     connectorFleet: "Connector Fleet",
     noConnectors: "No connectors registered.",
     emptyHelp:

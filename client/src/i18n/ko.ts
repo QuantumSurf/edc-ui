@@ -1,4 +1,6 @@
 // KMX EDC — Korean translations (default)
+import { fmtNum } from "@/lib/format";
+
 const ko = {
   // ── Common ──
   common: {
@@ -130,7 +132,7 @@ const ko = {
     down: "장애",
     needsCheck: "점검 필요",
     todayTransfers: "오늘 전체 전송",
-    assetsRegistered: (n: number) => `자산 ${n}개 등록`,
+    assetsRegistered: (n: number) => `자산 ${fmtNum(n)}개 등록`,
     connectorFleet: "커넥터 플릿",
     noConnectors: "등록된 커넥터가 없습니다.",
     emptyHelp:

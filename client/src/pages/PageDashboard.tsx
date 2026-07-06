@@ -3,6 +3,7 @@
 
 import { type Connector } from "@/lib/data";
 import { useI18n } from "@/i18n";
+import { fmtNum } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchAssets,
@@ -197,7 +198,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <Package className="w-[18px] h-[18px] text-blue-600 dark:text-blue-400" />
           }
           iconBg="bg-blue-50 dark:bg-blue-500/10"
-          value={assetCount}
+          value={fmtNum(assetCount)}
           title={t.dashboard.assets}
           sub={t.dashboard.includingOfferings}
           trend="up"
@@ -209,7 +210,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
             <ArrowRightLeft className="w-[18px] h-[18px] text-sky-600 dark:text-sky-400" />
           }
           iconBg="bg-sky-50 dark:bg-sky-500/10"
-          value={transfersError ? "—" : transferTotal}
+          value={transfersError ? "—" : fmtNum(transferTotal)}
           title={t.dashboard.dataTransfers}
           sub={t.dashboard.completedInProgress(transferDone, transferActive)}
           valueColor="text-sky-600 dark:text-sky-400"
@@ -329,7 +330,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                   }}
                   itemStyle={{ color: "var(--foreground)" }}
                   formatter={(value: number, name: string) => [
-                    value,
+                    fmtNum(value),
                     (t.negotiations.states as Record<string, string>)[name] ??
                       name,
                   ]}
@@ -357,7 +358,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                       ] ?? d.name}
                     </span>
                     <span className="font-semibold text-foreground ml-auto">
-                      {d.value}
+                      {fmtNum(d.value)}
                     </span>
                   </div>
                 ))}

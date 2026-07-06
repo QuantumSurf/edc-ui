@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import { fmtNum } from "@/lib/format";
 
 interface DataTablePaginationProps {
   totalItems: number;
@@ -58,7 +59,7 @@ export function DataTablePagination({
 
       <div className="flex items-center gap-3">
         <span className="text-xs text-muted-foreground tabular-nums">
-          {startItem}–{endItem} / {totalItems}
+          {fmtNum(startItem)}–{fmtNum(endItem)} / {fmtNum(totalItems)}
         </span>
         <div className="flex items-center gap-1">
           {(() => {

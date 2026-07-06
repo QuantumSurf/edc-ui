@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { fetchEDRs, fetchEDRStats } from "@/services";
 import { type EDR, type EDRStats } from "@/lib/data";
+import { fmtNum } from "@/lib/format";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   Card,
@@ -230,7 +231,7 @@ export default function PageEDR() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-[12px]">
           {[
             [t.edr.gcInterval, stats.gcScheduler.interval],
-            [t.edr.gcBatchSize, String(stats.gcScheduler.batchSize)],
+            [t.edr.gcBatchSize, fmtNum(stats.gcScheduler.batchSize)],
             [t.edr.gcGrace, stats.gcScheduler.grace],
             [t.edr.gcLastRun, stats.gcScheduler.lastRun],
             [t.edr.gcNextRun, stats.gcScheduler.nextRun],
