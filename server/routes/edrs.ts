@@ -8,7 +8,12 @@ import {
   type NextFunction,
 } from "express";
 import { getConnector } from "../lib/connectorRegistry.js";
-import { getEdcClient, withJsonLd, mapEDR } from "../lib/edcClient.js";
+import {
+  getEdcClient,
+  withJsonLd,
+  mapEDR,
+  fmtDateTimeShort,
+} from "../lib/edcClient.js";
 import { requireRole } from "../middleware/auth.js";
 
 const router = Router();
@@ -168,16 +173,8 @@ router.get(
           interval: `${gcInterval}s (${Math.round(gcInterval / 60)}m)`,
           batchSize: gcBatchSize,
           grace: `${gcGrace}s`,
-          lastRun: new Date(lastRunMs).toLocaleTimeString("ko-KR", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }),
-          nextRun: new Date(nextRunMs).toLocaleTimeString("ko-KR", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }),
+          lastRun: fmtDateTimeShort(new Date(lastRunMs)),
+          nextRun: fmtDateTimeShort(new Date(nextRunMs)),
           enabled: true,
         },
       });

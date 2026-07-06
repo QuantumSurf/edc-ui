@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
+import { fmtDateTime } from "@/lib/datetime";
 import {
   Card,
   SectionHdr,
@@ -445,14 +446,6 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatTs(iso: string, locale: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleTimeString(locale === "ko" ? "ko-KR" : "en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+function formatTs(iso: string, _locale: string): string {
+  return fmtDateTime(iso); // "YYYY-MM-DD HH:mm:ss"(KST)로 통일
 }

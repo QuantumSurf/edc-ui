@@ -83,15 +83,10 @@ interface AuditEvent {
 /* ─── (제거됨) 데모 데이터 팩토리 — 실제 audit_logs 조회(fetchAuditEvents)로 대체 ─── */
 
 /* ─── Helpers ────────────────────────────────────────────────── */
+// 감사로그 시각은 ISO 8601(UTC) 표기: "2026-01-02T09:00:00.000Z" (다른 시각 표기와 달리).
 function formatTs(iso: string) {
   const d = new Date(iso);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  return isNaN(d.getTime()) ? iso : d.toISOString();
 }
 
 const CAT_VARIANT: Record<

@@ -631,19 +631,20 @@ export function mapTransfer(raw: Record<string, unknown>, meta?: TransferMeta) {
   };
 }
 
-/** 표시용 짧은 KST 날짜·시각: "26. 06. 27. 14:44" (2자리 연도 + 24시간 표기).
- *  목록 컬럼 폭에 맞춰 연도 4→2자리, AM/PM 제거(24h)로 단축 — 긴 형식이 "..."로 잘리던 문제 해소.
- *  전송/협상/EDR 등 모든 목록·상세의 시각 표시에 공통 적용. */
+/** 표시용 날짜·시각: "2026-06-27 14:44:30" (연-월-일 시:분:초, KST, 24시간).
+ *  전송/협상/EDR 등 모든 목록·상세의 시각 표시에 공통 적용(감사로그 제외 — 감사는 ISO 표기).
+ *  sv-SE 로케일이 ISO 유사 포맷을 주므로 timeZone·초 옵션과 함께 사용. */
 export function fmtDateTimeShort(d: Date): string {
-  return d.toLocaleString("ko-KR", {
+  return d.toLocaleString("sv-SE", {
     // timeZone 미지정 시 서버 프로세스 로컬 TZ(컨테이너 기본 UTC)로 포맷돼 표시 시각이 KST와
     // 9시간 어긋난다(트렌드 x축과 동일 버그). KST 로 명시(env DISPLAY_TZ 로 조정 가능).
     timeZone: process.env.DISPLAY_TZ ?? "Asia/Seoul",
-    year: "2-digit",
+    year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   });
 }

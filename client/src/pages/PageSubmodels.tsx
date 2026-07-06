@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
+import { fmtDateTime } from "@/lib/datetime";
 import {
   fetchSemanticModels,
   fetchSemanticModel,
@@ -90,18 +91,8 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(iso: string, locale: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+function formatDate(iso: string, _locale: string): string {
+  return fmtDateTime(iso); // "YYYY-MM-DD HH:mm:ss"(KST)로 통일
 }
 
 export default function PageSubmodels() {

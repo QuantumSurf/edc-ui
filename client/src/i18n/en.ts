@@ -1035,12 +1035,6 @@ const en: Translations = {
           `${String(p.url)} not responding — DSP / negotiation / transfer may be disrupted. (${String(p.detail ?? "")})`,
       },
     },
-    timeAgo: {
-      justNow: "Just now",
-      minutesAgo: (n: number) => `${n}m ago`,
-      hoursAgo: (n: number) => `${n}h ago`,
-      daysAgo: (n: number) => `${n}d ago`,
-    },
   },
 
   // ── Semantic Models (flat list across shells) ──

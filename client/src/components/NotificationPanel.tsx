@@ -10,6 +10,7 @@ import { NOTIFY_PREFS_KEY, readPref } from "@/lib/prefs";
 import { type NotificationItem } from "@/services/api";
 import { ListError } from "@/components/ui-kmx";
 import { useI18n } from "@/i18n";
+import { fmtDateTime } from "@/lib/datetime";
 import { useLocation } from "wouter";
 import {
   Bell,
@@ -52,23 +53,10 @@ const SEVERITY: Record<
   },
 };
 
-/* ─── 상대 시간 ──────────────────────────────────────────────── */
+/* ─── 시각 표기 ──────────────────────────────────────────────── */
+// 알림 시각도 다른 시각 표기와 동일하게 "YYYY-MM-DD HH:mm:ss"(KST)로 표시(감사로그만 ISO).
 function useTimeAgo() {
-  const { t, locale } = useI18n();
-  const dateLocale = locale === "en" ? "en-US" : "ko-KR";
-  return (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
-    const minutes = Math.floor(diff / 60_000);
-    if (minutes < 1) return t.notifications.timeAgo.justNow;
-    if (minutes < 60) return t.notifications.timeAgo.minutesAgo(minutes);
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return t.notifications.timeAgo.hoursAgo(hours);
-    // 24h 초과는 절대 날짜로(AAS-Service 알림창과 동일 — "6월 22일" 형식).
-    return new Date(iso).toLocaleDateString(dateLocale, {
-      month: "short",
-      day: "numeric",
-    });
-  };
+  return fmtDateTime;
 }
 
 /* ─── Panel ──────────────────────────────────────────────────── */

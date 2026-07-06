@@ -1046,12 +1046,6 @@ const ko = {
           `${String(p.url)} 응답 없음 — DSP / 협상 / 전송 작업 중단 가능. (${String(p.detail ?? "")})`,
       },
     },
-    timeAgo: {
-      justNow: "방금 전",
-      minutesAgo: (n: number) => `${n}분 전`,
-      hoursAgo: (n: number) => `${n}시간 전`,
-      daysAgo: (n: number) => `${n}일 전`,
-    },
   },
 
   // ── Submodels (flat list across shells) ──
