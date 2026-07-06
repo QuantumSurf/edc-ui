@@ -303,7 +303,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
 /* ─── Health monitor card ─────────────────────────────────────── */
 function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
   const { t, locale } = useI18n();
-  const { data, isFetching, isError, refetch, dataUpdatedAt } = useQuery({
+  const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ["identity-hub-health"],
     queryFn: fetchIdentityHubHealth,
     enabled: hasUrl,
@@ -315,11 +315,13 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
 
   if (!hasUrl) return null;
 
-  const status = data?.status ?? "unconfigured";
+  // hasUrl(설정됨) 상태에서 로딩/에러 시 "미설정"으로 잘못 표시되던 문제 —
+  // 최초 로딩=점검 중, 에러=점검 불가로 구분(unconfigured는 hasUrl 아닐 때만이므로 사실상 미도달).
+  const status: string = isError ? "unknown" : (data?.status ?? "checking");
   const variant: "green" | "amber" | "red" | "gray" =
     status === "up"
       ? "green"
-      : status === "warn"
+      : status === "warn" || status === "unknown"
         ? "amber"
         : status === "down"
           ? "red"
@@ -331,7 +333,11 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
         ? t.identityHub.statusWarn
         : status === "down"
           ? t.identityHub.statusDown
-          : t.identityHub.statusUnconfigured;
+          : status === "unknown"
+            ? t.identityHub.statusUnknown
+            : status === "checking"
+              ? t.identityHub.statusChecking
+              : t.identityHub.statusUnconfigured;
 
   return (
     <Card
@@ -356,10 +362,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
           />
           <Metric
             label={t.identityHub.checkedAt}
-            value={formatTs(
-              data?.checkedAt ?? new Date(dataUpdatedAt).toISOString(),
-              locale
-            )}
+            value={data?.checkedAt ? formatTs(data.checkedAt, locale) : "—"}
           />
         </div>
 

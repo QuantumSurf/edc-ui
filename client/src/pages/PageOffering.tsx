@@ -1365,7 +1365,9 @@ function OfferingWizard({
         )}
         {step === 1 && (
           <PrimaryActionButton
-            disabled={!accessPolicy}
+            disabled={
+              !accessPolicy || !policies.some(p => p.id === accessPolicy)
+            }
             onClick={() => setStep(2)}
           >
             {t.offerings.step3} &rarr;
@@ -1373,7 +1375,9 @@ function OfferingWizard({
         )}
         {step === 2 && (
           <PrimaryActionButton
-            disabled={!contractPolicy}
+            disabled={
+              !contractPolicy || !policies.some(p => p.id === contractPolicy)
+            }
             onClick={() => setStep(3)}
           >
             {t.offerings.step4} &rarr;

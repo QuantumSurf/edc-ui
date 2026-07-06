@@ -961,6 +961,8 @@ const ko = {
       "설정 화면의 분산 신원 서버에서 Identity Hub URL을 입력하면 여기에 표시됩니다.",
     openSettings: "설정 열기",
     monitor: "상태 모니터링",
+    statusChecking: "점검 중",
+    statusUnknown: "점검 불가",
     statusUp: "정상",
     statusWarn: "경고",
     statusDown: "장애",

@@ -949,6 +949,8 @@ const en: Translations = {
       "Configure it in Settings → Identity Hub Server and it will appear here.",
     openSettings: "Open Settings",
     monitor: "Health Monitor",
+    statusChecking: "Checking…",
+    statusUnknown: "Unavailable",
     statusUp: "UP",
     statusWarn: "WARN",
     statusDown: "DOWN",
