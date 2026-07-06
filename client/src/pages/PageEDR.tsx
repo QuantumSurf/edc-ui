@@ -55,6 +55,7 @@ export default function PageEDR() {
   const {
     data: edrs = [],
     isError,
+    isLoading,
     refetch,
     isFetching,
   } = useQuery({
@@ -157,6 +158,10 @@ export default function PageEDR() {
       >
         {isError ? (
           <ListError onRetry={() => refetch()} fetching={isFetching} />
+        ) : isLoading ? (
+          <div className="py-8 text-center text-[12px] text-muted-foreground">
+            {t.common.loading}
+          </div>
         ) : edrs.length === 0 ? (
           <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
         ) : (
@@ -197,6 +202,10 @@ export default function PageEDR() {
       <div className="md:hidden flex flex-col gap-3">
         {isError ? (
           <ListError onRetry={() => refetch()} fetching={isFetching} />
+        ) : isLoading ? (
+          <div className="py-8 text-center text-[12px] text-muted-foreground">
+            {t.common.loading}
+          </div>
         ) : edrs.length === 0 ? (
           <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
         ) : (

@@ -217,11 +217,6 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
           iconBg="bg-sky-50 dark:bg-sky-500/10"
           value={kpiVal(kpi?.totalTransfers)}
           label={t.fleet.todayTransfers}
-          sub={
-            kpiError
-              ? undefined
-              : t.fleet.assetsRegistered(kpi?.totalAssets ?? 0)
-          }
           valueColor="text-sky-600 dark:text-sky-400"
           loading={kpiLoading}
         />
