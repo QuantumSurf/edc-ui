@@ -534,7 +534,9 @@ function EditConnectorDialog({
   };
 
   const handleTest = async () => {
-    if (!managementUrl.trim()) return;
+    // 편집 다이얼로그에서 apiKey는 빈칸=저장된 키 유지 의미다. 빈 키로 테스트하면 저장된 키가
+    // 아니라 빈 키로 붙어 정상 커넥터도 '실패'로 오탐되므로, 키가 있어야 테스트한다(버튼도 비활성).
+    if (!managementUrl.trim() || !apiKey.trim()) return;
     setTesting(true);
     setTestResult(null);
     try {
@@ -705,7 +707,8 @@ function EditConnectorDialog({
       <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">
         <button
           onClick={handleTest}
-          disabled={testing || !managementUrl.trim()}
+          disabled={testing || !managementUrl.trim() || !apiKey.trim()}
+          title={!apiKey.trim() ? t.fleet.testNeedsKey : undefined}
           className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         >
           {testing && <Loader2 className="w-3 h-3 animate-spin" />}

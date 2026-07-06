@@ -162,6 +162,8 @@ const en: Translations = {
     cancel: "Cancel",
     save: "Save",
     delete: "Delete",
+    testNeedsKey:
+      "Enter the API key to test the connection (leave blank to keep the stored key)",
   },
 
   dashboard: {

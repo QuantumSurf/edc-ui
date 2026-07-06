@@ -164,6 +164,7 @@ const ko = {
     cancel: "취소",
     save: "저장",
     delete: "삭제",
+    testNeedsKey: "연결 테스트는 API 키를 입력해야 합니다 (미입력 시 저장된 키 유지)",
   },
 
   // ── Dashboard ──
