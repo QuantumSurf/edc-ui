@@ -91,12 +91,12 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(iso: string, _locale: string): string {
+function formatDate(iso: string): string {
   return fmtDateTime(iso); // "YYYY-MM-DD HH:mm:ss"(KST)로 통일
 }
 
 export default function PageSubmodels() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [detailUrn, setDetailUrn] = useState<string | null>(null);
@@ -352,9 +352,9 @@ export default function PageSubmodels() {
                 <div className="min-w-0">
                   <span
                     className="text-xs text-foreground truncate block"
-                    title={formatDate(m.updatedAt, locale)}
+                    title={formatDate(m.updatedAt)}
                   >
-                    {formatDate(m.updatedAt, locale)}
+                    {formatDate(m.updatedAt)}
                   </span>
                 </div>
               </ListRow>
@@ -432,7 +432,7 @@ function SemanticModelDetailDialog({
   onEdit: () => void;
   onDelete: (summary: SemanticModelSummary) => void;
 }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [model, setModel] = useState<SemanticModel | null>(null);
   const [loading, setLoading] = useState(false);
   const [contentView, setContentView] = useState<"tree" | "raw">("tree");
@@ -517,11 +517,11 @@ function SemanticModelDetailDialog({
               />
               <InfoCard
                 label={t.submodels.col.created}
-                value={formatDate(model.createdAt, locale)}
+                value={formatDate(model.createdAt)}
               />
               <InfoCard
                 label={t.submodels.col.updated}
-                value={formatDate(model.updatedAt, locale)}
+                value={formatDate(model.updatedAt)}
               />
               {model.descriptionKo && (
                 <InfoCard

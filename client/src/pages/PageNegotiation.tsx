@@ -1,5 +1,5 @@
 // Connector Hub — Contract Negotiation Page (spec 4.5)
-// FSM state polling, KPI cards, filter buttons, responsive table/card
+// FSM state polling, search & filter buttons, responsive table/card
 
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

@@ -87,7 +87,6 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
     queryFn: fetchConnectors,
   });
   const peers = connectors.filter(c => c.id !== connectorId && !!c.dspEndpoint);
-  const hasQuickSelect = peers.length > 0 || recent.length > 0;
 
   const handlePick = (value: string) => {
     setPick(value);
@@ -414,6 +413,11 @@ function CatalogResults({
     setPageSize,
   } = usePagination(offers, 10);
 
+  // 0건이면 카운트/빈 헤더 테이블 대신 빈 상태 하나만 노출(중복 제거).
+  if (offers.length === 0) {
+    return <ListEmpty icon={<Package />} message={t.common.noResults} />;
+  }
+
   return (
     <>
       <div className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1.5">
@@ -498,9 +502,6 @@ function CatalogResults({
               ))}
             </tbody>
           </table>
-          {offers.length === 0 && (
-            <ListEmpty icon={<Package />} message={t.common.noResults} />
-          )}
           {totalItems > 0 && (
             <DataTablePagination
               totalItems={totalItems}

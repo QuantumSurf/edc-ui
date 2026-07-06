@@ -302,7 +302,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
 
 /* ─── Health monitor card ─────────────────────────────────────── */
 function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ["identity-hub-health"],
     queryFn: fetchIdentityHubHealth,
@@ -362,7 +362,7 @@ function HealthMonitorCard({ hasUrl }: { hasUrl: boolean }) {
           />
           <Metric
             label={t.identityHub.checkedAt}
-            value={data?.checkedAt ? formatTs(data.checkedAt, locale) : "—"}
+            value={data?.checkedAt ? formatTs(data.checkedAt) : "—"}
           />
         </div>
 
@@ -449,6 +449,6 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatTs(iso: string, _locale: string): string {
+function formatTs(iso: string): string {
   return fmtDateTime(iso); // "YYYY-MM-DD HH:mm:ss"(KST)로 통일
 }

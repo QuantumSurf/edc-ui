@@ -217,7 +217,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
           valueColor="text-sky-600 dark:text-sky-400"
           trend="up"
           onClick={() => onNav(`/connectors/${conn.id}/transfer`)}
-          ariaLabel={t.dashboard.dataTransfers}
+          ariaLabel={`${t.dashboard.dataTransfers} ${transfersError ? "—" : transferTotal}`}
         />
       </div>
 

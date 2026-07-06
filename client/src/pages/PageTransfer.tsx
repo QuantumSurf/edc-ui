@@ -204,7 +204,7 @@ function DataViewer({
 
 /* ── component ────────────────────────────────────────────────── */
 export default function PageTransfer() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const search = useSearch();
   const qParams = useMemo(() => new URLSearchParams(search), [search]);
 
@@ -513,11 +513,7 @@ export default function PageTransfer() {
     }
     // 형식 보강: Provider DSP 엔드포인트는 http(s):// URL 이어야 한다.
     if (!/^https?:\/\//i.test(counterPartyAddress.trim())) {
-      toast.warning(
-        locale === "ko"
-          ? "Provider DSP 엔드포인트는 http:// 또는 https:// 로 시작해야 합니다."
-          : "Provider DSP endpoint must start with http:// or https://."
-      );
+      toast.warning(t.transfers.counterPartyAddressInvalidScheme);
       return;
     }
     const isProxy = sinkType === "HttpProxy";
@@ -695,7 +691,7 @@ export default function PageTransfer() {
                 message={
                   stateFilter !== "ALL"
                     ? t.transfers.noFilterResults
-                    : t.transfers.noInflight
+                    : t.transfers.noTransfers
                 }
               />
             ) : (
@@ -883,7 +879,7 @@ export default function PageTransfer() {
                 message={
                   stateFilter !== "ALL"
                     ? t.transfers.noFilterResults
-                    : t.transfers.noInflight
+                    : t.transfers.noTransfers
                 }
               />
             )}
@@ -991,7 +987,7 @@ export default function PageTransfer() {
               >
                 <Send className="w-3 h-3" />
                 {submitting
-                  ? `${t.transfers.startTransfer}...`
+                  ? t.transfers.starting
                   : t.transfers.startTransfer}
               </button>
             </RoleGate>

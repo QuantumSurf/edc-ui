@@ -210,7 +210,7 @@ const ko = {
     createWizard: "자산 생성",
     list: "자산 목록",
     wizard: "생성 마법사 (3단계)",
-    searchPlaceholder: "자산 ID 또는 유형 검색...",
+    searchPlaceholder: "자산 ID, 이름 또는 유형 검색...",
     description: "설명",
     sourceType: "소스 유형",
     sourceUrl: "소스 URL",
@@ -331,7 +331,6 @@ const ko = {
     duplicateBuilder: "정책 복제",
     idImmutable: "정책 ID는 수정할 수 없습니다.",
     jsonTitle: "정책 JSON (ODRL)",
-    downloadJson: "JSON 다운로드",
     modeBuilder: "빌더",
     modeJsonImport: "JSON 가져오기",
     jsonImportHint:
@@ -379,13 +378,10 @@ const ko = {
       action: "액션",
       constraint: "제약 조건",
       offeringRef: "계약 참조",
-      created: "생성일",
     },
-    actionUse: "사용 허가",
     sectionBasic: "기본 정보",
     sectionConstraints: "ODRL 제약 조건",
     noConstraints: "제약 조건 없음",
-    sectionOffering: "계약 연결",
     sectionJson: "ODRL JSON",
     emptyTitle: "등록된 정책이 없습니다",
     emptyDesc: "ODRL 빌더를 사용하여 접근 제어 정책을 생성해보세요.",
@@ -559,6 +555,7 @@ const ko = {
     inflight: "진행 중",
     completed: "완료",
     startTransfer: "전송 시작",
+    starting: "전송 시작 중...",
     dataSink: "전송 시작 (DataSink)",
     sinkType: "Sink 유형",
     endpointUrl: "엔드포인트 URL",
@@ -588,12 +585,14 @@ const ko = {
     counterPartyAddress: "Provider DSP 엔드포인트",
     agreementRequired: "계약 ID를 입력하세요.",
     counterPartyAddressRequired: "Provider DSP 엔드포인트를 입력하세요.",
+    counterPartyAddressInvalidScheme:
+      "Provider DSP 엔드포인트는 http:// 또는 https:// 로 시작해야 합니다.",
     endpointRequired: "데이터 수신 엔드포인트 URL을 입력하세요.",
     started: "전송이 시작되었습니다.",
     startFailed: "전송 시작에 실패했습니다.",
     totalVolume: "총 전송량",
     avgDuration: "평균 소요 시간",
-    noInflight: "진행 중인 전송이 없습니다.",
+    noTransfers: "전송 내역이 없습니다.",
     noCompleted: "완료된 전송이 없습니다.",
     transferFailedToast: (id: string, asset: string) =>
       `전송 실패: ${id} (asset: ${asset})`,
@@ -612,7 +611,6 @@ const ko = {
       "전송 목록을 모두 삭제합니까? (진행 중인 전송은 강제 종료됩니다)",
     deleteAllSuccess: (n: number) => `${n}건 삭제되었습니다.`,
     fetchData: "데이터 조회",
-    fetchSuccess: (size: string) => `데이터 조회 완료 (${size})`,
     fetchFailed: "데이터 조회 실패 (EDR 만료 또는 연결 오류)",
     proxyPath: "프록시 경로",
     queryPath: "조회",
@@ -962,10 +960,8 @@ const ko = {
   // ── IdentityHub ──
   identityHub: {
     title: "분산 신원",
-    subtitle: "참가자 신뢰 체계 (DID / Verifiable Credentials)",
     endpoint: "엔드포인트",
     endpointUrl: "Identity Hub URL",
-    open: "열기",
     statusConfigured: "설정됨",
     sharedNote: "전체 커넥터가 공유합니다",
     notConfigured: "Identity Hub URL이 설정되지 않았습니다",
@@ -1066,13 +1062,10 @@ const ko = {
   // ── Submodels (flat list across shells) ──
   submodels: {
     title: "시맨틱 모델",
-    subtitle: "시맨틱 모델(SAMM) 로컬 저장소",
     searchPlaceholder: "URN, 이름, 설명 검색…",
     empty: "등록된 시맨틱 모델이 없습니다.",
     listTitle: "시맨틱 모델 목록",
     noSearchResults: "검색 결과가 없습니다.",
-    resultCount: (shown: number, total: number) =>
-      `${shown}건 / 전체 ${total}건`,
     create: "시맨틱 모델 추가",
     edit: "시맨틱 모델 수정",
     refresh: "새로고침",
@@ -1086,12 +1079,6 @@ const ko = {
       size: "크기",
       created: "생성일",
     },
-    status: {
-      DRAFT: "DRAFT",
-      RELEASED: "RELEASED",
-      STANDARDIZED: "STANDARDIZED",
-      DEPRECATED: "DEPRECATED",
-    },
     detail: {
       title: "시맨틱 모델",
       content: "SAMM 본문",
@@ -1101,12 +1088,6 @@ const ko = {
       noContent: "본문이 비어 있습니다.",
       copyContent: "본문 복사",
       downloadContent: "본문 다운로드",
-      copyUrn: "URN 복사",
-      meta: "메타 정보",
-    },
-    delete: {
-      title: "시맨틱 모델 삭제",
-      message: "이 시맨틱 모델을 삭제합니다. 삭제 후 복구할 수 없습니다.",
     },
     urnImmutable: "URN은 수정할 수 없습니다.",
     form: {
@@ -1143,12 +1124,9 @@ const ko = {
   // ── Digital Twin Registry ──
   twins: {
     title: "레지스트리",
-    subtitle: "자산 관리 쉘 디스크립터 관리",
     edit: "Shell 수정",
     aasIdImmutable: "AAS ID는 수정할 수 없습니다.",
     searchPlaceholder: "ID, idShort, globalAssetId 검색…",
-    resultCount: (filtered: number, total: number) =>
-      `${filtered}/${total} 항목`,
     create: "Shell 생성",
     refresh: "새로고침",
     empty: "등록된 쉘 디스크립터가 없습니다.",
@@ -1160,23 +1138,13 @@ const ko = {
       globalAssetId: "Global Asset ID",
       specificAssetIds: "Specific Asset IDs",
       submodels: "시맨틱 모델",
-      created: "생성일",
     },
     detail: {
       title: "Shell Descriptor",
       submodels: "Submodel Descriptors",
       noSubmodels: "Submodel이 없습니다.",
-      addSubmodel: "Submodel 추가",
       viewJson: "JSON 보기",
       jsonTitle: "원본 JSON",
-      jsonDesc: "DTR 에 저장된 원본 AAS Shell Descriptor",
-      copyJson: "JSON 복사",
-      downloadJson: "JSON 다운로드",
-    },
-    delete: {
-      title: "Shell Descriptor 삭제",
-      message:
-        "이 Shell을 정말 삭제하시겠습니까? 연결된 Submodel도 함께 삭제됩니다.",
     },
     badge: {
       registered: "DTR 등록됨",
@@ -1190,11 +1158,9 @@ const ko = {
       description: "설명",
       descriptionKo: "설명 (한국어)",
       descriptionEn: "설명 (English)",
-      specificAssetIds: "Specific Asset IDs",
       addSpecificAssetId: "Specific Asset ID 추가",
       keyName: "name",
       keyValue: "value",
-      submodels: "Submodel Descriptor",
       addSubmodel: "Submodel 추가",
       addEndpoint: "Endpoint 추가",
       subIdShort: "Submodel idShort",

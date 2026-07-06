@@ -718,9 +718,17 @@ export default function PageAudit() {
         {isError ? (
           <ListError onRetry={() => refetch()} fetching={isFetching} />
         ) : filtered.length === 0 ? (
-          <div className="py-8 text-center text-[13px] text-muted-foreground">
-            {t.audit.emptyTitle}
-          </div>
+          <ListEmpty
+            icon={<Activity />}
+            message={
+              <>
+                <span className="block text-[15px] font-semibold text-foreground mb-1">
+                  {t.audit.emptyTitle}
+                </span>
+                {t.audit.emptyDesc}
+              </>
+            }
+          />
         ) : (
           paginatedData.map(e => (
             <div
