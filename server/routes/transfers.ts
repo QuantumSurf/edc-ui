@@ -22,7 +22,7 @@ import {
 } from "../lib/edcClient.js";
 import { getPool } from "../lib/db.js";
 import { requireRole } from "../middleware/auth.js";
-import { validateDspEndpoint } from "../middleware/validation.js";
+import { assertEndpointPublic } from "../middleware/validation.js";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
@@ -32,6 +32,12 @@ const writeGuard = requireRole("admin", "operator");
 // 있다(단일 프로세스 → 전 테넌트 동시 다운). env EDR_MAX_RESPONSE_BYTES 로 조정(기본 100MB).
 const EDR_MAX_RESPONSE_BYTES = Number(
   process.env.EDR_MAX_RESPONSE_BYTES ?? 100 * 1024 * 1024
+);
+
+// 동기 JSON.parse/버퍼→문자열 변환은 큰 입력에서 이벤트루프를 블로킹(단일 프로세스 공유 BFF
+// 프리즈)하므로, 이 상한 이하만 파싱한다. 초과 페이로드는 파싱을 생략하고 크기만 노출한다.
+const EDR_MAX_PARSE_BYTES = Number(
+  process.env.EDR_MAX_PARSE_BYTES ?? 8 * 1024 * 1024
 );
 
 /**
@@ -158,7 +164,7 @@ router.post(
         });
         return;
       }
-      const tpSsrfErr = validateDspEndpoint(counterPartyAddress);
+      const tpSsrfErr = await assertEndpointPublic(counterPartyAddress);
       if (tpSsrfErr) {
         res
           .status(400)
@@ -278,7 +284,7 @@ router.post(
       // /start 의 counterPartyAddress 와 동일하게 사설/메타데이터 대역을 차단한다
       // (이 경로에 가드가 없으면 악성 provider 가 169.254.169.254 등으로 BFF 를 유도해
       //  내부망 도달 + EDR Bearer 토큰 유출 가능 — 데이터 Pull 경로 일관성 결손 보완).
-      const fetchSsrfErr = validateDspEndpoint(targetUrl);
+      const fetchSsrfErr = await assertEndpointPublic(targetUrl);
       if (fetchSsrfErr) {
         res
           .status(502)
@@ -314,15 +320,23 @@ router.post(
         [tpId, connectorId, sizeBytes, fetchDurationMs]
       );
 
-      // 4. 데이터 응답 (JSON이면 파싱, 아니면 raw)
-      let body: unknown;
-      try {
-        body = JSON.parse(Buffer.from(dataRes.data).toString("utf-8"));
-      } catch {
-        body = Buffer.from(dataRes.data).toString("utf-8");
+      // 4. 데이터 응답 (JSON이면 파싱, 아니면 raw). 단 대형 페이로드(>parse cap)는 동기
+      //    JSON.parse/문자열 변환이 이벤트루프를 블로킹해 공유 BFF를 프리즈시키므로 파싱을
+      //    생략하고 크기만 노출한다(previewOmitted).
+      const raw = Buffer.from(dataRes.data);
+      let body: unknown = null;
+      let previewOmitted = false;
+      if (raw.length <= EDR_MAX_PARSE_BYTES) {
+        try {
+          body = JSON.parse(raw.toString("utf-8"));
+        } catch {
+          body = raw.toString("utf-8");
+        }
+      } else {
+        previewOmitted = true;
       }
 
-      res.json({ data: body, sizeBytes, contentType });
+      res.json({ data: body, sizeBytes, contentType, previewOmitted });
     } catch (error) {
       next(error);
     }
@@ -424,7 +438,10 @@ router.post(
             );
             // SSRF 가드: /fetch 와 동일하게 EDR endpoint 사설/메타데이터 대역 차단.
             // 무효 endpoint 면 데이터 Pull 만 건너뛰고 완료(terminate)는 계속 진행.
-            if (targetUrl !== null && validateDspEndpoint(targetUrl) === null) {
+            if (
+              targetUrl !== null &&
+              (await assertEndpointPublic(targetUrl)) === null
+            ) {
               const fetchStart = Date.now();
               const dataRes = await axios.get(targetUrl, {
                 headers: { Authorization: `Bearer ${token}` },

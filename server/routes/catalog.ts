@@ -9,7 +9,7 @@ import {
 } from "express";
 import { getConnector } from "../lib/connectorRegistry.js";
 import { getEdcClient } from "../lib/edcClient.js";
-import { validateDspEndpoint } from "../middleware/validation.js";
+import { assertEndpointPublic } from "../middleware/validation.js";
 import { requireRole } from "../middleware/auth.js";
 
 const router = Router();
@@ -189,7 +189,7 @@ router.post(
         res.status(400).json({ error: "Input length exceeds limit" });
         return;
       }
-      const ssrfErr = validateDspEndpoint(dspEndpoint);
+      const ssrfErr = await assertEndpointPublic(dspEndpoint);
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected dspEndpoint: ${ssrfErr}` });
         return;

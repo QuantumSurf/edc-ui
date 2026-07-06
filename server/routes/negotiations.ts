@@ -17,7 +17,7 @@ import {
 } from "../lib/edcClient.js";
 import { getPool } from "../lib/db.js";
 import { requireRole } from "../middleware/auth.js";
-import { validateDspEndpoint } from "../middleware/validation.js";
+import { assertEndpointPublic } from "../middleware/validation.js";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
@@ -137,7 +137,7 @@ router.post(
         });
         return;
       }
-      const ssrfErr = validateDspEndpoint(dspEndpoint);
+      const ssrfErr = await assertEndpointPublic(dspEndpoint);
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected dspEndpoint: ${ssrfErr}` });
         return;

@@ -1,5 +1,6 @@
 // KMX EDC — Request validation + SSRF protection
 import type { Request, Response, NextFunction } from "express";
+import { lookup } from "node:dns/promises";
 
 /**
  * Validate that a URL is valid and not targeting dangerous networks (SSRF protection).
@@ -51,6 +52,68 @@ export function validateDspEndpoint(url: string): string | null {
   } catch {
     return "Invalid URL format";
   }
+}
+
+/** 해석된 IP(문자열)가 사설/루프백/링크로컬/메타데이터 대역인지. IPv4-mapped IPv6 포함. */
+function isBlockedIp(ip: string): boolean {
+  const addr = ip.toLowerCase();
+  const mapped = addr.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  const v4 = mapped
+    ? mapped[1]
+    : /^\d+\.\d+\.\d+\.\d+$/.test(addr)
+      ? addr
+      : null;
+  if (v4) {
+    return (
+      v4.startsWith("127.") ||
+      v4.startsWith("10.") ||
+      v4.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(v4) ||
+      v4.startsWith("169.254.") || // link-local + 169.254.169.254 cloud metadata
+      v4.startsWith("0.") ||
+      v4 === "0.0.0.0"
+    );
+  }
+  return (
+    addr === "::1" ||
+    addr === "::" ||
+    /^fc/.test(addr) || // ULA fc00::/7
+    /^fd/.test(addr) ||
+    /^fe[89ab]/.test(addr) // link-local fe80::/10
+  );
+}
+
+/**
+ * SSRF 근본 강화(위 id 65 한계 보완): 문자열 검사(validateDspEndpoint)에 더해 호스트명을 실제
+ * DNS 해석하여, 사설/메타데이터 대역으로 해석되면 거부한다. 이로써 "공인 도메인 A레코드를
+ * 169.254.169.254 등 내부 IP로 응답"하는 DNS 리바인딩/내부 호스트명 우회를 차단한다.
+ *
+ * dev/docker 통합(ALLOW_PRIVATE_DSP=true)에서는 컨테이너 사설 DNS 이름을 그대로 통과시킨다
+ * (기존 문자열 검사 동작 유지). 해석 실패는 '검증 불가'로 보고 거부한다.
+ *
+ * [잔여 한계] 해석 시점과 실제 요청(axios 재해석) 사이의 TOCTOU(sub-TTL 리바인딩)까지는 막지
+ * 못한다 — 완전 차단은 해석 IP 고정(pin) 또는 신뢰 호스트 allowlist가 필요(운영 정책 결정).
+ */
+export async function assertEndpointPublic(url: string): Promise<string | null> {
+  const syncErr = validateDspEndpoint(url);
+  if (syncErr) return syncErr;
+  if (process.env.ALLOW_PRIVATE_DSP === "true") return null;
+
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.replace(/^\[|\]$/g, "");
+  } catch {
+    return "Invalid URL format";
+  }
+  try {
+    const addrs = await lookup(hostname, { all: true });
+    if (addrs.some(a => isBlockedIp(a.address))) {
+      return "Private/internal network addresses are not allowed (resolved)";
+    }
+  } catch {
+    return "Endpoint host could not be resolved";
+  }
+  return null;
 }
 
 /** Validate connector ID format (alphanumeric + hyphens) */

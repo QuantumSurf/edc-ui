@@ -1121,7 +1121,7 @@ const ko = {
       deleted: (name: string) => `${name} 삭제됨`,
       created: (name: string) => `${name} 등록됨`,
       updated: (name: string) => `${name} 수정됨`,
-      tooLarge: "본문이 너무 큽니다 (최대 1 MB)",
+      tooLarge: "본문이 너무 큽니다 (최대 256 KB)",
       saveFailed: "등록 실패",
     },
   },

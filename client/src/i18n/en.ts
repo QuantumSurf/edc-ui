@@ -1108,7 +1108,7 @@ const en: Translations = {
       deleted: (name: string) => `${name} deleted`,
       created: (name: string) => `${name} created`,
       updated: (name: string) => `${name} updated`,
-      tooLarge: "Content is too large (max 1 MB)",
+      tooLarge: "Content is too large (max 256 KB)",
       saveFailed: "Failed to save",
     },
   },
