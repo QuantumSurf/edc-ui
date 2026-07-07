@@ -30,10 +30,24 @@ const router = Router();
 const MAX_TENANT_LEN = 128; // tenant id (BPN) 입력 한도
 const MAX_PASSWORD_LEN = 256; // bcrypt input 한도(72바이트 truncation 고려해 충분히 큼)
 
+// 양의 정수 env 파싱 — 오설정(비숫자·0·음수)을 조용히 삼키지 않고 안전 기본값으로 폴백 + 경고.
+// Number()만 쓰면 'off' 같은 값이 NaN → 'failed >= NaN'이 항상 false → 계정 잠금이 무증상
+// 비활성화(CWE-307 통제 소멸)되거나 'NaN minutes'::interval 로 500 이 난다(fail-safe 로 방어).
+function positiveIntEnv(name: string, def: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw === "") return def;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    console.warn(`[AUTH] ${name}='${raw}' invalid — falling back to default ${def}`);
+    return def;
+  }
+  return Math.floor(n);
+}
+
 // 계정 단위 무차별 대입 잠금 — IP rate-limit(우회/분산/멀티레플리카 약점)과 독립적으로
 // 표적 계정을 보호한다(CWE-307). 환경변수로 조정 가능.
-const LOGIN_MAX_FAILURES = Number(process.env.LOGIN_MAX_FAILURES ?? 10);
-const LOGIN_LOCKOUT_MINUTES = Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15);
+const LOGIN_MAX_FAILURES = positiveIntEnv("LOGIN_MAX_FAILURES", 10);
+const LOGIN_LOCKOUT_MINUTES = positiveIntEnv("LOGIN_LOCKOUT_MINUTES", 15);
 
 // POST /login — exchange tenant id (BPN) + password for a JWT.
 // The tenant is identified by its BPN; the user is resolved as that tenant's
@@ -110,8 +124,43 @@ router.post(
         tenant_bpn: string | null;
       };
 
-      // 계정 잠금 — 잠금 창 내면 비밀번호 검증 없이 차단(무차별 대입 방어).
-      if (u.locked_until && new Date(u.locked_until).getTime() > Date.now()) {
+      // 열거저항(CWE-203/307): 잠금 여부와 무관하게 항상 비밀번호를 먼저 검증한다.
+      //  (1) 미존재 계정(dummyVerify)과 동일하게 정확히 1회 bcrypt 를 소모 → 타이밍 균등화.
+      //  (2) 429(account-locked)는 '올바른 비밀번호'를 제시한 실제 소유자에게만 노출한다.
+      //      비밀번호가 틀리면 미존재·잠금·오답을 구분하지 않고 항상 401 → 계정 열거 오라클 제거.
+      //  (기존엔 잠금 시 비밀번호 검증 없이 429 를 반환해, 공격자가 429/401 상태코드와 잠금경로의
+      //   빠른 응답(타이밍)으로 특정 BPN 의 존재 여부를 열거할 수 있었다.)
+      const locked =
+        u.locked_until != null &&
+        new Date(u.locked_until).getTime() > Date.now();
+
+      const ok = await verifyPassword(password, u.password_hash);
+
+      if (locked) {
+        if (ok) {
+          // 정당한 소유자 — 잠금 사실을 안내(429)해 UX 를 보전한다. 토큰은 발급하지 않는다.
+          // 잠금 중에는 카운터/만료시각을 갱신하지 않는다(재잠금 금지) — 그래야 공격자가
+          // 오답 반복으로 잠금을 무한 연장하는 self-DoS 확대를 막는다(잠금은 자연 만료).
+          void recordAudit({
+            tenantId: u.tenant_id ?? null,
+            actorId: u.id,
+            actorEmail: u.email,
+            actorRole: u.role,
+            action: "auth.login",
+            category: "AUTH",
+            target: u.email,
+            targetType: "User",
+            result: "FAILURE",
+            ip: req.ip ?? null,
+            userAgent: (req.headers["user-agent"] as string) ?? null,
+            method: "POST",
+            path: "/api/auth/login",
+            message: "Login blocked (account locked)",
+          });
+          res.status(429).json({ error: "account-locked" });
+          return;
+        }
+        // 오답 — 미존재/잠금과 구분되지 않도록 동일한 401. 활성 잠금 중이라 카운터 미변경.
         void recordAudit({
           tenantId: u.tenant_id ?? null,
           actorId: u.id,
@@ -126,36 +175,37 @@ router.post(
           userAgent: (req.headers["user-agent"] as string) ?? null,
           method: "POST",
           path: "/api/auth/login",
-          message: "Login blocked (account locked)",
+          message: "Login failed (bad password, locked)",
         });
-        res.status(429).json({ error: "account-locked" });
+        res.status(401).json({ error: "invalid-credentials" });
         return;
       }
 
-      const ok = await verifyPassword(password, u.password_hash);
       if (!ok) {
-        // 실패 카운트 증가, 임계 초과 시 잠금. 계정 단위라 IP 분산·멀티레플리카에도 견고.
-        // 위 잠금-활성 가드(locked_until > now → 429)를 통과했으므로, locked_until 이
-        // 설정돼 있으면 이미 '만료된' 잠금이다. 만료된 경우 카운터를 0 부터 다시 센다 —
-        // 그러지 않으면 한번 잠긴 계정은 이후 실패 1번마다 즉시 재잠금되는 무한 루프에 빠지고
-        // (정상 사용자 self-DoS), 공격자는 15분당 1요청으로 특정 계정을 영구 잠글 수 있다.
-        const lockExpired =
-          u.locked_until != null &&
-          new Date(u.locked_until).getTime() <= Date.now();
-        const failed = (lockExpired ? 0 : (u.failed_login_count ?? 0)) + 1;
-        if (failed >= LOGIN_MAX_FAILURES) {
-          await getPool().query(
-            `UPDATE users SET failed_login_count = $1,
-               locked_until = NOW() + ($2 || ' minutes')::interval WHERE id = $3`,
-            [failed, String(LOGIN_LOCKOUT_MINUTES), u.id]
-          );
-        } else {
-          // 임계 미만 — 만료된 잠금이 남아 있으면 함께 해제.
-          await getPool().query(
-            `UPDATE users SET failed_login_count = $1, locked_until = NULL WHERE id = $2`,
-            [failed, u.id]
-          );
-        }
+        // 잠금 아님 + 오답 — 실패 카운트 증가, 임계 이상이면 잠금. 계정 단위라 IP 분산·멀티레플리카에도 견고.
+        // 단일 원자적 UPDATE 로 처리한다 — 앱단 read-modify-write(SELECT 값 +1 되쓰기)는 느린
+        // bcrypt 지연 창(수백 ms) 동안 동시 오답이 모두 같은 stale 카운터를 읽어 누적이 소실되는
+        // lost-update 경합(분산 무차별 대입으로 계정 잠금을 우회)이 있었다. UPDATE 문 내에서
+        // failed_login_count 를 행 잠금하에 읽고 증가시키면 동시 요청이 직렬화되어 경합이 사라진다.
+        // 만료된 잠금(locked_until <= NOW())이 남아 있으면 카운터를 1 로 리셋(재잠금 무한루프 방지),
+        // 아니면 +1. 새 카운터가 임계 이상이면 locked_until 을 설정한다.
+        await getPool().query(
+          `UPDATE users
+              SET failed_login_count = CASE
+                    WHEN locked_until IS NOT NULL AND locked_until <= NOW() THEN 1
+                    ELSE failed_login_count + 1
+                  END,
+                  locked_until = CASE
+                    WHEN (CASE
+                            WHEN locked_until IS NOT NULL AND locked_until <= NOW() THEN 1
+                            ELSE failed_login_count + 1
+                          END) >= $2
+                      THEN NOW() + ($3 || ' minutes')::interval
+                    ELSE NULL
+                  END
+            WHERE id = $1`,
+          [u.id, LOGIN_MAX_FAILURES, String(LOGIN_LOCKOUT_MINUTES)]
+        );
         void recordAudit({
           tenantId: u.tenant_id ?? null,
           actorId: u.id,

@@ -809,6 +809,8 @@ const en: Translations = {
     password: "Password",
     invalidCredentials: "Invalid tenant ID or password",
     rateLimited: "Too many login attempts. Please try again later",
+    accountLocked:
+      "Too many failed attempts — your account is temporarily locked. Please try again later",
     serverError: "Login failed due to a server error. Please try again later",
     networkError: "Cannot reach the server. Please check your network",
     signingIn: "Signing in...",

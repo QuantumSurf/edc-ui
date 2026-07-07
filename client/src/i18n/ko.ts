@@ -820,6 +820,8 @@ const ko = {
     password: "비밀번호",
     invalidCredentials: "테넌트 ID 또는 비밀번호가 올바르지 않습니다",
     rateLimited: "로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요",
+    accountLocked:
+      "로그인 실패가 반복되어 계정이 일시적으로 잠겼습니다. 잠시 후 다시 시도하세요",
     serverError: "서버 오류로 로그인하지 못했습니다. 잠시 후 다시 시도하세요",
     networkError: "서버에 연결할 수 없습니다. 네트워크를 확인하세요",
     signingIn: "로그인 중...",

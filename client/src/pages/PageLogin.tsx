@@ -113,11 +113,13 @@ export default function PageLogin() {
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 {error === "ratelimited"
                   ? t.login.rateLimited
-                  : error === "server"
-                    ? t.login.serverError
-                    : error === "network"
-                      ? t.login.networkError
-                      : t.login.invalidCredentials}
+                  : error === "locked"
+                    ? t.login.accountLocked
+                    : error === "server"
+                      ? t.login.serverError
+                      : error === "network"
+                        ? t.login.networkError
+                        : t.login.invalidCredentials}
               </div>
             )}
 

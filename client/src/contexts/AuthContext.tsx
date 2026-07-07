@@ -30,6 +30,7 @@ export type LoginResult =
   | "ok"
   | "invalid"
   | "ratelimited"
+  | "locked"
   | "server"
   | "network";
 
@@ -130,10 +131,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "ok";
       } catch (err) {
         // 실패 원인 구분 — 네트워크/서버 장애를 "비밀번호 틀림"으로 오인하지 않도록.
-        const status = (err as { response?: { status?: number } })?.response
-          ?.status;
+        const resp = (
+          err as {
+            response?: { status?: number; data?: { error?: string } };
+          }
+        )?.response;
+        const status = resp?.status;
         if (status === 401 || status === 403) return "invalid";
-        if (status === 429) return "ratelimited";
+        // 429 는 두 경우 — 계정 잠금(account-locked, 올바른 비밀번호를 낸 소유자에게만)과
+        // 요청 과다(rate-limited). 본문 error 로 구분해 각기 다른 안내를 보여준다.
+        if (status === 429)
+          return resp?.data?.error === "account-locked"
+            ? "locked"
+            : "ratelimited";
         if (typeof status === "number" && status >= 500) return "server";
         return "network";
       }
