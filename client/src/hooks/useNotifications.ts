@@ -10,6 +10,7 @@ import {
   type NotificationItem,
 } from "@/services/api";
 import { readPref } from "@/lib/prefs";
+import { useNotificationStore } from "@/stores/notificationStore";
 
 const QUERY_KEY = ["notifications"] as const;
 
@@ -44,7 +45,12 @@ export function useNotifications() {
     staleTime: 15_000,
   });
 
-  const unreadCount = notifications.filter(n => !n.read && isEnabled(n)).length;
+  // 프론트에서 X로 제거한 알림은 미읽음 배지에서도 제외(백엔드 기록은 유지).
+  const dismissed = useNotificationStore(s => s.dismissed);
+  const dset = new Set(dismissed);
+  const unreadCount = notifications.filter(
+    n => !n.read && isEnabled(n) && !dset.has(n.id)
+  ).length;
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) => markNotificationRead(id),
@@ -129,11 +135,13 @@ export function useNotifications() {
 
 /** Lightweight hook for unread count only (used in sidebar + topbar) */
 export function useUnreadNotificationCount(): number {
+  const dismissed = useNotificationStore(s => s.dismissed);
   const { data = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
-  return data.filter(n => !n.read && isEnabled(n)).length;
+  const dset = new Set(dismissed);
+  return data.filter(n => !n.read && isEnabled(n) && !dset.has(n.id)).length;
 }

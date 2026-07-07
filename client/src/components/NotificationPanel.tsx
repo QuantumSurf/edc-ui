@@ -1,7 +1,7 @@
 // KMX EDC — Notification Panel
 // 디자인: aas-service-hub AlertPanel 과 동일 — 다크 슬라이드오버 + 심각도 필터칩 + 카드형.
-// 동작: 카드 클릭=확인(읽음, DB 기록 보존) + 미확인만 표시, 모두 읽음, 조회 실패 시 재시도.
-// 하드 삭제는 두지 않는다 — 읽은 기록은 백엔드 보존정리(pruneNotifications)가 정리한다.
+// 동작: 읽음/미읽음 모두 표시(읽음=흐림, 네이버 알림창 스타일), 카드 클릭=확인(읽음, DB 기록 보존),
+// 우상단 X=목록에서 제거(프론트 전용 — dismissed localStorage, 백엔드 기록은 삭제하지 않음).
 import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationStore } from "@/stores/notificationStore";
@@ -65,6 +65,9 @@ export default function NotificationPanel() {
   const [, navigate] = useLocation();
   const panelOpen = useNotificationStore(s => s.panelOpen);
   const setPanelOpen = useNotificationStore(s => s.setPanelOpen);
+  const dismissed = useNotificationStore(s => s.dismissed);
+  const dismiss = useNotificationStore(s => s.dismiss);
+  const pruneDismissed = useNotificationStore(s => s.pruneDismissed);
   const {
     notifications: rawNotifications,
     isError,
@@ -88,10 +91,16 @@ export default function NotificationPanel() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // 패널은 '읽지 않은(미확인)' 알림만 보여준다 — 클릭하면 markRead 로 DB에는 기록을 남기고
-  // (삭제 X) 여기서 걸러져 뷰에서만 사라진다. 설정에서 꺼진 source 도 함께 숨긴다.
+  // 사라진 알림 id 는 dismissed 목록에서 정리해 무한 증가를 막는다.
+  useEffect(() => {
+    pruneDismissed(rawNotifications.map(n => n.id));
+  }, [rawNotifications, pruneDismissed]);
+
+  // 읽음/미읽음을 모두 표시한다(읽음은 흐리게). 설정에서 꺼진 source 와 X로 제거한(dismissed)
+  // 알림만 숨긴다. 클릭=확인(markRead)은 DB 기록을 남기고 흐려질 뿐 목록에서 사라지지 않는다.
+  const dismissedSet = new Set(dismissed);
   const allNotifications = rawNotifications.filter(
-    n => !n.read && readPref(SOURCE_PREF[n.source] ?? "", true)
+    n => readPref(SOURCE_PREF[n.source] ?? "", true) && !dismissedSet.has(n.id)
   );
   const unreadCount = allNotifications.filter(n => !n.read).length;
 
@@ -266,12 +275,26 @@ export default function NotificationPanel() {
                       aria-label={`${title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
                       title={t.notifications.clickToDismiss}
                       className={cn(
-                        // AAS-Service 알림창과 동일 — 간격 있는 개별 카드 + 미읽음=좌측 primary 바.
-                        // 클릭=확인+삭제라 개별 X 버튼은 제거(카드 전체가 삭제 트리거).
-                        "w-full text-left p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-                        !n.read && "border-l-2 border-l-primary bg-primary/5"
+                        // 네이버 알림창처럼 간격 있는 개별 카드(shadow) — 클릭=확인(읽음)→흐려짐,
+                        // 우상단 X=목록에서 제거(프론트만, 백엔드 기록 보존). pr-8=X 자리 확보.
+                        "relative w-full text-left p-3 pr-8 rounded-lg border border-border bg-card shadow-sm transition-all duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+                        !n.read
+                          ? "border-l-2 border-l-primary bg-primary/5 hover:bg-accent/30"
+                          : "opacity-60 hover:opacity-100 hover:bg-accent/20"
                       )}
                     >
+                      {/* 우상단 X — 프론트에서만 목록 제거(백엔드 기록은 삭제하지 않음) */}
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          dismiss(n.id);
+                        }}
+                        aria-label={t.notifications.removeFromList}
+                        title={t.notifications.removeFromList}
+                        className="absolute top-1.5 right-1.5 p-1 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                       <div className="flex items-start gap-2.5">
                         <Icon
                           className={cn("w-4 h-4 mt-0.5 flex-shrink-0", color)}
