@@ -37,11 +37,9 @@ import {
   usePagination,
 } from "@/components/DataTablePagination";
 
-// 반응형: lg 미만은 중요 컬럼(별칭·유형·만료)만 유동폭으로 표시하고
-// 부차 컬럼(알고리즘·생성일·마지막 사용)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 6컬럼.
-// (과거 created=lg / lastUsed=xl 로 단계가 갈려 lg 미만에 빈 트랙이 남던 결함 → lg 단일 브레이크포인트로 통일)
-const VAULT_COLS =
-  "grid-cols-[minmax(140px,1fr)_90px_110px] lg:grid-cols-[2.4fr_0.7fr_1fr_0.9fr_1fr_0.8fr]";
+// 별칭·유형 2컬럼만 표시한다. (/list·status API 가 알고리즘·생성일·마지막사용·만료를
+// 제공하지 않아 항상 "—" 이던 죽은 컬럼 4개를 제거 → 남은 유효 컬럼만 유동폭으로 배치)
+const VAULT_COLS = "grid-cols-[minmax(140px,1fr)_90px]";
 import {
   fetchVaultStatus,
   fetchVaultList,
@@ -61,10 +59,6 @@ type VaultItemType = "secret" | "key" | "certificate";
 interface VaultItem {
   alias: string;
   type: VaultItemType;
-  algorithm: string;
-  created: string;
-  lastUsed: string;
-  expiryDays: number | null; // null = no expiry / unknown
   value: string; // shown masked
   serverManaged?: boolean; // live Vault — value not exposed by API
 }
@@ -73,10 +67,6 @@ interface VaultBackendInfo {
   backend: string;
   version: string;
   address: string;
-  /** Vault status API 는 제공하지 않음 — 라이브로 채울 수 없으면 "—" */
-  lastRotation: string;
-  /** Vault status API 는 제공하지 않음 — 알 수 없으면 null */
-  autoRotation: boolean | null;
   sealed: boolean;
 }
 
@@ -86,8 +76,6 @@ const UNKNOWN_BACKEND: VaultBackendInfo = {
   backend: "—",
   version: "—",
   address: "—",
-  lastRotation: "—",
-  autoRotation: null,
   sealed: false,
 };
 
@@ -95,15 +83,6 @@ const UNKNOWN_BACKEND: VaultBackendInfo = {
 function maskValue(v: string) {
   if (!v) return "—";
   return "•".repeat(Math.min(12, Math.max(6, v.length)));
-}
-
-function expiryBadge(days: number | null, t: ReturnType<typeof useI18n>["t"]) {
-  if (days === null) return <Badge variant="gray">—</Badge>;
-  if (days <= 0) return <Badge variant="red">{t.vault.expired}</Badge>;
-  if (days <= 7) return <Badge variant="red">{t.vault.daysLeft(days)}</Badge>;
-  if (days <= 30)
-    return <Badge variant="amber">{t.vault.daysLeft(days)}</Badge>;
-  return <Badge variant="green">{t.vault.daysLeft(days)}</Badge>;
 }
 
 function typeBadge(type: VaultItemType, t: ReturnType<typeof useI18n>["t"]) {
@@ -148,14 +127,11 @@ export default function PageVault() {
 
   useEffect(() => {
     if (statusQuery.data) {
-      // lastRotation·autoRotation 은 status API 가 제공하지 않으므로 채우지 않는다(추측 금지).
       setBackend({
         backend: statusQuery.data.type || "HashiCorp Vault",
         version: statusQuery.data.version,
         address: statusQuery.data.url,
         sealed: statusQuery.data.sealed,
-        lastRotation: "—",
-        autoRotation: null,
       });
     } else if (statusQuery.isError) {
       // 라이브 실패 — 하드코딩 백엔드 정보를 사실처럼 남기지 않고 미확인 상태로 되돌린다.
@@ -170,11 +146,7 @@ export default function PageVault() {
         (listQuery.data.aliases ?? []).map(alias => ({
           alias,
           type: inferType(alias),
-          // /list 는 알고리즘·생성일·만료 정보를 주지 않는다 — 추측해서 위조 배지를 만들지 않는다.
-          algorithm: "—",
-          created: "—",
-          lastUsed: "—",
-          expiryDays: null,
+          // /list 는 값을 노출하지 않는다 — 서버 관리 항목으로만 표시한다.
           value: "",
           serverManaged: true,
         }))
@@ -303,17 +275,6 @@ export default function PageVault() {
                   : t.vault.statusUnsealed,
               true,
             ],
-            [t.vault.field.lastRotation, backend.lastRotation, false],
-            [
-              t.vault.field.autoRotation,
-              // status API 가 제공하지 않는 값 — 추측(ON) 대신 미확인 시 "—"
-              backend.autoRotation == null
-                ? "—"
-                : backend.autoRotation
-                  ? t.vault.field.autoRotationOn
-                  : t.vault.field.autoRotationOff,
-              true,
-            ],
           ].map(([k, v, asTitle]) => (
             <div
               key={k as string}
@@ -403,16 +364,6 @@ export default function PageVault() {
             <ListHeaderRow cols={VAULT_COLS}>
               <ListColLabel>{t.vault.col.alias}</ListColLabel>
               <ListColLabel>{t.vault.col.type}</ListColLabel>
-              <ListColLabel className="hidden lg:block">
-                {t.vault.col.algorithm}
-              </ListColLabel>
-              <ListColLabel className="hidden lg:block">
-                {t.vault.col.created}
-              </ListColLabel>
-              <ListColLabel className="hidden lg:block">
-                {t.vault.col.lastUsed}
-              </ListColLabel>
-              <ListColLabel>{t.vault.col.expiry}</ListColLabel>
             </ListHeaderRow>
             {paginatedData.map(it => {
               const isRevealed = revealed === it.alias;
@@ -470,24 +421,6 @@ export default function PageVault() {
                     </div>
                   </div>
                   <div>{typeBadge(it.type, t)}</div>
-                  <div className="hidden lg:block">
-                    <span className="text-xs text-foreground">
-                      {it.algorithm}
-                    </span>
-                  </div>
-                  <div
-                    className="hidden lg:block text-xs text-foreground"
-                    title={it.created}
-                  >
-                    {it.created}
-                  </div>
-                  <div
-                    className="hidden lg:block text-xs text-foreground"
-                    title={it.lastUsed}
-                  >
-                    {it.lastUsed}
-                  </div>
-                  <div>{expiryBadge(it.expiryDays, t)}</div>
                 </ListRow>
               );
             })}
@@ -541,9 +474,6 @@ export default function PageVault() {
                   </div>
                   {typeBadge(it.type, t)}
                 </div>
-                <div className="text-xs text-foreground mb-1">
-                  {it.algorithm}
-                </div>
                 <div className="flex items-center gap-1 mb-2">
                   {it.serverManaged ? (
                     <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/80 truncate">
@@ -575,15 +505,6 @@ export default function PageVault() {
                       </button>
                     </>
                   )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  {expiryBadge(it.expiryDays, t)}
-                  <span
-                    className="text-[11px] text-muted-foreground"
-                    title={it.lastUsed}
-                  >
-                    {it.lastUsed}
-                  </span>
                 </div>
               </div>
             );

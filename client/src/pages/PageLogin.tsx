@@ -131,7 +131,8 @@ export default function PageLogin() {
             </button>
           </form>
 
-          {/* Demo accounts hint */}
+          {/* Demo accounts hint — hidden in production via VITE_DISABLE_DEMO="true" */}
+          {import.meta.env.VITE_DISABLE_DEMO !== "true" && (
           <div className="mt-5 pt-4 border-t border-border">
             <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
               {t.login.demoAccounts}
@@ -163,6 +164,7 @@ export default function PageLogin() {
               ))}
             </div>
           </div>
+          )}
         </div>
 
         <p className="text-center text-slate-500 text-[11px] mt-4">

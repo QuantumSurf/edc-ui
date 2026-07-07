@@ -91,6 +91,9 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// 본문 크기 표시 상한(카운터 라벨 단일 출처). 실제 초과 차단은 서버(content-too-large/413).
+const SUBMODEL_MAX_KB = 256;
+
 function formatDate(iso: string): string {
   return fmtDateTime(iso); // "YYYY-MM-DD HH:mm:ss"(KST)로 통일
 }
@@ -929,7 +932,7 @@ function SemanticModelEditorDialog({
                 <span />
               )}
               <span className="text-[10px] text-muted-foreground">
-                {formatBytes(new Blob([content]).size)} / 256 KB
+                {formatBytes(new Blob([content]).size)} / {SUBMODEL_MAX_KB} KB
               </span>
             </div>
           </FormField>

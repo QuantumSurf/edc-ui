@@ -524,6 +524,7 @@ export function mapNegotiation(
   const agreementId = (raw["contractAgreementId"] as string) ?? "";
   const assetId = (raw["assetId"] as string) ?? "";
   const counterPartyAddress = (raw["counterPartyAddress"] as string) ?? "";
+  const protocol = (raw["protocol"] as string) ?? "";
 
   // 소요시간: completed_at - started_at (초 단위)
   let duration = "—";
@@ -545,6 +546,7 @@ export function mapNegotiation(
     agreementId,
     assetId,
     counterPartyAddress,
+    protocol,
   };
 }
 

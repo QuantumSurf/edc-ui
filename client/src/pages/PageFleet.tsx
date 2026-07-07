@@ -436,7 +436,7 @@ function ConnectorCard({
             </Badge>
           ))}
           {/* 서버 응답 필드는 dcpVersion — 'DCP undefined' 방지를 위해 dcpVersion 우선, c.dcp 폴백 */}
-          <Badge variant="purple">DCP {(c as any).dcpVersion ?? c.dcp}</Badge>
+          <Badge variant="purple">DCP {c.dcpVersion ?? c.dcp}</Badge>
           {/* AAS 배지는 서버에 능력 소스가 없어 제거(항상 미표시였음) */}
           <EnvBadge env={c.env} />
         </div>
@@ -492,18 +492,18 @@ function EditConnectorDialog({
   // Pre-fill form from connector (note: apiKey is stripped by server, so blank)
   const [name, setName] = useState(connector.name);
   const [managementUrl, setManagementUrl] = useState(
-    (connector as any).managementUrl ?? ""
+    connector.managementUrl ?? ""
   );
   const [dspEndpoint, setDspEndpoint] = useState(
-    (connector as any).dspEndpoint ?? ""
+    connector.dspEndpoint ?? ""
   );
   const [apiKey, setApiKey] = useState("");
   const [role, setRole] = useState(rolesToKey(connector.roles ?? []));
   const [env, setEnv] = useState(connector.env ?? "PROD");
   const [dcpVersion, setDcpVersion] = useState(
-    (connector as any).dcpVersion ?? connector.dcp ?? "1.0"
+    connector.dcpVersion ?? connector.dcp ?? "1.0"
   );
-  const [did, setDid] = useState((connector as any).did ?? "");
+  const [did, setDid] = useState(connector.did ?? "");
 
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -513,13 +513,13 @@ function EditConnectorDialog({
   // 미저장 변경 여부 — 프리필 값과 비교. apiKey 는 빈칸이 아니면 변경으로 간주.
   const dirty =
     name !== connector.name ||
-    managementUrl !== ((connector as any).managementUrl ?? "") ||
-    dspEndpoint !== ((connector as any).dspEndpoint ?? "") ||
+    managementUrl !== (connector.managementUrl ?? "") ||
+    dspEndpoint !== (connector.dspEndpoint ?? "") ||
     Boolean(apiKey) ||
     role !== rolesToKey(connector.roles ?? []) ||
     env !== (connector.env ?? "PROD") ||
-    dcpVersion !== ((connector as any).dcpVersion ?? connector.dcp ?? "1.0") ||
-    did !== ((connector as any).did ?? "");
+    dcpVersion !== (connector.dcpVersion ?? connector.dcp ?? "1.0") ||
+    did !== (connector.did ?? "");
 
   // 저장 중에는 닫기 차단(SlidePanel closeDisabled 와 함께), 미저장 변경이 있으면 확인.
   const requestClose = () => {

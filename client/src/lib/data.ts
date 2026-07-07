@@ -11,9 +11,11 @@ export interface Connector {
   status: ConnectorStatus;
   env: EnvType;
   roles: string[];
-  // 서버 응답 필드는 dcpVersion. 표시 코드에서 (c as any).dcpVersion ?? c.dcp 로 흡수 중
-  // (PagePolicy/PageFleet 정합은 다음 단계 — 이 타입은 현행 유지).
+  // dcp = 레거시 표시 필드. 서버 목록 응답은 dcpVersion·managementUrl 도 포함(apiKey만 제외)이라
+  // 편집 폼 프리필에 쓰인다 — 타입에 명시해 (c as any) 캐스팅을 제거.
   dcp: string;
+  dcpVersion?: string;
+  managementUrl?: string;
   aas: boolean;
   assets: number;
   offers: number;
@@ -73,6 +75,7 @@ export interface Negotiation {
   agreementId?: string;
   assetId?: string;
   counterPartyAddress?: string;
+  protocol?: string;
 }
 
 export interface Transfer {
