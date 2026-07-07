@@ -704,7 +704,7 @@ function OfferingDetailSheet({
                   <InfoCard
                     key={n.id}
                     label={n.name || "—"}
-                    value={`${n.id.slice(0, 12)}…  ·  ${n.peer}  ·  ${n.ts}`}
+                    value={`${n.id.slice(0, 12)}…  ·  ${n.peer || "—"}  ·  ${n.ts || "—"}`}
                     mono
                   />
                 ))}
@@ -1487,22 +1487,28 @@ function PolicySelector({
   const { t } = useI18n();
   const selectedPolicy = policies.find(p => p.id === selected);
 
+  // 서버 constraint 형식: "left op right" 토큰을 "; "로 결합(edcClient mapPolicy). op는 실제
+  // 연산자를 보존한다(과거: ":" 기준 분해 + op를 항상 "eq"로 하드코딩해 gt/in 등 실제 연산자를
+  // 버리던 결함 — PagePolicy.parseConstraints와 동일 로직).
   const parseConstraint = (constraint: string) => {
-    if (!constraint) return [];
+    if (!constraint || constraint === "No constraints") return [];
     return constraint
       .split(/[;,]/)
       .map(s => s.trim())
       .filter(Boolean)
       .map(part => {
-        const colonIdx = part.indexOf(":");
-        if (colonIdx > -1) {
+        const tokens = part.split(/\s+/);
+        if (tokens.length >= 3) {
           return {
-            left: part.substring(0, colonIdx).trim(),
-            op: "eq",
-            right: part.substring(colonIdx + 1).trim(),
+            left: tokens[0],
+            op: tokens[1].replace(/^odrl:/, ""),
+            right: tokens.slice(2).join(" "),
           };
         }
-        return { left: part, op: "eq", right: "" };
+        if (tokens.length === 2) {
+          return { left: tokens[0].replace(/:$/, ""), op: "", right: tokens[1] };
+        }
+        return { left: part, op: "", right: "" };
       });
   };
 

@@ -988,12 +988,10 @@ function AssetWizard({
   );
   const [baseUrl, setBaseUrl] = useState(baseSrc?.baseUrl ?? "");
   const [proxyPath, setProxyPath] = useState(baseSrc?.proxyPath ?? "true");
-  // authCode 초기값: 편집/복제 원본 값(서버가 vault 별칭을 줄 경우) 우선, 없고 편집/복제면 빈 칸으로 둬
-  // 미입력 시 기존 인증을 placeholder로 덮어쓰지 않게 한다. 신규 생성만 데모 placeholder 채움 (id 13).
+  // authCode 초기값: 편집/복제 원본 값(서버가 vault 별칭을 줄 경우) 우선, 없으면 빈 칸으로 둔다.
+  // 신규 생성도 빈 값에서 시작 — 데모 vault 키가 그대로 발행되던 문제 방지(예시는 placeholder로만).
   const baseAuthCode = (baseSrc as { authCode?: string } | null)?.authCode;
-  const [authCode, setAuthCode] = useState(
-    baseAuthCode ?? (baseSrc ? "" : "edc:key=kmx-submodel-key")
-  );
+  const [authCode, setAuthCode] = useState(baseAuthCode ?? "");
   const [proxyQuery, setProxyQuery] = useState(
     baseSrc?.proxyQueryParams ?? "true"
   );
@@ -1002,10 +1000,9 @@ function AssetWizard({
   );
 
   // Step 3 state
-  const [semanticId, setSemanticId] = useState(
-    baseSrc?.sem ?? "urn:samm:io.catenax.pcf:8.0.0"
-  );
-  const [aasVersion, setAasVersion] = useState(baseSrc?.aasVersion ?? "8.0.0");
+  // 신규는 빈 값에서 시작(데모 잔재 발행 방지). 예시는 각 입력 placeholder로만 노출.
+  const [semanticId, setSemanticId] = useState(baseSrc?.sem ?? "");
+  const [aasVersion, setAasVersion] = useState(baseSrc?.aasVersion ?? "");
   const [aasId, setAasId] = useState(baseSrc?.aasId ?? "");
   const [submodelId, setSubmodelId] = useState(baseSrc?.submodelId ?? "");
 
@@ -1441,7 +1438,7 @@ function AssetWizard({
                       ? locale === "ko"
                         ? "변경하지 않으려면 비워두세요"
                         : "Leave blank to keep current key"
-                      : undefined
+                      : "edc:key=<vault-alias>"
                   }
                   className={`${inputBase} mono`}
                 />
@@ -1528,6 +1525,7 @@ function AssetWizard({
                     setAasVersion(e.target.value);
                     markDirty();
                   }}
+                  placeholder="1.0.0"
                   list={fhId("asset.aasVersion")}
                   className={inputBase}
                 />
