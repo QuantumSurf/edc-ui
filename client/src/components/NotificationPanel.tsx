@@ -92,7 +92,10 @@ export default function NotificationPanel() {
   }, []);
 
   // 사라진 알림 id 는 dismissed 목록에서 정리해 무한 증가를 막는다.
+  // 단 콜드 로드/로딩 중엔 rawNotifications=[] 이므로 그때 prune 하면 dismissed(localStorage)를
+  // 통째로 비워 지속성이 깨진다 — 데이터가 실제로 로드됐을 때(비어있지 않을 때)만 정리한다.
   useEffect(() => {
+    if (rawNotifications.length === 0) return;
     pruneDismissed(rawNotifications.map(n => n.id));
   }, [rawNotifications, pruneDismissed]);
 
