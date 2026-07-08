@@ -12,7 +12,6 @@ import {
   type Response,
   type NextFunction,
 } from "express";
-import axios from "axios";
 import { getConnector } from "../lib/connectorRegistry.js";
 import {
   getEdcClient,
@@ -23,6 +22,7 @@ import {
 import { getPool } from "../lib/db.js";
 import { requireRole } from "../middleware/auth.js";
 import { assertEndpointPublic } from "../middleware/validation.js";
+import { pullEdrData } from "../lib/edrRefresh.js";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
@@ -292,10 +292,10 @@ router.post(
         return;
       }
 
-      // 2. Provider Data Plane에서 실제 데이터 Pull — 소요시간 측정
+      // 2. Provider Data Plane에서 실제 데이터 Pull — 소요시간 측정.
+      // 액세스 토큰 만료(403) 시 EDR 의 refresh 토큰으로 자동 갱신 후 재시도(장시간/반복 pull 유지).
       const fetchStart = Date.now();
-      const dataRes = await axios.get(targetUrl, {
-        headers: { Authorization: `Bearer ${token}` },
+      const dataRes = await pullEdrData(connectorId, tpId, targetUrl, edr, {
         responseType: "arraybuffer",
         timeout: 30_000,
         // SSRF: 리다이렉트 미추적 — provider 가 30x 로 내부/메타데이터 주소로 유도해 EDR
@@ -443,8 +443,8 @@ router.post(
               (await assertEndpointPublic(targetUrl)) === null
             ) {
               const fetchStart = Date.now();
-              const dataRes = await axios.get(targetUrl, {
-                headers: { Authorization: `Bearer ${token}` },
+              // 만료(403) 시 EDR refresh 토큰으로 자동 갱신 후 재시도(/fetch 와 동일).
+              const dataRes = await pullEdrData(connectorId, tpId, targetUrl, edr, {
                 responseType: "arraybuffer",
                 timeout: 30_000,
                 // SSRF: 리다이렉트 미추적(EDR 토큰 유출 차단) + 크기 상한(OOM 방지).
