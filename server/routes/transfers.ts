@@ -22,7 +22,7 @@ import {
 import { getPool } from "../lib/db.js";
 import { requireRole } from "../middleware/auth.js";
 import { assertEndpointPublic } from "../middleware/validation.js";
-import { pullEdrData } from "../lib/edrRefresh.js";
+import { pullEdrData, evictEdrTokens } from "../lib/edrRefresh.js";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
@@ -476,6 +476,8 @@ router.post(
         "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
         reason: "Completed by consumer",
       });
+      // 종료된 전송의 캐시된 액세스/refresh 토큰을 즉시 정리(불필요한 자격증명 상주 최소화).
+      evictEdrTokens(connectorId, tpId);
 
       // 완료 메타 기록
       await getPool().query(

@@ -104,7 +104,7 @@ export default function PageEDR() {
     .filter(e => !(e.expiresAt && e.expiresAt > 0 && e.expiresAt <= now))
     .map(e =>
       e.expiresAt && e.expiresAt > 0
-        ? { ...e, left: Math.max(0, Math.round((e.expiresAt - now) / 60_000)) }
+        ? { ...e, left: Math.max(0, Math.ceil((e.expiresAt - now) / 60_000)) }
         : e
     );
 

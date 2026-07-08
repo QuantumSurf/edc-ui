@@ -80,7 +80,31 @@ export function evictEdrTokens(connectorId: string, tpId: string): void {
  * refresh 엔드포인트로 새 액세스+refresh 쌍을 받아 캐시를 갱신한다. 실패 시 null.
  * refresh 엔드포인트는 미신뢰 provider 데이터플레인이 EDR 로 반환한 값이므로 SSRF 가드를 적용한다.
  */
-async function refreshTokens(
+// refresh 응답은 소형 JSON(토큰 쌍)뿐 — 악성/침해 provider 가 강제하는 대용량 응답 버퍼링/동기
+// 파싱으로 공유 BFF 힙을 OOM 시키는 것을 차단한다(pull 경로의 크기상한 가드와 동일 정책).
+const REFRESH_MAX_BYTES = 64 * 1024;
+
+// 같은 전송(connectorId:tpId)의 동시 refresh 를 1회로 합친다(single-flight). provider 가 refresh 를
+// 1회용 rotation 으로 무효화하므로, 겹친 요청이 각자 회전을 시도하면 뒤 요청이 이미 소진된 토큰으로
+// 실패(spurious 403)한다 — 진행 중인 refresh 프라미스를 공유해 이를 방지한다.
+const inflightRefresh = new Map<string, Promise<EdrTokens | null>>();
+
+function refreshTokens(
+  connectorId: string,
+  tpId: string,
+  tokens: EdrTokens
+): Promise<EdrTokens | null> {
+  const k = key(connectorId, tpId);
+  const existing = inflightRefresh.get(k);
+  if (existing) return existing;
+  const p = doRefresh(connectorId, tpId, tokens).finally(() =>
+    inflightRefresh.delete(k)
+  );
+  inflightRefresh.set(k, p);
+  return p;
+}
+
+async function doRefresh(
   connectorId: string,
   tpId: string,
   tokens: EdrTokens
@@ -91,7 +115,12 @@ async function refreshTokens(
     const resp = await axios.post(
       tokens.refreshEndpoint,
       { refresh_token: tokens.refreshToken },
-      { timeout: 10_000, maxRedirects: 0 }
+      {
+        timeout: 10_000,
+        maxRedirects: 0,
+        maxContentLength: REFRESH_MAX_BYTES,
+        maxBodyLength: REFRESH_MAX_BYTES,
+      }
     );
     const data = resp.data as {
       access_token?: string;
