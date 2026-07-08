@@ -1,7 +1,7 @@
 // Connector Hub — EDR Token Management (spec 4.7)
 // Expiry color coding, authCode masking with copy confirmation modal (NF-23)
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { fetchEDRs, fetchEDRStats } from "@/services";
@@ -89,6 +89,25 @@ export default function PageEDR() {
     refetchInterval: 30_000,
   });
 
+  // 만료된 EDR을 프론트에서 즉시 제거 + 남은 시간을 실시간 감소시키기 위한 시계 틱.
+  // 서버 목록은 30초 폴링이라 그 사이 만료분이 남아 보이므로, 클라에서 expiresAt(원시 ms) 기준으로
+  // 보정한다. 만료된 토큰은 이미 무효(제공자 데이터플레인이 거부)라 백엔드 삭제는 EDC GC 소관이다.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 10_000); // 10초 틱(분 단위 표시라 충분)
+    return () => clearInterval(id);
+  }, []);
+
+  // expiresAt 이 있으면 그 기준으로 남은 분을 실시간 재계산하고, 이미 만료(expiresAt <= now)된
+  // 항목은 목록에서 제외한다. expiresAt 없으면 서버 left(-1=만료정보없음/활성) 그대로 유지.
+  const liveEdrs = edrs
+    .filter(e => !(e.expiresAt && e.expiresAt > 0 && e.expiresAt <= now))
+    .map(e =>
+      e.expiresAt && e.expiresAt > 0
+        ? { ...e, left: Math.max(0, Math.round((e.expiresAt - now) / 60_000)) }
+        : e
+    );
+
   const {
     paginatedData,
     totalItems,
@@ -96,7 +115,7 @@ export default function PageEDR() {
     pageSize,
     setCurrentPage,
     setPageSize,
-  } = usePagination(edrs, 10);
+  } = usePagination(liveEdrs, 10);
 
   return (
     <>
@@ -162,7 +181,7 @@ export default function PageEDR() {
           <div className="py-8 text-center text-[12px] text-muted-foreground">
             {t.common.loading}
           </div>
-        ) : edrs.length === 0 ? (
+        ) : liveEdrs.length === 0 ? (
           <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
         ) : (
           <>
@@ -206,7 +225,7 @@ export default function PageEDR() {
           <div className="py-8 text-center text-[12px] text-muted-foreground">
             {t.common.loading}
           </div>
-        ) : edrs.length === 0 ? (
+        ) : liveEdrs.length === 0 ? (
           <ListEmpty icon={<Shield />} message={t.dashboard.noResults} />
         ) : (
           <>

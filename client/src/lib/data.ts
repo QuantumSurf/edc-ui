@@ -103,6 +103,8 @@ export interface EDR {
   total: number;
   endpoint?: string;
   authCode?: string;
+  // 원시 만료 시각(ms). 클라에서 남은시간 실시간 재계산 + 만료 항목 제거에 사용. 0: 만료정보 없음.
+  expiresAt?: number;
 }
 
 export interface EDRStats {
