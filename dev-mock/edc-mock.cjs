@@ -597,10 +597,25 @@ const server = http.createServer((req, res) => {
       return send(res, 200, found);
     }
     if (method === "GET" && /\/v3\/edrs\/[^/]+\/dataaddress$/.test(url)) {
+      // 실 kmx-edc 거동 반영: EDR 에 refresh 토큰·엔드포인트를 함께 전달. MOCK_EXPIRE_EDR=true 면
+      // 만료 액세스 토큰을 발급해 BFF 의 403→refresh→재시도 자동갱신 루프를 검증할 수 있다.
+      const expired = process.env.MOCK_EXPIRE_EDR === "true";
       return send(res, 200, {
         endpoint: "http://mock-edc:8090/data/sample",
-        authorization: "Bearer demo-edr-token",
+        authorization: expired ? "Bearer edr-access-expired" : "Bearer demo-edr-token",
         type: "https://w3id.org/idsa/v4.1/HTTP",
+        refreshToken: "mock-refresh-token",
+        refreshEndpoint: "http://mock-edc:8090/api/public/token",
+        expiresIn: "300",
+      });
+    }
+    // EDR 토큰 갱신 엔드포인트(실 kmx-edc /token 응답 형태) — refresh 토큰 제출 시 fresh 액세스 발급.
+    if (method === "POST" && url === "/api/public/token") {
+      return send(res, 200, {
+        access_token: "edr-access-fresh",
+        refresh_token: "mock-refresh-token-2",
+        expires_in: 300,
+        token_type: "bearer",
       });
     }
     if (
@@ -634,6 +649,11 @@ const server = http.createServer((req, res) => {
 
     // 데이터 plane pull (transfer fetch)
     if (method === "GET" && url.startsWith("/data/")) {
+      // 만료 액세스 토큰(edr-access-expired)은 403 — BFF 가 refresh 후 fresh 토큰으로 재시도해야 200.
+      const auth = req.headers["authorization"] || "";
+      if (auth.includes("expired")) {
+        return send(res, 403, { error: "token expired" });
+      }
       return send(res, 200, {
         sample: true,
         pcf: { co2e: 12.34, unit: "kg", asset: "demo" },
