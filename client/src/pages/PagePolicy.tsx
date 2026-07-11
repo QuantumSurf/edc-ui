@@ -907,6 +907,18 @@ function PolicyList({
           ) : (
             <ListEmpty icon={<Search />} message={t.common.noResults} />
           ))}
+        {totalItems > 0 && (
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <DataTablePagination
+              totalItems={totalItems}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              rowsPerPageLabel={t.common.rowsPerPage}
+            />
+          </div>
+        )}
       </div>
     </>
   );

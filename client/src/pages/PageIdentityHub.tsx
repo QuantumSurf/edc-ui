@@ -271,7 +271,7 @@ function ParticipantInfoCard({ onNav }: { onNav: (path: string) => void }) {
                 {t.identityHub.noCredentials}
               </p>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                 {data.credentials.map((c, i) => (
                   <li
                     key={i}

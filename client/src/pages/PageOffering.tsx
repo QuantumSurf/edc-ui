@@ -714,42 +714,48 @@ function OfferingDetailSheet({
         </div>
 
         <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
-            >
-              <Trash2 size={13} /> {t.common.delete}
-            </button>
-          )}
-          {!onDelete && deleteDisabledReason && (
-            <button
-              disabled
-              title={deleteDisabledReason}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground/40 cursor-not-allowed rounded-md"
-            >
-              <Trash2 size={13} /> {t.common.delete}
-            </button>
-          )}
+          <RoleGate permission="resource:write">
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
+              >
+                <Trash2 size={13} /> {t.common.delete}
+              </button>
+            )}
+            {!onDelete && deleteDisabledReason && (
+              <button
+                disabled
+                title={deleteDisabledReason}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground/40 cursor-not-allowed rounded-md"
+              >
+                <Trash2 size={13} /> {t.common.delete}
+              </button>
+            )}
+          </RoleGate>
           <button
             onClick={onShowJson}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
           >
             <Code size={13} /> JSON
           </button>
-          <button
-            onClick={onDuplicate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
-          >
-            <Files size={13} /> {t.common.duplicate}
-          </button>
+          <RoleGate permission="resource:write">
+            <button
+              onClick={onDuplicate}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
+            >
+              <Files size={13} /> {t.common.duplicate}
+            </button>
+          </RoleGate>
           <div className="flex-1" />
-          <button
-            onClick={onEdit}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Pencil size={13} /> {t.common.edit}
-          </button>
+          <RoleGate permission="resource:write">
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Pencil size={13} /> {t.common.edit}
+            </button>
+          </RoleGate>
           <button
             onClick={onClose}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-border text-foreground rounded-lg hover:bg-muted transition-colors"
@@ -1113,6 +1119,7 @@ function OfferingWizard({
               </div>
             )}
 
+            <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
             {filteredAssets.map(a => {
               const isSelected = selAssets.includes(a.id);
               return (
@@ -1147,6 +1154,7 @@ function OfferingWizard({
                 </button>
               );
             })}
+            </div>
 
             {assetsSelectorObj && (
               <div className="mt-2">
@@ -1514,6 +1522,7 @@ function PolicySelector({
 
   return (
     <div className="space-y-2">
+      <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
       {policies.map(p => {
         const isSelected = selected === p.id;
         return (
@@ -1555,6 +1564,7 @@ function PolicySelector({
           </button>
         );
       })}
+      </div>
 
       {selectedPolicy && (
         <div className="bg-muted/50 border border-border rounded-lg p-3 space-y-3 mt-1">

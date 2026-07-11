@@ -412,6 +412,18 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
             ) : (
               <ListEmpty icon={<Search />} message={t.common.noResults} />
             ))}
+          {totalItems > 0 && (
+            <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <DataTablePagination
+                totalItems={totalItems}
+                pageSize={pageSize}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                rowsPerPageLabel={t.common.rowsPerPage}
+              />
+            </div>
+          )}
         </div>
       )}
       {/* 위저드 탭일 때만 마운트 — 닫으면 unmount 되어 내부 폼 상태가 리셋된다(닫았다
@@ -715,42 +727,48 @@ function AssetDetailSheet({
 
         {/* Footer */}
         <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
-            >
-              <Trash2 size={13} /> {t.common.delete}
-            </button>
-          )}
-          {!onDelete && deleteDisabledReason && (
-            <button
-              disabled
-              title={deleteDisabledReason}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground/40 cursor-not-allowed rounded-md"
-            >
-              <Trash2 size={13} /> {t.common.delete}
-            </button>
-          )}
+          <RoleGate permission="resource:write">
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
+              >
+                <Trash2 size={13} /> {t.common.delete}
+              </button>
+            )}
+            {!onDelete && deleteDisabledReason && (
+              <button
+                disabled
+                title={deleteDisabledReason}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground/40 cursor-not-allowed rounded-md"
+              >
+                <Trash2 size={13} /> {t.common.delete}
+              </button>
+            )}
+          </RoleGate>
           <button
             onClick={onShowJson}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
           >
             <Code size={13} /> JSON
           </button>
-          <button
-            onClick={onDuplicate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
-          >
-            <Files size={13} /> {t.common.duplicate}
-          </button>
+          <RoleGate permission="resource:write">
+            <button
+              onClick={onDuplicate}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
+            >
+              <Files size={13} /> {t.common.duplicate}
+            </button>
+          </RoleGate>
           <div className="flex-1" />
-          <button
-            onClick={onEdit}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Pencil size={13} /> {t.common.edit}
-          </button>
+          <RoleGate permission="resource:write">
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Pencil size={13} /> {t.common.edit}
+            </button>
+          </RoleGate>
           <button
             onClick={onClose}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-border text-foreground rounded-lg hover:bg-muted transition-colors"

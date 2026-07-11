@@ -54,6 +54,10 @@ import { RoleGate } from "@/components/RoleGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConnectorStore } from "@/stores/connectorStore";
 import AddConnectorPanel from "./PageAddConnector";
+import {
+  usePagination,
+  DataTablePagination,
+} from "@/components/DataTablePagination";
 
 interface PageFleetProps {
   onSelect: (c: Connector, page?: string) => void;
@@ -125,6 +129,14 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
   const filtered = q
     ? list.filter(c => `${c.name} ${c.bpn}`.toLowerCase().includes(q))
     : list;
+  const {
+    paginatedData,
+    totalItems,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize,
+  } = usePagination(filtered, 12);
 
   return (
     <>
@@ -286,7 +298,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
         <ListEmpty icon={<Search />} message={t.fleet.noSearchResults} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-          {filtered.map(c => (
+          {paginatedData.map(c => (
             <ConnectorCard
               key={c.id}
               connector={c}
@@ -308,6 +320,19 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
               </span>
             </button>
           </RoleGate>
+        </div>
+      )}
+      {totalItems > 0 && (
+        <div className="mt-3 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+          <DataTablePagination
+            totalItems={totalItems}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[12, 24, 48]}
+            rowsPerPageLabel={t.common.rowsPerPage}
+          />
         </div>
       )}
 

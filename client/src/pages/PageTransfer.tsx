@@ -179,12 +179,14 @@ function DataViewer({
               if (e.key === "Enter") onRequery(pathInput);
             }}
           />
-          <button
-            onClick={() => onRequery(pathInput)}
-            className="text-[12px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium flex-shrink-0"
-          >
-            {t.transfers.queryPath}
-          </button>
+          <RoleGate permission="transaction:write">
+            <button
+              onClick={() => onRequery(pathInput)}
+              className="text-[12px] px-2.5 py-1 rounded bg-primary hover:bg-primary/90 text-primary-foreground font-medium flex-shrink-0"
+            >
+              {t.transfers.queryPath}
+            </button>
+          </RoleGate>
         </div>
       )}
 
@@ -760,14 +762,14 @@ export default function PageTransfer() {
                         className="flex items-center gap-1 flex-wrap"
                         onClick={e => e.stopPropagation()}
                       >
-                        <button
-                          onClick={() => handleFetch(tr.id, tr.asset)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 transition-colors"
-                        >
-                          <Download className="w-3 h-3" />{" "}
-                          {t.transfers.fetchData}
-                        </button>
                         <RoleGate permission="transaction:write">
+                          <button
+                            onClick={() => handleFetch(tr.id, tr.asset)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 transition-colors"
+                          >
+                            <Download className="w-3 h-3" />{" "}
+                            {t.transfers.fetchData}
+                          </button>
                           <button
                             onClick={() => handleComplete(tr.id)}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15 transition-colors"
@@ -1107,13 +1109,13 @@ function TransferDetailSheet({
       <div className="flex justify-end gap-2 px-5 py-4 bg-muted/30 border-t border-border flex-shrink-0">
         {target.name === "STARTED" && (
           <>
-            <button
-              onClick={onFetch}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors"
-            >
-              <Download size={13} /> {t.transfers.fetchData}
-            </button>
             <RoleGate permission="transaction:write">
+              <button
+                onClick={onFetch}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors"
+              >
+                <Download size={13} /> {t.transfers.fetchData}
+              </button>
               <button
                 onClick={onComplete}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15 rounded-md transition-colors"
