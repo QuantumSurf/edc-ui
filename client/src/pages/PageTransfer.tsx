@@ -762,7 +762,10 @@ export default function PageTransfer() {
                         className="flex items-center gap-1 flex-wrap"
                         onClick={e => e.stopPropagation()}
                       >
-                        <RoleGate permission="transaction:write">
+                        <RoleGate
+                          permission="transaction:write"
+                          fallback={<span className="truncate">—</span>}
+                        >
                           <button
                             onClick={() => handleFetch(tr.id, tr.asset)}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 transition-colors"

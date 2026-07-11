@@ -307,6 +307,8 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
               onDelete={() => setDeleteTarget(c)}
             />
           ))}
+          {/* add 카드는 마지막 페이지에만 — 페이징 후 매 페이지 반복 노출 방지(헤더 추가 버튼은 상시). */}
+          {currentPage >= Math.max(1, Math.ceil(totalItems / pageSize)) && (
           <RoleGate permission="connector:write">
             <button
               onClick={() => setAddOpen(true)}
@@ -320,6 +322,7 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
               </span>
             </button>
           </RoleGate>
+          )}
         </div>
       )}
       {totalItems > 0 && (
