@@ -330,10 +330,10 @@ export function deriveAudit(
 /** 사용자 제어 문자열의 제어문자 제거 + 길이 제한 — 로그 위조/혼동 방지(CWE-117). */
 function clean(s: string | null | undefined, max = 512): string | null {
   if (s == null) return null;
+  // 제어문자(\x00-\x1f, \x7f)를 공백으로 치환 — 로그/감사 인젝션 방어(의도적 control-char 매칭).
   // eslint-disable-next-line no-control-regex
-  return String(s)
-    .replace(/[\x00-\x1f\x7f]/g, " ")
-    .slice(0, max);
+  const stripped = String(s).replace(/[\x00-\x1f\x7f]/g, " ");
+  return stripped.slice(0, max);
 }
 
 /** 단건 기록 — best-effort. 실패해도 throw 하지 않는다(감사 실패가 본 요청을 깨지 않게). */

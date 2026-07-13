@@ -37,6 +37,7 @@ async function isTokenCurrent(payload: TokenPayload): Promise<boolean> {
 }
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace -- Express Request 타입 증강(표준 패턴)
   namespace Express {
     interface Request {
       user?: TokenPayload;
