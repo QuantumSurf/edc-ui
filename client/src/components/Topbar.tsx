@@ -178,7 +178,11 @@ export default function Topbar() {
         {/* Notification Bell */}
         <button
           onClick={togglePanel}
-          aria-label={t.nav.notifications}
+          aria-label={
+            unreadCount > 0
+              ? `${t.nav.notifications} (미읽음 ${unreadCount})`
+              : t.nav.notifications
+          }
           className={cn(
             "relative inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors",
             panelOpen

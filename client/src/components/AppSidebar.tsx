@@ -58,7 +58,7 @@ interface NavGroup {
 const C = {
   idle: "oklch(0.75 0.06 240)",
   idleBg: "oklch(0.38 0.10 240 / 0.5)",
-  groupLabel: "oklch(0.58 0.08 240)",
+  groupLabel: "oklch(0.64 0.08 240)", // WCAG AA(소형 텍스트 4.5:1) 충족 명도
   groupIcon: "oklch(0.62 0.08 240)",
   activeBg: "oklch(0.60 0.22 240 / 0.30)",
   activeRing: "oklch(0.65 0.20 240 / 0.4)",

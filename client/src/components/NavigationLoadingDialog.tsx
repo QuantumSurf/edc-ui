@@ -34,7 +34,13 @@ export default function NavigationLoadingDialog() {
           <div className="absolute inset-0 rounded-full border-[3px] border-border" />
           <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-blue-500 animate-spin" />
         </div>
-        <div className="flex flex-col items-center gap-1 text-center">
+        {/* 오버레이 표시 시 스크린리더가 로딩 문구를 자동 낭독 (WCAG 4.1.3) */}
+        <div
+          className="flex flex-col items-center gap-1 text-center"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
           {connector ? (
             <>
               <span className="text-[15px] font-semibold text-foreground">

@@ -15,7 +15,7 @@ import { queryClient } from "./lib/queryClient";
 import { Route, Switch, useLocation } from "wouter";
 import { useConnectorStore } from "./stores/connectorStore";
 import { fetchConnectors } from "./services";
-import { useEffect, useState, useMemo, lazy, Suspense } from "react";
+import { useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { I18nContext, getTranslations, useI18n, type Locale } from "./i18n";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -210,6 +210,18 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const setDrawerOpen = useConnectorStore(s => s.setDrawerOpen);
   const toggleSearch = useConnectorStore(s => s.toggleSearch);
   const { t } = useI18n();
+  const [location] = useLocation();
+
+  // 라우트 전환(SPA) 시 새 콘텐츠 시작점인 main 으로 포커스 이동(WCAG 2.4.3) —
+  // 키보드/스크린리더 사용자가 페이지가 바뀐 사실과 시작 지점을 인지하게 한다. 최초 마운트는 제외.
+  const isFirstRoute = useRef(true);
+  useEffect(() => {
+    if (isFirstRoute.current) {
+      isFirstRoute.current = false;
+      return;
+    }
+    document.getElementById("main-content")?.focus();
+  }, [location]);
 
   // 모바일에서 네비게이션 시 사이드바 자동 닫힘
   const handleNavigate = () => {

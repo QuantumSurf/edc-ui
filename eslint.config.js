@@ -7,6 +7,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import globals from "globals";
 
 export default tseslint.config(
@@ -14,7 +15,7 @@ export default tseslint.config(
     ignores: [
       "dist/**",
       "node_modules/**",
-      "coverage/**",
+      "**/coverage/**", // 루트·client/coverage 등 생성된 커버리지 산출물 전부 제외
       "patches/**",
       "dev-mock/**",
       "**/*.cjs",
@@ -47,9 +48,15 @@ export default tseslint.config(
     // 클라이언트(React) — 훅 규칙은 실제 버그를 잡으므로 error 유지.
     files: ["client/**/*.{ts,tsx}"],
     languageOptions: { globals: { ...globals.browser } },
-    plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },
+    plugins: {
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
+      "jsx-a11y": jsxA11y,
+    },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // 접근성(a11y) — jsx-a11y recommended. 실제 접근성 결함이므로 error 게이트.
+      ...jsxA11y.flatConfigs.recommended.rules,
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

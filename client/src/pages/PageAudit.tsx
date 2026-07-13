@@ -244,7 +244,9 @@ export default function PageAudit() {
   const [result, setResult] = useState<"ALL" | AuditResult>("ALL");
   const [severity, setSeverity] = useState<"ALL" | AuditSeverity>("ALL");
   // 기간: 시작일~종료일(YYYY-MM-DD, 빈 문자열=경계 없음). 기본 최근 1주일(7D).
-  const [dateFrom, setDateFrom] = useState<string>(() => presetRange("7D").from);
+  const [dateFrom, setDateFrom] = useState<string>(
+    () => presetRange("7D").from
+  );
   const [dateTo, setDateTo] = useState<string>(() => presetRange("7D").to);
   const [selected, setSelected] = useState<AuditEvent | null>(null);
 
@@ -359,7 +361,10 @@ export default function PageAudit() {
 
   return (
     <>
-      <SectionHdr icon={<ScrollText className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.audit}>
+      <SectionHdr
+        icon={<ScrollText className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.audit}
+      >
         {t.audit.title}
       </SectionHdr>
 
@@ -373,6 +378,7 @@ export default function PageAudit() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={t.audit.searchPlaceholder}
+            aria-label={t.audit.searchPlaceholder}
             className="w-full pl-8 pr-8 py-1.5 text-[12px] border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           {search && (

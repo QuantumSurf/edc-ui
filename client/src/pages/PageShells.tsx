@@ -654,9 +654,10 @@ function ShellEditorDialog({
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   // 편집 시작 시 받은 raw 스냅샷·비-ko/en description 보존(id 39/40).
-  const [rawSnapshot, setRawSnapshot] = useState<Record<string, unknown> | null>(
-    null
-  );
+  const [rawSnapshot, setRawSnapshot] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [descriptionRaw, setDescriptionRaw] = useState<
     Array<{ language?: string; text?: string }>
   >([]);
@@ -855,9 +856,9 @@ function ShellEditorDialog({
           {/* Specific AssetId[] */}
           <div className="pt-2">
             <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
                 Specific AssetId
-              </label>
+              </span>
               <button
                 onClick={() => setSpecs([...specs, { name: "", value: "" }])}
                 className="text-[11px] text-primary hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
@@ -870,6 +871,7 @@ function ShellEditorDialog({
                 <div key={i} className="flex gap-1.5 items-center">
                   <input
                     placeholder={t.twins.form.keyName}
+                    aria-label={`${t.twins.form.keyName} #${i + 1}`}
                     value={s.name}
                     onChange={e => {
                       const n = [...specs];
@@ -880,6 +882,7 @@ function ShellEditorDialog({
                   />
                   <input
                     placeholder={t.twins.form.keyValue}
+                    aria-label={`${t.twins.form.keyValue} #${i + 1}`}
                     value={s.value}
                     onChange={e => {
                       const n = [...specs];
@@ -903,9 +906,9 @@ function ShellEditorDialog({
           {/* Submodel Descriptor[] */}
           <div className="pt-2 border-t border-border">
             <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
                 Submodel Descriptor
-              </label>
+              </span>
               <button
                 onClick={() => setSubs([...subs, newSubmodel()])}
                 className="text-[11px] text-primary hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"

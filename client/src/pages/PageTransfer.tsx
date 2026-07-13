@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { useI18n } from "@/i18n";
+import { clickable } from "@/lib/utils";
 import {
   fetchTransfers,
   startTransfer,
@@ -171,6 +172,7 @@ function DataViewer({
             {t.transfers.proxyPath}
           </span>
           <input
+            aria-label={t.transfers.proxyPath}
             className="flex-1 min-w-0 mono text-[12px] px-2 py-1 border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="/shell-descriptors"
             value={pathInput}
@@ -758,6 +760,7 @@ export default function PageTransfer() {
                     {tr.name === "STARTED" ? (
                       // 진행 중 행은 완료 시각이 아직 없으므로(—) 그 자리에 동작 버튼을 인라인 표시.
                       // 버튼 클릭이 행 onClick(상세 패널 열기)으로 전파되지 않게 래퍼에서 차단.
+                      // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- 인터랙티브 요소 아님: 행 클릭 전파만 차단하는 래퍼
                       <div
                         className="flex items-center gap-1 flex-wrap"
                         onClick={e => e.stopPropagation()}
@@ -814,7 +817,7 @@ export default function PageTransfer() {
               <div
                 key={tr.id}
                 className="rounded-lg border border-border p-4 bg-muted/20 space-y-1.5 cursor-pointer"
-                onClick={() => setDetailTarget(tr)}
+                {...clickable(() => setDetailTarget(tr))}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-primary">
@@ -991,9 +994,7 @@ export default function PageTransfer() {
                 className="w-full text-[12px] font-medium py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
               >
                 <Send className="w-3 h-3" />
-                {submitting
-                  ? t.transfers.starting
-                  : t.transfers.startTransfer}
+                {submitting ? t.transfers.starting : t.transfers.startTransfer}
               </button>
             </RoleGate>
           </div>

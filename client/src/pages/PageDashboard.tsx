@@ -64,6 +64,12 @@ interface PageDashboardProps {
 export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   const { t } = useI18n();
 
+  // Recharts 애니메이션은 JS 기반이라 CSS prefers-reduced-motion 규칙이 안 먹는다.
+  // 접근성(WCAG 2.3.3)을 위해 직접 판정해 차트 애니메이션을 끈다.
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   const {
     data: negotiations = [],
     isError: negError,
@@ -141,13 +147,13 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
   // 표시값: EDC DB 정확 카운트가 있으면 그걸(상한 우회), 없으면 목록 기반으로 폴백.
   const exactCounts = transferCounts?.exact === true;
   const transferTotal = exactCounts
-    ? transferCounts?.transfers ?? 0
+    ? (transferCounts?.transfers ?? 0)
     : transfers.length;
   const transferDone = exactCounts
-    ? transferCounts?.transfersCompleted ?? 0
+    ? (transferCounts?.transfersCompleted ?? 0)
     : transferStats.done;
   const transferActive = exactCounts
-    ? transferCounts?.transfersActive ?? 0
+    ? (transferCounts?.transfersActive ?? 0)
     : transferStats.active;
 
   // FSM 분포: 실제 negotiations 데이터에서 집계
@@ -183,7 +189,10 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
               assetsRefetch();
             }}
             busy={
-              negFetching || transfersFetching || trendFetching || assetsFetching
+              negFetching ||
+              transfersFetching ||
+              trendFetching ||
+              assetsFetching
             }
             label={t.common.refresh}
           />
@@ -282,6 +291,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                 stroke="#3B82F6"
                 strokeWidth={2}
                 dot={false}
+                isAnimationActive={!prefersReducedMotion}
               />
               <Line
                 type="monotone"
@@ -290,6 +300,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                 stroke="#10B981"
                 strokeWidth={2}
                 dot={false}
+                isAnimationActive={!prefersReducedMotion}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -316,6 +327,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                   outerRadius={58}
                   dataKey="value"
                   strokeWidth={0}
+                  isAnimationActive={!prefersReducedMotion}
                 >
                   {pieData.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />
@@ -417,33 +429,33 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                   .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
                   .slice(0, 4)
                   .map(n => (
-                  <tr
-                    key={n?.id ?? Math.random()}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-bold text-primary truncate">
-                        {(n?.id ?? "").slice(0, 12)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StateBadge name={n?.name ?? ""} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-foreground truncate block">
-                        {n?.peer ?? ""}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="text-xs text-foreground"
-                        title={n?.ts ?? ""}
-                      >
-                        {n?.ts ?? ""}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                    <tr
+                      key={n?.id ?? Math.random()}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-bold text-primary truncate">
+                          {(n?.id ?? "").slice(0, 12)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StateBadge name={n?.name ?? ""} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-foreground truncate block">
+                          {n?.peer ?? ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="text-xs text-foreground"
+                          title={n?.ts ?? ""}
+                        >
+                          {n?.ts ?? ""}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -502,43 +514,52 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                   .sort((a, b) => String(b.ts).localeCompare(String(a.ts)))
                   .slice(0, 4)
                   .map(tr => (
-                  <tr
-                    key={tr?.id ?? Math.random()}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-bold text-primary truncate">
-                        {(tr?.id ?? "").slice(0, 12)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StateBadge name={tr?.name ?? ""} label={(t.transfers.states as Record<string, string>)[tr?.name ?? ""] ?? (tr?.name ?? "")} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-foreground truncate block">
-                        {tr?.asset ?? ""}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-foreground">
-                        {tr?.size ?? ""}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-foreground">
-                        {tr?.t ?? ""}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="text-xs text-foreground"
-                        title={tr?.ts ?? ""}
-                      >
-                        {tr?.ts ?? ""}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                    <tr
+                      key={tr?.id ?? Math.random()}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-bold text-primary truncate">
+                          {(tr?.id ?? "").slice(0, 12)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StateBadge
+                          name={tr?.name ?? ""}
+                          label={
+                            (t.transfers.states as Record<string, string>)[
+                              tr?.name ?? ""
+                            ] ??
+                            tr?.name ??
+                            ""
+                          }
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-foreground truncate block">
+                          {tr?.asset ?? ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-foreground">
+                          {tr?.size ?? ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-foreground">
+                          {tr?.t ?? ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="text-xs text-foreground"
+                          title={tr?.ts ?? ""}
+                        >
+                          {tr?.ts ?? ""}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

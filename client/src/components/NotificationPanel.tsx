@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { NOTIFY_PREFS_KEY, readPref } from "@/lib/prefs";
 import { type NotificationItem } from "@/services/api";
 import { ListError } from "@/components/ui-kmx";
@@ -78,6 +79,9 @@ export default function NotificationPanel() {
   } = useNotifications();
   const timeAgo = useTimeAgo();
 
+  // 슬라이드오버 패널을 dialog 로: 초기 포커스/트랩/스크롤락/복원 제공(WCAG 2.4.3/4.1.2).
+  const panelRef = useDialogA11y<HTMLDivElement>(panelOpen);
+
   const [filter, setFilter] = useState<"all" | NotificationType>("all");
 
   // 타 탭에서 설정 토글이 바뀌면 storage 이벤트로 강제 리렌더해 게이트를 재평가.
@@ -90,6 +94,15 @@ export default function NotificationPanel() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  // ESC 로 패널 닫기 — 백드롭/X 외 키보드 종료 경로(WCAG 2.4.3).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPanelOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [setPanelOpen]);
 
   // 사라진 알림 id 는 dismissed 목록에서 정리해 무한 증가를 막는다.
   // 단 콜드 로드/로딩 중엔 rawNotifications=[] 이므로 그때 prune 하면 dismissed(localStorage)를
@@ -140,12 +153,22 @@ export default function NotificationPanel() {
       />
 
       {/* Panel — aas-service 와 동일하게 테마 추종(라이트=밝은 표면 / 다크=딥네이비). */}
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-96 max-w-full flex flex-col bg-background text-foreground border-l border-border shadow-2xl">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notification-panel-title"
+        tabIndex={-1}
+        className="fixed right-0 top-0 bottom-0 z-50 w-96 max-w-full flex flex-col bg-background text-foreground border-l border-border shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-primary" />
-            <span className="font-semibold text-[15px]">
+            <span
+              id="notification-panel-title"
+              className="font-semibold text-[15px]"
+            >
               {t.notifications.title}
             </span>
             {unreadCount > 0 && (
@@ -209,8 +232,12 @@ export default function NotificationPanel() {
             </button>
           </div>
 
-          {/* List */}
-          <ScrollArea className="flex-1">
+          {/* List — 로딩/완료/빈 전환을 보조기술에 통지(WCAG 4.1.3) */}
+          <ScrollArea
+            className="flex-1"
+            aria-live="polite"
+            aria-busy={isFetching}
+          >
             {isError && allNotifications.length === 0 ? (
               <ListError onRetry={() => refetch()} fetching={isFetching} />
             ) : allNotifications.length === 0 && isFetching ? (
@@ -342,7 +369,6 @@ export default function NotificationPanel() {
           </ScrollArea>
         </div>
       </div>
-
     </>
   );
 }

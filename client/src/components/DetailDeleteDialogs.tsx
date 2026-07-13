@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -848,6 +849,7 @@ export function ConfirmActionDialog({
           <div className="mt-3">
             <input
               type="text"
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- 모달 초기 포커스 의도(Radix AlertDialog는 기본 포커스를 Cancel에 두므로 입력창 포커스는 명시 필요)
               autoFocus={input.autoFocus}
               value={input.value}
               onChange={e => input.onChange(e.target.value)}
@@ -969,9 +971,9 @@ export function JsonViewerDialog({
             {title}
           </DialogTitle>
           {subtitle && (
-            <p className="text-sm text-muted-foreground break-all mt-1">
+            <DialogDescription className="break-all mt-1">
               {subtitle}
-            </p>
+            </DialogDescription>
           )}
         </DialogHeader>
 

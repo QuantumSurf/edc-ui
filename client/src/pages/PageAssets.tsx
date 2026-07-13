@@ -67,7 +67,8 @@ import {
   List,
   Lock,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, clickable } from "@/lib/utils";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -242,7 +243,11 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
       {/* Loading state */}
       {isLoading && (
         <Card>
-          <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
+          <div
+            className="flex items-center justify-center py-10 gap-2 text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-[13px]">{t.common.loading}</span>
           </div>
@@ -269,19 +274,34 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-[12px] font-bold text-foreground"
+                  >
                     {t.assets.col.name}
                   </th>
-                  <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-[12px] font-bold text-foreground"
+                  >
                     {t.assets.col.type}
                   </th>
-                  <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden xl:table-cell">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden xl:table-cell"
+                  >
                     {t.assets.col.semanticId}
                   </th>
-                  <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-[12px] font-bold text-foreground"
+                  >
                     {t.assets.col.offering}
                   </th>
-                  <th className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden lg:table-cell">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-[12px] font-bold text-foreground hidden lg:table-cell"
+                  >
                     {t.assets.col.dataSource}
                   </th>
                 </tr>
@@ -400,7 +420,7 @@ export default function PageAssets({ onNav }: PageAssetsProps) {
           {paginatedData.map(a => (
             <div
               key={a.id}
-              onClick={() => setDetailTarget(a)}
+              {...clickable(() => setDetailTarget(a))}
               className="cursor-pointer"
             >
               <AssetCard asset={a} />
@@ -548,6 +568,8 @@ function AssetDetailSheet({
 }) {
   const { t } = useI18n();
   const [entered, setEntered] = useState(false);
+  // 상세 시트는 마운트되는 동안 항상 열림 상태 — 초기 포커스/트랩/스크롤락/복원 제공
+  const dialogRef = useDialogA11y<HTMLElement>(true);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true));
@@ -581,6 +603,11 @@ function AssetDetailSheet({
         aria-hidden="true"
       />
       <aside
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="asset-detail-title"
+        tabIndex={-1}
         className={cn(
           "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl",
           entered ? "translate-x-0" : "translate-x-full"
@@ -590,7 +617,10 @@ function AssetDetailSheet({
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
             <Package className="w-4 h-4 text-primary flex-shrink-0" />
-            <h2 className="text-[15px] font-semibold text-foreground truncate">
+            <h2
+              id="asset-detail-title"
+              className="text-[15px] font-semibold text-foreground truncate"
+            >
               {target.name || target.id}
             </h2>
             <AssetTypeBadge type={target.type} />
@@ -877,6 +907,7 @@ function AssetCard({ asset: a }: { asset: Asset }) {
             navigator.clipboard.writeText(a.id);
             toast.success(t.common.copied);
           }}
+          aria-label={t.common.copy ?? "Copy"}
         >
           <Copy className="w-3 h-3 text-muted-foreground" />
         </button>
@@ -1308,11 +1339,17 @@ function AssetWizard({
                     }}
                     disabled={isEdit}
                     title={isEdit ? t.assets.idImmutable : undefined}
+                    aria-invalid={!!idError}
+                    aria-describedby={idError ? "asset-id-error" : undefined}
                     className={cn(inputBase, "mono", isEdit && "pl-8")}
                   />
                 </div>
                 {idError && (
-                  <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
+                  <div
+                    id="asset-id-error"
+                    role="alert"
+                    className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400"
+                  >
                     <AlertCircle className="w-3 h-3" /> {idError}
                   </div>
                 )}
@@ -1345,6 +1382,8 @@ function AssetWizard({
                     markDirty();
                   }}
                   list={fhId("asset.name")}
+                  aria-invalid={!!nameError}
+                  aria-describedby={nameError ? "asset-name-error" : undefined}
                   className={inputBase}
                 />
                 <HistoryDatalist
@@ -1352,7 +1391,11 @@ function AssetWizard({
                   options={suggestions["asset.name"]}
                 />
                 {nameError && (
-                  <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
+                  <div
+                    id="asset-name-error"
+                    role="alert"
+                    className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400"
+                  >
                     <AlertCircle className="w-3 h-3" /> {nameError}
                   </div>
                 )}
@@ -1419,6 +1462,12 @@ function AssetWizard({
                     markDirty();
                   }}
                   list={fhId("asset.baseUrl")}
+                  aria-invalid={!!baseUrl && !baseUrl.startsWith("https://")}
+                  aria-describedby={
+                    baseUrl && !baseUrl.startsWith("https://")
+                      ? "asset-baseurl-error"
+                      : undefined
+                  }
                   className={`${inputBase} mono`}
                 />
                 <HistoryDatalist
@@ -1426,7 +1475,11 @@ function AssetWizard({
                   options={suggestions["asset.baseUrl"]}
                 />
                 {baseUrl && !baseUrl.startsWith("https://") && (
-                  <div className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400">
+                  <div
+                    id="asset-baseurl-error"
+                    role="alert"
+                    className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400"
+                  >
                     <AlertCircle className="w-3 h-3" /> {t.assets.httpsRequired}
                   </div>
                 )}
@@ -1458,10 +1511,20 @@ function AssetWizard({
                         : "Leave blank to keep current key"
                       : "edc:key=<vault-alias>"
                   }
+                  aria-invalid={!!authCode && !authCode.startsWith("edc:key")}
+                  aria-describedby={
+                    authCode && !authCode.startsWith("edc:key")
+                      ? "asset-authcode-warn"
+                      : undefined
+                  }
                   className={`${inputBase} mono`}
                 />
                 {authCode && !authCode.startsWith("edc:key") && (
-                  <div className="flex items-center gap-1 mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                  <div
+                    id="asset-authcode-warn"
+                    role="alert"
+                    className="flex items-center gap-1 mt-1 text-[11px] text-amber-600 dark:text-amber-400"
+                  >
                     <AlertCircle className="w-3 h-3" /> {t.assets.authCodeHint}
                   </div>
                 )}

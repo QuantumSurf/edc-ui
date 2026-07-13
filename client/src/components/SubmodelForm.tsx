@@ -202,9 +202,9 @@ export function submodelInputToBody(s: SubmodelInput): Record<string, unknown> {
         subprotocolBody: buildSubprotocolBody(ep.protocolInformation),
         subprotocolBodyEncoding: ep.protocolInformation.subprotocolBodyEncoding,
         // 원본 securityAttributes 보존, 없을 때만 NONE 폴백.
-        securityAttributes:
-          (ep.rawPi?.securityAttributes as unknown) ??
-          [{ type: "NONE", key: "NONE", value: "NONE" }],
+        securityAttributes: (ep.rawPi?.securityAttributes as unknown) ?? [
+          { type: "NONE", key: "NONE", value: "NONE" },
+        ],
       };
       return {
         ...(ep.raw ?? {}),
@@ -289,18 +289,23 @@ export function SubmodelFormFields({
       )}
 
       <input
+        aria-label={t.twins.form.subIdShort}
+        aria-required
         placeholder={t.twins.form.subIdShort + " *"}
         value={s.idShort}
         onChange={e => updateField("idShort", e.target.value)}
         className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
       />
       <input
+        aria-label={t.twins.form.subId}
+        aria-required
         placeholder={t.twins.form.subId + " *"}
         value={s.id}
         onChange={e => updateField("id", e.target.value)}
         className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
       />
       <input
+        aria-label={t.twins.form.subSemanticId}
         placeholder={t.twins.form.subSemanticId}
         value={s.semanticId}
         onChange={e => updateField("semanticId", e.target.value)}
@@ -310,6 +315,7 @@ export function SubmodelFormFields({
       {showDescription && (
         <>
           <input
+            aria-label={t.twins.form.descriptionKo}
             placeholder={t.twins.form.descriptionKo}
             value={s.descriptionKo}
             onChange={e => updateField("descriptionKo", e.target.value)}
@@ -317,6 +323,7 @@ export function SubmodelFormFields({
             className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <input
+            aria-label={t.twins.form.descriptionEn}
             placeholder={t.twins.form.descriptionEn}
             value={s.descriptionEn}
             onChange={e => updateField("descriptionEn", e.target.value)}
@@ -368,6 +375,7 @@ export function SubmodelFormFields({
                   </button>
                 </div>
                 <input
+                  aria-label={t.twins.form.endpointInterface}
                   placeholder={
                     t.twins.form.endpointInterface + " (e.g. SUBMODEL-3.0)"
                   }
@@ -400,6 +408,7 @@ export function SubmodelFormFields({
 
                   <div className="flex gap-1.5">
                     <input
+                      aria-label="endpointProtocol"
                       placeholder="endpointProtocol"
                       value={ep.protocolInformation.endpointProtocol}
                       onChange={e =>
@@ -408,6 +417,7 @@ export function SubmodelFormFields({
                       className="flex-1 px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     <input
+                      aria-label="endpointProtocolVersion"
                       placeholder="endpointProtocolVersion"
                       value={ep.protocolInformation.endpointProtocolVersion}
                       onChange={e =>
@@ -598,6 +608,8 @@ export function EndpointRow({
   onCopy?: (s: string) => void;
   showEmpty?: boolean;
 }) {
+  // 훅은 조기 반환 이전에 호출(훅 규칙) — 복사 버튼 aria-label용 t 확보
+  const { t } = useI18n();
   if (!value && !showEmpty) return null;
   const display = value || "—";
   const empty = !value;
@@ -621,8 +633,10 @@ export function EndpointRow({
       )}
       {onCopy && value && (
         <button
+          type="button"
+          aria-label={t.common.copy}
           onClick={() => onCopy(value)}
-          className="opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5"
+          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 flex-shrink-0 mt-0.5"
         >
           <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
         </button>

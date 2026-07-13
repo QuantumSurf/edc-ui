@@ -897,13 +897,18 @@ export function SortHeader({
     <button
       type="button"
       onClick={() => onSort(columnKey)}
-      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
       className={cn(
         "inline-flex items-center gap-1 text-[12px] font-bold text-foreground hover:text-primary transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
         className
       )}
     >
       <span className="truncate">{label}</span>
+      {/* aria-sort 는 role=button 에서 무효 → 현재 정렬 상태를 sr-only 로 고지(WCAG 4.1.2) */}
+      {active && (
+        <span className="sr-only">
+          {dir === "asc" ? ", 오름차순 정렬됨" : ", 내림차순 정렬됨"}
+        </span>
+      )}
       {active ? (
         dir === "asc" ? (
           <ChevronUp className="w-3 h-3 flex-shrink-0 text-primary" />
@@ -1040,7 +1045,10 @@ export function ListError({
 }) {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center justify-center py-12 gap-3">
+    <div
+      role="alert"
+      className="flex flex-col items-center justify-center py-12 gap-3"
+    >
       <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
         <AlertCircle className="w-4 h-4" />
         <span className="text-[13px] font-medium">
@@ -1218,7 +1226,7 @@ export function JsonTreeView({
     }
     if (typeof value === "string")
       return <span className="text-emerald-400 break-all">"{hl(value)}"</span>;
-    if (value === null) return <span className="text-slate-500">null</span>;
+    if (value === null) return <span className="text-slate-400">null</span>;
     return <span className="text-amber-400">{hl(String(value))}</span>;
   };
 

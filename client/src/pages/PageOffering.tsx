@@ -63,7 +63,8 @@ import {
   List,
   Lock,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, clickable } from "@/lib/utils";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
 
@@ -386,7 +387,7 @@ export default function PageOffering({ onNav }: PageOfferingProps) {
           {paginatedData.map(o => (
             <div
               key={o.id}
-              onClick={() => setDetailTarget(o)}
+              {...clickable(() => setDetailTarget(o))}
               className="cursor-pointer"
             >
               <OfferingCard offering={o} />
@@ -530,6 +531,8 @@ function OfferingDetailSheet({
 }) {
   const { t } = useI18n();
   const [entered, setEntered] = useState(false);
+  // 마운트되어 있는 동안 항상 열린 모달 — 포커스 트랩/초기 포커스/스크롤 락/복원 제공
+  const dialogRef = useDialogA11y(true);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true));
@@ -567,6 +570,11 @@ function OfferingDetailSheet({
         aria-hidden="true"
       />
       <aside
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="offering-detail-title"
+        tabIndex={-1}
         className={cn(
           "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl",
           entered ? "translate-x-0" : "translate-x-full"
@@ -575,7 +583,10 @@ function OfferingDetailSheet({
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
             <FileSignature className="w-4 h-4 text-primary flex-shrink-0" />
-            <h2 className="text-[15px] font-semibold text-foreground truncate">
+            <h2
+              id="offering-detail-title"
+              className="text-[15px] font-semibold text-foreground truncate"
+            >
               {target.id}
             </h2>
             <Badge variant="purple" className="!font-normal">
@@ -807,6 +818,7 @@ function OfferingCard({ offering: o }: { offering: Offering }) {
             navigator.clipboard.writeText(o.id);
             toast.success(t.common.copied);
           }}
+          aria-label={t.common.copy ?? "Copy"}
         >
           <Copy className="w-3 h-3 text-muted-foreground" />
         </button>
@@ -819,7 +831,9 @@ function OfferingCard({ offering: o }: { offering: Offering }) {
         <Badge variant="purple" className="text-[11px]">
           {o.contract || "—"}
         </Badge>
-        <span className="ml-auto font-semibold text-foreground">{fmtNum(o.cnt)}</span>
+        <span className="ml-auto font-semibold text-foreground">
+          {fmtNum(o.cnt)}
+        </span>
       </div>
     </div>
   );
@@ -1112,6 +1126,7 @@ function OfferingWizard({
                 <input
                   type="text"
                   placeholder={t.offerings.searchAssetPlaceholder}
+                  aria-label={t.offerings.searchAssetPlaceholder}
                   value={assetSearch}
                   onChange={e => setAssetSearch(e.target.value)}
                   className={`${inputBase} pl-8`}
@@ -1120,40 +1135,40 @@ function OfferingWizard({
             )}
 
             <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-            {filteredAssets.map(a => {
-              const isSelected = selAssets.includes(a.id);
-              return (
-                <button
-                  key={a.id}
-                  onClick={() => toggleAsset(a.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border transition-all text-left ${
-                    isSelected
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-muted hover:border-primary/50"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+              {filteredAssets.map(a => {
+                const isSelected = selAssets.includes(a.id);
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => toggleAsset(a.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border transition-all text-left ${
                       isSelected
-                        ? "bg-primary border-primary"
-                        : "border-border bg-card"
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-muted hover:border-primary/50"
                     }`}
                   >
-                    {isSelected && (
-                      <span className="text-primary-foreground text-[11px]">
-                        &#10003;
-                      </span>
-                    )}
-                  </div>
-                  <MonoText
-                    className={`flex-1 text-[11px] ${isSelected ? "text-primary" : ""}`}
-                  >
-                    {a.id}
-                  </MonoText>
-                  <Badge variant="gray">{a.type}</Badge>
-                </button>
-              );
-            })}
+                    <div
+                      className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                        isSelected
+                          ? "bg-primary border-primary"
+                          : "border-border bg-card"
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="text-primary-foreground text-[11px]">
+                          &#10003;
+                        </span>
+                      )}
+                    </div>
+                    <MonoText
+                      className={`flex-1 text-[11px] ${isSelected ? "text-primary" : ""}`}
+                    >
+                      {a.id}
+                    </MonoText>
+                    <Badge variant="gray">{a.type}</Badge>
+                  </button>
+                );
+              })}
             </div>
 
             {assetsSelectorObj && (
@@ -1193,6 +1208,7 @@ function OfferingWizard({
                   <input
                     type="text"
                     placeholder={t.offerings.searchPolicyPlaceholder}
+                    aria-label={t.offerings.searchPolicyPlaceholder}
                     value={policySearch}
                     onChange={e => setPolicySearch(e.target.value)}
                     className={`${inputBase} pl-8`}
@@ -1237,6 +1253,7 @@ function OfferingWizard({
                   <input
                     type="text"
                     placeholder={t.offerings.searchPolicyPlaceholder}
+                    aria-label={t.offerings.searchPolicyPlaceholder}
                     value={policySearch}
                     onChange={e => setPolicySearch(e.target.value)}
                     className={`${inputBase} pl-8`}
@@ -1514,7 +1531,11 @@ function PolicySelector({
           };
         }
         if (tokens.length === 2) {
-          return { left: tokens[0].replace(/:$/, ""), op: "", right: tokens[1] };
+          return {
+            left: tokens[0].replace(/:$/, ""),
+            op: "",
+            right: tokens[1],
+          };
         }
         return { left: part, op: "", right: "" };
       });
@@ -1523,47 +1544,47 @@ function PolicySelector({
   return (
     <div className="space-y-2">
       <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-      {policies.map(p => {
-        const isSelected = selected === p.id;
-        return (
-          <button
-            key={p.id}
-            onClick={() => onSelect(p.id)}
-            className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-md border transition-all text-left ${
-              isSelected
-                ? "border-primary bg-primary/10"
-                : "border-border bg-card hover:border-primary/50"
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                isSelected ? "border-primary" : "border-border"
+        {policies.map(p => {
+          const isSelected = selected === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-md border transition-all text-left ${
+                isSelected
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-card hover:border-primary/50"
               }`}
             >
-              {isSelected && (
-                <div className="w-2 h-2 rounded-full bg-primary" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <MonoText
-                  className={`text-[12px] font-medium ${isSelected ? "text-primary" : ""}`}
-                >
-                  {p.id}
-                </MonoText>
-                <Badge variant="gray" className="text-[11px] flex-shrink-0">
-                  {t.policies.offeringRef(p.offers)}
-                </Badge>
-              </div>
               <div
-                className={`text-[11px] mt-0.5 ${isSelected ? "text-primary/80" : "text-muted-foreground"}`}
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  isSelected ? "border-primary" : "border-border"
+                }`}
               >
-                {p.constraint}
+                {isSelected && (
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                )}
               </div>
-            </div>
-          </button>
-        );
-      })}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <MonoText
+                    className={`text-[12px] font-medium ${isSelected ? "text-primary" : ""}`}
+                  >
+                    {p.id}
+                  </MonoText>
+                  <Badge variant="gray" className="text-[11px] flex-shrink-0">
+                    {t.policies.offeringRef(p.offers)}
+                  </Badge>
+                </div>
+                <div
+                  className={`text-[11px] mt-0.5 ${isSelected ? "text-primary/80" : "text-muted-foreground"}`}
+                >
+                  {p.constraint}
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {selectedPolicy && (

@@ -62,7 +62,8 @@ import {
 } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, clickable } from "@/lib/utils";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 /* ─── ODRL Constants (spec 4.3.1) ────────────────────────────── */
 const LEFT_OPERANDS = [
@@ -842,7 +843,7 @@ function PolicyList({
           return (
             <div
               key={p.id}
-              onClick={() => onSelect?.(p)}
+              {...clickable(() => onSelect?.(p))}
               className="bg-card rounded-xl p-3.5 shadow-sm border border-border cursor-pointer hover:shadow-md transition-shadow"
             >
               <div className="flex items-start gap-2.5 mb-2">
@@ -872,6 +873,7 @@ function PolicyList({
                     navigator.clipboard.writeText(p.id);
                     toast.success(t.common.copied);
                   }}
+                  aria-label={t.common.copy ?? "Copy"}
                 >
                   <Copy className="w-3 h-3 text-muted-foreground" />
                 </button>
@@ -944,6 +946,8 @@ function PolicyDetailSheet({
 }) {
   const { t } = useI18n();
   const [entered, setEntered] = useState(false);
+  // 모달 패널 접근성: 초기 포커스/포커스 트랩/스크롤락/복원(마운트=열림 상태)
+  const dialogRef = useDialogA11y<HTMLElement>(true);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true));
@@ -988,8 +992,13 @@ function PolicyDetailSheet({
         aria-hidden="true"
       />
       <aside
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="policy-detail-title"
+        tabIndex={-1}
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl",
+          "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl focus:outline-none",
           entered ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -997,7 +1006,10 @@ function PolicyDetailSheet({
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap pr-8">
             <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
-            <h2 className="text-[15px] font-semibold text-foreground truncate">
+            <h2
+              id="policy-detail-title"
+              className="text-[15px] font-semibold text-foreground truncate"
+            >
               {target.id}
             </h2>
             {detailRuleType !== "permission" && (
@@ -1321,7 +1333,8 @@ function ODRLBuilder({
           permObj.constraint ??
           []) as unknown[];
         if (!Array.isArray(cons)) continue;
-        for (const c of cons) flattenConstraint(c as Record<string, unknown>, 0);
+        for (const c of cons)
+          flattenConstraint(c as Record<string, unknown>, 0);
       }
       if (allConstraints.length === 0) {
         setJsonError(t.policies.jsonNoConstraints);
@@ -1520,6 +1533,7 @@ function ODRLBuilder({
           setJsonText(e.target.value);
           setJsonError(null);
         }}
+        aria-label={t.policies.jsonImportHint}
         placeholder={`{\n  "@context": "http://www.w3.org/ns/odrl.jsonld",\n  "@type": "Set",\n  "@id": "kmx-policy-v1",\n  "odrl:permission": [...]\n}`}
         rows={14}
         className="w-full text-[12px] mono p-4 rounded-xl bg-slate-900 text-slate-300 border border-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary resize-y leading-relaxed"
@@ -1774,7 +1788,11 @@ function ODRLBuilder({
                         <input
                           value={c.rightOperand}
                           onChange={e =>
-                            updateConstraint(idx, "rightOperand", e.target.value)
+                            updateConstraint(
+                              idx,
+                              "rightOperand",
+                              e.target.value
+                            )
                           }
                           list={`suggestions-${idx}`}
                           inputMode={isCompare ? "numeric" : undefined}

@@ -42,7 +42,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
-import { cn } from "@/lib/utils";
+import { cn, clickable } from "@/lib/utils";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 type FilterKey = "ALL" | "FINALIZED" | "REQUESTING" | "AGREED" | "TERMINATED";
 type TimeRange = "ALL" | "1D" | "7D" | "30D";
@@ -525,6 +526,8 @@ function NegotiationDetailSheet({
   const [entered, setEntered] = useState(false);
   const terminated = target.name === "TERMINATED";
   const isTerminal = TERMINAL_STATES.has(target.name);
+  // 마운트 = 열림. 초기 포커스/트랩/스크롤락/복원 제공.
+  const dialogRef = useDialogA11y(true);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true));
@@ -550,6 +553,11 @@ function NegotiationDetailSheet({
         aria-hidden="true"
       />
       <aside
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="negotiation-detail-title"
+        tabIndex={-1}
         className={cn(
           "fixed right-0 top-0 z-50 h-full w-full sm:max-w-2xl bg-card flex flex-col transition-transform duration-200 ease-out shadow-2xl",
           entered ? "translate-x-0" : "translate-x-full"
@@ -559,7 +567,10 @@ function NegotiationDetailSheet({
         <div className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 pr-8">
             <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-            <h2 className="text-[15px] font-semibold text-foreground truncate">
+            <h2
+              id="negotiation-detail-title"
+              className="text-[15px] font-semibold text-foreground truncate"
+            >
               {t.negotiations.title}
             </h2>
             <StateBadge name={target.name} />
@@ -859,8 +870,8 @@ function NegotiationCard({
   const { t } = useI18n();
   return (
     <div
+      {...clickable(() => onSelect(n))}
       className="bg-card rounded-xl p-4 shadow-sm border border-border cursor-pointer"
-      onClick={() => onSelect(n)}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
