@@ -4,7 +4,6 @@
  * edc 고유: 커넥터 종속 네비(플릿 → 커넥터 선택 → OPS/PROVIDE/TRANSACTION) 기능 유지.
  */
 import { cn } from "@/lib/utils";
-import { fmtNum } from "@/lib/format";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -40,14 +39,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
-import { useSidebarCounts, type SidebarCounts } from "@/hooks/useSidebarCounts";
 import ConnectorSelectorCard from "./ConnectorSelectorCard";
 
 interface NavItem {
   path: string;
   label: string;
   Icon: React.ElementType;
-  count?: number;
 }
 
 interface NavGroup {
@@ -75,7 +72,6 @@ const C = {
 function useNavGroups(): { build: () => NavGroup[] } {
   const { t } = useI18n();
   const connector = useConnectorStore(s => s.connector);
-  const counts = useSidebarCounts(connector?.id ?? null);
 
   const fleetGroup: NavGroup = {
     key: "fleet",
@@ -109,7 +105,7 @@ function useNavGroups(): { build: () => NavGroup[] } {
     ],
   };
 
-  const connectorGroups = (id: string, c?: SidebarCounts): NavGroup[] => [
+  const connectorGroups = (id: string): NavGroup[] => [
     {
       key: "ops",
       label: t.nav.groupOps,
@@ -131,19 +127,16 @@ function useNavGroups(): { build: () => NavGroup[] } {
           path: `/connectors/${id}/assets`,
           label: t.nav.assets,
           Icon: Package,
-          count: c?.assets,
         },
         {
           path: `/connectors/${id}/policy`,
           label: t.nav.policies,
           Icon: ShieldCheck,
-          count: c?.policies,
         },
         {
           path: `/connectors/${id}/contract`,
           label: t.nav.offerings,
           Icon: FileSignature,
-          count: c?.offerings,
         },
       ],
     },
@@ -161,19 +154,16 @@ function useNavGroups(): { build: () => NavGroup[] } {
           path: `/connectors/${id}/negotiation`,
           label: t.nav.negotiations,
           Icon: FileText,
-          count: c?.negotiations,
         },
         {
           path: `/connectors/${id}/transfer`,
           label: t.nav.transfers,
           Icon: Send,
-          count: c?.transfers,
         },
         {
           path: `/connectors/${id}/edr`,
           label: t.nav.edr,
           Icon: Key,
-          count: c?.edrs,
         },
       ],
     },
@@ -183,7 +173,7 @@ function useNavGroups(): { build: () => NavGroup[] } {
     connector
       ? [
           fleetGroup,
-          ...connectorGroups(connector.id, counts),
+          ...connectorGroups(connector.id),
           digitalTwinGroup,
           systemGroup,
         ]
@@ -368,7 +358,6 @@ export default function AppSidebar({
                       href={it.path}
                       icon={it.Icon}
                       label={it.label}
-                      count={it.count}
                       active={isActive(it.path)}
                       collapsed={collapsed}
                       onNavigate={onNavigate}
@@ -418,13 +407,12 @@ export default function AppSidebar({
 
 /* ─── Sidebar Link (nav item / action) ────────────────────────────
  * href 가 있으면 라우팅 링크, 없으면 onClick 액션(알림 패널·로그아웃).
- * count: 자원 개수(앰버), badge: 안읽음 수(로즈). 셋 다 동일 마크업 → 자간/정렬 일치.
+ * badge: 안읽음 수(로즈). 동일 마크업 → 자간/정렬 일치.
  */
 function SidebarLink({
   href,
   icon: Icon,
   label,
-  count,
   badge,
   active = false,
   collapsed = false,
@@ -434,7 +422,6 @@ function SidebarLink({
   href?: string;
   icon: React.ElementType;
   label: string;
-  count?: number;
   badge?: number;
   active?: boolean;
   collapsed?: boolean;
@@ -495,26 +482,10 @@ function SidebarLink({
           />
         )}
       </span>
-      {/* 접힘(lg+)에선 라벨·count·badge·active chevron 모두 숨김 */}
+      {/* 접힘(lg+)에선 라벨·badge·active chevron 모두 숨김 */}
       <span className={cn("flex-1 truncate", collapsed && "lg:hidden")}>
         {label}
       </span>
-      {!collapsed && count !== undefined && (
-        <span
-          className="text-[11px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
-          style={
-            active
-              ? { background: "oklch(1 0 0 / 0.15)", color: "white" }
-              : {
-                  background: "oklch(0.75 0.18 75 / 0.15)",
-                  color: "oklch(0.85 0.12 75)",
-                  border: "1px solid oklch(0.75 0.18 75 / 0.3)",
-                }
-          }
-        >
-          {fmtNum(count)}
-        </span>
-      )}
       {!collapsed && badge !== undefined && badge > 0 && (
         <span
           className="inline-flex items-center justify-center min-w-[18px] h-[16px] px-1 rounded-full text-[10px] font-bold flex-shrink-0"
