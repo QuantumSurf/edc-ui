@@ -19,6 +19,7 @@ export default tseslint.config(
       "dev-mock/**",
       "**/*.cjs",
       "vite.config.ts",
+      "perf/**", // k6 부하 테스트(goja 런타임, k6/* 모듈) — 앱 코드 아님
       "test_bff.js", // 루트 ad-hoc 수동 테스트 스크립트(CJS) — 앱 코드 아님
     ],
   },

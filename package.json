@@ -17,7 +17,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "perf": "k6 run perf/load-test.js",
+    "perf:smoke": "k6 run -e SMOKE=1 perf/load-test.js"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
