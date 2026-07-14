@@ -166,7 +166,14 @@ export default function Topbar() {
                   locale === loc && "text-primary font-semibold"
                 )}
               >
-                <span aria-hidden="true">{LOCALES[loc].flag}</span>
+                {/* 선택 표시: 현재 언어만 파란 점, 나머지는 투명 자리로 정렬 유지 */}
+                <span
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                    locale === loc ? "bg-primary" : "bg-transparent"
+                  )}
+                  aria-hidden="true"
+                />
                 {LOCALES[loc].label}
               </DropdownMenuItem>
             ))}
