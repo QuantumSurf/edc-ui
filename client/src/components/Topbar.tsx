@@ -1,11 +1,13 @@
 /**
  * Topbar — pcf-exchange-ui 셸과 동일한 메인 타이틀 바.
  * 좌측 메뉴 토글 + 브레드크럼(앱명 + 현재 페이지),
- * 우측 검색 · 버전 · 테마 토글 · 언어(KO/EN) · 알림 벨 · 사용자/역할.
+ * 우측 검색 · 버전 · 테마 토글 · 언어(드롭다운) · 알림 벨 · 사용자/역할.
  */
 import { useLocation } from "wouter";
 import {
   ChevronRight,
+  ChevronDown,
+  Globe,
   Bell,
   Sun,
   Moon,
@@ -16,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useI18n, type Translations } from "@/i18n";
+import { useI18n, LOCALES, type Translations, type Locale } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { useAuth } from "@/contexts/AuthContext";
@@ -140,40 +142,38 @@ export default function Topbar() {
           )}
         </button>
 
-        {/* 언어 KO / EN */}
-        <div
-          className="flex items-center gap-0.5 text-[12px] font-medium"
-          role="group"
-          aria-label={locale === "ko" ? "언어 선택" : "Language"}
-        >
-          <button
-            onClick={() => setLocale("ko")}
-            aria-pressed={locale === "ko"}
-            className={cn(
-              "px-1.5 py-1 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-              locale === "ko"
-                ? "text-primary font-semibold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-            )}
-          >
-            KO
-          </button>
-          <span className="text-muted-foreground/40" aria-hidden="true">
-            /
-          </span>
-          <button
-            onClick={() => setLocale("en")}
-            aria-pressed={locale === "en"}
-            className={cn(
-              "px-1.5 py-1 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-              locale === "en"
-                ? "text-primary font-semibold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-            )}
-          >
-            EN
-          </button>
-        </div>
+        {/* 언어 선택 드롭다운 */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label={locale === "ko" ? "언어 선택" : "Language"}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>{LOCALES[locale].label}</span>
+              <ChevronDown className="w-3 h-3 opacity-60" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[9rem]">
+            <DropdownMenuLabel>
+              {locale === "ko" ? "언어" : "Language"}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {(Object.keys(LOCALES) as Locale[]).map(loc => (
+              <DropdownMenuItem
+                key={loc}
+                onClick={() => setLocale(loc)}
+                className={cn(
+                  "gap-2 cursor-pointer",
+                  locale === loc && "text-primary font-semibold"
+                )}
+              >
+                <span aria-hidden="true">{LOCALES[loc].flag}</span>
+                {LOCALES[loc].label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Notification Bell */}
         <button
