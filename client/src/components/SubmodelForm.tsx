@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n";
 import { FormField, MonoText, Badge } from "@/components/ui-kmx";
 import { X, Copy, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { ShellEndpoint } from "@/lib/data";
+import { cn } from "@/lib/utils";
 import {
   SEMANTIC_TEMPLATES,
   recognizeSemanticId,
@@ -257,6 +258,8 @@ export function SubmodelFormFields({
   index,
   showHeader = true,
   showDescription = true,
+  duplicateIdShort = false,
+  duplicateId = false,
 }: {
   submodel: SubmodelInput;
   onChange: (next: SubmodelInput) => void;
@@ -264,6 +267,9 @@ export function SubmodelFormFields({
   index?: number;
   showHeader?: boolean;
   showDescription?: boolean;
+  /** 같은 셸 내 형제 서브모델과 idShort/id 가 중복될 때(부모가 계산해 전달). */
+  duplicateIdShort?: boolean;
+  duplicateId?: boolean;
 }) {
   const { t } = useI18n();
   const s = submodel;
@@ -323,6 +329,9 @@ export function SubmodelFormFields({
         {s.idShort && !isValidIdShort(s.idShort) && (
           <DescriptorWarn text={t.twins.form.idShortWarn} />
         )}
+        {duplicateIdShort && (
+          <DescriptorWarn text={t.twins.form.duplicateSibling} />
+        )}
       </div>
       <div>
         <input
@@ -337,6 +346,7 @@ export function SubmodelFormFields({
         {s.id && !isLikelyIri(s.id) && (
           <DescriptorWarn text={t.twins.form.iriWarn} />
         )}
+        {duplicateId && <DescriptorWarn text={t.twins.form.duplicateSibling} />}
       </div>
       <div>
         <input
@@ -356,17 +366,34 @@ export function SubmodelFormFields({
           ))}
         </datalist>
         {recognized ? (
-          <div className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">
-              {t.twins.form.templateRecognized}: {recognized.name}
-              <span className="text-muted-foreground">
-                {" "}
-                ({recognized.source}
-                {recognized.ref ? ` · ${recognized.ref}` : ""})
+          <>
+            <div
+              className={cn(
+                "mt-0.5 flex items-center gap-1 text-[10px]",
+                // 정본 매칭=초록, 계열만 일치(버전/경로 드리프트)=황색 주의
+                recognized.caution
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-emerald-600 dark:text-emerald-400"
+              )}
+            >
+              {recognized.caution ? (
+                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+              )}
+              <span className="truncate">
+                {t.twins.form.templateRecognized}: {recognized.name}
+                <span className="text-muted-foreground">
+                  {" "}
+                  ({recognized.source}
+                  {recognized.ref ? ` · ${recognized.ref}` : ""})
+                </span>
               </span>
-            </span>
-          </div>
+            </div>
+            {recognized.caution && (
+              <DescriptorWarn text={t.twins.form.templateCaution} />
+            )}
+          </>
         ) : s.semanticId && !isLikelyGlobalReference(s.semanticId) ? (
           <DescriptorWarn text={t.twins.form.semanticIdWarn} />
         ) : (

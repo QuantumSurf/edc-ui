@@ -10,7 +10,9 @@
 //  - IDTA 범용 템플릿: admin-shell.io (검증된 3종). 미검증 템플릿은 카탈로그에서 빼되
 //    recognize() 의 일반 패턴 매칭으로 표시만 커버한다.
 
-export type TemplateSource = "IDTA" | "Catena-X";
+import { isLikelyIrdi } from "./descriptorValidation";
+
+export type TemplateSource = "IDTA" | "Catena-X" | "IRDI";
 
 export interface SemanticTemplate {
   /** 정확한 semanticId(IRI). 데이터리스트 추천값으로 사용. */
@@ -127,6 +129,12 @@ export interface RecognizedTemplate {
   source: TemplateSource;
   /** 카탈로그 정확 매칭이면 true(추가로 ref 제공). 패턴 매칭이면 false. */
   exact: boolean;
+  /**
+   * 알려진 표준 계열이지만 카탈로그 정본(최신)과 다를 때 true — 버전 드리프트/비정본 경고용.
+   * (세미나 정량항목8 '최신 버전 사용' · 정성항목8 'IDTA Semantic Id 무변경')
+   * IRDI 같이 '출처만 식별'하는 경우는 경고가 아니므로 false.
+   */
+  caution: boolean;
   ref?: string;
 }
 
@@ -141,10 +149,13 @@ function humanize(seg: string): string {
 
 /**
  * semanticId 를 알려진 표준 템플릿으로 인식한다.
- *  1) 카탈로그 정확 매칭 → exact=true
- *  2) `urn:samm:io.catenax.<ns>:<ver>#<Aspect>` → Catena-X aspect(버전 무관)
- *  3) `https://admin-shell.io/...` → IDTA/AAS(경로에서 이름 유도)
- *  4) 그 외 → null
+ *  1) 카탈로그 정확 매칭 → exact=true, caution=false (정본)
+ *  2) `urn:samm:io.catenax.<ns>:<ver>#<Aspect>` → Catena-X aspect(버전 무관), caution=true
+ *  3) `https://admin-shell.io/...` → IDTA/AAS(경로에서 이름 유도), caution=true
+ *  4) IRDI(eCl@ss 0173-1#… / IEC CDD) → 출처만 식별, caution=false
+ *     ※ IRDI→실명(preferredName) 해석은 관리형 사전(ECLASS/CDD 라이선스) 영역이라 범위 밖.
+ *  5) 그 외 → null
+ * caution=true 는 '알려진 계열이지만 카탈로그 정본과 다름(버전/경로 확인 필요)'을 뜻한다.
  */
 export function recognizeSemanticId(
   value: string | null | undefined
@@ -158,6 +169,7 @@ export function recognizeSemanticId(
       name: exact.name,
       source: exact.source,
       exact: true,
+      caution: false,
       ref: exact.ref,
     };
 
@@ -169,6 +181,7 @@ export function recognizeSemanticId(
       name: humanize(aspect),
       source: "Catena-X",
       exact: false,
+      caution: true,
       ref: `io.catenax.${cx[1]}`,
     };
   }
@@ -182,7 +195,25 @@ export function recognizeSemanticId(
       p => !/^\d+$/.test(p) && !skip.has(p.toLowerCase())
     );
     const seg = meaningful[meaningful.length - 1] ?? parts[0];
-    return { name: humanize(seg), source: "IDTA", exact: false };
+    return {
+      name: humanize(seg),
+      source: "IDTA",
+      exact: false,
+      caution: true,
+    };
+  }
+
+  // IRDI(국제 관리형 사전) — ICD 로 사전만 구분해 출처 라벨 부여(외부 조회 없음).
+  if (isLikelyIrdi(v)) {
+    const icd = v.slice(0, 4);
+    const dict = icd === "0173" ? "ECLASS" : "IEC CDD";
+    return {
+      name: `${dict} (IRDI)`,
+      source: "IRDI",
+      exact: false,
+      caution: false,
+      ref: icd,
+    };
   }
 
   return null;

@@ -148,6 +148,11 @@ export interface SubmodelDescriptor {
   id: string;
   idShort: string;
   semanticId: string;
+  /** HasSemantics 보조 의미(표준 템플릿 확장). 없으면 빈 배열. */
+  supplementalSemanticIds: string[];
+  /** AdministrativeInformation — 표준 템플릿 버전/리비전(없으면 ""). */
+  version: string;
+  revision: string;
   endpointCount: number;
   endpoints: ShellEndpoint[];
 }
@@ -163,6 +168,9 @@ export interface ShellDescriptor {
   globalAssetId: string;
   /** AAS 표준 assetKind: "Instance" | "Type" | "NotApplicable" (없으면 ""). */
   assetKind: string;
+  /** AdministrativeInformation(없으면 ""). */
+  version: string;
+  revision: string;
   description: string;
   descriptions: ShellDescription[];
   specificAssetIds: SpecificAssetId[];

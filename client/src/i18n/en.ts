@@ -1181,9 +1181,22 @@ const en: Translations = {
       semanticIdWarn: "semanticId should be an IRI or IRDI",
       assetKind: "Asset kind",
       assetKindHint: "AAS standard assetKind — Type / Instance",
+      templateCaution:
+        "Known standard family but differs from the catalog reference (latest) — verify version",
+      duplicateAasId: "This AAS ID is already registered",
+      duplicateSibling: "Duplicates another submodel in this shell",
+      supplementalSemanticIds: "Supplemental semanticId",
       submit: "Create",
       update: "Update",
       cancel: "Cancel",
+    },
+    filter: {
+      assetKind: "Asset kind",
+      allKinds: "All kinds",
+      template: "Standard template",
+      allTemplates: "All templates",
+      unrecognized: "Unrecognized semanticId",
+      noSemanticId: "No semanticId",
     },
     msg: {
       deleted: (name: string) => `${name} deleted`,

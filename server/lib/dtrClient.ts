@@ -120,6 +120,11 @@ export interface SubmodelDescriptorLite {
   id: string;
   idShort: string;
   semanticId: string;
+  // HasSemantics 보조 의미(표준 템플릿에 의미를 덧붙인 확장) — 없으면 빈 배열.
+  supplementalSemanticIds: string[];
+  // AdministrativeInformation — 표준 서브모델 템플릿의 버전/리비전 체계(없으면 "").
+  version: string;
+  revision: string;
   endpointCount: number;
   endpoints: EndpointLite[];
 }
@@ -135,6 +140,9 @@ export interface ShellDescriptorLite {
   globalAssetId: string;
   // AAS 표준 assetKind: "Instance" | "Type" | "NotApplicable" (없으면 "").
   assetKind: string;
+  // AdministrativeInformation(없으면 "").
+  version: string;
+  revision: string;
   description: string;
   descriptions: ShellDescriptionLite[];
   specificAssetIds: SpecificAssetIdLite[];
@@ -197,13 +205,43 @@ export function mapSubmodelDescriptor(
   const endpoints = Array.isArray(endpointsRaw)
     ? endpointsRaw.map(mapEndpoint)
     : [];
+  const admin = mapAdministration(raw.administration);
   return {
     id: (raw.id as string) ?? "",
     idShort: (raw.idShort as string) ?? "",
     semanticId,
+    supplementalSemanticIds: mapSupplementalSemanticIds(
+      raw.supplementalSemanticIds
+    ),
+    version: admin.version,
+    revision: admin.revision,
     endpointCount: endpoints.length,
     endpoints,
   };
+}
+
+/** AdministrativeInformation 에서 version/revision 만 얕게 추출(없으면 ""). */
+function mapAdministration(rawAdmin: unknown): {
+  version: string;
+  revision: string;
+} {
+  const a = (rawAdmin as Record<string, unknown> | undefined) ?? {};
+  return {
+    version: (a.version as string) ?? "",
+    revision: (a.revision as string) ?? "",
+  };
+}
+
+/** supplementalSemanticIds(Reference[]) 에서 각 keys[0].value 만 추출. */
+function mapSupplementalSemanticIds(rawSupp: unknown): string[] {
+  const arr = (rawSupp as Array<Record<string, unknown>> | undefined) ?? [];
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map(ref => {
+      const keys = (ref?.keys as Array<Record<string, unknown>>) ?? [];
+      return keys.length > 0 ? ((keys[0].value as string) ?? "") : "";
+    })
+    .filter(Boolean);
 }
 
 export function mapShellDescriptor(
@@ -217,6 +255,8 @@ export function mapShellDescriptor(
     idShort: (raw.idShort as string) ?? "",
     globalAssetId: (raw.globalAssetId as string) ?? "",
     assetKind: (raw.assetKind as string) ?? "",
+    version: mapAdministration(raw.administration).version,
+    revision: mapAdministration(raw.administration).revision,
     description: descriptions[0]?.text ?? "",
     descriptions,
     specificAssetIds: mapSpecificAssetIds(raw.specificAssetIds),

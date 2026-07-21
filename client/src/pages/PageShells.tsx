@@ -12,7 +12,12 @@ import {
   fetchShellRaw,
 } from "@/services";
 import type { ShellDescriptor, SpecificAssetId } from "@/lib/data";
-import { recognizeSemanticId } from "@/lib/semanticTemplates";
+import {
+  recognizeSemanticId,
+  SEMANTIC_TEMPLATES,
+} from "@/lib/semanticTemplates";
+import { findDuplicates } from "@/lib/descriptorValidation";
+import { AlertCircle } from "lucide-react";
 import {
   Card,
   Badge,
@@ -75,15 +80,33 @@ import {
 } from "@/components/SubmodelForm";
 import { toast } from "sonner";
 
-/** semanticId 가 알려진 표준 템플릿이면 사람이 읽는 이름 배지로 표시(Self-Descriptive). */
+/** semanticId 가 알려진 표준 템플릿이면 사람이 읽는 이름 배지로 표시(Self-Descriptive).
+ *  정본 매칭이 아니면(caution) 앰버로 구분해 버전/비정본 드리프트를 눈에 띄게 한다. */
 function TemplateBadge({ semanticId }: { semanticId: string }) {
   const rec = recognizeSemanticId(semanticId);
   if (!rec) return null;
+  const variant = rec.caution
+    ? "amber"
+    : rec.source === "Catena-X"
+      ? "purple"
+      : rec.source === "IRDI"
+        ? "gray"
+        : "blue";
   return (
-    <Badge variant={rec.source === "Catena-X" ? "purple" : "blue"}>
+    <Badge variant={variant}>
       {rec.name}
       {rec.ref ? ` · ${rec.ref}` : ""}
     </Badge>
+  );
+}
+
+/** 비차단 형식/중복 경고 한 줄(황색). */
+function FieldWarn({ text }: { text: string }) {
+  return (
+    <div className="mt-0.5 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+      <span>{text}</span>
+    </div>
   );
 }
 
@@ -101,6 +124,9 @@ export default function PageShells() {
   const [jsonView, setJsonView] = useState<ShellDescriptor | null>(null);
   const [exposeTarget, setExposeTarget] = useState<ExposeTarget | null>(null);
   const [exposeDtrOpen, setExposeDtrOpen] = useState(false);
+  // 레지스트리 facet — assetKind(Type/Instance) 와 표준 템플릿(semanticId) 기준 탐색.
+  const [kindFilter, setKindFilter] = useState("");
+  const [templateFilter, setTemplateFilter] = useState("");
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["shells"],
@@ -114,13 +140,40 @@ export default function PageShells() {
   const shells = data?.items ?? [];
 
   const filtered = shells.filter(s => {
+    // 텍스트 검색 — 셸 식별자에 더해 서브모델 semanticId 까지(의미 기반 탐색).
     const q = search.toLowerCase();
-    if (!q) return true;
-    return (
-      s.id.toLowerCase().includes(q) ||
-      s.idShort.toLowerCase().includes(q) ||
-      s.globalAssetId.toLowerCase().includes(q)
-    );
+    if (q) {
+      const hit =
+        s.id.toLowerCase().includes(q) ||
+        s.idShort.toLowerCase().includes(q) ||
+        s.globalAssetId.toLowerCase().includes(q) ||
+        s.submodelDescriptors.some(sub =>
+          (sub.semanticId ?? "").toLowerCase().includes(q)
+        );
+      if (!hit) return false;
+    }
+    // assetKind facet — Type(형식) ↔ Instance(개체) 구분 탐색.
+    if (kindFilter && s.assetKind !== kindFilter) return false;
+    // 표준 템플릿 facet — 이 셸이 해당 의미의 서브모델을 가졌는지.
+    if (templateFilter) {
+      const sems = s.submodelDescriptors.map(sub => sub.semanticId ?? "");
+      if (templateFilter === "__none__") {
+        if (!sems.some(v => !v)) return false;
+      } else if (templateFilter === "__unknown__") {
+        if (!sems.some(v => !!v && !recognizeSemanticId(v))) return false;
+      } else {
+        // 정본 정확일치 또는 같은 계열(ref 동일 — 버전 달라도 포함)
+        const target = recognizeSemanticId(templateFilter);
+        const match = sems.some(v => {
+          if (!v) return false;
+          if (v === templateFilter) return true;
+          const r = recognizeSemanticId(v);
+          return !!r?.ref && !!target?.ref && r.ref === target.ref;
+        });
+        if (!match) return false;
+      }
+    }
+    return true;
   });
 
   const {
@@ -190,6 +243,40 @@ export default function PageShells() {
             className={`${inputBase} pl-8 !bg-background`}
           />
         </div>
+        {/* facet — Type/Instance 구분 탐색(1 Type → N Instance 온보딩 모델) */}
+        <select
+          value={kindFilter}
+          onChange={e => {
+            setKindFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+          aria-label={t.twins.filter.assetKind}
+          className={`${inputBase} !bg-background w-auto min-w-[130px]`}
+        >
+          <option value="">{t.twins.filter.allKinds}</option>
+          <option value="Type">Type</option>
+          <option value="Instance">Instance</option>
+          <option value="NotApplicable">NotApplicable</option>
+        </select>
+        {/* facet — 표준 템플릿(semanticId) 기준 의미 탐색 */}
+        <select
+          value={templateFilter}
+          onChange={e => {
+            setTemplateFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+          aria-label={t.twins.filter.template}
+          className={`${inputBase} !bg-background w-auto min-w-[190px]`}
+        >
+          <option value="">{t.twins.filter.allTemplates}</option>
+          {SEMANTIC_TEMPLATES.map(tpl => (
+            <option key={tpl.semanticId} value={tpl.semanticId}>
+              {tpl.name}
+            </option>
+          ))}
+          <option value="__unknown__">{t.twins.filter.unrecognized}</option>
+          <option value="__none__">{t.twins.filter.noSemanticId}</option>
+        </select>
       </div>
 
       {/* Loading */}
@@ -354,6 +441,7 @@ export default function PageShells() {
         open={editorOpen}
         mode={editorMode}
         initialAasId={editorAasId}
+        existingAasIds={shells.map(s => s.id)}
         onClose={() => setEditorOpen(false)}
         onSaved={() => {
           setEditorOpen(false);
@@ -438,6 +526,12 @@ function ShellDetailDialog({
                 value={shell.assetKind}
               />
             )}
+            {shell.version && (
+              <InfoCard
+                label="Version"
+                value={`${shell.version}${shell.revision ? `.${shell.revision}` : ""}`}
+              />
+            )}
           </div>
         </DetailSection>
 
@@ -498,9 +592,24 @@ function ShellDetailDialog({
                           semanticId: {sub.semanticId}
                         </MonoText>
                       )}
-                      {sub.semanticId && (
-                        <div className="mt-1">
-                          <TemplateBadge semanticId={sub.semanticId} />
+                      {(sub.semanticId ||
+                        (sub.supplementalSemanticIds ?? []).length > 0 ||
+                        sub.version) && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {sub.semanticId && (
+                            <TemplateBadge semanticId={sub.semanticId} />
+                          )}
+                          {/* 보조 semanticId — 표준 템플릿에 의미를 덧붙인 확장 */}
+                          {(sub.supplementalSemanticIds ?? []).map(sid => (
+                            <TemplateBadge key={sid} semanticId={sid} />
+                          ))}
+                          {/* AdministrativeInformation — 템플릿 버전/리비전 */}
+                          {sub.version && (
+                            <span className="text-[10px] text-muted-foreground">
+                              v{sub.version}
+                              {sub.revision ? `.${sub.revision}` : ""}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -661,12 +770,15 @@ function ShellEditorDialog({
   initialAasId,
   onClose,
   onSaved,
+  existingAasIds = [],
 }: {
   open: boolean;
   mode: "create" | "edit";
   initialAasId?: string;
   onClose: () => void;
   onSaved: () => void;
+  /** 이미 등록된 AAS ID 목록 — 생성 시 중복 사전경고용(비차단). */
+  existingAasIds?: string[];
 }) {
   const { t } = useI18n();
   const [idShort, setIdShort] = useState("");
@@ -687,6 +799,11 @@ function ShellEditorDialog({
   const [descriptionRaw, setDescriptionRaw] = useState<
     Array<{ language?: string; text?: string }>
   >([]);
+
+  // 형제 서브모델 간 idShort/id 중복 검출(비차단 경고). AAS 는 동일 레벨 idShort 중복을
+  // 금지하고 descriptor id 는 고유해야 하므로, 저장 전에 눈에 띄게 알린다.
+  const dupIdShorts = findDuplicates(subs.map(s => s.idShort));
+  const dupIds = findDuplicates(subs.map(s => s.id));
 
   const reset = () => {
     setIdShort("");
@@ -858,6 +975,12 @@ function ShellEditorDialog({
                 className={cn(inputBase, "mono", mode === "edit" && "pl-8")}
               />
             </div>
+            {/* 고유성 사전경고 — 이미 등록된 AAS ID 면 저장 전에 알린다(비차단) */}
+            {mode === "create" &&
+              !!aasId.trim() &&
+              existingAasIds.includes(aasId.trim()) && (
+                <FieldWarn text={t.twins.form.duplicateAasId} />
+              )}
           </FormField>
           <FormField label={t.twins.form.globalAssetId}>
             <input
@@ -969,6 +1092,10 @@ function ShellEditorDialog({
                   submodel={s}
                   index={si}
                   showDescription={false}
+                  duplicateIdShort={
+                    !!s.idShort.trim() && dupIdShorts.has(s.idShort.trim())
+                  }
+                  duplicateId={!!s.id.trim() && dupIds.has(s.id.trim())}
                   onChange={next => {
                     const n = [...subs];
                     n[si] = next;

@@ -32,3 +32,20 @@ export function isValidIdShort(v: string): boolean {
 export function isLikelyGlobalReference(v: string): boolean {
   return isLikelyIri(v) || isLikelyIrdi(v);
 }
+
+/**
+ * 같은 레벨에서 2회 이상 등장한 값들을 반환한다(형제 서브모델 idShort/id 중복 검출).
+ * AAS 표준상 동일 레벨 idShort 중복은 금지, descriptor id 는 전역 고유해야 한다.
+ * 빈 값은 '아직 미입력'이므로 중복 판정에서 제외한다.
+ */
+export function findDuplicates(values: Array<string | undefined>): Set<string> {
+  const seen = new Set<string>();
+  const dup = new Set<string>();
+  for (const raw of values) {
+    const v = (raw ?? "").trim();
+    if (!v) continue;
+    if (seen.has(v)) dup.add(v);
+    else seen.add(v);
+  }
+  return dup;
+}

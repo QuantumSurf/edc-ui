@@ -1190,9 +1190,22 @@ const ko = {
       semanticIdWarn: "semanticId는 IRI 또는 IRDI 형식을 권장합니다",
       assetKind: "Asset 종류",
       assetKindHint: "AAS 표준 assetKind — Type(형식)/Instance(개체)",
+      templateCaution:
+        "알려진 표준 계열이지만 카탈로그 정본(최신)과 다릅니다 — 버전·정본을 확인하세요",
+      duplicateAasId: "이미 등록된 AAS ID 입니다",
+      duplicateSibling: "같은 셸 안의 다른 서브모델과 중복됩니다",
+      supplementalSemanticIds: "보조 semanticId",
       submit: "등록",
       update: "수정",
       cancel: "취소",
+    },
+    filter: {
+      assetKind: "Asset 종류",
+      allKinds: "종류 전체",
+      template: "표준 템플릿",
+      allTemplates: "템플릿 전체",
+      unrecognized: "미인식 semanticId",
+      noSemanticId: "semanticId 없음",
     },
     msg: {
       deleted: (name: string) => `${name} 삭제됨`,

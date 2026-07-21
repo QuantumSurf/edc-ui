@@ -11,31 +11,43 @@ import {
 } from "@/lib/descriptorValidation";
 
 describe("recognizeSemanticId", () => {
-  it("카탈로그 정확 매칭 → exact=true + ref", () => {
+  it("카탈로그 정확 매칭 → exact=true + caution=false + ref", () => {
     const r = recognizeSemanticId(
       "https://admin-shell.io/idta/nameplate/3/0/Nameplate"
     );
     expect(r?.name).toBe("Digital Nameplate");
     expect(r?.source).toBe("IDTA");
     expect(r?.exact).toBe(true);
+    expect(r?.caution).toBe(false);
     expect(r?.ref).toBe("IDTA 02006-3-0");
   });
 
-  it("Catena-X aspect 패턴(버전 무관) 인식", () => {
-    // 카탈로그엔 9.0.0 만 있지만 7.0.0 도 패턴으로 인식돼야 한다
+  it("Catena-X 구버전은 인식되지만 정본과 달라 caution=true", () => {
+    // 카탈로그엔 9.0.0 만 있으므로 7.0.0 은 계열 인식 + 버전 확인 경고
     const r = recognizeSemanticId("urn:samm:io.catenax.pcf:7.0.0#Pcf");
     expect(r?.source).toBe("Catena-X");
     expect(r?.name).toBe("Pcf");
     expect(r?.exact).toBe(false);
+    expect(r?.caution).toBe(true);
     expect(r?.ref).toBe("io.catenax.pcf");
   });
 
-  it("admin-shell.io 미수록 템플릿도 경로에서 이름 유도", () => {
+  it("admin-shell.io 미수록 템플릿도 경로에서 이름 유도(caution=true)", () => {
     const r = recognizeSemanticId(
       "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/Submodel"
     );
     expect(r?.source).toBe("IDTA");
     expect(r?.name).toBe("AssetInterfacesDescription");
+    expect(r?.caution).toBe(true);
+  });
+
+  it("IRDI 는 출처(ECLASS/IEC CDD)만 식별하고 경고 아님", () => {
+    const ec = recognizeSemanticId("0173-1#02-AAC879#008");
+    expect(ec?.source).toBe("IRDI");
+    expect(ec?.name).toBe("ECLASS (IRDI)");
+    expect(ec?.caution).toBe(false);
+    const cdd = recognizeSemanticId("0112-1#02-ABC123#001");
+    expect(cdd?.name).toBe("IEC CDD (IRDI)");
   });
 
   it("표준 아닌 값·빈값은 null", () => {
