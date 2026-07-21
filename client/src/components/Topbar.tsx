@@ -148,7 +148,8 @@ export default function Topbar() {
               className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               aria-label={locale === "ko" ? "언어 선택" : "Language"}
             >
-              <span>Languages</span>
+              {/* 트리거는 현재 선택된 언어명으로 표시(ko→한국어, en→English) */}
+              <span>{LOCALES[locale].label}</span>
               <ChevronDown className="w-3 h-3 opacity-60" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
