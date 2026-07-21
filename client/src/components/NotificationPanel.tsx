@@ -2,7 +2,7 @@
 // 디자인: aas-service-hub AlertPanel 과 동일 — 다크 슬라이드오버 + 심각도 필터칩 + 카드형.
 // 동작: 읽음/미읽음 모두 표시(읽음=흐림, 네이버 알림창 스타일), 카드 클릭=확인(읽음, DB 기록 보존),
 // 우상단 X=목록에서 제거(프론트 전용 — dismissed localStorage, 백엔드 기록은 삭제하지 않음).
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -22,6 +22,8 @@ import {
   CheckCircle2,
   X,
   CheckCheck,
+  ChevronDown,
+  ChevronUp,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -54,15 +56,155 @@ const SEVERITY: Record<
   },
 };
 
-/* ─── 시각 표기 ──────────────────────────────────────────────── */
-// 알림 시각도 다른 시각 표기와 동일하게 "YYYY-MM-DD HH:mm:ss"(KST)로 표시(감사로그만 ISO).
-function useTimeAgo() {
-  return fmtDateTime;
+/* ─── 개별 알림 카드 ──────────────────────────────────────────────
+ * 긴 알림은 제목 truncate·본문 line-clamp-2 로 접혀 표시된다. 실제로 잘렸을 때만
+ * 우상단에 펼치기(아래 화살표) 버튼을 노출해, 눌러서 전체 내용을 펼쳐볼 수 있게 한다.
+ * 시각 표기는 다른 화면과 동일하게 "YYYY-MM-DD HH:mm:ss"(KST). */
+function NotificationCard({
+  n,
+  onClick,
+  onDismiss,
+}: {
+  n: NotificationItem;
+  onClick: (n: NotificationItem) => void;
+  onDismiss: (id: string) => void;
+}) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const titleRef = useRef<HTMLParagraphElement>(null);
+  const msgRef = useRef<HTMLParagraphElement>(null);
+
+  // i18n: msgKey+params 가 있으면 사용자 언어로 번역, 없으면 저장된 title/message 폴백.
+  const tplMap = t.notifications.messages as Record<
+    string,
+    | {
+        title: (p: Record<string, unknown>) => string;
+        message: (p: Record<string, unknown>) => string;
+      }
+    | undefined
+  >;
+  const tpl = n.msgKey ? tplMap[n.msgKey] : undefined;
+  const title = tpl ? tpl.title(n.params ?? {}) : n.title;
+  const message = tpl ? tpl.message(n.params ?? {}) : n.message;
+  const typeLabel = (f: NotificationType): string =>
+    t.notifications.filterLabels[f] ?? f;
+  const { Icon, color } = SEVERITY[n.type as NotificationType] ?? SEVERITY.info;
+
+  // 접힘 상태에서 제목(가로)·본문(세로)이 실제로 잘렸는지 측정 → 펼치기 버튼 노출 여부.
+  useEffect(() => {
+    if (expanded) return; // 펼침 중엔 측정 불필요(버튼은 계속 노출해 접기 허용)
+    const tEl = titleRef.current;
+    const mEl = msgRef.current;
+    const titleCut = !!tEl && tEl.scrollWidth > tEl.clientWidth + 1;
+    const msgCut = !!mEl && mEl.scrollHeight > mEl.clientHeight + 1;
+    setOverflowing(titleCut || msgCut);
+  }, [title, message, expanded]);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick(n)}
+      onKeyDown={e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick(n);
+        }
+      }}
+      aria-label={`${title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
+      title={t.notifications.clickToDismiss}
+      className={cn(
+        // 네이버 알림창처럼 간격 있는 개별 카드(shadow) — 클릭=확인(읽음)→흐려짐,
+        // 우상단 X=목록에서 제거(프론트만, 백엔드 기록 보존).
+        "relative w-full text-left p-3 rounded-lg border border-border bg-card shadow-sm transition-all duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+        // 우상단 버튼 자리 확보 — 잘려서 펼치기+X 2개면 여유 있게(pr-12), 아니면 X만(pr-8).
+        overflowing ? "pr-12" : "pr-8",
+        !n.read
+          ? "border-l-2 border-l-primary bg-primary/5 hover:bg-accent/30"
+          : "opacity-60 hover:opacity-100 hover:bg-accent/20"
+      )}
+    >
+      {/* 우상단 X — 프론트에서만 목록 제거(백엔드 기록은 삭제하지 않음) */}
+      <button
+        onClick={e => {
+          e.stopPropagation();
+          onDismiss(n.id);
+        }}
+        aria-label={t.notifications.removeFromList}
+        title={t.notifications.removeFromList}
+        className="absolute top-1.5 right-1.5 p-1 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+      {/* 우상단 펼치기(아래 화살표) — 내용이 잘렸을 때만 노출. 클릭 시 전체 내용 펼침(읽음처리와 분리) */}
+      {overflowing && (
+        <button
+          onClick={e => {
+            e.stopPropagation();
+            setExpanded(v => !v);
+          }}
+          aria-label={expanded ? t.common.collapse : t.common.expand}
+          aria-expanded={expanded}
+          title={expanded ? t.common.collapse : t.common.expand}
+          className="absolute top-1.5 right-7 p-1 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        >
+          {expanded ? (
+            <ChevronUp className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5" />
+          )}
+        </button>
+      )}
+      <div className="flex items-start gap-2.5">
+        <Icon className={cn("w-4 h-4 mt-0.5 flex-shrink-0", color)} />
+        <div className="flex-1 min-w-0">
+          <p
+            ref={titleRef}
+            className={cn(
+              "text-[12px] text-foreground",
+              expanded ? "break-words" : "truncate",
+              !n.read && "font-semibold"
+            )}
+          >
+            {title}
+          </p>
+          <p
+            ref={msgRef}
+            className={cn(
+              "text-[11px] text-muted-foreground mt-0.5",
+              expanded ? "whitespace-pre-wrap break-words" : "line-clamp-2"
+            )}
+          >
+            {message}
+          </p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span
+              className={cn(
+                "text-[11px] font-medium px-2 py-0.5 rounded-full border border-current/40",
+                color
+              )}
+            >
+              {typeLabel(n.type as NotificationType)}
+            </span>
+            <span className="text-[11px] font-medium text-foreground/80">
+              {t.notifications.sources[
+                n.source as keyof typeof t.notifications.sources
+              ] ?? n.source}
+            </span>
+            <span className="text-[11px] font-medium text-foreground/75 ml-auto whitespace-nowrap flex-shrink-0">
+              {fmtDateTime(n.timestamp)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ─── Panel ──────────────────────────────────────────────────── */
 export default function NotificationPanel() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [, navigate] = useLocation();
   const panelOpen = useNotificationStore(s => s.panelOpen);
   const setPanelOpen = useNotificationStore(s => s.setPanelOpen);
@@ -77,7 +219,6 @@ export default function NotificationPanel() {
     markAllRead,
     markRead,
   } = useNotifications();
-  const timeAgo = useTimeAgo();
 
   // 슬라이드오버 패널을 dialog 로: 초기 포커스/트랩/스크롤락/복원 제공(WCAG 2.4.3/4.1.2).
   const panelRef = useDialogA11y<HTMLDivElement>(panelOpen);
@@ -275,95 +416,14 @@ export default function NotificationPanel() {
               </div>
             ) : (
               <div className="space-y-3 pb-4 pr-2">
-                {filtered.map(n => {
-                  const { Icon, color } =
-                    SEVERITY[n.type as NotificationType] ?? SEVERITY.info;
-                  // i18n: msgKey+params 가 있으면 사용자 언어로 번역, 없으면 저장된 title/message 폴백.
-                  const tplMap = t.notifications.messages as Record<
-                    string,
-                    | {
-                        title: (p: Record<string, unknown>) => string;
-                        message: (p: Record<string, unknown>) => string;
-                      }
-                    | undefined
-                  >;
-                  const tpl = n.msgKey ? tplMap[n.msgKey] : undefined;
-                  const title = tpl ? tpl.title(n.params ?? {}) : n.title;
-                  const message = tpl ? tpl.message(n.params ?? {}) : n.message;
-                  return (
-                    <div
-                      key={n.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => handleClick(n)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleClick(n);
-                        }
-                      }}
-                      aria-label={`${title}${!n.read ? ` — ${t.notifications.unreadLabel}` : ""}`}
-                      title={t.notifications.clickToDismiss}
-                      className={cn(
-                        // 네이버 알림창처럼 간격 있는 개별 카드(shadow) — 클릭=확인(읽음)→흐려짐,
-                        // 우상단 X=목록에서 제거(프론트만, 백엔드 기록 보존). pr-8=X 자리 확보.
-                        "relative w-full text-left p-3 pr-8 rounded-lg border border-border bg-card shadow-sm transition-all duration-150 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-                        !n.read
-                          ? "border-l-2 border-l-primary bg-primary/5 hover:bg-accent/30"
-                          : "opacity-60 hover:opacity-100 hover:bg-accent/20"
-                      )}
-                    >
-                      {/* 우상단 X — 프론트에서만 목록 제거(백엔드 기록은 삭제하지 않음) */}
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          dismiss(n.id);
-                        }}
-                        aria-label={t.notifications.removeFromList}
-                        title={t.notifications.removeFromList}
-                        className="absolute top-1.5 right-1.5 p-1 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                      <div className="flex items-start gap-2.5">
-                        <Icon
-                          className={cn("w-4 h-4 mt-0.5 flex-shrink-0", color)}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className={cn(
-                              "text-[12px] truncate text-foreground",
-                              !n.read && "font-semibold"
-                            )}
-                          >
-                            {title}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                            {message}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span
-                              className={cn(
-                                "text-[11px] font-medium px-2 py-0.5 rounded-full border border-current/40",
-                                color
-                              )}
-                            >
-                              {typeLabel(n.type as NotificationType)}
-                            </span>
-                            <span className="text-[11px] font-medium text-foreground/80">
-                              {t.notifications.sources[
-                                n.source as keyof typeof t.notifications.sources
-                              ] ?? n.source}
-                            </span>
-                            <span className="text-[11px] font-medium text-foreground/75 ml-auto whitespace-nowrap flex-shrink-0">
-                              {timeAgo(n.timestamp)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {filtered.map(n => (
+                  <NotificationCard
+                    key={n.id}
+                    n={n}
+                    onClick={handleClick}
+                    onDismiss={dismiss}
+                  />
+                ))}
               </div>
             )}
           </ScrollArea>
