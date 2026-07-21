@@ -165,7 +165,8 @@ const ko = {
     cancel: "취소",
     save: "저장",
     delete: "삭제",
-    testNeedsKey: "연결 테스트는 API 키를 입력해야 합니다 (미입력 시 저장된 키 유지)",
+    testNeedsKey:
+      "연결 테스트는 API 키를 입력해야 합니다 (미입력 시 저장된 키 유지)",
   },
 
   // ── Dashboard ──
@@ -340,7 +341,8 @@ const ko = {
     jsonNoPermission:
       "permission / prohibition / obligation 규칙 배열을 찾지 못했습니다.",
     jsonNoConstraints: "odrl:constraint를 찾지 못했습니다.",
-    jsonTooLarge: "JSON이 너무 큽니다 (최대 100KB). 내용을 줄여 다시 시도하세요.",
+    jsonTooLarge:
+      "JSON이 너무 큽니다 (최대 100KB). 내용을 줄여 다시 시도하세요.",
     jsonTooManyConstraints: (n: number) =>
       `제약 조건이 너무 많아 ${n}개까지만 가져왔습니다.`,
     jsonImported: "JSON 정책이 빌더에 적용되었습니다.",
@@ -1025,27 +1027,32 @@ const ko = {
     // 서버가 msgKey+params 로 저장한 알림을 표시 시점에 번역. (키 없으면 원본 title/message 폴백)
     messages: {
       negTerminated: {
-        title: (p: Record<string, unknown>) => `협상 종료 — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `협상 종료 — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `상대 ${String(p.peer)} 와의 협상이 실패했습니다. ${String(p.detail ?? "")}`.trim(),
       },
       transferTerminated: {
-        title: (p: Record<string, unknown>) => `전송 실패 — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `전송 실패 — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `자산 ${String(p.asset)} 전송이 종료되었습니다. ${String(p.detail ?? "")}`.trim(),
       },
       transferCompleted: {
-        title: (p: Record<string, unknown>) => `전송 완료 — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `전송 완료 — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `자산 ${String(p.asset)} 전송이 정상 완료되었습니다.`,
       },
       edrExpiring: {
-        title: (p: Record<string, unknown>) => `EDR 만료 임박 — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `EDR 만료 임박 — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `Transfer ${String(p.transfer)} 의 EDR이 ${String(p.minutes)}분 후 만료됩니다.`,
       },
       connectorUnreachable: {
-        title: (p: Record<string, unknown>) => `커넥터 연결 불가: ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `커넥터 연결 불가: ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `${String(p.url)} 응답 없음 — DSP / 협상 / 전송 작업 중단 가능. (${String(p.detail ?? "")})`,
       },
@@ -1174,6 +1181,15 @@ const ko = {
       dspNote:
         "DSP 흐름: 소비자 EDC가 subprotocolBody의 dspEndpoint로 정책 협상 → IdentityHub/DID 상호 인증 → Usage Policy 합의 → EDR 토큰 발급 → href의 Data Plane으로 실제 데이터 수신",
       subprotocolBodyPreview: "전송될 subprotocolBody",
+      subSemanticIdHint:
+        "표준 템플릿 semanticId를 먼저 재사용하세요 — 정체성은 idShort가 아니라 semanticId가 결정합니다(IDTA·Catena-X).",
+      templateRecognized: "인식된 표준 템플릿",
+      idShortWarn:
+        "idShort 명명규칙(AASd-002): 영문자로 시작하고 영숫자·밑줄만 허용",
+      iriWarn: "IRI 형식 권장 (예: urn:… 또는 https://…)",
+      semanticIdWarn: "semanticId는 IRI 또는 IRDI 형식을 권장합니다",
+      assetKind: "Asset 종류",
+      assetKindHint: "AAS 표준 assetKind — Type(형식)/Instance(개체)",
       submit: "등록",
       update: "수정",
       cancel: "취소",

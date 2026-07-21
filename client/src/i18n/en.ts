@@ -85,7 +85,8 @@ const en: Translations = {
     identityHub:
       "View the participant's decentralized identity (DID) and credentials.",
     audit: "Review the tenant's security and change audit log.",
-    settings: "Configure organization, integrations, and notification preferences.",
+    settings:
+      "Configure organization, integrations, and notification preferences.",
   },
 
   nav: {
@@ -1014,27 +1015,32 @@ const en: Translations = {
     // Translate server notifications (stored as msgKey+params) at display time.
     messages: {
       negTerminated: {
-        title: (p: Record<string, unknown>) => `Negotiation terminated — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `Negotiation terminated — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `Negotiation with ${String(p.peer)} failed. ${String(p.detail ?? "")}`.trim(),
       },
       transferTerminated: {
-        title: (p: Record<string, unknown>) => `Transfer failed — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `Transfer failed — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `Transfer of asset ${String(p.asset)} was terminated. ${String(p.detail ?? "")}`.trim(),
       },
       transferCompleted: {
-        title: (p: Record<string, unknown>) => `Transfer completed — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `Transfer completed — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `Transfer of asset ${String(p.asset)} completed successfully.`,
       },
       edrExpiring: {
-        title: (p: Record<string, unknown>) => `EDR expiring soon — ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `EDR expiring soon — ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `The EDR for transfer ${String(p.transfer)} expires in ${String(p.minutes)} min.`,
       },
       connectorUnreachable: {
-        title: (p: Record<string, unknown>) => `Connector unreachable: ${String(p.connector)}`,
+        title: (p: Record<string, unknown>) =>
+          `Connector unreachable: ${String(p.connector)}`,
         message: (p: Record<string, unknown>) =>
           `${String(p.url)} not responding — DSP / negotiation / transfer may be disrupted. (${String(p.detail ?? "")})`,
       },
@@ -1166,6 +1172,15 @@ const en: Translations = {
       dspNote:
         "DSP flow: consumer EDC parses subprotocolBody → opens DSP negotiation with dspEndpoint → mutual auth via IdentityHub/DID → agree on Usage Policy → receive EDR token → fetch data from href via Data Plane",
       subprotocolBodyPreview: "subprotocolBody to be sent",
+      subSemanticIdHint:
+        "Reuse a standard template semanticId first — identity is decided by semanticId, not idShort (IDTA / Catena-X).",
+      templateRecognized: "Recognized standard template",
+      idShortWarn:
+        "idShort naming (AASd-002): must start with a letter, only letters/digits/underscore",
+      iriWarn: "IRI format recommended (e.g. urn:… or https://…)",
+      semanticIdWarn: "semanticId should be an IRI or IRDI",
+      assetKind: "Asset kind",
+      assetKindHint: "AAS standard assetKind — Type / Instance",
       submit: "Create",
       update: "Update",
       cancel: "Cancel",

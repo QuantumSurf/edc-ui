@@ -12,6 +12,7 @@ import {
   fetchShellRaw,
 } from "@/services";
 import type { ShellDescriptor, SpecificAssetId } from "@/lib/data";
+import { recognizeSemanticId } from "@/lib/semanticTemplates";
 import {
   Card,
   Badge,
@@ -73,6 +74,18 @@ import {
   EndpointDetail,
 } from "@/components/SubmodelForm";
 import { toast } from "sonner";
+
+/** semanticId 가 알려진 표준 템플릿이면 사람이 읽는 이름 배지로 표시(Self-Descriptive). */
+function TemplateBadge({ semanticId }: { semanticId: string }) {
+  const rec = recognizeSemanticId(semanticId);
+  if (!rec) return null;
+  return (
+    <Badge variant={rec.source === "Catena-X" ? "purple" : "blue"}>
+      {rec.name}
+      {rec.ref ? ` · ${rec.ref}` : ""}
+    </Badge>
+  );
+}
 
 export default function PageShells() {
   const { t } = useI18n();
@@ -419,6 +432,12 @@ function ShellDetailDialog({
               mono
               copyable={shell.globalAssetId || undefined}
             />
+            {shell.assetKind && (
+              <InfoCard
+                label={t.twins.form.assetKind}
+                value={shell.assetKind}
+              />
+            )}
           </div>
         </DetailSection>
 
@@ -478,6 +497,11 @@ function ShellDetailDialog({
                         <MonoText className="!text-[11px] !font-normal text-muted-foreground truncate block">
                           semanticId: {sub.semanticId}
                         </MonoText>
+                      )}
+                      {sub.semanticId && (
+                        <div className="mt-1">
+                          <TemplateBadge semanticId={sub.semanticId} />
+                        </div>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -611,6 +635,7 @@ function rawToEditorState(raw: Record<string, unknown>) {
     aasId: (raw.id as string) ?? "",
     idShort: (raw.idShort as string) ?? "",
     globalAssetId: (raw.globalAssetId as string) ?? "",
+    assetKind: (raw.assetKind as string) ?? "",
     descriptionKo: findByLang(["ko"]),
     descriptionEn: findByLang(["en"]),
     specs: specsRaw.map(s => ({
@@ -647,6 +672,7 @@ function ShellEditorDialog({
   const [idShort, setIdShort] = useState("");
   const [aasId, setAasId] = useState("");
   const [globalAssetId, setGlobalAssetId] = useState("");
+  const [assetKind, setAssetKind] = useState("");
   const [descriptionKo, setDescriptionKo] = useState("");
   const [descriptionEn, setDescriptionEn] = useState("");
   const [specs, setSpecs] = useState<SpecificAssetId[]>([]);
@@ -666,6 +692,7 @@ function ShellEditorDialog({
     setIdShort("");
     setAasId("");
     setGlobalAssetId("");
+    setAssetKind("");
     setDescriptionKo("");
     setDescriptionEn("");
     setSpecs([]);
@@ -689,6 +716,7 @@ function ShellEditorDialog({
           setIdShort(s.idShort);
           setAasId(s.aasId);
           setGlobalAssetId(s.globalAssetId);
+          setAssetKind(s.assetKind);
           setDescriptionKo(s.descriptionKo);
           setDescriptionEn(s.descriptionEn);
           setSpecs(s.specs);
@@ -731,6 +759,9 @@ function ShellEditorDialog({
         specificAssetIds: specs.filter(s => s.name && s.value),
         submodelDescriptors: subs.map(submodelInputToBody),
       };
+      // AAS 표준 assetKind — 선택 시 반영, 비우면 raw carry-over 제거(사용자 삭제 의도).
+      if (assetKind) body.assetKind = assetKind;
+      else delete body.assetKind;
       // ko/en 편집값 + 보존된 비-ko/en 언어 항목 머지(id 40).
       const descriptions: Array<{ language?: string; text?: string }> = [
         ...descriptionRaw,
@@ -835,6 +866,21 @@ function ShellEditorDialog({
               placeholder="urn:uuid:..."
               className={`${inputBase} mono`}
             />
+          </FormField>
+          <FormField
+            label={t.twins.form.assetKind}
+            hint={t.twins.form.assetKindHint}
+          >
+            <select
+              value={assetKind}
+              onChange={e => setAssetKind(e.target.value)}
+              className={inputBase}
+            >
+              <option value="">—</option>
+              <option value="Instance">Instance</option>
+              <option value="Type">Type</option>
+              <option value="NotApplicable">NotApplicable</option>
+            </select>
           </FormField>
           <FormField label={t.twins.form.descriptionKo}>
             <input

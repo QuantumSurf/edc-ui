@@ -133,6 +133,8 @@ export interface ShellDescriptorLite {
   id: string;
   idShort: string;
   globalAssetId: string;
+  // AAS 표준 assetKind: "Instance" | "Type" | "NotApplicable" (없으면 "").
+  assetKind: string;
   description: string;
   descriptions: ShellDescriptionLite[];
   specificAssetIds: SpecificAssetIdLite[];
@@ -214,6 +216,7 @@ export function mapShellDescriptor(
     id: (raw.id as string) ?? "",
     idShort: (raw.idShort as string) ?? "",
     globalAssetId: (raw.globalAssetId as string) ?? "",
+    assetKind: (raw.assetKind as string) ?? "",
     description: descriptions[0]?.text ?? "",
     descriptions,
     specificAssetIds: mapSpecificAssetIds(raw.specificAssetIds),

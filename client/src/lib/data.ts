@@ -161,6 +161,8 @@ export interface ShellDescriptor {
   id: string;
   idShort: string;
   globalAssetId: string;
+  /** AAS 표준 assetKind: "Instance" | "Type" | "NotApplicable" (없으면 ""). */
+  assetKind: string;
   description: string;
   descriptions: ShellDescription[];
   specificAssetIds: SpecificAssetId[];

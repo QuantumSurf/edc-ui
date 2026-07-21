@@ -2,10 +2,20 @@
 // Descriptor and rendering its endpoint detail block. Used by both PageShells
 // (multi-submodel editor) and PageSubmodels (single submodel CRUD).
 
+import { useId } from "react";
 import { useI18n } from "@/i18n";
 import { FormField, MonoText, Badge } from "@/components/ui-kmx";
-import { X, Copy } from "lucide-react";
+import { X, Copy, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { ShellEndpoint } from "@/lib/data";
+import {
+  SEMANTIC_TEMPLATES,
+  recognizeSemanticId,
+} from "@/lib/semanticTemplates";
+import {
+  isValidIdShort,
+  isLikelyIri,
+  isLikelyGlobalReference,
+} from "@/lib/descriptorValidation";
 
 /* ─── Editor input types ─────────────────────────────────────── */
 export interface ProtocolInfoInput {
@@ -228,6 +238,16 @@ export function submodelInputToBody(s: SubmodelInput): Record<string, unknown> {
   return body;
 }
 
+/** 비차단 형식 경고(황색) — descriptor 형식 힌트용. 저장은 막지 않는다. */
+function DescriptorWarn({ text }: { text: string }) {
+  return (
+    <div className="mt-0.5 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+      <span>{text}</span>
+    </div>
+  );
+}
+
 /* ─── SubmodelFormFields ─────────────────────────────────────── */
 /** Renders the full editable form for ONE submodel descriptor. */
 export function SubmodelFormFields({
@@ -247,6 +267,8 @@ export function SubmodelFormFields({
 }) {
   const { t } = useI18n();
   const s = submodel;
+  const semId = useId();
+  const recognized = recognizeSemanticId(s.semanticId);
 
   const updateField = <K extends keyof SubmodelInput>(
     key: K,
@@ -288,29 +310,73 @@ export function SubmodelFormFields({
         </div>
       )}
 
-      <input
-        aria-label={t.twins.form.subIdShort}
-        aria-required
-        placeholder={t.twins.form.subIdShort + " *"}
-        value={s.idShort}
-        onChange={e => updateField("idShort", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-      />
-      <input
-        aria-label={t.twins.form.subId}
-        aria-required
-        placeholder={t.twins.form.subId + " *"}
-        value={s.id}
-        onChange={e => updateField("id", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-      />
-      <input
-        aria-label={t.twins.form.subSemanticId}
-        placeholder={t.twins.form.subSemanticId}
-        value={s.semanticId}
-        onChange={e => updateField("semanticId", e.target.value)}
-        className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-      />
+      <div>
+        <input
+          aria-label={t.twins.form.subIdShort}
+          aria-required
+          aria-invalid={!!s.idShort && !isValidIdShort(s.idShort)}
+          placeholder={t.twins.form.subIdShort + " *"}
+          value={s.idShort}
+          onChange={e => updateField("idShort", e.target.value)}
+          className="w-full px-2 py-1 text-[11px] border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        {s.idShort && !isValidIdShort(s.idShort) && (
+          <DescriptorWarn text={t.twins.form.idShortWarn} />
+        )}
+      </div>
+      <div>
+        <input
+          aria-label={t.twins.form.subId}
+          aria-required
+          aria-invalid={!!s.id && !isLikelyIri(s.id)}
+          placeholder={t.twins.form.subId + " *"}
+          value={s.id}
+          onChange={e => updateField("id", e.target.value)}
+          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        {s.id && !isLikelyIri(s.id) && (
+          <DescriptorWarn text={t.twins.form.iriWarn} />
+        )}
+      </div>
+      <div>
+        <input
+          aria-label={t.twins.form.subSemanticId}
+          placeholder={t.twins.form.subSemanticId}
+          value={s.semanticId}
+          list={semId}
+          onChange={e => updateField("semanticId", e.target.value)}
+          className="w-full px-2 py-1 text-[11px] mono border border-border rounded bg-card text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        {/* 표준 템플릿 semanticId 추천 목록(재사용 유도) */}
+        <datalist id={semId}>
+          {SEMANTIC_TEMPLATES.map(tpl => (
+            <option key={tpl.semanticId} value={tpl.semanticId}>
+              {tpl.name} · {tpl.ref}
+            </option>
+          ))}
+        </datalist>
+        {recognized ? (
+          <div className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">
+              {t.twins.form.templateRecognized}: {recognized.name}
+              <span className="text-muted-foreground">
+                {" "}
+                ({recognized.source}
+                {recognized.ref ? ` · ${recognized.ref}` : ""})
+              </span>
+            </span>
+          </div>
+        ) : s.semanticId && !isLikelyGlobalReference(s.semanticId) ? (
+          <DescriptorWarn text={t.twins.form.semanticIdWarn} />
+        ) : (
+          !s.semanticId && (
+            <p className="mt-0.5 text-[10px] text-muted-foreground leading-snug">
+              {t.twins.form.subSemanticIdHint}
+            </p>
+          )
+        )}
+      </div>
 
       {showDescription && (
         <>
