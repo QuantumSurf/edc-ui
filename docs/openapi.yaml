@@ -327,23 +327,6 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /api/connectors/{id}/counts:
-    parameters:
-      - $ref: "#/components/parameters/ConnectorId"
-    get:
-      tags: [connectors]
-      summary: 커넥터 하위 리소스 카운트(사이드바 배지)
-      responses:
-        "200":
-          description: 리소스별 개수
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: { type: integer }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
   /api/connectors/{id}/health:
     parameters:
       - $ref: "#/components/parameters/ConnectorId"

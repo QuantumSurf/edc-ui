@@ -107,18 +107,24 @@ describe("멀티테넌트 격리 (통합, testcontainers Postgres)", () => {
     // 양성 대조: 자기 커넥터는 소유권 가드를 통과해야 한다 → 404(존재 미노출)가 아니어야 함.
     // (edc.invalid 라 EDC 집계는 실패해 5xx 일 수 있으나, 404 면 격리 자체가 깨진 것.) 이 대조가
     // 없으면 '모두에게 안 보이는 전역 고장'도 교차테넌트 404 로 거짓 통과할 수 있다.
-    const own = await a.get(`/api/connectors/${tenantA.connectorId}/counts`);
+    const own = await a.get(
+      `/api/connectors/${tenantA.connectorId}/stats/counts`
+    );
     expect(own.status).not.toBe(404);
 
     // 교차테넌트: A 가 B 의 커넥터 counts 조회 → 소유권 미들웨어가 404(EDC 도달 전 차단) + 존재
     // 미노출 바디. 상태코드뿐 아니라 사유(connector-not-found)까지 단언한다.
-    const res = await a.get(`/api/connectors/${tenantB.connectorId}/counts`);
+    const res = await a.get(
+      `/api/connectors/${tenantB.connectorId}/stats/counts`
+    );
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "connector-not-found" });
 
     // 대칭: B → A 커넥터도 404.
     const b = await loginAgent(tenantB.bpn);
-    const res2 = await b.get(`/api/connectors/${tenantA.connectorId}/counts`);
+    const res2 = await b.get(
+      `/api/connectors/${tenantA.connectorId}/stats/counts`
+    );
     expect(res2.status).toBe(404);
   });
 
