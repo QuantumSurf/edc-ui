@@ -163,9 +163,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [tenantId, password]
               properties:
-                email: { type: string, format: email }
+                tenantId:
+                  type: string
+                  description: >-
+                    테넌트 식별자(BPN). 이메일이 아니다 — 시드 계정은 역할별로
+                    별도 테넌트에 1:1 매핑되며 BPN 으로 로그인한다.
                 password: { type: string, format: password }
       responses:
         "200":
