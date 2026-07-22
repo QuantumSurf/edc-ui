@@ -29,18 +29,15 @@ import {
   ListEmpty,
   ListError,
   SortHeader,
-  useTableSort,
-  sortRows,
 } from "@/components/ui-kmx";
+import { useTableSort, sortRows } from "@/lib/tableSort";
 
 // 반응형: lg 미만은 중요 컬럼(이름·상태·수정일)만 유동폭으로 표시하고
 // 부차 컬럼(URN·버전·모델타입·크기)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 7컬럼.
 const SUBMODEL_COLS =
   "grid-cols-[minmax(110px,1.4fr)_90px_minmax(120px,1fr)] lg:grid-cols-[1.4fr_2fr_0.7fr_0.9fr_0.9fr_0.7fr_1.1fr]";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   SlidePanel,
   InfoCard,

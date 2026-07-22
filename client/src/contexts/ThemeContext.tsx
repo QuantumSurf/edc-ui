@@ -1,20 +1,10 @@
-// Connector Hub — Theme Context (light/dark)
-// pcf-exchange-ui 셸 구조와 동일하게 Topbar 테마 토글을 지원하기 위한 컨텍스트.
+// Connector Hub — Theme Provider (light/dark)
+// pcf-exchange-ui 셸 구조와 동일하게 Topbar 테마 토글을 지원한다.
 // index.css 의 `.dark` 토큰을 documentElement 클래스 토글로 적용한다.
+// 컨텍스트 객체와 useTheme 훅은 ./useTheme 에 있다.
 
-import { createContext, useContext, useEffect, useState } from "react";
-
-type Theme = "light" | "dark";
-
-interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-}
-
-const ThemeContext = createContext<ThemeContextType>({
-  theme: "light",
-  toggleTheme: () => {},
-});
+import { useEffect, useState } from "react";
+import { ThemeContext, type Theme } from "./useTheme";
 
 const STORAGE_KEY = "kmx-edc-theme";
 
@@ -44,8 +34,4 @@ export function ThemeProvider({
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  return useContext(ThemeContext);
 }

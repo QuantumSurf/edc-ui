@@ -1,6 +1,6 @@
 // Connector Hub — Login Page
 import { useState } from "react";
-import { useAuth, type LoginResult } from "@/contexts/AuthContext";
+import { useAuth, type LoginResult } from "@/contexts/useAuth";
 import { useI18n } from "@/i18n";
 import { Lock, User, AlertCircle, Loader2 } from "lucide-react";
 

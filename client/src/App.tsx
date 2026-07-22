@@ -18,7 +18,8 @@ import { fetchConnectors } from "./services";
 import { useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { I18nContext, getTranslations, useI18n, type Locale } from "./i18n";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./contexts/useAuth";
 import PageLogin from "./pages/PageLogin";
 
 // Pages — route 기반 코드 스플리팅(lazy): 16개 페이지를 단일 초기 번들에서 분리해

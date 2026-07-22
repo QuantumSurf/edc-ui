@@ -17,10 +17,8 @@ import {
 } from "@/services";
 import { SINK_TYPES, type Transfer, isTransferActive } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   Card,
   StateBadge,
@@ -63,11 +61,8 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/components/RoleGate";
-import {
-  useFieldHistory,
-  fhId,
-  HistoryDatalist,
-} from "@/components/FieldHistory";
+import { HistoryDatalist } from "@/components/FieldHistory";
+import { useFieldHistory, fhId } from "@/lib/fieldHistory";
 
 /* ── helpers ──────────────────────────────────────────────────── */
 const INPUT_CLS = inputBase;

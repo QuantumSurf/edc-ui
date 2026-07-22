@@ -127,12 +127,3 @@ export function Pagination({
     </div>
   );
 }
-
-/** Slice an array for the current page */
-export function paginate<T>(
-  items: T[],
-  page: number,
-  pageSize = DEFAULT_PAGE_SIZE
-): T[] {
-  return items.slice((page - 1) * pageSize, page * pageSize);
-}

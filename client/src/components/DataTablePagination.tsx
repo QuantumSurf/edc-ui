@@ -1,7 +1,6 @@
 // Data Table Pagination — page-size selector + Previous/Next navigation
 // Ported style from kmx-identityhub-ui
 
-import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -112,31 +111,4 @@ export function DataTablePagination({
       </div>
     </div>
   );
-}
-
-export function usePagination<T>(data: T[], initialPageSize = 10) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialPageSize);
-
-  const totalItems = data.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-
-  useEffect(() => {
-    if (currentPage !== safePage) setCurrentPage(safePage);
-  }, [currentPage, safePage]);
-
-  const paginatedData = data.slice(
-    (safePage - 1) * pageSize,
-    safePage * pageSize
-  );
-
-  return {
-    paginatedData,
-    totalItems,
-    currentPage: safePage,
-    pageSize,
-    setCurrentPage,
-    setPageSize,
-  };
 }

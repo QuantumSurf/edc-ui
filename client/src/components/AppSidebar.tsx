@@ -35,7 +35,7 @@ import {
   Network,
   Fingerprint,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useI18n } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";

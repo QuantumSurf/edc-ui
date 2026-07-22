@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { FormField, inputBase } from "@/components/ui-kmx";
 import {
   SlidePanel,
@@ -13,11 +13,8 @@ import { Plug, Loader2, CheckCircle2, XCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { testConnection, registerConnector, fetchTenantInfo } from "@/services";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  useFieldHistory,
-  fhId,
-  HistoryDatalist,
-} from "@/components/FieldHistory";
+import { HistoryDatalist } from "@/components/FieldHistory";
+import { useFieldHistory, fhId } from "@/lib/fieldHistory";
 
 interface AddConnectorPanelProps {
   open: boolean;

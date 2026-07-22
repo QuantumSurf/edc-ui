@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectorStore } from "@/stores/connectorStore";
-import { useTheme } from "@/contexts/ThemeContext";
+import { useTheme } from "@/contexts/useTheme";
 import { useI18n, LOCALES, type Translations, type Locale } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import {
   DropdownMenu,
   DropdownMenuTrigger,

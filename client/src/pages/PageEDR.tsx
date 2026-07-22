@@ -32,10 +32,8 @@ import {
 const EDR_COLS =
   "grid-cols-[minmax(110px,1fr)_minmax(120px,1fr)_minmax(140px,1.3fr)_90px] lg:grid-cols-[170px_1.5fr_1.6fr_1.7fr_120px]";
 import { ConfirmActionDialog } from "@/components/DetailDeleteDialogs";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import { Copy, Shield, Key, Clock } from "lucide-react";
 import { toast } from "sonner";
 

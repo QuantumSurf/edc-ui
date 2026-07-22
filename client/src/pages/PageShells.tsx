@@ -39,10 +39,8 @@ import {
 // 부차 컬럼(globalAssetId·specificAssetIds)은 hidden lg:block 으로 숨긴다. lg+ 는 전체 5컬럼.
 const SHELL_COLS =
   "grid-cols-[minmax(90px,1fr)_minmax(120px,1.4fr)_56px] lg:grid-cols-[1.2fr_1.6fr_1.6fr_1.4fr_0.7fr]";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   SlidePanel,
   InfoCard,
@@ -71,14 +69,13 @@ import {
 } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
+import { SubmodelFormFields, EndpointDetail } from "@/components/SubmodelForm";
 import {
   type SubmodelInput,
   newSubmodel,
   submodelInputToBody,
   rawSubmodelToInput,
-  SubmodelFormFields,
-  EndpointDetail,
-} from "@/components/SubmodelForm";
+} from "@/lib/submodelDescriptor";
 import { toast } from "sonner";
 
 /** semanticId 가 알려진 표준 템플릿이면 사람이 읽는 이름 배지로 표시(Self-Descriptive).

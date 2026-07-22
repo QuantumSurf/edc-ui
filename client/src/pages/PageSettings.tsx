@@ -3,8 +3,8 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/useAuth";
+import { useTheme } from "@/contexts/useTheme";
 import { useI18n, LOCALES, type Locale } from "@/i18n";
 import { readPref, writePref } from "@/lib/prefs";
 import {
@@ -61,7 +61,10 @@ export default function PageSettings() {
 
   return (
     <>
-      <SectionHdr icon={<Settings className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.settings}>
+      <SectionHdr
+        icon={<Settings className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.settings}
+      >
         {t.nav.settings}
       </SectionHdr>
 
@@ -248,9 +251,7 @@ export default function PageSettings() {
           title={
             <CardTitle
               icon={<Info className="w-3.5 h-3.5 text-blue-500" />}
-              badge={
-                sysError || !sysInfo ? undefined : <DataSourceBadge />
-              }
+              badge={sysError || !sysInfo ? undefined : <DataSourceBadge />}
             >
               <span className="font-bold">{t.settings.systemInfo}</span>
             </CardTitle>
@@ -660,9 +661,7 @@ function ToggleRow({
         aria-checked={on}
         aria-label={label}
         className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
-          on
-            ? "bg-primary justify-end"
-            : "bg-muted-foreground/40 justify-start"
+          on ? "bg-primary justify-end" : "bg-muted-foreground/40 justify-start"
         }`}
       >
         <div className="w-4 h-4 rounded-full bg-white shadow-sm transition-transform" />

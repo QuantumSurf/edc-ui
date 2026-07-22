@@ -25,10 +25,8 @@ import {
   SlidePanel,
   InfoCard,
 } from "@/components/DetailDeleteDialogs";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   Card,
   Badge,

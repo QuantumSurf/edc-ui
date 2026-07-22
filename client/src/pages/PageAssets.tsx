@@ -14,11 +14,8 @@ import {
 } from "@/services";
 import { type Asset } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import {
-  useFieldHistory,
-  fhId,
-  HistoryDatalist,
-} from "@/components/FieldHistory";
+import { HistoryDatalist } from "@/components/FieldHistory";
+import { useFieldHistory, fhId } from "@/lib/fieldHistory";
 import {
   Card,
   Badge,
@@ -39,10 +36,8 @@ import {
   SlidePanel,
   InfoCard,
 } from "@/components/DetailDeleteDialogs";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   PlusCircle,
   Copy,

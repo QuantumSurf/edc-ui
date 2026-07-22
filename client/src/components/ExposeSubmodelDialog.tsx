@@ -21,7 +21,7 @@ import {
   rawSubmodelToInput,
   submodelInputToBody,
   newEndpoint,
-} from "@/components/SubmodelForm";
+} from "@/lib/submodelDescriptor";
 import { FormField, PrimaryActionButton, inputBase } from "@/components/ui-kmx";
 import {
   Dialog,
@@ -151,7 +151,8 @@ export function ExposeSubmodelDialog({
       try {
         await createAsset(assetBody, connectorId);
       } catch (e) {
-        if (errStatus(e) === 409) await updateAsset(aid, assetBody, connectorId);
+        if (errStatus(e) === 409)
+          await updateAsset(aid, assetBody, connectorId);
         else throw e;
       }
     } catch (e) {

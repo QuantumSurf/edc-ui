@@ -1,4 +1,4 @@
-import { useDialogComposition } from "@/components/ui/dialog";
+import { useDialogComposition } from "@/components/ui/dialogComposition";
 import { useComposition } from "@/hooks/useComposition";
 import { cn } from "@/lib/utils";
 import * as React from "react";
@@ -23,8 +23,7 @@ function Input({
     onKeyDown: e => {
       // Check if this is an Enter key that should be blocked
       const isComposing =
-        (e.nativeEvent as any).isComposing ||
-        dialogComposition.justEndedComposing();
+        e.nativeEvent.isComposing || dialogComposition.justEndedComposing();
 
       // If Enter key is pressed while composing or just after composition ended,
       // don't call the user's onKeyDown (this blocks the business logic)

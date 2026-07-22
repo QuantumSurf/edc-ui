@@ -7,10 +7,8 @@ import { useI18n } from "@/i18n";
 import { fetchNegotiations, terminateNegotiation } from "@/services";
 import { type Negotiation, isNegotiationActive } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   Card,
   StateBadge,

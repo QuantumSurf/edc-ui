@@ -1,54 +1,14 @@
-// KMX EDC — Authentication Context
+// KMX EDC — Authentication Provider
 // DB-backed login via POST /api/auth/login (JWT + RBAC role).
+// 컨텍스트 타입·객체와 useAuth 훅은 ./useAuth 에 있다.
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-} from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import axios from "axios";
 import { queryClient } from "@/lib/queryClient";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { clearRecent } from "@/lib/recentCatalog";
 import { postLogout } from "@/services/api";
-
-export interface AuthUser {
-  id?: string;
-  username: string; // kept for backwards-compat; set from email local-part
-  name: string;
-  role: "admin" | "operator" | "viewer";
-  email?: string;
-  // Tenant (organization) the user belongs to — drives data isolation.
-  tenantId?: string;
-  tenantName?: string;
-  tenantBpn?: string;
-}
-
-export type LoginResult =
-  | "ok"
-  | "invalid"
-  | "ratelimited"
-  | "locked"
-  | "server"
-  | "network";
-
-interface AuthContextType {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (tenantId: string, password: string) => Promise<LoginResult>;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  isAuthenticated: false,
-  isLoading: true,
-  login: async () => "network",
-  logout: () => {},
-});
+import { AuthContext, type AuthUser, type LoginResult } from "./useAuth";
 
 const SESSION_KEY = "kmx-edc-auth";
 
@@ -181,8 +141,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

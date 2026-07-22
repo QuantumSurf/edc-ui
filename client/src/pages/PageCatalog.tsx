@@ -18,10 +18,8 @@ import {
   ListError,
   ListEmpty,
 } from "@/components/ui-kmx";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   getRecent,
   addRecent,
@@ -42,11 +40,8 @@ import {
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { cn } from "@/lib/utils";
-import {
-  useFieldHistory,
-  fhId,
-  HistoryDatalist,
-} from "@/components/FieldHistory";
+import { HistoryDatalist } from "@/components/FieldHistory";
+import { useFieldHistory, fhId } from "@/lib/fieldHistory";
 
 interface PageCatalogProps {
   onNav: (path: string) => void;
@@ -212,7 +207,10 @@ export default function PageCatalog({ onNav }: PageCatalogProps) {
 
   return (
     <>
-      <SectionHdr icon={<Search className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.catalog}>
+      <SectionHdr
+        icon={<Search className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.catalog}
+      >
         {t.catalog.title}
       </SectionHdr>
 

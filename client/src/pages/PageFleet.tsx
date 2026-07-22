@@ -53,10 +53,8 @@ import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
 import { useConnectorStore } from "@/stores/connectorStore";
 import AddConnectorPanel from "./PageAddConnector";
-import {
-  usePagination,
-  DataTablePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 
 interface PageFleetProps {
   onSelect: (c: Connector, page?: string) => void;
@@ -577,7 +575,9 @@ function EditConnectorDialog({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updates: Record<string, unknown> = {
+      // updateConnector 의 실제 파라미터 타입을 그대로 따라가 any 캐스트를 없앤다
+      // (시그니처가 바뀌면 여기서 컴파일 에러로 잡힌다).
+      const updates: Parameters<typeof updateConnector>[1] = {
         name: name.trim(),
         managementUrl: managementUrl.trim(),
         dspEndpoint: dspEndpoint.trim(),
@@ -587,7 +587,7 @@ function EditConnectorDialog({
         did: did.trim(),
       };
       if (apiKey) updates.apiKey = apiKey;
-      await updateConnector(connector.id, updates as any);
+      await updateConnector(connector.id, updates);
       toast.success(t.fleet.updated);
       onSaved();
     } catch (err: unknown) {

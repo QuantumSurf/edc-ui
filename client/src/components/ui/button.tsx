@@ -56,4 +56,8 @@ function Button({
   );
 }
 
+// buttonVariants 동시 export 는 shadcn 생성기의 고정 규약이다. 별도 파일로 빼면
+// shadcn 재생성 시 되돌아오므로, dev HMR 경고 1건을 감수하고 원본 형태를 유지한다.
+// (런타임 영향 없음 — Fast Refresh 가 이 파일을 풀 리로드로 처리할 뿐이다.)
+// eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants };

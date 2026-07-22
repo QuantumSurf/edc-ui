@@ -16,9 +16,8 @@ import {
   ListEmpty,
   ListError,
   SortHeader,
-  useTableSort,
-  sortRows,
 } from "@/components/ui-kmx";
+import { useTableSort, sortRows } from "@/lib/tableSort";
 
 // 컬럼은 lg/xl 에서만 보이므로(target=lg, severity·ip=xl) 트랙 수도 브레이크포인트별로
 // 맞춘다. 안 맞추면 display:none 항목이 빠진 뒤 남은 셀이 앞 트랙부터 자동배치되어
@@ -29,10 +28,8 @@ const AUDIT_COLS =
   "lg:grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr] " +
   "xl:grid-cols-[170px_1fr_1.7fr_0.9fr_1.5fr_0.9fr_0.9fr_1fr]";
 import { DetailPanel } from "@/components/DetailDeleteDialogs";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 import {
   Activity,
   Download,

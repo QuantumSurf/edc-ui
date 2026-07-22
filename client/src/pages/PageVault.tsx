@@ -32,10 +32,8 @@ import {
   ListError,
   RefreshButton,
 } from "@/components/ui-kmx";
-import {
-  DataTablePagination,
-  usePagination,
-} from "@/components/DataTablePagination";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/lib/usePagination";
 
 // 별칭·유형 2컬럼만 표시한다. (/list·status API 가 알고리즘·생성일·마지막사용·만료를
 // 제공하지 않아 항상 "—" 이던 죽은 컬럼 4개를 제거 → 남은 유효 컬럼만 유동폭으로 배치)
@@ -247,7 +245,9 @@ export default function PageVault() {
             badge={
               // status 미확인 시 봉인 배지를 'Unknown'(회색)으로 — Unsealed 로 위장하지 않는다
               <Badge
-                variant={!statusLive ? "gray" : backend.sealed ? "red" : "green"}
+                variant={
+                  !statusLive ? "gray" : backend.sealed ? "red" : "green"
+                }
               >
                 {!statusLive
                   ? t.vault.statusUnknown

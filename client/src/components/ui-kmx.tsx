@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import React from "react";
 import { useI18n } from "@/i18n";
+import type { SortDir } from "@/lib/tableSort";
 
 /* ─── Badge ─────────────────────────────────────────────────── */
 type BadgeVariant =
@@ -875,7 +876,6 @@ export function ListColLabel({
 /* ─── Sortable Header + sort helpers ─────────────────────────────
  * 목록 컬럼 헤더 클릭으로 정렬. ListColLabel 자리에 그대로 끼워 쓴다.
  */
-export type SortDir = "asc" | "desc";
 
 export function SortHeader({
   label,
@@ -920,51 +920,6 @@ export function SortHeader({
       )}
     </button>
   );
-}
-
-/** 컬럼 키/방향 상태 + 토글. 같은 키 재클릭 시 asc↔desc 전환. */
-export function useTableSort(
-  initialKey: string | null = null,
-  initialDir: SortDir = "asc"
-) {
-  // 단일 상태 객체 — 순수 업데이터만 사용(StrictMode 이중 호출에도 안전).
-  const [sort, setSort] = React.useState<{ key: string | null; dir: SortDir }>({
-    key: initialKey,
-    dir: initialDir,
-  });
-  const toggleSort = React.useCallback((key: string) => {
-    setSort(s =>
-      s.key === key
-        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" }
-    );
-  }, []);
-  return { sortKey: sort.key, sortDir: sort.dir, toggleSort };
-}
-
-/** accessor 로 추출한 값으로 정렬한 새 배열을 반환(숫자/날짜/문자 자동 처리, null 후순위). */
-export function sortRows<T>(
-  rows: T[],
-  key: string | null,
-  dir: SortDir,
-  accessor: (row: T, key: string) => string | number | Date | null | undefined
-): T[] {
-  if (!key) return rows;
-  const sign = dir === "asc" ? 1 : -1;
-  const norm = (v: string | number | Date | null | undefined) =>
-    v instanceof Date ? v.getTime() : v;
-  return [...rows].sort((a, b) => {
-    const va = norm(accessor(a, key));
-    const vb = norm(accessor(b, key));
-    if (va == null && vb == null) return 0;
-    if (va == null) return 1;
-    if (vb == null) return -1;
-    if (typeof va === "number" && typeof vb === "number")
-      return (va - vb) * sign;
-    return (
-      String(va).localeCompare(String(vb), undefined, { numeric: true }) * sign
-    );
-  });
 }
 
 // Data row. Pass the same `cols` class used by ListHeaderRow.

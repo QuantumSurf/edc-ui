@@ -1,7 +1,7 @@
 // KMX EDC — Client-side RBAC permission map
 // Keep this in sync with server-side route guards in server/routes/*.ts
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 
 export type Role = "admin" | "operator" | "viewer";
 
