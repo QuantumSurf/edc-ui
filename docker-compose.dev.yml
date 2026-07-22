@@ -57,6 +57,11 @@ services:
       # 데모 로그인 계정 비번 고정(미설정 시 0000)
       - SEED_ADMIN_PASSWORD=0000
       - SEED_OPERATOR_PASSWORD=0000
+      # /api per-IP 레이트리밋. 기본은 운영과 같은 300/분.
+      # k6 는 단일 IP 라 기본값이면 요청 대부분이 429 로 잘려 앱 지연 대신
+      # 레이트리밋을 재게 된다 → 부하 실행 시에만 올린다:
+      #   $env:API_RATE_LIMIT_MAX="200000"; docker compose -f docker-compose.dev.yml up -d app
+      - API_RATE_LIMIT_MAX=${API_RATE_LIMIT_MAX:-300}
     volumes:
       - ./:/app
       - devnodemodules:/app/node_modules

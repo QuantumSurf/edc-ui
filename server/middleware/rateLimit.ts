@@ -72,8 +72,24 @@ export const loginRateLimit = rateLimit({
   },
 });
 
-/** API 일반: IP당 1분에 300번. dev 친화적, 단순 DoS 차단 용도. */
+/**
+ * 양의 정수 환경변수만 채택. 0·음수·비정수·빈값은 전부 기본값으로 되돌린다 —
+ * 오타 하나로 DoS 방어가 사실상 꺼지는 일이 없게 하기 위함이다.
+ */
+function envPositiveInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * API 일반: IP당 1분에 300번. dev 친화적, 단순 DoS 차단 용도.
+ * 한도는 배포 환경마다 다르므로 env 로 조정한다(기본값은 그대로 300).
+ * 부하 테스트처럼 단일 IP 에서 의도적으로 고부하를 넣는 경우에만 올릴 것 —
+ * 한도를 넘긴 요청이 429 로 잘리면 앱 경로 지연이 아니라 레이트리밋을 재게 된다.
+ */
 export const apiRateLimit = rateLimit({
-  windowMs: 60_000,
-  max: 300,
+  windowMs: envPositiveInt("API_RATE_LIMIT_WINDOW_MS", 60_000),
+  max: envPositiveInt("API_RATE_LIMIT_MAX", 300),
 });
