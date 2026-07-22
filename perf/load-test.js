@@ -7,8 +7,11 @@
 //   k6 run -e AUTH_TOKEN=demo-token-loadtest perf/load-test.js  # dev 인증 read 포함
 //
 // 대상: BFF(express) 기본 3001 포트. dev compose 는 3006 로 게시.
-// 인증: AUTH_TOKEN 미지정 시 무인증 인프라 프로브만 부하. dev 에서 `demo-token-*`
-//       bearer 를 주면 viewer 권한 read 엔드포인트까지 포함한다(server/middleware/auth.ts).
+// 인증: setup() 에서 1회 로그인해 httpOnly 세션 쿠키를 받아 전 VU 가 공유한다.
+//       계정은 PERF_BPN / PERF_PASSWORD 로 지정(기본값은 dev 시드 — server/lib/db.ts).
+//       bearer 방식이 필요하면 AUTH_TOKEN 을 대신 줄 수 있다.
+//       둘 다 실패하면 인증 read 를 건너뛰되 요약에 경고를 남긴다 — 인프라 프로브만
+//       통과한 결과를 '부하 통과'로 오독하지 않기 위함이다.
 //
 // 429 처리: BFF 는 /api 에 per-IP 레이트리밋(60초/300요청, middleware/rateLimit.ts)을 건다.
 //   단일 IP 고부하에서는 초과분이 429 로 스로틀되는 게 '정상 방어'다. 따라서 429 를 실패가
@@ -20,11 +23,15 @@
 
 import http from "k6/http";
 import { check, group, sleep } from "k6";
-import { Rate, Trend } from "k6/metrics";
+import { Counter, Rate, Trend } from "k6/metrics";
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:3001";
 const AUTH_TOKEN = __ENV.AUTH_TOKEN || "";
 const SMOKE = __ENV.SMOKE === "1";
+// dev 시드 계정. BPN 은 식별자(비밀 아님), 비밀번호 기본값은 server/lib/db.ts 의
+// 시드 기본값과 같다. dev 밖을 때릴 때는 반드시 PERF_PASSWORD 로 덮어쓸 것.
+const PERF_BPN = __ENV.PERF_BPN || "BPNL000000000PRD";
+const PERF_PASSWORD = __ENV.PERF_PASSWORD || "0000";
 
 // 2xx~3xx 와 429(의도적 스로틀)를 '예상 응답'으로 등록 → http_req_failed 가 429 를
 // 실패로 세지 않게 한다(신뢰성 지표를 5xx/네트워크 실패로 한정).
@@ -34,6 +41,9 @@ http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }, 429));
 const serverErrors = new Rate("app_errors"); // 5xx/네트워크 실패만 — NF-12 신뢰성
 const rateLimited = new Rate("rate_limited"); // 429 비율 — 정보성(스로틀 관찰)
 const apiLatency = new Trend("api_read_latency", true);
+// 인증 read 를 실제로 몇 번 쟀는지. 0 이면 앱 경로를 전혀 부하하지 않은 것이므로
+// 임계값으로 걸어 "인프라 프로브만 통과"가 성공으로 보이는 사고를 막는다.
+const apiReadSamples = new Counter("api_read_samples");
 
 export const options = {
   scenarios: SMOKE
@@ -67,6 +77,8 @@ export const options = {
     app_errors: ["rate<0.01"],
     // 읽기 엔드포인트 지연은 별도로 더 엄격히 관찰
     api_read_latency: ["p(95)<400"],
+    // 인증 read 가 한 번도 안 돌았으면 실패 — 커버리지 없는 통과를 금지한다.
+    api_read_samples: ["count>0"],
   },
   // 결과 요약에 p99 포함
   summaryTrendStats: ["avg", "min", "med", "p(95)", "p(99)", "max"],
@@ -88,7 +100,37 @@ function classify(res) {
   };
 }
 
-export default function () {
+// 1회만 실행 — 전 VU 가 공유할 세션 쿠키를 확보한다. VU 마다 로그인하면 bcrypt 검증이
+// 부하의 대부분을 차지해 정작 read 경로를 못 재고, 로그인 레이트리밋에도 걸린다.
+export function setup() {
+  if (AUTH_TOKEN) return { cookies: null };
+  const res = http.post(
+    `${BASE_URL}/api/auth/login`,
+    JSON.stringify({ tenantId: PERF_BPN, password: PERF_PASSWORD }),
+    { headers: { "Content-Type": "application/json" } }
+  );
+  if (res.status !== 200) {
+    console.warn(
+      `[perf] 로그인 실패(status=${res.status}) — 인증 read 를 건너뛴다. ` +
+        `PERF_BPN/PERF_PASSWORD 를 확인할 것.`
+    );
+    return { cookies: null };
+  }
+  const cookies = {};
+  for (const name in res.cookies) cookies[name] = res.cookies[name][0].value;
+  return { cookies };
+}
+
+export default function (data) {
+  const authed = !!AUTH_TOKEN || !!(data && data.cookies);
+  // k6 의 VU 쿠키 자는 iteration 시작마다 비워진다. 따라서 VU 당 1회가 아니라
+  // iteration 마다 다시 채워야 2번째 iteration 부터 401 로 떨어지지 않는다.
+  if (data && data.cookies) {
+    const jar = http.cookieJar();
+    for (const name in data.cookies)
+      jar.set(BASE_URL, name, data.cookies[name]);
+  }
+
   // ── 무인증 인프라 프로브(항상 실행, /api 밖이라 레이트리밋 없음) ─────────────
   group("infra", () => {
     const health = http.get(`${BASE_URL}/healthz`);
@@ -112,8 +154,8 @@ export default function () {
     serverErrors.add(metrics.status === 0 || metrics.status >= 500);
   });
 
-  // ── 인증 read 엔드포인트(AUTH_TOKEN 있을 때만, /api → 레이트리밋 대상) ────────
-  if (AUTH_TOKEN) {
+  // ── 인증 read 엔드포인트(세션/토큰 확보 시, /api → 레이트리밋 대상) ──────────
+  if (authed) {
     group("api-read", () => {
       const endpoints = [
         "/api/auth/me",
@@ -124,6 +166,7 @@ export default function () {
       for (const path of endpoints) {
         const res = http.get(`${BASE_URL}${path}`, authHeaders);
         apiLatency.add(res.timings.duration);
+        apiReadSamples.add(1);
         const c = classify(res);
         // 2xx(정상) 또는 429(예상된 스로틀)면 통과. 5xx/기타는 실패.
         check(c, {
