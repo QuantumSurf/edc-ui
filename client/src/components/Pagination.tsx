@@ -1,7 +1,6 @@
 // KMX EDC — Pagination Component
 // Reusable page navigation for list views
 
-import { useI18n } from "@/i18n";
 import { fmtNum } from "@/lib/format";
 import {
   ChevronLeft,
@@ -26,7 +25,6 @@ export function Pagination({
   pageSize = DEFAULT_PAGE_SIZE,
   onPageChange,
 }: PaginationProps) {
-  const { t } = useI18n();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (total <= pageSize) return null;
 

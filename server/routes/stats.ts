@@ -120,8 +120,6 @@ router.get(
   "/:id/stats/fsm",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const connectorId = req.params.id;
-
       // negotiation_metadata에는 상태 정보 없음 → EDC 목록 기반으로 집계
       // 클라이언트에서 이미 negotiations 데이터를 보유하므로 여기서는 DB 집계만 제공
       // (추후 확장용 — 현재는 클라이언트 side 집계로 충분)

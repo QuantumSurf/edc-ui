@@ -21,7 +21,6 @@ import {
 } from "@/components/FieldHistory";
 import {
   Card,
-  CardTitle,
   Badge,
   SectionHdr,
   Stepper,
@@ -78,7 +77,7 @@ interface PageAssetsProps {
 
 type OfferingFilter = "all" | "registered" | "unregistered";
 
-export default function PageAssets({ onNav }: PageAssetsProps) {
+export default function PageAssets(_props: PageAssetsProps) {
   const { t } = useI18n();
   const connector = useConnectorStore(s => s.connector);
   const connectorId = connector?.id;

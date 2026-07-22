@@ -1050,6 +1050,9 @@ function ShellEditorDialog({
     } else {
       reset();
     }
+    // 편집 대상이 바뀔 때만 원본을 다시 불러오는 효과다. t(i18n)를 deps 에 넣으면 언어를
+    // 바꾸는 순간 재fetch + 폼 리셋이 일어나 편집 중이던 내용이 사라진다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode, initialAasId]);
 
   const submit = async () => {

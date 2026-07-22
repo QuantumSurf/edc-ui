@@ -341,6 +341,9 @@ export default function PageTransfer() {
         }
       }
     });
+    // 전송 목록이 갱신될 때만 '새로 실패한 항목'을 토스트하는 효과다. t(i18n)를 deps 에
+    // 넣으면 언어 변경만으로 효과가 재실행된다(toastedRef 가 중복은 막지만 불필요한 스캔).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transfers]);
 
   const rows = useMemo(() => {

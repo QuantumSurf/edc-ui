@@ -28,7 +28,6 @@ import {
   fetchIdentityHubUrl,
   fetchIdentityHubHealth,
   fetchIdentityHubParticipant,
-  type IdentityHubHealth,
 } from "@/services/api";
 import { toast } from "sonner";
 
@@ -62,7 +61,10 @@ export default function PageIdentityHub({ onNav }: PageIdentityHubProps) {
 
   return (
     <>
-      <SectionHdr icon={<Fingerprint className="w-5 h-5 text-primary" />} subtitle={t.pageSubtitles.identityHub}>
+      <SectionHdr
+        icon={<Fingerprint className="w-5 h-5 text-primary" />}
+        subtitle={t.pageSubtitles.identityHub}
+      >
         {t.identityHub.title}
       </SectionHdr>
 

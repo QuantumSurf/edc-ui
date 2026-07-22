@@ -25,7 +25,6 @@ import {
 } from "@/components/DataTablePagination";
 import {
   Card,
-  CardTitle,
   Badge,
   SectionHdr,
   FormField,
@@ -39,10 +38,7 @@ import {
 import {
   PlusCircle,
   Trash2,
-  Eye,
   Code,
-  ChevronDown,
-  ChevronUp,
   Copy,
   Search,
   Shield,
@@ -1242,7 +1238,6 @@ function ODRLBuilder({
   const [logicOp, setLogicOp] = useState<LogicOp>(() =>
     baseSrc ? policyLogic(baseSrc) : "and"
   );
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"builder" | "json">("builder");
   const [editorMode, setEditorMode] = useState<"builder" | "json">("builder");
   const [jsonText, setJsonText] = useState("");

@@ -51,7 +51,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
-import { useAuth } from "@/contexts/AuthContext";
 import { useConnectorStore } from "@/stores/connectorStore";
 import AddConnectorPanel from "./PageAddConnector";
 import {
@@ -76,9 +75,8 @@ function rolesToKey(roles: string[]): string {
   return "consumer";
 }
 
-export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
+export default function PageFleet({ onSelect }: PageFleetProps) {
   const { t } = useI18n();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Add connector slide panel state
@@ -309,19 +307,19 @@ export default function PageFleet({ onSelect, onNav }: PageFleetProps) {
           ))}
           {/* add 카드는 마지막 페이지에만 — 페이징 후 매 페이지 반복 노출 방지(헤더 추가 버튼은 상시). */}
           {currentPage >= Math.max(1, Math.ceil(totalItems / pageSize)) && (
-          <RoleGate permission="connector:write">
-            <button
-              onClick={() => setAddOpen(true)}
-              className="bg-card border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-primary/40 hover:bg-primary/5 transition-all group shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-            >
-              <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:border-primary transition-colors bg-muted">
-                <PlusCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <span className="text-[13px] text-muted-foreground group-hover:text-primary transition-colors font-medium">
-                {t.common.addConnector}
-              </span>
-            </button>
-          </RoleGate>
+            <RoleGate permission="connector:write">
+              <button
+                onClick={() => setAddOpen(true)}
+                className="bg-card border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-primary/40 hover:bg-primary/5 transition-all group shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              >
+                <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:border-primary transition-colors bg-muted">
+                  <PlusCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <span className="text-[13px] text-muted-foreground group-hover:text-primary transition-colors font-medium">
+                  {t.common.addConnector}
+                </span>
+              </button>
+            </RoleGate>
           )}
         </div>
       )}
@@ -522,9 +520,7 @@ function EditConnectorDialog({
   const [managementUrl, setManagementUrl] = useState(
     connector.managementUrl ?? ""
   );
-  const [dspEndpoint, setDspEndpoint] = useState(
-    connector.dspEndpoint ?? ""
-  );
+  const [dspEndpoint, setDspEndpoint] = useState(connector.dspEndpoint ?? "");
   const [apiKey, setApiKey] = useState("");
   const [role, setRole] = useState(rolesToKey(connector.roles ?? []));
   const [env, setEnv] = useState(connector.env ?? "PROD");

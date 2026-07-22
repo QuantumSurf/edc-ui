@@ -190,7 +190,7 @@ router.post(
         return;
       }
       const connector = await registerConnector(entry, tenantId);
-      const { apiKey, ...safe } = connector;
+      const { apiKey: _apiKey, ...safe } = connector;
       res.status(201).json(safe);
     } catch (error) {
       next(error);
@@ -204,7 +204,7 @@ router.post(
 router.post(
   "/test-connection",
   operatorOrAdmin,
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, _next: NextFunction) => {
     try {
       const { managementUrl, apiKey } = req.body;
       if (!managementUrl) {
@@ -292,7 +292,7 @@ router.put(
         res.status(404).json({ error: "connector-not-found" });
         return;
       }
-      const { apiKey, ...safe } = updated;
+      const { apiKey: _apiKey, ...safe } = updated;
       res.json(safe);
     } catch (error) {
       next(error);

@@ -31,7 +31,6 @@ import {
 } from "@/components/DataTablePagination";
 import {
   Card,
-  CardTitle,
   Badge,
   MonoText,
   SectionHdr,
@@ -54,7 +53,6 @@ import {
   Shield,
   X,
   Code,
-  CheckCircle2,
   FileSignature,
   Pencil,
   Files,
@@ -74,7 +72,7 @@ interface PageOfferingProps {
   onNav: (path: string) => void;
 }
 
-export default function PageOffering({ onNav }: PageOfferingProps) {
+export default function PageOffering(_props: PageOfferingProps) {
   const { t } = useI18n();
   const connector = useConnectorStore(s => s.connector);
   const connectorId = connector?.id;

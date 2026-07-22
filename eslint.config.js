@@ -16,6 +16,7 @@ export default tseslint.config(
       "dist/**",
       "node_modules/**",
       "**/coverage/**", // 루트·client/coverage 등 생성된 커버리지 산출물 전부 제외
+      ".pnpm-store/**", // pnpm 스토어 캐시(gitignore 대상) — 앱 코드 아님
       "patches/**",
       "dev-mock/**",
       "**/*.cjs",

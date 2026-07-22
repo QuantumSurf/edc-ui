@@ -100,7 +100,6 @@ function FieldValue({
   idx,
   copied,
   onCopy,
-  inCard,
 }: {
   field: DetailField;
   idx: string;
@@ -665,7 +664,6 @@ export function InfoCard({
   label,
   value,
   span,
-  mono,
   copyable,
 }: {
   label: string;

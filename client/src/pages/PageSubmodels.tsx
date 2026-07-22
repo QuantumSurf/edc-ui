@@ -119,7 +119,9 @@ export default function PageSubmodels() {
     refetchOnReconnect: false,
     refetchInterval: false,
   });
-  const items = data?.items ?? [];
+  // `data?.items ?? []` 를 그대로 쓰면 로딩/빈 응답일 때 매 렌더 새 배열이 만들어져
+  // 아래 useMemo(filtered) 의 의존성이 항상 바뀐다(메모이제이션 무력화). 참조를 고정한다.
+  const items = useMemo(() => data?.items ?? [], [data]);
 
   const filtered = useMemo(
     () =>

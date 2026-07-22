@@ -101,6 +101,9 @@ export default function AddConnectorPanel({
       setTestResult(null);
       setConfirmClose(false);
     }
+    // 다이얼로그가 '열릴 때만' 폼을 초기화하는 효과다. user 를 deps 에 넣으면 세션 정보가
+    // 갱신될 때마다 입력 중이던 값이 통째로 초기화된다 — 의도적으로 open 만 관찰한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const isValid = name.trim() && managementUrl.trim() && dspEndpoint.trim();
