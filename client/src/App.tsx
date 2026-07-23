@@ -21,26 +21,43 @@ import { I18nContext, getTranslations, useI18n, type Locale } from "./i18n";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./contexts/useAuth";
 import PageLogin from "./pages/PageLogin";
+import { reloadableImport } from "./lib/chunkReload";
 
 // Pages — route 기반 코드 스플리팅(lazy): 16개 페이지를 단일 초기 번들에서 분리해
 // 페이지별 청크로 나눈다(초기 1.5MB 단일 청크 → 진입 페이지 청크만 로드). recharts 등
 // 무거운 의존성도 이를 쓰는 페이지 청크로만 들어가 차트 없는 페이지에서 비용이 사라진다.
-const PageFleet = lazy(() => import("./pages/PageFleet"));
-const PageDashboard = lazy(() => import("./pages/PageDashboard"));
-const PageAssets = lazy(() => import("./pages/PageAssets"));
-const PagePolicy = lazy(() => import("./pages/PagePolicy"));
-const PageOffering = lazy(() => import("./pages/PageOffering"));
-const PageCatalog = lazy(() => import("./pages/PageCatalog"));
-const PageNegotiation = lazy(() => import("./pages/PageNegotiation"));
-const PageTransfer = lazy(() => import("./pages/PageTransfer"));
-const PageEDR = lazy(() => import("./pages/PageEDR"));
-const PageInfra = lazy(() => import("./pages/PageInfra"));
-const PageVault = lazy(() => import("./pages/PageVault"));
-const PageAudit = lazy(() => import("./pages/PageAudit"));
-const PageSettings = lazy(() => import("./pages/PageSettings"));
-const PageShells = lazy(() => import("./pages/PageShells"));
-const PageSubmodels = lazy(() => import("./pages/PageSubmodels"));
-const PageIdentityHub = lazy(() => import("./pages/PageIdentityHub"));
+// reloadableImport: 배포/HMR 로 청크 해시가 바뀐 뒤 낡은 탭이 옛 청크를 요청해 실패하면
+// 흰 화면 대신 1회 자동 새로고침으로 복구한다(무한 루프 가드 포함).
+const PageFleet = lazy(reloadableImport(() => import("./pages/PageFleet")));
+const PageDashboard = lazy(
+  reloadableImport(() => import("./pages/PageDashboard"))
+);
+const PageAssets = lazy(reloadableImport(() => import("./pages/PageAssets")));
+const PagePolicy = lazy(reloadableImport(() => import("./pages/PagePolicy")));
+const PageOffering = lazy(
+  reloadableImport(() => import("./pages/PageOffering"))
+);
+const PageCatalog = lazy(reloadableImport(() => import("./pages/PageCatalog")));
+const PageNegotiation = lazy(
+  reloadableImport(() => import("./pages/PageNegotiation"))
+);
+const PageTransfer = lazy(
+  reloadableImport(() => import("./pages/PageTransfer"))
+);
+const PageEDR = lazy(reloadableImport(() => import("./pages/PageEDR")));
+const PageInfra = lazy(reloadableImport(() => import("./pages/PageInfra")));
+const PageVault = lazy(reloadableImport(() => import("./pages/PageVault")));
+const PageAudit = lazy(reloadableImport(() => import("./pages/PageAudit")));
+const PageSettings = lazy(
+  reloadableImport(() => import("./pages/PageSettings"))
+);
+const PageShells = lazy(reloadableImport(() => import("./pages/PageShells")));
+const PageSubmodels = lazy(
+  reloadableImport(() => import("./pages/PageSubmodels"))
+);
+const PageIdentityHub = lazy(
+  reloadableImport(() => import("./pages/PageIdentityHub"))
+);
 
 /** lazy 페이지 청크 로딩 중 표시할 가벼운 폴백 스피너. */
 function RouteFallback() {
