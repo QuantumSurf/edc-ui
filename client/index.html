@@ -12,7 +12,70 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <!-- 부트 폴백: 엔트리 번들 로드 실패/지연(구 index.html 이 사라진 청크를 가리키는
+         경우 등) 시 흰 화면 대신 안내한다. React 마운트 시 createRoot 가 이 내용을
+         교체하므로 정상 부팅에는 보이지 않는다. Tailwind/CSS 로드 전이라 인라인 스타일 사용. -->
+    <div id="root">
+      <div
+        id="boot-fallback"
+        style="
+          font-family: &quot;Malgun Gothic&quot;, system-ui, sans-serif;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          color: #334155;
+          background: #ffffff;
+        "
+      >
+        <div
+          style="
+            width: 32px;
+            height: 32px;
+            border: 3px solid #cbd5e1;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: boot-spin 0.8s linear infinite;
+          "
+        ></div>
+        <p style="margin: 0; font-size: 14px">앱을 불러오는 중…</p>
+        <p id="boot-slow" style="margin: 0; font-size: 13px; display: none">
+          로딩이 지연됩니다. 새로고침(Ctrl+Shift+R) 해 주세요.
+        </p>
+      </div>
+    </div>
+    <style>
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+    <noscript>
+      <div
+        style="
+          font-family: &quot;Malgun Gothic&quot;, system-ui, sans-serif;
+          padding: 24px;
+          text-align: center;
+          color: #334155;
+        "
+      >
+        이 애플리케이션을 사용하려면 JavaScript 가 필요합니다. 브라우저에서
+        JavaScript 를 활성화한 뒤 다시 시도해 주세요.
+      </div>
+    </noscript>
+    <script>
+      // 엔트리 번들이 일정 시간 내 마운트하지 못하면(청크 404·네트워크 실패) 안내를
+      // 노출한다. React 가 마운트했으면 #boot-fallback 이 제거되므로 아무 일도 안 한다.
+      window.setTimeout(function () {
+        if (document.getElementById("boot-fallback")) {
+          var slow = document.getElementById("boot-slow");
+          if (slow) slow.style.display = "block";
+        }
+      }, 8000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -5,6 +5,16 @@ import { getTranslations, normalizeLocale } from "@/i18n";
 
 interface Props {
   children: ReactNode;
+  /**
+   * fullscreen(기본): 앱 최상위 백스톱 — 화면 전체 에러 UI.
+   * inline: 라우트 콘텐츠 영역용 — 셸(사이드바/탑바)을 유지한 채 콘텐츠만 에러 UI.
+   */
+  variant?: "fullscreen" | "inline";
+  /**
+   * 값이 바뀌면 에러 상태를 초기화한다. 라우트 이동 시 location 을 넘겨, 셸에서 다른
+   * 라우트로 이동하면 콘텐츠 경계가 자동 복구되게 한다(에러 라우트에 갇히지 않도록).
+   */
+  resetKey?: unknown;
 }
 
 interface State {
@@ -22,6 +32,14 @@ class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  componentDidUpdate(prevProps: Props) {
+    // 라우트가 바뀌면(resetKey 변경) 에러를 비워 새 라우트를 정상 렌더한다. 정상 이동
+    // (에러 없음)에는 setState 하지 않으므로 매 네비게이션마다 재마운트되지 않는다.
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
   render() {
     if (this.state.hasError) {
       // 클래스 컴포넌트라 useI18n 훅 사용 불가 + ErrorBoundary 는 I18n Provider 바깥에 위치 →
@@ -34,8 +52,14 @@ class ErrorBoundary extends Component<Props, State> {
           : null
       );
       const t = getTranslations(locale);
+      const inline = this.props.variant === "inline";
       return (
-        <div className="flex items-center justify-center min-h-screen p-8 bg-background">
+        <div
+          className={cn(
+            "flex items-center justify-center bg-background",
+            inline ? "py-20 px-4" : "min-h-screen p-8"
+          )}
+        >
           <div className="flex flex-col items-center w-full max-w-2xl p-8">
             <AlertTriangle
               size={48}

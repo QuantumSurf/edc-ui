@@ -101,7 +101,7 @@ function ConnectorSync({ id }: { id: string }) {
 }
 
 function AppRoutes() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const connector = useConnectorStore(s => s.connector);
   const selectConnector = useConnectorStore(s => s.selectConnector);
   const setNavigating = useConnectorStore(s => s.setNavigating);
@@ -114,117 +114,132 @@ function AppRoutes() {
   };
 
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Switch>
-        {/* Fleet Overview (Home) */}
-        <Route path="/">
-          <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
-        </Route>
-        <Route path="/fleet">
-          <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
-        </Route>
+    // 라우트 콘텐츠 전용 내부 경계 — 페이지 렌더/청크 실패가 셸(사이드바·탑바)까지
+    // 언마운트하지 않게 콘텐츠 영역에만 에러 UI 를 띄운다. resetKey=location 으로
+    // 다른 라우트로 이동하면 자동 복구된다(에러 라우트에 갇히지 않음).
+    // 최상위 ErrorBoundary(App)는 셸/프로바이더 에러의 최후 백스톱으로 남는다.
+    <ErrorBoundary variant="inline" resetKey={location}>
+      <Suspense fallback={<RouteFallback />}>
+        <Switch>
+          {/* Fleet Overview (Home) */}
+          <Route path="/">
+            <PageFleet
+              onSelect={(c, page) => selectAndGo(c, page)}
+              onNav={nav}
+            />
+          </Route>
+          <Route path="/fleet">
+            <PageFleet
+              onSelect={(c, page) => selectAndGo(c, page)}
+              onNav={nav}
+            />
+          </Route>
 
-        {/* Connector-scoped pages */}
-        <Route path="/connectors/:id/dashboard">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              {connector && <PageDashboard conn={connector} onNav={nav} />}
-            </>
-          )}
-        </Route>
-        <Route path="/connectors/:id/assets">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PageAssets onNav={nav} />
-            </>
-          )}
-        </Route>
-        <Route path="/connectors/:id/policy">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PagePolicy />
-            </>
-          )}
-        </Route>
-        <Route path="/connectors/:id/contract">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PageOffering onNav={nav} />
-            </>
-          )}
-        </Route>
-        <Route path="/connectors/:id/catalog">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PageCatalog onNav={nav} />
-            </>
-          )}
-        </Route>
-        <Route path="/connectors/:id/negotiation">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PageNegotiation onNav={nav} />
-            </>
-          )}
-        </Route>
-        <Route path="/connectors/:id/transfer">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PageTransfer />
-            </>
-          )}
-        </Route>
-        <Route path="/connectors/:id/edr">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PageEDR />
-            </>
-          )}
-        </Route>
-        {/* System pages — global, not connector-scoped */}
-        <Route path="/system/vault">
-          <PageVault />
-        </Route>
-        <Route path="/system/identity-hub">
-          <PageIdentityHub onNav={nav} />
-        </Route>
-        <Route path="/system/audit">
-          <PageAudit />
-        </Route>
-        <Route path="/registry">
-          <PageShells />
-        </Route>
-        <Route path="/submodels">
-          <PageSubmodels />
-        </Route>
-        <Route path="/connectors/:id/infra">
-          {({ id }) => (
-            <>
-              <ConnectorSync id={id} />
-              <PageInfra />
-            </>
-          )}
-        </Route>
+          {/* Connector-scoped pages */}
+          <Route path="/connectors/:id/dashboard">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                {connector && <PageDashboard conn={connector} onNav={nav} />}
+              </>
+            )}
+          </Route>
+          <Route path="/connectors/:id/assets">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PageAssets onNav={nav} />
+              </>
+            )}
+          </Route>
+          <Route path="/connectors/:id/policy">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PagePolicy />
+              </>
+            )}
+          </Route>
+          <Route path="/connectors/:id/contract">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PageOffering onNav={nav} />
+              </>
+            )}
+          </Route>
+          <Route path="/connectors/:id/catalog">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PageCatalog onNav={nav} />
+              </>
+            )}
+          </Route>
+          <Route path="/connectors/:id/negotiation">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PageNegotiation onNav={nav} />
+              </>
+            )}
+          </Route>
+          <Route path="/connectors/:id/transfer">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PageTransfer />
+              </>
+            )}
+          </Route>
+          <Route path="/connectors/:id/edr">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PageEDR />
+              </>
+            )}
+          </Route>
+          {/* System pages — global, not connector-scoped */}
+          <Route path="/system/vault">
+            <PageVault />
+          </Route>
+          <Route path="/system/identity-hub">
+            <PageIdentityHub onNav={nav} />
+          </Route>
+          <Route path="/system/audit">
+            <PageAudit />
+          </Route>
+          <Route path="/registry">
+            <PageShells />
+          </Route>
+          <Route path="/submodels">
+            <PageSubmodels />
+          </Route>
+          <Route path="/connectors/:id/infra">
+            {({ id }) => (
+              <>
+                <ConnectorSync id={id} />
+                <PageInfra />
+              </>
+            )}
+          </Route>
 
-        {/* Settings */}
-        <Route path="/settings">
-          <PageSettings />
-        </Route>
+          {/* Settings */}
+          <Route path="/settings">
+            <PageSettings />
+          </Route>
 
-        {/* Fallback */}
-        <Route>
-          <PageFleet onSelect={(c, page) => selectAndGo(c, page)} onNav={nav} />
-        </Route>
-      </Switch>
-    </Suspense>
+          {/* Fallback */}
+          <Route>
+            <PageFleet
+              onSelect={(c, page) => selectAndGo(c, page)}
+              onNav={nav}
+            />
+          </Route>
+        </Switch>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
