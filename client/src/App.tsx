@@ -17,7 +17,13 @@ import { useConnectorStore } from "./stores/connectorStore";
 import { fetchConnectors } from "./services";
 import { useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { I18nContext, getTranslations, useI18n, type Locale } from "./i18n";
+import {
+  I18nContext,
+  getTranslations,
+  normalizeLocale,
+  useI18n,
+  type Locale,
+} from "./i18n";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./contexts/useAuth";
 import PageLogin from "./pages/PageLogin";
@@ -363,9 +369,9 @@ function AuthGate() {
 }
 
 function App() {
-  const [locale, setLocale] = useState<Locale>(() => {
-    return (localStorage.getItem("locale") as Locale) || "ko";
-  });
+  const [locale, setLocale] = useState<Locale>(() =>
+    normalizeLocale(localStorage.getItem("locale"))
+  );
   const i18n = useMemo(
     () => ({
       locale,
