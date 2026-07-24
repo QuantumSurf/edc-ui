@@ -506,6 +506,29 @@ const dtrShells = [
           },
         ],
       },
+      {
+        id: "urn:uuid:sm-nameplate-001",
+        idShort: "Nameplate",
+        semanticId: {
+          keys: [
+            {
+              type: "GlobalReference",
+              value: "https://admin-shell.io/idta/nameplate/3/0/Nameplate",
+            },
+          ],
+        },
+        endpoints: [
+          {
+            interface: "SUBMODEL-3.0",
+            protocolInformation: {
+              href: "http://mock-edc:8090/data/nameplate",
+              endpointProtocol: "HTTP",
+              endpointProtocolVersion: ["1.1"],
+              subprotocol: "DSP",
+            },
+          },
+        ],
+      },
     ],
     createdAt: new Date(h(120)).toISOString(),
   },
@@ -541,6 +564,29 @@ const dtrShells = [
               subprotocolBody:
                 "id=asset-traceability-005;dspEndpoint=http://mock-edc:8090/api/v1/dsp",
               subprotocolBodyEncoding: "plain",
+            },
+          },
+        ],
+      },
+      {
+        id: "urn:uuid:sm-td-002",
+        idShort: "TechnicalData",
+        semanticId: {
+          keys: [
+            {
+              type: "GlobalReference",
+              value: "https://admin-shell.io/ZVEI/TechnicalData/Submodel/1/2",
+            },
+          ],
+        },
+        endpoints: [
+          {
+            interface: "SUBMODEL-3.0",
+            protocolInformation: {
+              href: "http://mock-edc:8090/data/technicaldata",
+              endpointProtocol: "HTTP",
+              endpointProtocolVersion: ["1.1"],
+              subprotocol: "DSP",
             },
           },
         ],
@@ -769,6 +815,114 @@ const server = http.createServer((req, res) => {
                   modelType: "Property",
                   valueType: "xs:string",
                   value: "KOR",
+                },
+              ],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/data/nameplate")) {
+        return send(res, 200, {
+          idShort: "Nameplate",
+          modelType: "Submodel",
+          semanticId: {
+            keys: [
+              {
+                type: "GlobalReference",
+                value: "https://admin-shell.io/idta/nameplate/3/0/Nameplate",
+              },
+            ],
+          },
+          submodelElements: [
+            {
+              idShort: "ManufacturerName",
+              modelType: "MultiLanguageProperty",
+              value: [
+                { language: "ko", text: "퀀텀서프" },
+                { language: "en", text: "QuantumSurf" },
+              ],
+            },
+            {
+              idShort: "ManufacturerProductDesignation",
+              modelType: "MultiLanguageProperty",
+              value: [
+                { language: "ko", text: "고전압 배터리 모듈" },
+                { language: "en", text: "HV Battery Module" },
+              ],
+            },
+            {
+              idShort: "SerialNumber",
+              modelType: "Property",
+              valueType: "xs:string",
+              value: "SN-BAT-12345",
+            },
+            {
+              idShort: "YearOfConstruction",
+              modelType: "Property",
+              valueType: "xs:string",
+              value: "2026",
+            },
+            {
+              idShort: "CountryOfOrigin",
+              modelType: "Property",
+              valueType: "xs:string",
+              value: "KR",
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/data/technicaldata")) {
+        return send(res, 200, {
+          idShort: "TechnicalData",
+          modelType: "Submodel",
+          semanticId: {
+            keys: [
+              {
+                type: "GlobalReference",
+                value: "https://admin-shell.io/ZVEI/TechnicalData/Submodel/1/2",
+              },
+            ],
+          },
+          submodelElements: [
+            {
+              idShort: "GeneralInformation",
+              modelType: "SubmodelElementCollection",
+              value: [
+                {
+                  idShort: "ManufacturerName",
+                  modelType: "Property",
+                  valueType: "xs:string",
+                  value: "QuantumSurf",
+                },
+                {
+                  idShort: "ManufacturerPartNumber",
+                  modelType: "Property",
+                  valueType: "xs:string",
+                  value: "EMOTOR-002",
+                },
+              ],
+            },
+            {
+              idShort: "TechnicalProperties",
+              modelType: "SubmodelElementCollection",
+              value: [
+                {
+                  idShort: "RatedPower",
+                  modelType: "Property",
+                  valueType: "xs:double",
+                  value: "150",
+                },
+                {
+                  idShort: "RatedVoltage",
+                  modelType: "Property",
+                  valueType: "xs:double",
+                  value: "800",
+                },
+                {
+                  idShort: "Weight",
+                  modelType: "Property",
+                  valueType: "xs:double",
+                  value: "42.5",
                 },
               ],
             },

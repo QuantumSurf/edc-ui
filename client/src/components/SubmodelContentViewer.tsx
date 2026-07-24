@@ -17,6 +17,12 @@ import { useEffect, useState } from "react";
 import { fetchSubmodelContent } from "@/services";
 import { useI18n } from "@/i18n";
 import { recognizeSemanticId } from "@/lib/semanticTemplates";
+import {
+  detectTemplateKind,
+  flattenLeaves,
+  extractNameplate,
+  extractTechnicalProps,
+} from "@/lib/templateViews";
 import { MonoText } from "@/components/ui-kmx";
 
 /* ── AAS Part 2 submodelElement 탐색 헬퍼 ─────────────────────── */
@@ -158,6 +164,74 @@ function ElementNode({ el, depth }: { el: Rec; depth: number }) {
   );
 }
 
+/* ── 특화 뷰(Nameplate 02006 · TechnicalData 02003) ──────────────
+ * 표준 템플릿으로 인지되면 핵심 필드를 상단 그리드로 승격한다. 트리 뷰를
+ * 대체하지 않고 위에 얹는다(진행형 강화 — 미인지 필드는 트리에서 그대로 보임). */
+function TemplateHighlight({
+  kind,
+  content,
+  locale,
+}: {
+  kind: "nameplate" | "technicalData";
+  content: unknown;
+  locale: string;
+}) {
+  const { t } = useI18n();
+  const leaves = flattenLeaves(content);
+  const isKo = locale === "ko";
+
+  if (kind === "nameplate") {
+    const fields = extractNameplate(leaves);
+    if (fields.length === 0) return null;
+    return (
+      <div className="mb-3 rounded-lg border border-border bg-muted/30 p-3">
+        <div className="text-[11px] font-semibold text-muted-foreground mb-2">
+          {t.twins.content.nameplateTitle}
+        </div>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+          {fields.map(f => (
+            <div key={f.key} className="min-w-0">
+              <dt className="text-[10px] text-muted-foreground">
+                {isKo ? f.label.ko : f.label.en}
+              </dt>
+              <dd className="text-xs text-foreground break-all">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    );
+  }
+
+  const props = extractTechnicalProps(leaves);
+  if (props.length === 0) return null;
+  return (
+    <div className="mb-3 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="text-[11px] font-semibold text-muted-foreground mb-2">
+        {t.twins.content.technicalDataTitle}
+      </div>
+      <div className="max-h-48 overflow-y-auto">
+        <table className="w-full text-left">
+          <tbody>
+            {props.map(l => (
+              <tr
+                key={l.path}
+                className="border-b border-border/50 last:border-0"
+              >
+                <td className="py-1 pr-3 text-[11px] text-muted-foreground align-top whitespace-nowrap">
+                  {l.idShort}
+                </td>
+                <td className="py-1 text-xs text-foreground break-all">
+                  {l.value}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ── 다이얼로그 본체 ──────────────────────────────────────────── */
 
 export default function SubmodelContentViewer({
@@ -171,7 +245,7 @@ export default function SubmodelContentViewer({
   idShort: string;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["submodel-content", aasId, submodelId],
     queryFn: () => fetchSubmodelContent(aasId, submodelId),
@@ -181,6 +255,8 @@ export default function SubmodelContentViewer({
 
   const content = asRec(data?.content);
   const roots = content ? childElements(content) : [];
+  // 서브모델 수준 semanticId 로 표준 템플릿 인지 → 특화 하이라이트를 트리 위에 얹는다.
+  const templateKind = detectTemplateKind(data?.semanticId);
 
   // ESC 로 닫기 — 백드롭 클릭 대신 키보드 접근 가능한 닫기 경로(a11y).
   useEffect(() => {
@@ -239,6 +315,13 @@ export default function SubmodelContentViewer({
             <div className="text-sm text-muted-foreground py-6 text-center">
               {t.twins.content.empty}
             </div>
+          )}
+          {!isLoading && !isError && templateKind && content && (
+            <TemplateHighlight
+              kind={templateKind}
+              content={content}
+              locale={locale}
+            />
           )}
           {!isLoading &&
             !isError &&
