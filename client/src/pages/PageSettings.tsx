@@ -38,8 +38,11 @@ import {
   updateIdentityHubConfig,
   fetchVaultConfig,
   fetchTenantInfo,
+  fetchNotifyPrefs,
+  updateNotifyPrefs,
 } from "@/services/api";
 import { RoleGate } from "@/components/RoleGate";
+import { useCan } from "@/lib/rbac";
 import { toast } from "sonner";
 
 export default function PageSettings() {
@@ -58,6 +61,32 @@ export default function PageSettings() {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  // 알림 source 토글 — 서버(테넌트 영속, tenant_settings)와 동기화.
+  // 서버 값이 로컬(localStorage)을 시드해 기기 간 일관을 만들고, 서버에서 끈 source 는
+  // 애초에 생성되지 않는다(notificationGenerator 게이팅). 갱신은 admin/operator 만
+  // 서버 반영(테넌트 전체 차단이므로) — viewer 토글은 로컬 표시 필터로만 동작.
+  const canSyncNotify = useCan("resource:write");
+  const { data: serverNotifyPrefs, isError: notifyPrefsError } = useQuery({
+    queryKey: ["notify-prefs"],
+    queryFn: fetchNotifyPrefs,
+    staleTime: 60_000,
+  });
+  const [notifySeeded, setNotifySeeded] = useState(false);
+  useEffect(() => {
+    if (serverNotifyPrefs) {
+      for (const [k, v] of Object.entries(serverNotifyPrefs)) writePref(k, v);
+      setNotifySeeded(true);
+    } else if (notifyPrefsError) {
+      setNotifySeeded(true); // 서버 미가용 — 로컬 값으로 렌더(다음 진입 시 재시드)
+    }
+  }, [serverNotifyPrefs, notifyPrefsError]);
+  const syncNotifyPref = (key: string, value: boolean) => {
+    if (canSyncNotify)
+      void updateNotifyPrefs({ [key]: value }).catch(() => {
+        /* 서버 미반영 — 다음 진입 시 서버 값으로 재시드된다 */
+      });
+  };
 
   return (
     <>
@@ -206,38 +235,46 @@ export default function PageSettings() {
             </CardTitle>
           }
         >
-          <div className="space-y-3">
-            <ToggleRow
-              storageKey="notify.vcExpiry"
-              label={t.settings.vcExpiry}
-              desc={t.settings.vcExpiryDesc}
-              defaultOn
-            />
-            <ToggleRow
-              storageKey="notify.negTerminated"
-              label={t.settings.negTerminated}
-              desc={t.settings.negTerminatedDesc}
-              defaultOn
-            />
-            <ToggleRow
-              storageKey="notify.transferFailed"
-              label={t.settings.transferFailed}
-              desc={t.settings.transferFailedDesc}
-              defaultOn
-            />
-            <ToggleRow
-              storageKey="notify.edrExpiry"
-              label={t.settings.edrExpiry}
-              desc={t.settings.edrExpiryDesc}
-              defaultOn
-            />
-            <ToggleRow
-              storageKey="notify.connectorHealth"
-              label={t.settings.connectorHealth}
-              desc={t.settings.connectorHealthDesc}
-              defaultOn
-            />
-          </div>
+          {/* 서버 시드 완료 후 렌더 — ToggleRow 가 mount 시 localStorage 를 읽으므로 */}
+          {notifySeeded && (
+            <div className="space-y-3">
+              <ToggleRow
+                storageKey="notify.vcExpiry"
+                label={t.settings.vcExpiry}
+                desc={t.settings.vcExpiryDesc}
+                defaultOn
+                onServerSync={syncNotifyPref}
+              />
+              <ToggleRow
+                storageKey="notify.negTerminated"
+                label={t.settings.negTerminated}
+                desc={t.settings.negTerminatedDesc}
+                defaultOn
+                onServerSync={syncNotifyPref}
+              />
+              <ToggleRow
+                storageKey="notify.transferFailed"
+                label={t.settings.transferFailed}
+                desc={t.settings.transferFailedDesc}
+                defaultOn
+                onServerSync={syncNotifyPref}
+              />
+              <ToggleRow
+                storageKey="notify.edrExpiry"
+                label={t.settings.edrExpiry}
+                desc={t.settings.edrExpiryDesc}
+                defaultOn
+                onServerSync={syncNotifyPref}
+              />
+              <ToggleRow
+                storageKey="notify.connectorHealth"
+                label={t.settings.connectorHealth}
+                desc={t.settings.connectorHealthDesc}
+                defaultOn
+                onServerSync={syncNotifyPref}
+              />
+            </div>
+          )}
         </Card>
       </div>
 
@@ -635,17 +672,21 @@ function ToggleRow({
   label,
   desc,
   defaultOn,
+  onServerSync,
 }: {
   storageKey: string;
   label: string;
   desc: string;
   defaultOn?: boolean;
+  /** 토글 시 서버(테넌트 설정) 동기화 콜백 — 알림 source 토글에서만 사용. */
+  onServerSync?: (key: string, value: boolean) => void;
 }) {
   const [on, setOn] = useState(() => readPref(storageKey, defaultOn ?? false));
   const toggle = () => {
     setOn(prev => {
       const next = !prev;
       writePref(storageKey, next);
+      onServerSync?.(storageKey, next);
       return next;
     });
   };

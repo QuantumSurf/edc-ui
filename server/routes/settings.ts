@@ -15,12 +15,19 @@ import {
 } from "../lib/identityHubConfig.js";
 import {
   getTenantSetting,
+  getTenantSettings,
   setTenantSetting,
   getTenant,
   updateTenantBpn,
   isBpnTaken,
   isUniqueViolation,
 } from "../lib/tenants.js";
+import {
+  NOTIFY_PREF_KEYS,
+  invalidateTenantNotifyPrefs,
+} from "../lib/notificationGenerator.js";
+import { validateBody } from "../middleware/validate.js";
+import { notifyPrefsSchema } from "../schemas/settings.js";
 import { validateDspEndpoint } from "../middleware/validation.js";
 import {
   writeVaultSecret,
@@ -48,6 +55,59 @@ async function setSetting(key: string, value: string): Promise<void> {
     [key, value]
   );
 }
+
+// GET /api/system/settings/notifications — 테넌트의 알림 source 토글(미설정=on).
+// 서버 생성 게이팅(notificationGenerator.isSourceEnabled)과 같은 키/값을 쓴다.
+router.get(
+  "/settings/notifications",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        res.status(403).json({ error: "no-tenant" });
+        return;
+      }
+      const stored = await getTenantSettings(tenantId, NOTIFY_PREF_KEYS);
+      const prefs: Record<string, boolean> = {};
+      for (const k of NOTIFY_PREF_KEYS) prefs[k] = stored[k] !== "false";
+      res.json(prefs);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PUT /api/system/settings/notifications — 알림 source 토글 갱신(부분).
+// 테넌트 전체에 적용되는 생성 차단이므로 admin/operator 만(viewer 의 로컬 표시
+// 필터는 클라 localStorage 가 그대로 담당).
+router.put(
+  "/settings/notifications",
+  requireRole("admin", "operator"),
+  validateBody(notifyPrefsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      if (!tenantId) {
+        res.status(403).json({ error: "no-tenant" });
+        return;
+      }
+      const body = req.body as Record<string, boolean | undefined>;
+      for (const k of NOTIFY_PREF_KEYS) {
+        const v = body[k];
+        if (typeof v === "boolean") {
+          await setTenantSetting(tenantId, k, v ? "true" : "false");
+        }
+      }
+      invalidateTenantNotifyPrefs(tenantId); // TTL 캐시 즉시 무효화(최대 60초 지연 제거)
+      const stored = await getTenantSettings(tenantId, NOTIFY_PREF_KEYS);
+      const prefs: Record<string, boolean> = {};
+      for (const k of NOTIFY_PREF_KEYS) prefs[k] = stored[k] !== "false";
+      res.json(prefs);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // GET /api/system/settings/tenant — current organization (tenant) info incl. BPN
 router.get(

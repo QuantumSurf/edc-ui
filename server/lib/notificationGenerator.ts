@@ -15,6 +15,7 @@
 //   plus a DB UNIQUE INDEX guard to prevent duplicates across BFF restarts.
 
 import type { PoolClient } from "pg";
+import { getTenantSettings } from "./tenants.js";
 import { getPool } from "./db.js";
 import { listAllConnectorsUnsafe } from "./connectorRegistry.js";
 import { getEdcClient, withJsonLd } from "./edcClient.js";
@@ -100,6 +101,49 @@ interface InsertSpec {
 }
 
 /** Persist notification + dedup row. Returns true if newly created. */
+/* ── 테넌트별 알림 source 토글(서버 생성 게이팅) ─────────────────────
+ * 클라 표시 필터(useNotifications SOURCE_PREF, localStorage)와 동일한 5키 계약.
+ * 여기서 막으면 알림이 아예 생성·저장되지 않는다(소음 원천 차단 + 기기간 일관).
+ * 미설정 = on(기본 전부 켜짐). */
+const SOURCE_PREF_KEY: Record<InsertSpec["source"], string> = {
+  vc: "notify.vcExpiry",
+  negotiation: "notify.negTerminated",
+  transfer: "notify.transferFailed",
+  edr: "notify.edrExpiry",
+  system: "notify.connectorHealth",
+};
+export const NOTIFY_PREF_KEYS = Object.values(SOURCE_PREF_KEY);
+
+// 알림마다 DB 조회를 피하는 짧은 TTL 캐시. PUT(설정 변경) 시 즉시 무효화된다.
+const NOTIFY_PREFS_TTL_MS = 60_000;
+const notifyPrefsCache = new Map<
+  string,
+  { prefs: Record<string, string>; expiresAt: number }
+>();
+
+/** 설정 변경 직후 캐시 무효화 — settings 라우트가 호출(최대 60초 지연 제거). */
+export function invalidateTenantNotifyPrefs(tenantId: string): void {
+  notifyPrefsCache.delete(tenantId);
+}
+
+async function isSourceEnabled(
+  tenantId: string,
+  source: InsertSpec["source"]
+): Promise<boolean> {
+  const now = Date.now();
+  let entry = notifyPrefsCache.get(tenantId);
+  if (!entry || entry.expiresAt <= now) {
+    try {
+      const prefs = await getTenantSettings(tenantId, NOTIFY_PREF_KEYS);
+      entry = { prefs, expiresAt: now + NOTIFY_PREFS_TTL_MS };
+      notifyPrefsCache.set(tenantId, entry);
+    } catch {
+      return true; // 설정 조회 실패 시 fail-open(알림 유실보다 소음이 낫다)
+    }
+  }
+  return entry.prefs[SOURCE_PREF_KEY[source]] !== "false";
+}
+
 async function insertOnce(spec: InsertSpec): Promise<boolean> {
   if (seenKeys.has(spec.dedupKey)) return false;
   const pool = getPool();
@@ -109,6 +153,12 @@ async function insertOnce(spec: InsertSpec): Promise<boolean> {
     [spec.dedupKey]
   );
   if (dedup.rowCount === 0) {
+    seenKeys.add(spec.dedupKey);
+    return false;
+  }
+  // 테넌트가 이 source 를 꺼뒀으면 알림을 만들지 않는다. dedup 행은 이미 기록됐으므로
+  // 나중에 다시 켜도 '음소거 기간의 이벤트'가 소급 생성되지 않는다(음소거 의미론).
+  if (spec.tenantId && !(await isSourceEnabled(spec.tenantId, spec.source))) {
     seenKeys.add(spec.dedupKey);
     return false;
   }
@@ -359,7 +409,11 @@ async function pollConnector(conn: {
         title: `EDR 만료 임박 — ${conn.name}`,
         message: `Transfer ${tpId.slice(0, 12)} 의 EDR이 ${left}분 후 만료됩니다.`,
         msgKey: "edrExpiring",
-        params: { connector: conn.name, transfer: tpId.slice(0, 12), minutes: left },
+        params: {
+          connector: conn.name,
+          transfer: tpId.slice(0, 12),
+          minutes: left,
+        },
         link: "/transaction/edr",
         audit: {
           action: "event.edr.expiring",

@@ -534,6 +534,18 @@ export interface StatsSummary {
     successRate: number | null;
   };
 }
+/** 알림 source 토글(테넌트 영속) — 키는 SOURCE_PREF(useNotifications)와 동일. */
+export async function fetchNotifyPrefs(): Promise<Record<string, boolean>> {
+  const { data } = await http.get("/system/settings/notifications");
+  return (data ?? {}) as Record<string, boolean>;
+}
+export async function updateNotifyPrefs(
+  partial: Record<string, boolean>
+): Promise<Record<string, boolean>> {
+  const { data } = await http.put("/system/settings/notifications", partial);
+  return (data ?? {}) as Record<string, boolean>;
+}
+
 export async function fetchStatsSummary(
   connectorId: string,
   days = 7
