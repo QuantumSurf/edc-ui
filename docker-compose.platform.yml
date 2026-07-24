@@ -35,7 +35,7 @@ services:
       - "5432:5432"
     volumes:
       - platformpgdata:/var/lib/postgresql/data
-      - ../kmx-edc/resources/db/init:/docker-entrypoint-initdb.d:ro
+      - ../edc/resources/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kmxedc -d kmxedc"]
       interval: 5s
@@ -60,7 +60,7 @@ services:
       -validateMigrationNaming=true
       migrate
     volumes:
-      - ../kmx-edc/resources/db/migration:/flyway/sql:ro
+      - ../edc/resources/db/migration:/flyway/sql:ro
     networks:
       - kmx-ih_default
 
@@ -79,7 +79,7 @@ services:
       -validateMigrationNaming=true
       migrate
     volumes:
-      - ../kmx-edc/resources/db/migration:/flyway/sql:ro
+      - ../edc/resources/db/migration:/flyway/sql:ro
     networks:
       - kmx-ih_default
 
@@ -226,8 +226,10 @@ services:
         while true; do
           sync_sts_secret sts-client-secret BPNL000000000PRD
           sync_sts_secret consumer-sts-client-secret BPNL000000000CON
+          sync_sts_secret vendor2-sts-client-secret BPNL0000000002ND
           sync_apikey BPNL000000000PRD
           sync_apikey BPNL000000000CON
+          sync_apikey BPNL0000000002ND
           ensure_static_secret dataplane-private-key "$$DP_PRIV"
           ensure_static_secret dataplane-public-key "$$DP_PUB"
           ensure_static_secret ih-aes-key "xUIyz5ULSUMR/++dPtL10mneHwwS3mlmL/eZ8SJ/2ws="
