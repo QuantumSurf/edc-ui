@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # k6 부하 잡(loadtest)의 수동 트리거용 — 전역 규칙 7장(부하는 확인 후 수동 실행).
+  workflow_dispatch:
+
+# 비공개 저장소의 Actions 분은 과금 대상이다. 연속 푸시로 이전 런이 남아 있으면 어차피
+# 버려질 실행에 분을 계속 태우므로, 같은 브랜치의 진행 중 런을 취소한다.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-and-typecheck:
@@ -23,7 +31,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm lint
-      - run: pnpm format --check
+      # 주의: `pnpm format --check` 는 `prettier --write . "--check"` 로 전개돼
+      # 파일을 재작성하고 exit 0 하는 no-op 게이트였다 — 반드시 format:check 를 쓴다.
+      - run: pnpm format:check
+
+      # 공급망 취약점 리포트 — 차단이 아니라 경고(continue-on-error): CI green 을
+      # 보존하면서 가시성만 확보. 신규 CVE 정리 후 게이트로 승격 예정. 별도 잡이 아닌
+      # 스텝이라 기존 install 을 재사용해 추가 비용이 최소다.
+      - name: Dependency vulnerability audit (report-only)
+        run: pnpm audit --audit-level=high --prod
+        continue-on-error: true
 
   test:
     name: Unit Tests
@@ -120,3 +137,44 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # 공급망 산출물 — 빌드 컨텍스트의 SBOM(CycloneDX)을 생성해 아티팩트로 첨부.
+      # main push(릴리스 이미지 발행) 경로에서만 돌고, 실패해도 파이프라인을 막지 않는다.
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        continue-on-error: true
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: sbom.cdx.json
+
+  # k6 부하 테스트 — dev 스택(app+db+mock)을 띄워 실제 BFF(3006)를 부하 대상으로 확보.
+  # ★ 수동 트리거(Actions → Run workflow)에서만 실행(전역 규칙 7장: 자동 부하 금지 —
+  #   비공개 저장소 Actions 분은 실제 과금이고, 이 잡이 가장 무겁다).
+  # 단일 IP 부하라 API_RATE_LIMIT_MAX 상향 필수 — 기본 300/분이면 95%+가 429 로 잘려
+  # 앱 지연이 아니라 레이트리밋을 재게 된다(perf/README.md).
+  loadtest:
+    name: k6 Load Test (manual)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bring up dev stack (app + db + mock, rate limit raised)
+        run: API_RATE_LIMIT_MAX=200000 docker compose -f docker-compose.dev.yml up -d
+
+      - name: Wait for BFF health
+        run: |
+          for i in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3006/healthz || echo 000)
+            if [ "$code" = "200" ]; then echo "BFF up"; exit 0; fi
+            sleep 4
+          done
+          echo "BFF 미기동"; docker compose -f docker-compose.dev.yml logs app | tail -60; exit 1
+
+      - name: Run k6 full ramp (threshold gated)
+        run: docker run --rm -i --network host -e BASE_URL=http://localhost:3006 grafana/k6 run - < perf/load-test.js
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
