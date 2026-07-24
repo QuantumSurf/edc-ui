@@ -54,6 +54,7 @@ import {
 } from "@/components/ExposeSubmodelDialog";
 import { ExposeDtrDialog } from "@/components/ExposeDtrDialog";
 import SubmodelContentViewer from "@/components/SubmodelContentViewer";
+import ShellConformancePanel from "@/components/ShellConformancePanel";
 import {
   Boxes,
   PlusCircle,
@@ -871,6 +872,11 @@ function ShellDetailDialog({
               ))}
             </ul>
           )}
+        </DetailSection>
+
+        {/* 표준 적합성 — 디스크립터 레벨 종합 판정(비차단) */}
+        <DetailSection title={t.twins.conformance.title}>
+          <ShellConformancePanel shell={shell} />
         </DetailSection>
       </div>
 

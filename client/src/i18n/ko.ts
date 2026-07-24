@@ -177,6 +177,7 @@ const ko = {
     successRateSub: (ok: number, total: number) =>
       `관측 터미널 ${total}건 중 ${ok}건 성공`,
     successRateNoData: "관측된 터미널 없음",
+    exportCsv: "트렌드 CSV 내려받기",
     period24h: "24시간",
     period3d: "3일",
     period7d: "7일",
@@ -1244,7 +1245,17 @@ const ko = {
       requiredEndpointHref:
         "Endpoint 는 Protocol Information.href 가 필수입니다.",
     },
+    conformance: {
+      title: "표준 적합성",
+      pass: "적합",
+      warn: "확인 필요",
+      fail: "결손",
+      export: "JSON 리포트",
+      note: "디스크립터 레벨 인지형 점검(비차단) — 세미나 체크리스트 기반이며 임계 정책은 운영 확정 시 보정 대상.",
+    },
     content: {
+      nameplateTitle: "Digital Nameplate — 핵심 필드",
+      technicalDataTitle: "Technical Data — 속성",
       view: "콘텐츠 보기",
       title: "서브모델 콘텐츠",
       loading: "서브모델 본문을 불러오는 중…",

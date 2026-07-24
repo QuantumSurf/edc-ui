@@ -175,6 +175,7 @@ const en: Translations = {
     successRateSub: (ok: number, total: number) =>
       `${ok} of ${total} observed terminals succeeded`,
     successRateNoData: "No observed terminals",
+    exportCsv: "Download trend CSV",
     period24h: "24h",
     period3d: "3d",
     period7d: "7d",
@@ -1234,7 +1235,17 @@ const en: Translations = {
       requiredSubmodel: "Submodel requires both ID and idShort.",
       requiredEndpointHref: "Endpoint requires Protocol Information.href.",
     },
+    conformance: {
+      title: "Standard conformance",
+      pass: "Pass",
+      warn: "Needs review",
+      fail: "Missing",
+      export: "JSON report",
+      note: "Descriptor-level advisory check (non-blocking) — based on the seminar checklist; thresholds subject to ops calibration.",
+    },
     content: {
+      nameplateTitle: "Digital Nameplate — key fields",
+      technicalDataTitle: "Technical Data — properties",
       view: "View content",
       title: "Submodel content",
       loading: "Loading submodel payload…",
