@@ -41,11 +41,7 @@ function generateRandomSecret(): string {
 function getJwtSecret(): string {
   const s = process.env.JWT_SECRET;
   // prod 에서 알려진 공개 기본값이면 길이와 무관하게 부팅 거부(fail-closed).
-  if (
-    process.env.NODE_ENV === "production" &&
-    s &&
-    KNOWN_WEAK_SECRETS.has(s)
-  ) {
+  if (process.env.NODE_ENV === "production" && s && KNOWN_WEAK_SECRETS.has(s)) {
     throw new Error(
       "[AUTH] JWT_SECRET is a known public default value — set a unique secret in production"
     );
@@ -74,6 +70,16 @@ function getJwtSecret(): string {
 }
 
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "12h";
+
+/**
+ * 부팅 시점 인증 구성 검증(fail-fast). getJwtSecret 은 원래 첫 토큰 서명/검증 시점에야
+ * 평가돼, prod 에서 JWT_SECRET 미설정/약한 값이면 "헬시하게 떠 있지만 모든 로그인이
+ * 500" 인 좀비 파드가 됐다. 부팅 직후 한 번 호출해 구성 오류를 부팅 실패로 앞당긴다.
+ * (dev 는 임시 랜덤 시크릿 생성 경고가 여기서 한 번 출력될 뿐 동작 동일.)
+ */
+export function assertAuthConfig(): void {
+  getJwtSecret();
+}
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, 10);

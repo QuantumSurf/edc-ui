@@ -27,6 +27,14 @@ export function getPool(): pg.Pool {
       max: Number(process.env.DB_POOL_MAX) || 20,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
+      // 폭주 쿼리 방어(선택) — 설정 시 서버측(statement)·클라측(query) 타임아웃을 건다.
+      // 기본 off: 마이그레이션/보존정리 같은 긴 쿼리를 임의로 끊지 않기 위함.
+      ...(Number(process.env.DB_STATEMENT_TIMEOUT_MS) > 0
+        ? {
+            statement_timeout: Number(process.env.DB_STATEMENT_TIMEOUT_MS),
+            query_timeout: Number(process.env.DB_STATEMENT_TIMEOUT_MS),
+          }
+        : {}),
     });
   }
   return pool;

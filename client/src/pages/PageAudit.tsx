@@ -247,14 +247,25 @@ export default function PageAudit() {
   const [dateTo, setDateTo] = useState<string>(() => presetRange("7D").to);
   const [selected, setSelected] = useState<AuditEvent | null>(null);
 
+  // 서버측 기간 필터 — 시작일로부터 오늘까지의 일수(1~90, 서버가 클램프). 시작일이
+  // 없으면 미전달(전체 기간). LIMIT 500 에 최근 행이 먼저 차서 과거 기간이 잘리는
+  // 문제를 서버에서 해결하고, 클라 필터는 하루 경계 정밀 필터로 계속 동작한다.
+  const daysBack = useMemo(() => {
+    if (!dateFrom) return undefined;
+    const from = new Date(`${dateFrom}T00:00:00`);
+    if (isNaN(from.getTime())) return undefined;
+    const diff = Math.ceil((Date.now() - from.getTime()) / 86_400_000);
+    return Math.min(Math.max(1, diff), 90);
+  }, [dateFrom]);
+
   const {
     data: rawEvents,
     isError,
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ["audit"],
-    queryFn: () => fetchAuditEvents(500),
+    queryKey: ["audit", daysBack ?? "all"],
+    queryFn: () => fetchAuditEvents(500, daysBack),
   });
   const allEvents = useMemo(
     () => (rawEvents ?? []) as AuditEvent[],

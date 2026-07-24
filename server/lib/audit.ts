@@ -420,17 +420,25 @@ function toAuditEvent(r: AuditRow) {
 /** 테넌트 범위 최신순 조회(최대 2000건). */
 export async function queryAudit(
   tenantId: string,
-  limit = 500
+  limit = 500,
+  days?: number
 ): Promise<ReturnType<typeof toAuditEvent>[]> {
   const lim = Math.min(Math.max(1, Math.floor(limit) || 500), 2000);
+  // 기간 필터는 서버에서 적용한다 — 클라 UI 의 기간 필터만 믿으면 LIMIT(기본 500)에
+  // 최근 행이 먼저 차서 과거 기간 조회가 조용히 빈 결과/부분 결과가 된다.
+  const d =
+    typeof days === "number" && Number.isFinite(days)
+      ? Math.min(Math.max(1, Math.floor(days)), 90)
+      : null;
   const { rows } = await getPool().query<AuditRow>(
     `SELECT id, actor_id, actor_email, actor_role, action, category, target, target_type,
             connector_id, result, severity, status_code, ip, user_agent, method, path, message, created_at
        FROM audit_logs
       WHERE tenant_id = $1
+        AND ($3::int IS NULL OR created_at >= NOW() - ($3 || ' days')::interval)
       ORDER BY created_at DESC
       LIMIT $2`,
-    [tenantId, lim]
+    [tenantId, lim, d]
   );
   return rows.map(toAuditEvent);
 }

@@ -24,9 +24,12 @@ router.get(
         return;
       }
       const limit = Number(req.query.limit);
+      // days: 서버측 기간 필터(1~90 클램프는 queryAudit 이 수행). 미지정 시 전체 기간.
+      const days = Number(req.query.days);
       const events = await queryAudit(
         tenantId,
-        Number.isFinite(limit) ? limit : 500
+        Number.isFinite(limit) ? limit : 500,
+        Number.isFinite(days) ? days : undefined
       );
       res.json(events);
     } catch (err) {

@@ -27,7 +27,9 @@ export function errorHandler(
   _next: NextFunction
 ) {
   if (err instanceof EdcApiError) {
-    console.error(`[BFF] EDC API Error: ${err.status} ${err.detail}`);
+    console.error(
+      `[BFF] EDC API Error [req:${req.reqId ?? "-"}]: ${err.status} ${err.detail}`
+    );
     const role = req.user?.role;
     const privileged = role === "admin" || role === "operator";
     // EDC가 응답 본문으로 돌려준 에러(4xx 검증 + 5xx 자격증명/구성 실패 등)는
@@ -67,7 +69,9 @@ export function errorHandler(
   // 과거엔 DtrApiError 가 이 분기가 없어 503(미도달)이 5xx 격하로 500 이 되고 4xx 상세도
   // sanitize 됐다. err.status 를 존중해 503 은 503(재시도 가능)으로, 4xx 검증 상세는 보존한다.
   if (err instanceof DtrApiError) {
-    console.error(`[BFF] DTR API Error: ${err.status} ${err.detail}`);
+    console.error(
+      `[BFF] DTR API Error [req:${req.reqId ?? "-"}]: ${err.status} ${err.detail}`
+    );
     const msg =
       err.status >= 400 && err.status < 500
         ? err.detail
@@ -84,13 +88,17 @@ export function errorHandler(
     (err as { statusCode?: number }).statusCode;
   if (typeof cstatus === "number" && cstatus >= 400 && cstatus < 500) {
     const m = err instanceof Error ? err.message : "Bad request";
-    console.warn(`[BFF] Client error ${cstatus}: ${m}`);
+    console.warn(
+      `[BFF] Client error [req:${req.reqId ?? "-"}] ${cstatus}: ${m}`
+    );
     res.status(cstatus).json({ error: sanitizeMessage(m) });
     return;
   }
 
   if (err instanceof Error) {
-    console.error("[BFF] Error:", err.message);
+    // reqId 를 로그에 남겨 requestLog 의 한 줄 JSON(X-Request-Id)과 조인 가능하게 한다
+    // — 5xx 원인 추적 시 "어느 요청의 스택인지"를 바로 잇는다.
+    console.error(`[BFF] Error [req:${req.reqId ?? "-"}]:`, err.message);
     res.status(500).json({ error: sanitizeMessage(err.message) });
     return;
   }

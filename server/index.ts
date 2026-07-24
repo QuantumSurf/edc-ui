@@ -12,6 +12,7 @@ import {
 } from "./lib/notificationGenerator.js";
 import { pruneAuditLogs } from "./lib/audit.js";
 import { pruneFieldHistory } from "./lib/fieldHistory.js";
+import { assertAuthConfig } from "./lib/auth.js";
 
 // 프로세스 전역 안전망 — 단일 요청의 처리되지 않은 비동기 거부(예: 인증 미들웨어의 DB
 // 타임아웃)가 BFF 프로세스 전체를 종료시키지 않도록(전 사용자 다운 방지) 로깅만 하고 계속
@@ -22,6 +23,10 @@ process.on("unhandledRejection", reason => {
 });
 
 async function startServer() {
+  // 인증 구성 fail-fast — prod 에서 JWT_SECRET 미설정/약한 값이면 여기서 즉시 throw 해
+  // 부팅을 실패시킨다(첫 로그인 시점에야 터지는 좀비 파드 방지).
+  assertAuthConfig();
+
   // ── Database Initialization ────────────────────────────────────
   await initDb();
 
@@ -83,4 +88,9 @@ async function startServer() {
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-startServer().catch(console.error);
+// 부팅 실패는 프로세스 종료로 승격한다. catch(console.error)만 하면 리슨 없이 살아있는
+// 프로세스가 남아 k8s/compose 가 재시작·crash 알림을 못 한다(조용한 다운).
+startServer().catch(err => {
+  console.error("[BFF] FATAL: startup failed —", err);
+  process.exit(1);
+});

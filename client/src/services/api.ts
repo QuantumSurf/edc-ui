@@ -150,8 +150,15 @@ export async function testConnection(managementUrl: string, apiKey?: string) {
 
 /* ── Audit Log ───────────────────────────────────────────────── */
 // 테넌트 범위 감사 로그(최신순). 서버가 클라 AuditEvent 형태로 평탄화해 반환한다.
-export async function fetchAuditEvents(limit = 500): Promise<unknown[]> {
-  const { data } = await http.get("/audit", { params: { limit } });
+export async function fetchAuditEvents(
+  limit = 500,
+  days?: number
+): Promise<unknown[]> {
+  // days: 서버측 기간 필터. LIMIT(500)에 최근 행이 먼저 차서 과거 기간 조회가
+  // 부분 결과가 되는 문제를 서버에서 잘라 해결한다(1~90은 서버가 클램프).
+  const { data } = await http.get("/audit", {
+    params: days ? { limit, days } : { limit },
+  });
   return Array.isArray(data) ? data : [];
 }
 
@@ -716,6 +723,24 @@ export async function updateShell(
 
 export async function deleteShell(aasId: string): Promise<void> {
   await http.delete(`/dtr/shells/${encodeURIComponent(aasId)}`);
+}
+
+/** 서브모델 실본문(AAS Part 2) 조회 — 디스크립터의 endpoint href 를 BFF 가
+ * SSRF 가드 하에 따라가 읽는다. { idShort, semanticId, href, content } 반환. */
+export interface SubmodelContentResponse {
+  idShort: string;
+  semanticId: string;
+  href: string;
+  content: unknown;
+}
+export async function fetchSubmodelContent(
+  aasId: string,
+  submodelId: string
+): Promise<SubmodelContentResponse> {
+  const { data } = await http.get(
+    `/dtr/shells/${encodeURIComponent(aasId)}/submodels/${encodeURIComponent(submodelId)}/content`
+  );
+  return data as SubmodelContentResponse;
 }
 
 export async function lookupShells(
