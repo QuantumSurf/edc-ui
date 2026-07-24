@@ -243,7 +243,7 @@ paths:
                 newPassword: { type: string, format: password }
       responses:
         "204": { description: 변경 완료 }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/CsrfForbidden" }
 
@@ -275,7 +275,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Connector" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400": { $ref: "#/components/responses/ConnectorInputError" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -289,6 +289,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/ConnectorInput" }
       responses:
+        "400": { $ref: "#/components/responses/ConnectorInputError" }
         "200":
           description: 연결 결과
           content:
@@ -354,7 +355,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Connector" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400": { $ref: "#/components/responses/ConnectorInputError" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -1275,8 +1276,16 @@ paths:
       tags: [dtr]
       summary: Shell 의 Submodel Descriptor 목록
       responses:
-        "200": { $ref: "#/components/responses/EdcObjectArray" }
+        "200":
+          description: "{ items: SubmodelDescriptor[] } 봉투"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { type: object } }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags: [dtr]
@@ -1586,7 +1595,8 @@ components:
         bpn: { type: string }
         status:
           type: string
-          enum: [online, offline, unknown]
+          enum: [up, warn, down]
+          description: 4개 프로브(관리 API·health·DSP·DB) 중 ok 수로 판정
         tenantId: { type: string }
       additionalProperties: true
 
@@ -1605,11 +1615,16 @@ components:
 
     Notification:
       type: object
+      description: 콘솔 알림(폴러 생성). source 는 알림 토글(NotifyPrefs)과 대응한다.
       properties:
         id: { type: string }
+        type: { type: string, enum: [info, warning, error, success] }
+        source:
+          type: string
+          enum: [system, negotiation, transfer, edr, vc]
         title: { type: string }
         message: { type: string }
-        level: { type: string, enum: [info, warning, error, success] }
+        link: { type: ["string", "null"] }
         read: { type: boolean }
         createdAt: { type: string, format: date-time }
       additionalProperties: true
@@ -1655,6 +1670,14 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ValidationError" }
+    ConnectorInputError:
+      description: 입력 검증(zod) 실패 또는 SSRF 거부(사설/메타데이터 URL)
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ValidationError"
+              - $ref: "#/components/schemas/Error"
     BadRequest:
       description: 잘못된 요청(검증 실패)
       content:
