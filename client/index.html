@@ -41,7 +41,18 @@
           "
         ></div>
         <p style="margin: 0; font-size: 14px">앱을 불러오는 중…</p>
-        <p id="boot-slow" style="margin: 0; font-size: 13px; display: none">
+        <!-- 8초간 마운트가 없으면(엔트리 번들 로드 실패 등) 안내를 드러낸다.
+             인라인 <script> 는 prod CSP(script-src 'self')에 막히므로, CSS 지연
+             애니메이션으로 구현한다(style-src 'unsafe-inline' 허용). React 가
+             마운트하면 #boot-fallback 이 통째로 교체돼 이 문구는 나타나지 않는다. -->
+        <p
+          style="
+            margin: 0;
+            font-size: 13px;
+            opacity: 0;
+            animation: boot-reveal 0s linear 8s forwards;
+          "
+        >
           로딩이 지연됩니다. 새로고침(Ctrl+Shift+R) 해 주세요.
         </p>
       </div>
@@ -50,6 +61,11 @@
       @keyframes boot-spin {
         to {
           transform: rotate(360deg);
+        }
+      }
+      @keyframes boot-reveal {
+        to {
+          opacity: 1;
         }
       }
     </style>
@@ -66,16 +82,6 @@
         JavaScript 를 활성화한 뒤 다시 시도해 주세요.
       </div>
     </noscript>
-    <script>
-      // 엔트리 번들이 일정 시간 내 마운트하지 못하면(청크 404·네트워크 실패) 안내를
-      // 노출한다. React 가 마운트했으면 #boot-fallback 이 제거되므로 아무 일도 안 한다.
-      window.setTimeout(function () {
-        if (document.getElementById("boot-fallback")) {
-          var slow = document.getElementById("boot-slow");
-          if (slow) slow.style.display = "block";
-        }
-      }, 8000);
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -66,6 +66,24 @@ services:
       - IDENTITY_HUB_URL=${IDENTITY_HUB_URL:-}
       - IDENTITY_HUB_PARTICIPANT_ID=${IDENTITY_HUB_PARTICIPANT_ID:-}
       - IDENTITY_HUB_API_KEY=${IDENTITY_HUB_API_KEY:-}
+      # 시드 계정 비밀번호 — 빈 DB 로 시작하는 신규 설치 필수. server/lib/db.ts 가 prod 에서
+      # 미설정/약한 값이면 부팅 실패하므로 .env 에서 강한 값을 반드시 주입한다(fail-closed).
+      # 기존 DB(사용자 존재) 업그레이드면 무시된다.
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:?set a strong SEED_ADMIN_PASSWORD (>=8) in .env}
+      - SEED_OPERATOR_PASSWORD=${SEED_OPERATOR_PASSWORD:?set a strong SEED_OPERATOR_PASSWORD (>=8) in .env}
+      # 운영 튜닝(선택 — 코드 기본값 존재). .env 에서 override 가능.
+      - EDC_POLICY_PROFILE=${EDC_POLICY_PROFILE:-}
+      - API_RATE_LIMIT_MAX=${API_RATE_LIMIT_MAX:-300}
+      - API_RATE_LIMIT_WINDOW_MS=${API_RATE_LIMIT_WINDOW_MS:-60000}
+      - DB_STATEMENT_TIMEOUT_MS=${DB_STATEMENT_TIMEOUT_MS:-}
+      - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-90}
+      - TRUST_PROXY=${TRUST_PROXY:-1}
+      # OIDC(Keycloak) SSO — 선택. docs/KEYCLOAK.md. OIDC_ENABLED=true 시 나머지 필수.
+      - OIDC_ENABLED=${OIDC_ENABLED:-false}
+      - OIDC_ISSUER_URL=${OIDC_ISSUER_URL:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_REDIRECT_URL=${OIDC_REDIRECT_URL:-}
     networks:
       - default
       - kmx-ih_default # provider/consumer EDC 컨테이너와 동일 네트워크
@@ -73,7 +91,9 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/connectors"]
+      # /healthz 는 무인증 liveness. 과거 /api/connectors 는 prod 에서 401 → 컨테이너가
+      # 영구 unhealthy(Dockerfile HEALTHCHECK 와 드리프트)였다. 무인증 경로로 통일.
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3

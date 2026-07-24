@@ -15,6 +15,9 @@ openapi: 3.1.0
 info:
   title: KMX EDC Console BFF API
   version: "1.0.0"
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
   description: |
     데이터스페이스 커넥터(EDC) 운영 콘솔의 BFF API.
 
@@ -184,6 +187,7 @@ paths:
                 type: object
                 properties:
                   user: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
         "401":
           description: 자격증명 불일치
           content:
@@ -296,6 +300,42 @@ paths:
                   detail: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/CsrfForbidden" }
+
+  # ── OIDC(Keycloak) SSO ───────────────────────────────────────────────────────
+  /api/auth/oidc/status:
+    get:
+      tags: [auth]
+      summary: OIDC 활성 여부(무인증) — 로그인 화면 SSO 버튼 노출 판단
+      security: []
+      responses:
+        "200":
+          description: 활성 여부
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { enabled: { type: boolean } }
+  /api/auth/oidc/login:
+    get:
+      tags: [auth]
+      summary: Keycloak authorize 로 302(PKCE+state+nonce 쿠키 발급)
+      security: []
+      responses:
+        "302": { description: IdP authorize 엔드포인트로 리다이렉트 }
+        "503": { description: OIDC 비활성 }
+  /api/auth/oidc/callback:
+    get:
+      tags: [auth]
+      summary: IdP 콜백 — code 교환·ID 토큰 검증 후 세션 발급, "/" 로 302
+      description: 실패는 `/?sso_error=<code>` 로 302(코드는 docs/KEYCLOAK.md 참조).
+      security: []
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+      responses:
+        "302":
+          description: 성공 시 "/", 실패 시 "/?sso_error=..."
+        "503": { description: OIDC 비활성 }
 
   /api/connectors/{id}:
     parameters:
@@ -575,7 +615,13 @@ paths:
                   description: 대상 커넥터의 DSP 프로토콜 주소
                 querySpec: { $ref: "#/components/schemas/QuerySpec" }
       responses:
-        "200": { $ref: "#/components/responses/EdcObject" }
+        "200":
+          description: BFF 가공 오퍼 배열(카탈로그↔AAS 연계 포함)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CatalogOffer" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/CsrfForbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -825,6 +871,29 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/EdcObject" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/connectors/{id}/stats/summary:
+    parameters:
+      - $ref: "#/components/parameters/ConnectorId"
+    get:
+      tags: [stats]
+      summary: 성공률 KPI(협상·전송) — 관측된 터미널(metadata.last_state) 기준
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, default: 7, minimum: 1, maximum: 90 }
+      responses:
+        "200":
+          description: 협상·전송 성공률 요약
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days: { type: integer }
+                  negotiations: { $ref: "#/components/schemas/SuccessRate" }
+                  transfers: { $ref: "#/components/schemas/SuccessRate" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   # ── notifications ────────────────────────────────────────────────────────────
@@ -1009,6 +1078,36 @@ paths:
             schema: { $ref: "#/components/schemas/EdcObject" }
       responses:
         "200": { $ref: "#/components/responses/EdcObject" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/system/settings/notifications:
+    get:
+      tags: [system]
+      summary: 알림 source 토글 조회(테넌트, 미설정=on)
+      responses:
+        "200":
+          description: source 별 on/off
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotifyPrefs" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [system]
+      summary: 알림 source 토글 갱신(admin/operator, zod strict)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NotifyPrefs" }
+      responses:
+        "200":
+          description: 갱신된 source 별 on/off
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotifyPrefs" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -1223,6 +1322,33 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/dtr/shells/{aasId}/submodels/{submodelId}/content:
+    parameters:
+      - $ref: "#/components/parameters/AasId"
+      - name: submodelId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [dtr]
+      summary: 서브모델 실본문(AAS Part 2) 조회 — endpoint href 를 SSRF 가드 하에 프록시
+      responses:
+        "200":
+          description: idShort·semanticId·href·content(AAS Submodel)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  idShort: { type: string }
+                  semanticId: { type: string }
+                  href: { type: string }
+                  content: { type: object }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # ── semantics ────────────────────────────────────────────────────────────────
   /api/semantics/models:
     get:
@@ -1286,6 +1412,14 @@ paths:
     get:
       tags: [audit]
       summary: 감사 로그 조회(테넌트 스코프)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 500, maximum: 2000 }
+        - name: days
+          in: query
+          description: 서버측 기간 필터(1~90). 미지정 시 전체 기간.
+          schema: { type: integer, minimum: 1, maximum: 90 }
       responses:
         "200": { $ref: "#/components/responses/EdcObjectArray" }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -1363,6 +1497,58 @@ components:
       schema: { type: string }
 
   schemas:
+    ValidationError:
+      type: object
+      required: [error, issues]
+      description: zod 입력 검증 실패 봉투(로그인·비밀번호변경·커넥터 등록/수정/연결테스트).
+      properties:
+        error: { type: string, const: validation }
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string, description: "필드 경로(예: tenantId)" }
+              message: { type: string }
+    CatalogOffer:
+      type: object
+      description: BFF 가공 카탈로그 오퍼(EDC pass-through 아님). AAS 필드는 DTR 매칭 시에만.
+      properties:
+        name: { type: string }
+        type: { type: string }
+        src: { type: string }
+        pols: { type: array, items: { type: string } }
+        offerId: { type: string }
+        offerPolicy: { type: ["object", "null"] }
+        assetId: { type: string }
+        dspEndpoint: { type: string }
+        providerDid: { type: string }
+        aasId: { type: ["string", "null"] }
+        aasIdShort: { type: ["string", "null"] }
+        globalAssetId: { type: ["string", "null"] }
+    SuccessRate:
+      type: object
+      properties:
+        total: { type: integer }
+        finalized: { type: integer, description: "협상 전용" }
+        terminated: { type: integer }
+        completed: { type: integer, description: "전송 전용" }
+        failed: { type: integer }
+        successRate:
+          {
+            type: ["number", "null"],
+            description: "퍼센트(관측 터미널 0 이면 null)",
+          }
+    NotifyPrefs:
+      type: object
+      description: 알림 source 토글(true=on). 미지 키는 PUT 에서 거부(strict).
+      properties:
+        "notify.vcExpiry": { type: boolean }
+        "notify.negTerminated": { type: boolean }
+        "notify.transferFailed": { type: boolean }
+        "notify.edrExpiry": { type: boolean }
+        "notify.connectorHealth": { type: boolean }
+      additionalProperties: false
     Error:
       type: object
       required: [error]
@@ -1464,6 +1650,11 @@ components:
           schema:
             type: array
             items: { $ref: "#/components/schemas/EdcObject" }
+    ValidationFailed:
+      description: zod 입력 검증 실패
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ValidationError" }
     BadRequest:
       description: 잘못된 요청(검증 실패)
       content:

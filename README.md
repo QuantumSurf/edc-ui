@@ -21,13 +21,13 @@ React 19 SPA + Express BFF(Backend-for-Frontend) 구조로, BFF가 EDC Managemen
 
 ## 기술 스택
 
-| 영역 | 스택 |
-|---|---|
-| 프런트엔드 | React 19 · Vite 7 · Tailwind CSS v4(@theme, oklch 토큰) · TanStack Query · Zustand · wouter · Recharts |
-| BFF | Express 4 · TypeScript(ESM) · pg(PostgreSQL) · jsonwebtoken · bcryptjs · prom-client |
-| 인증 | JWT httpOnly 쿠키 + 이중제출 CSRF · bcrypt · token_version 세션 무효화 |
-| 빌드/런타임 | esbuild(서버 번들) · Node.js · Docker · Helm |
-| 테스트 | Vitest(client jsdom / server node) · Testcontainers(통합) |
+| 영역        | 스택                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------ |
+| 프런트엔드  | React 19 · Vite 7 · Tailwind CSS v4(@theme, oklch 토큰) · TanStack Query · Zustand · wouter · Recharts |
+| BFF         | Express 4 · TypeScript(ESM) · pg(PostgreSQL) · jsonwebtoken · bcryptjs · prom-client                   |
+| 인증        | JWT httpOnly 쿠키 + 이중제출 CSRF · bcrypt · token_version 세션 무효화                                 |
+| 빌드/런타임 | esbuild(서버 번들) · Node.js · Docker · Helm                                                           |
+| 테스트      | Vitest(client jsdom / server node) · Testcontainers(통합)                                              |
 
 ## 빠른 실행
 
@@ -140,18 +140,22 @@ npx @redocly/cli preview-docs docs/openapi.yaml
 
 ## 환경변수 (주요)
 
-| 변수 | 설명 |
-|---|---|
-| `DATABASE_URL` | PostgreSQL 접속 문자열 (필수) |
-| `JWT_SECRET` | JWT 서명 비밀 — 프로덕션 필수, 최소 32자(약한 공개 기본값 거부) |
-| `JWT_EXPIRES_IN` | 토큰 만료(기본 `12h`) |
-| `SEED_ADMIN_PASSWORD` / `SEED_OPERATOR_PASSWORD` | 초기 시드 계정 비밀번호(프로덕션은 강한 값 필수) |
-| `TRUST_PROXY` | 리버스 프록시 홉 수(rate limit이 클라 IP 기준으로 동작하도록) |
-| `HUB_APIKEY_SECRET` | 커넥터 API 키 저장(AES-256-GCM) 암호화 키 |
-| `DB_POOL_MAX` | DB 커넥션 풀 상한(기본 20) |
-| `OFFBOARD_RETENTION_DAYS` | 테넌트 아카이브→퍼지 보존기간(기본 30) |
-| `DISPLAY_TZ` | 날짜 표시 타임존(기본 `Asia/Seoul`) |
-| `IDENTITY_HUB_URL` / `DTR_BASE_URL` | 공유 IdentityHub·DTR 엔드포인트 |
+| 변수                                              | 설명                                                                       |
+| ------------------------------------------------- | -------------------------------------------------------------------------- |
+| `DATABASE_URL`                                    | PostgreSQL 접속 문자열 (필수)                                              |
+| `JWT_SECRET`                                      | JWT 서명 비밀 — 프로덕션 필수, 최소 32자(약한 공개 기본값 거부)            |
+| `JWT_EXPIRES_IN`                                  | 토큰 만료(기본 `12h`)                                                      |
+| `SEED_ADMIN_PASSWORD` / `SEED_OPERATOR_PASSWORD`  | 초기 시드 계정 비밀번호(프로덕션은 강한 값 필수)                           |
+| `TRUST_PROXY`                                     | 리버스 프록시 홉 수(rate limit이 클라 IP 기준으로 동작하도록)              |
+| `HUB_APIKEY_SECRET`                               | 커넥터 API 키 저장(AES-256-GCM) 암호화 키                                  |
+| `DB_POOL_MAX`                                     | DB 커넥션 풀 상한(기본 20)                                                 |
+| `OFFBOARD_RETENTION_DAYS`                         | 테넌트 아카이브→퍼지 보존기간(기본 30)                                     |
+| `DISPLAY_TZ`                                      | 날짜 표시 타임존(기본 `Asia/Seoul`)                                        |
+| `IDENTITY_HUB_URL` / `DTR_BASE_URL`               | 공유 IdentityHub·DTR 엔드포인트                                            |
+| `OIDC_ENABLED` … `OIDC_*`                         | Keycloak SSO(선택) — 목록·절차는 [`docs/KEYCLOAK.md`](docs/KEYCLOAK.md)    |
+| `EDC_POLICY_PROFILE`                              | 정책 odrl:profile 주입(기본 없음=KMX, Catena-X 는 `cx-policy:profile2405`) |
+| `API_RATE_LIMIT_MAX` / `API_RATE_LIMIT_WINDOW_MS` | /api per-IP 레이트리밋(기본 300/60s)                                       |
+| `DB_STATEMENT_TIMEOUT_MS`                         | DB statement/query 타임아웃(기본 off)                                      |
 
 관측성: `/metrics`(Prometheus, 무인증·`/api` 밖), `/healthz`(liveness), `/readyz`(readiness + 스키마 게이팅).
 
