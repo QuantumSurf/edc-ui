@@ -31,6 +31,7 @@ import fleetRouter from "./routes/fleet.js";
 import statsRouter from "./routes/stats.js";
 import notificationsUiRouter from "./routes/notificationsUi.js";
 import authRouter from "./routes/auth.js";
+import authOidcRouter from "./routes/authOidc.js";
 import vaultRouter from "./routes/vault.js";
 import platformInfraRouter from "./routes/platformInfra.js";
 import systemRouter from "./routes/system.js";
@@ -161,6 +162,8 @@ export function buildApp(): Express {
 
   // Public auth routes (login/logout) — mounted BEFORE the auth middleware
   app.use("/api/auth", authRouter);
+  // OIDC(Keycloak) SSO — 로그인 전 공개 라우트(status/login/callback, GET-only).
+  app.use("/api/auth/oidc", authOidcRouter);
 
   // Authentication (all remaining /api/* routes)
   app.use("/api", authMiddleware);

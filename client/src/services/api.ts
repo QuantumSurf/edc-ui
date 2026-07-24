@@ -535,6 +535,12 @@ export interface StatsSummary {
   };
 }
 /** 알림 source 토글(테넌트 영속) — 키는 SOURCE_PREF(useNotifications)와 동일. */
+/** OIDC(Keycloak SSO) 활성 여부 — 로그인 화면의 SSO 버튼 노출 판단(무인증). */
+export async function fetchOidcStatus(): Promise<{ enabled: boolean }> {
+  const { data } = await http.get("/auth/oidc/status");
+  return { enabled: data?.enabled === true };
+}
+
 export async function fetchNotifyPrefs(): Promise<Record<string, boolean>> {
   const { data } = await http.get("/system/settings/notifications");
   return (data ?? {}) as Record<string, boolean>;

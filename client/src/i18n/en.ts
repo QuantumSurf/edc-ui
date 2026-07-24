@@ -825,6 +825,26 @@ const en: Translations = {
     serverError: "Login failed due to a server error. Please try again later",
     networkError: "Cannot reach the server. Please check your network",
     signingIn: "Signing in...",
+    ssoButton: "Sign in with Keycloak SSO",
+    ssoErrors: {
+      "idp-error":
+        "The SSO provider returned an error (or you cancelled). Try again.",
+      "state-mismatch":
+        "SSO flow validation failed (expired/reused). Try again.",
+      "no-id-token":
+        "No ID token in the SSO response. Check the Keycloak client.",
+      "verify-failed":
+        "ID token verification failed (signature/issuer/clock). Contact an admin.",
+      "no-email": "Your account has no email. Check the Keycloak profile.",
+      "no-bpn": "Missing BPN claim. Check the Keycloak client-scope mapper.",
+      "no-role":
+        "No mappable role. Check Keycloak role assignments (kmx-admin etc.).",
+      "unknown-tenant": "No tenant matches the BPN (or it is archived).",
+      "tenant-mismatch": "This email belongs to a different tenant.",
+      "user-not-provisioned":
+        "User not provisioned. Ask an admin to create the account.",
+      default: "SSO sign-in failed. Try again.",
+    } as Record<string, string>,
     demoAccounts: "Demo Accounts",
     appName: "Connector Hub",
     appSubtitle: "Admin Console",

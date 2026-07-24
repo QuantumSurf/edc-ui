@@ -837,6 +837,29 @@ const ko = {
     serverError: "서버 오류로 로그인하지 못했습니다. 잠시 후 다시 시도하세요",
     networkError: "서버에 연결할 수 없습니다. 네트워크를 확인하세요",
     signingIn: "로그인 중...",
+    ssoButton: "Keycloak SSO 로그인",
+    // 콜백 실패 코드(routes/authOidc.ts fail())와 1:1 계약 — 코드가 없으면 default.
+    ssoErrors: {
+      "idp-error":
+        "SSO 제공자에서 오류가 반환되었습니다(취소 포함). 다시 시도하세요.",
+      "state-mismatch":
+        "SSO 흐름 검증에 실패했습니다(만료/재사용). 다시 시도하세요.",
+      "no-id-token":
+        "SSO 응답에 ID 토큰이 없습니다. Keycloak 설정을 확인하세요.",
+      "verify-failed":
+        "ID 토큰 검증에 실패했습니다(서명/발급자/시각). 관리자에게 문의하세요.",
+      "no-email": "계정에 이메일이 없습니다. Keycloak 프로필을 확인하세요.",
+      "no-bpn":
+        "BPN 클레임이 없습니다. Keycloak 클라이언트 스코프 매퍼를 확인하세요.",
+      "no-role":
+        "매핑되는 역할이 없습니다. Keycloak 역할(kmx-admin 등) 배정을 확인하세요.",
+      "unknown-tenant": "BPN 에 해당하는 테넌트가 없습니다(또는 아카이브됨).",
+      "tenant-mismatch":
+        "이 이메일은 다른 테넌트에 속해 있어 로그인할 수 없습니다.",
+      "user-not-provisioned":
+        "사전 등록된 사용자가 아닙니다. 관리자에게 계정 생성을 요청하세요.",
+      default: "SSO 로그인에 실패했습니다. 다시 시도하세요.",
+    } as Record<string, string>,
     demoAccounts: "데모 계정",
     appName: "커넥터 허브",
     appSubtitle: "관리 콘솔",

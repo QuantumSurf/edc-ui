@@ -1,8 +1,10 @@
 // Connector Hub — Login Page
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth, type LoginResult } from "@/contexts/useAuth";
 import { useI18n } from "@/i18n";
-import { Lock, User, AlertCircle, Loader2 } from "lucide-react";
+import { Lock, User, AlertCircle, Loader2, KeyRound } from "lucide-react";
+import { fetchOidcStatus } from "@/services/api";
 
 export default function PageLogin() {
   const { login } = useAuth();
@@ -11,6 +13,32 @@ export default function PageLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<LoginResult | null>(null);
   const [loading, setLoading] = useState(false);
+  // SSO 콜백 실패는 /?sso_error=<code> 로 돌아온다 — 1회 읽고 URL 은 정리한다.
+  const [ssoError] = useState<string | null>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const code = p.get("sso_error");
+      if (code) {
+        p.delete("sso_error");
+        const qs = p.toString();
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + (qs ? `?${qs}` : "")
+        );
+      }
+      return code;
+    } catch {
+      return null;
+    }
+  });
+  // SSO 버튼 노출 여부 — 서버 설정(OIDC_ENABLED)이 유일한 신호.
+  const { data: oidc } = useQuery({
+    queryKey: ["oidc-status"],
+    queryFn: fetchOidcStatus,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +165,29 @@ export default function PageLogin() {
               {loading ? t.login.signingIn : t.login.signIn}
             </button>
           </form>
+
+          {ssoError && (
+            <div
+              role="alert"
+              className="mt-3 flex items-center gap-2 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 px-3 py-2 rounded-lg"
+            >
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {t.login.ssoErrors[ssoError] ?? t.login.ssoErrors.default}
+            </div>
+          )}
+
+          {/* Keycloak SSO — 서버가 OIDC_ENABLED=true 일 때만 노출 */}
+          {oidc?.enabled && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <a
+                href="/api/auth/oidc/login"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border hover:bg-muted text-foreground font-medium text-sm transition-colors"
+              >
+                <KeyRound className="w-4 h-4" />
+                {t.login.ssoButton}
+              </a>
+            </div>
+          )}
 
           {/* Demo accounts hint — hidden in production via VITE_DISABLE_DEMO="true" */}
           {import.meta.env.VITE_DISABLE_DEMO !== "true" && (
