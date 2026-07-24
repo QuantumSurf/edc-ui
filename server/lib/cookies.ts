@@ -51,7 +51,11 @@ export function generateCsrfToken(): string {
 }
 
 /** 로그인 성공 시 인증(httpOnly)·CSRF(가독) 쿠키를 함께 발급. */
-export function setAuthCookies(res: Response, token: string, csrf: string): void {
+export function setAuthCookies(
+  res: Response,
+  token: string,
+  csrf: string
+): void {
   res.cookie(AUTH_COOKIE, token, { ...baseCookieOpts(), httpOnly: true });
   res.cookie(CSRF_COOKIE, csrf, { ...baseCookieOpts(), httpOnly: false });
 }

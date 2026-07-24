@@ -27,7 +27,11 @@ export default defineWorkspace([
       include: ["server/**/*.test.ts"],
       // 통합테스트(testcontainers+Docker)는 별도 project(integration)로 분리 — 기본 단위
       // 스위트는 Docker 없이 빠르게 돈다.
-      exclude: ["**/node_modules/**", "**/dist/**", "server/test/integration/**"],
+      exclude: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "server/test/integration/**",
+      ],
       globals: true,
     },
   },

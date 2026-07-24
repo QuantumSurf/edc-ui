@@ -94,7 +94,9 @@ function isBlockedIp(ip: string): boolean {
  * [잔여 한계] 해석 시점과 실제 요청(axios 재해석) 사이의 TOCTOU(sub-TTL 리바인딩)까지는 막지
  * 못한다 — 완전 차단은 해석 IP 고정(pin) 또는 신뢰 호스트 allowlist가 필요(운영 정책 결정).
  */
-export async function assertEndpointPublic(url: string): Promise<string | null> {
+export async function assertEndpointPublic(
+  url: string
+): Promise<string | null> {
   const syncErr = validateDspEndpoint(url);
   if (syncErr) return syncErr;
   if (process.env.ALLOW_PRIVATE_DSP === "true") return null;

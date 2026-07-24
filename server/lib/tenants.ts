@@ -300,7 +300,9 @@ export async function purgeArchivedTenants(
         );
         deleted[tbl] = r.rowCount ?? 0;
       }
-      const rt = await client.query(`DELETE FROM tenants WHERE id = $1`, [t.id]);
+      const rt = await client.query(`DELETE FROM tenants WHERE id = $1`, [
+        t.id,
+      ]);
       deleted.tenants = rt.rowCount ?? 0;
       await client.query("COMMIT");
       results.push({

@@ -95,7 +95,9 @@ router.post(
     try {
       // fail-fast 검증 + JSON-LD 변환(공용 헬퍼). 잘못된 오퍼링은 협상 단계가 아니라
       // 생성 단계에서 즉시 400으로 거부(과거: 협상 단계에서야 실패 — id 74).
-      const built = buildContractDefinition(req.body as Record<string, unknown>);
+      const built = buildContractDefinition(
+        req.body as Record<string, unknown>
+      );
       if ("error" in built) {
         res.status(400).json({ error: built.error });
         return;

@@ -175,9 +175,10 @@ export async function deleteConnector(id: string): Promise<boolean> {
     await client.query("BEGIN");
     // 커넥터 종속 메타데이터는 FK 가 없어 커넥터만 지우면 고아 행이 영구 잔존한다.
     // (verifiable_credentials 는 FK ON DELETE CASCADE 라 자동 정리됨.) 함께 원자적으로 제거.
-    await client.query("DELETE FROM transfer_metadata WHERE connector_id = $1", [
-      id,
-    ]);
+    await client.query(
+      "DELETE FROM transfer_metadata WHERE connector_id = $1",
+      [id]
+    );
     await client.query(
       "DELETE FROM negotiation_metadata WHERE connector_id = $1",
       [id]

@@ -186,15 +186,16 @@ router.delete(
       const offRes = await client
         .post("/v3/contractdefinitions/request", withJsonLd({}))
         .catch(() => ({ data: [] as unknown[] }));
-      const offerings: unknown[] = Array.isArray(offRes.data) ? offRes.data : [];
+      const offerings: unknown[] = Array.isArray(offRes.data)
+        ? offRes.data
+        : [];
       const referenced = offerings.some(o => {
         const off = o as Record<string, unknown>;
         const selector = off["assetsSelector"] ?? off["edc:assetsSelector"];
         if (!selector) return false;
-        const sel = (Array.isArray(selector) ? selector[0] : selector) as Record<
-          string,
-          unknown
-        >;
+        const sel = (
+          Array.isArray(selector) ? selector[0] : selector
+        ) as Record<string, unknown>;
         const right = sel?.["operandRight"] ?? sel?.["edc:operandRight"];
         if (Array.isArray(right)) return right.some(r => String(r) === assetId);
         return right != null && String(right) === assetId;

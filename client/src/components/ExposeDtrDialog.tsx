@@ -141,7 +141,8 @@ export function ExposeDtrDialog({
       try {
         await createAsset(assetBody, connectorId);
       } catch (e) {
-        if (errStatus(e) === 409) await updateAsset(aid, assetBody, connectorId);
+        if (errStatus(e) === 409)
+          await updateAsset(aid, assetBody, connectorId);
         else throw e;
       }
     } catch (e) {

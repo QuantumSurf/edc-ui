@@ -30,7 +30,9 @@ function getConfig(): Record<string, string> {
     const raw = process.env.EDC_STATS_DB;
     if (!raw) return {};
     const obj = JSON.parse(raw);
-    return obj && typeof obj === "object" ? (obj as Record<string, string>) : {};
+    return obj && typeof obj === "object"
+      ? (obj as Record<string, string>)
+      : {};
   } catch {
     // 잘못된 JSON 이면 기능 자체를 비활성(폴백) — 부팅을 막지 않는다.
     return {};

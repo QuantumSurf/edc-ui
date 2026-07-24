@@ -69,10 +69,7 @@ router.post(
         return;
       }
       // type/source enum 화이트리스트 검증 — DB CHECK 위반(500) 전에 400으로 거부.
-      if (
-        !ALLOWED_TYPES.includes(type) ||
-        !ALLOWED_SOURCES.includes(source)
-      ) {
+      if (!ALLOWED_TYPES.includes(type) || !ALLOWED_SOURCES.includes(source)) {
         res.status(400).json({
           error: `type must be one of ${ALLOWED_TYPES.join(", ")}; source must be one of ${ALLOWED_SOURCES.join(", ")}`,
         });

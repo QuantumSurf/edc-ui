@@ -154,16 +154,23 @@ export async function pullEdrData(
   try {
     return await axios.get(targetUrl, {
       ...axiosConfig,
-      headers: { ...axiosConfig.headers, Authorization: `Bearer ${tokens.accessToken}` },
+      headers: {
+        ...axiosConfig.headers,
+        Authorization: `Bearer ${tokens.accessToken}`,
+      },
     });
   } catch (err) {
-    const status = (err as { response?: { status?: number } })?.response?.status;
+    const status = (err as { response?: { status?: number } })?.response
+      ?.status;
     if (status !== 403) throw err;
     const refreshed = await refreshTokens(connectorId, tpId, tokens);
     if (!refreshed) throw err;
     return await axios.get(targetUrl, {
       ...axiosConfig,
-      headers: { ...axiosConfig.headers, Authorization: `Bearer ${refreshed.accessToken}` },
+      headers: {
+        ...axiosConfig.headers,
+        Authorization: `Bearer ${refreshed.accessToken}`,
+      },
     });
   }
 }

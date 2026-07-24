@@ -25,7 +25,9 @@ import {
 // 공용 포맷터로 KST "YYYY-MM-DD HH:mm:ss" 표기(다른 시각 표기와 통일).
 import { fmtDateTimeShort } from "../lib/edcClient.js";
 
-const DEFAULT_RETENTION_DAYS = Number(process.env.OFFBOARD_RETENTION_DAYS ?? 30);
+const DEFAULT_RETENTION_DAYS = Number(
+  process.env.OFFBOARD_RETENTION_DAYS ?? 30
+);
 
 function parseArgs(args: string[]): {
   flags: { force: boolean; days?: number };

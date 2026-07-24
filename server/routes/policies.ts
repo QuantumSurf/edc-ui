@@ -212,7 +212,9 @@ router.delete(
       const offRes = await client
         .post("/v3/contractdefinitions/request", withJsonLd({}))
         .catch(() => ({ data: [] as unknown[] }));
-      const offerings: unknown[] = Array.isArray(offRes.data) ? offRes.data : [];
+      const offerings: unknown[] = Array.isArray(offRes.data)
+        ? offRes.data
+        : [];
       const referenced = offerings.some(o => {
         const off = o as Record<string, unknown>;
         const access = off["accessPolicyId"] ?? off["edc:accessPolicyId"] ?? "";
@@ -226,9 +228,7 @@ router.delete(
           .json({ error: "계약에 등록된 정책은 삭제할 수 없습니다" });
         return;
       }
-      const response = await client.delete(
-        `/v3/policydefinitions/${policyId}`
-      );
+      const response = await client.delete(`/v3/policydefinitions/${policyId}`);
       res.json(response.data);
     } catch (error) {
       next(error);

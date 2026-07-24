@@ -42,12 +42,10 @@ beforeAll(async () => {
   await db.initDb();
   app = buildApp();
 
-  const { rows } = await db
-    .getPool()
-    .query<{
-      bpn: string;
-      role: string;
-    }>(`SELECT t.bpn, u.role FROM users u JOIN tenants t ON u.tenant_id = t.id`);
+  const { rows } = await db.getPool().query<{
+    bpn: string;
+    role: string;
+  }>(`SELECT t.bpn, u.role FROM users u JOIN tenants t ON u.tenant_id = t.id`);
   adminBpn = rows.find(r => r.role === "admin")?.bpn ?? "";
   operatorBpn = rows.find(r => r.role === "operator")?.bpn ?? "";
   if (!adminBpn || !operatorBpn)

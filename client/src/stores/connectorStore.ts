@@ -54,6 +54,5 @@ export const useConnectorStore = create<ConnectorStore>(set => ({
   setSearchOpen: open => set({ searchOpen: open }),
   toggleSearch: () => set(s => ({ searchOpen: !s.searchOpen })),
   // drawerOpen·sidebarCollapsed 은 뷰포트/사용자 선호 UI 상태라 보존; 테넌트 데이터에 묶인 상태만 비운다.
-  reset: () =>
-    set({ connector: null, navigating: false, searchOpen: false }),
+  reset: () => set({ connector: null, navigating: false, searchOpen: false }),
 }));

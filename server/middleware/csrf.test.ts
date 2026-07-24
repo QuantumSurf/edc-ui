@@ -53,11 +53,7 @@ describe("csrfProtection (double-submit)", () => {
     const next = vi.fn();
     const token = "csrf-token-abc";
     csrfProtection(
-      makeReq(
-        "POST",
-        { [AUTH_COOKIE]: "jwt", [CSRF_COOKIE]: token },
-        token
-      ),
+      makeReq("POST", { [AUTH_COOKIE]: "jwt", [CSRF_COOKIE]: token }, token),
       makeRes(),
       next
     );
