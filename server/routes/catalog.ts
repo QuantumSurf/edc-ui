@@ -87,34 +87,75 @@ async function attachAasLinks(
     if (!tenantId) return;
     const tenant = await getTenant(tenantId);
     if (!tenant?.bpn) return;
-    const dtr = getDtrClient(tenant.bpn);
-    const { data } = await dtr.get("/shell-descriptors", {
-      params: { limit: 200 },
-    });
-    const shells: ShellDescriptorLite[] = Array.isArray(data?.result)
-      ? data.result.map(mapShellDescriptor)
-      : [];
-
-    const byAssetId = new Map<string, ShellDescriptorLite>();
-    for (const shell of shells) {
-      for (const sub of shell.submodelDescriptors) {
-        for (const ep of sub.endpoints ?? []) {
-          const m = /(?:^|;)\s*id=([^;]+)/.exec(ep.subprotocolBody ?? "");
-          if (m?.[1]) byAssetId.set(m[1].trim(), shell);
-        }
-      }
-    }
-
+    // BPN 단위 TTL 캐시(assetId→셸 요약) — 매 카탈로그 조회마다 DTR 을 동기 호출하던 부하를
+    // 제거한다(카탈로그는 자주 열린다). 짧은 TTL 이라 최신성 손실은 미미.
+    const byAssetId = await getAasLinkMap(tenant.bpn);
     for (const offer of offers) {
       const shell = byAssetId.get(offer.assetId);
       if (!shell) continue;
-      offer.aasId = shell.id;
-      offer.aasIdShort = shell.idShort;
+      offer.aasId = shell.aasId;
+      offer.aasIdShort = shell.aasIdShort;
       offer.globalAssetId = shell.globalAssetId;
     }
   } catch {
     // DTR 미가용 — 부가 정보라 무시하고 카탈로그는 그대로 반환.
   }
+}
+
+interface AasLink {
+  aasId: string;
+  aasIdShort: string;
+  globalAssetId: string;
+}
+const AAS_LINK_TTL_MS = 60_000;
+const aasLinkCache = new Map<
+  string,
+  { map: Map<string, AasLink>; exp: number }
+>();
+
+/** BPN 의 assetId→AAS 연계 맵을 TTL 캐시로 조회. DTR 첫 페이지(500)까지 커서 순회. */
+async function getAasLinkMap(bpn: string): Promise<Map<string, AasLink>> {
+  const now = Date.now();
+  const hit = aasLinkCache.get(bpn);
+  if (hit && hit.exp > now) return hit.map;
+
+  const dtr = getDtrClient(bpn);
+  const map = new Map<string, AasLink>();
+  let cursor: string | undefined;
+  let pages = 0;
+  // 200 개씩 커서 순회(과거엔 첫 200 만 봐서 초과분 매칭 누락). 안전 상한 5페이지(=1000).
+  do {
+    const params: Record<string, unknown> = { limit: 200 };
+    if (cursor) params.cursor = cursor;
+    const { data } = await dtr.get("/shell-descriptors", { params });
+    const shells: ShellDescriptorLite[] = Array.isArray(data?.result)
+      ? data.result.map(mapShellDescriptor)
+      : [];
+    for (const shell of shells) {
+      for (const sub of shell.submodelDescriptors) {
+        for (const ep of sub.endpoints ?? []) {
+          const m = /(?:^|;)\s*id=([^;]+)/.exec(ep.subprotocolBody ?? "");
+          if (m?.[1])
+            map.set(m[1].trim(), {
+              aasId: shell.id,
+              aasIdShort: shell.idShort,
+              globalAssetId: shell.globalAssetId,
+            });
+        }
+      }
+    }
+    cursor = data?.paging_metadata?.cursor as string | undefined;
+    pages++;
+    if (cursor && pages >= 5) {
+      console.warn(
+        `[catalog] attachAasLinks: DTR 셸이 1000개를 초과해 순회를 절단(bpn=${bpn}). 일부 오퍼의 AAS 연계가 누락될 수 있음.`
+      );
+      break;
+    }
+  } while (cursor);
+
+  aasLinkCache.set(bpn, { map, exp: now + AAS_LINK_TTL_MS });
+  return map;
 }
 
 function mapCatalogResponse(

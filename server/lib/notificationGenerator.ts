@@ -144,6 +144,32 @@ async function isSourceEnabled(
   return entry.prefs[SOURCE_PREF_KEY[source]] !== "false";
 }
 
+// 성공률 KPI 데이터원(metadata.last_state) side-write — 폴러가 전 커넥터를 60초마다
+// 조회하므로, 목록 라우트를 아무도 열지 않아도 터미널 상태가 여기서 기록된다(관측 공백 해소).
+// 목록 라우트와 동일 upsert(COALESCE — 최초 1회만, completed_at 보존). table/idCol 은
+// 코드 상수뿐이라(사용자 입력 아님) 안전하다.
+async function recordTerminalState(
+  table: "negotiation_metadata" | "transfer_metadata",
+  idCol: "negotiation_id" | "transfer_id",
+  entityId: string,
+  connectorId: string,
+  lastState: string
+): Promise<void> {
+  try {
+    await getPool().query(
+      `INSERT INTO ${table} (${idCol}, connector_id, completed_at, last_state)
+       VALUES ($1, $2, NOW(), $3)
+       ON CONFLICT (${idCol}, connector_id)
+       DO UPDATE SET
+         completed_at = COALESCE(${table}.completed_at, NOW()),
+         last_state = COALESCE(${table}.last_state, EXCLUDED.last_state)`,
+      [entityId, connectorId, lastState]
+    );
+  } catch {
+    /* KPI 부수기록 — 실패해도 알림 흐름에 영향 없음 */
+  }
+}
+
 async function insertOnce(spec: InsertSpec): Promise<boolean> {
   if (seenKeys.has(spec.dedupKey)) return false;
   const pool = getPool();
@@ -271,7 +297,17 @@ async function pollConnector(conn: {
       Array.isArray(r.data) ? r.data : (r.data?.["dataset"] ?? [])
     ) as Record<string, unknown>[];
     for (const n of list) {
-      if (n["state"] !== "TERMINATED") continue;
+      const nstate = n["state"] as string;
+      const nid = (n["@id"] as string) ?? "";
+      if (nid && (nstate === "FINALIZED" || nstate === "TERMINATED"))
+        await recordTerminalState(
+          "negotiation_metadata",
+          "negotiation_id",
+          nid,
+          conn.id,
+          nstate
+        );
+      if (nstate !== "TERMINATED") continue;
       const id = (n["@id"] as string) ?? "";
       const peer = (n["counterPartyId"] as string) ?? "";
       const errorDetail = (n["errorDetail"] as string) ?? "(사유 미상)";
@@ -328,6 +364,23 @@ async function pollConnector(conn: {
             ? JSON.stringify(errRaw)
             : "";
       const consumerCompleted = /Completed by consumer/i.test(errStr);
+      // 성공률 KPI: COMPLETED(소비자완료 오버레이 포함)/TERMINATED/DEPROVISIONED 를 기록.
+      const terminalName =
+        state === "COMPLETED" || (state === "TERMINATED" && consumerCompleted)
+          ? "COMPLETED"
+          : state === "TERMINATED"
+            ? "TERMINATED"
+            : state === "DEPROVISIONED"
+              ? "DEPROVISIONED"
+              : null;
+      if (id && terminalName)
+        await recordTerminalState(
+          "transfer_metadata",
+          "transfer_id",
+          id,
+          conn.id,
+          terminalName
+        );
       if (state === "TERMINATED" && !consumerCompleted) {
         const errorDetail = errStr || "(사유 미상)";
         await insertOnce({

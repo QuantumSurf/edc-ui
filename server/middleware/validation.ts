@@ -95,18 +95,35 @@ function isBlockedIp(ip: string): boolean {
  * 못한다 — 완전 차단은 해석 IP 고정(pin) 또는 신뢰 호스트 allowlist가 필요(운영 정책 결정).
  */
 export async function assertEndpointPublic(
-  url: string
+  url: string,
+  allowHosts?: readonly string[]
 ): Promise<string | null> {
-  const syncErr = validateDspEndpoint(url);
-  if (syncErr) return syncErr;
-  if (process.env.ALLOW_PRIVATE_DSP === "true") return null;
-
+  // allowHosts: 명시적으로 신뢰하는 호스트(예: 클러스터 내부 DTR). 스킴/리다이렉트/
+  // 크기 가드는 호출부가 별도로 유지하되, 사설/메타데이터 IP 차단만 이 호스트에 한해
+  // 면제한다. 전역 ALLOW_PRIVATE_DSP(모든 사설 허용)와 달리 표적을 좁힌다.
   let hostname: string;
   try {
     hostname = new URL(url).hostname.replace(/^\[|\]$/g, "");
   } catch {
     return "Invalid URL format";
   }
+  const allowed = (allowHosts ?? []).map(h => h.trim().toLowerCase());
+  if (allowed.includes(hostname.toLowerCase())) {
+    // 스킴만 검증(사설 IP 차단은 면제). http/https 외는 여전히 거부.
+    try {
+      const proto = new URL(url).protocol;
+      if (proto !== "http:" && proto !== "https:")
+        return "Only HTTP/HTTPS endpoints are allowed";
+    } catch {
+      return "Invalid URL format";
+    }
+    return null;
+  }
+
+  const syncErr = validateDspEndpoint(url);
+  if (syncErr) return syncErr;
+  if (process.env.ALLOW_PRIVATE_DSP === "true") return null;
+
   try {
     const addrs = await lookup(hostname, { all: true });
     if (addrs.some(a => isBlockedIp(a.address))) {
@@ -116,6 +133,32 @@ export async function assertEndpointPublic(
     return "Endpoint host could not be resolved";
   }
   return null;
+}
+
+/**
+ * 서브모델 /content 프록시 전용 신뢰 호스트 목록.
+ * DTR_BASE_URL 호스트 + SUBMODEL_CONTENT_ALLOW_HOSTS(쉼표구분)를 합친다.
+ * 운영 토폴로지에서 DTR/데이터플레인이 클러스터 내부(사설망) 호스트일 때, 그 호스트만
+ * 사설-IP 차단을 면제해 정상 조회가 400 으로 막히지 않게 한다.
+ */
+export function submodelContentAllowHosts(): string[] {
+  const hosts: string[] = [];
+  const dtr = process.env.DTR_BASE_URL;
+  if (dtr) {
+    try {
+      hosts.push(new URL(dtr).hostname);
+    } catch {
+      /* 무시 */
+    }
+  }
+  const extra = process.env.SUBMODEL_CONTENT_ALLOW_HOSTS;
+  if (extra) {
+    for (const h of extra.split(",")) {
+      const t = h.trim();
+      if (t) hosts.push(t);
+    }
+  }
+  return hosts;
 }
 
 /** Validate connector ID format (alphanumeric + hyphens) */

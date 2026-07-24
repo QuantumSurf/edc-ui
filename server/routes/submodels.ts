@@ -16,7 +16,10 @@ import {
 } from "../lib/dtrClient.js";
 import { getTenant } from "../lib/tenants.js";
 import { requireRole } from "../middleware/auth.js";
-import { assertEndpointPublic } from "../middleware/validation.js";
+import {
+  assertEndpointPublic,
+  submodelContentAllowHosts,
+} from "../middleware/validation.js";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
@@ -88,7 +91,13 @@ router.get(
         res.status(404).json({ error: "no-submodel-endpoint" });
         return;
       }
-      const unsafe = await assertEndpointPublic(href);
+      // DTR/데이터플레인이 클러스터 내부(사설망)일 수 있으므로, 신뢰 호스트(DTR_BASE_URL
+      // 호스트 + SUBMODEL_CONTENT_ALLOW_HOSTS)에 한해 사설-IP 차단을 면제한다. 리다이렉트
+      // 미추적·크기 상한은 아래 axios 옵션이 그대로 유지한다.
+      const unsafe = await assertEndpointPublic(
+        href,
+        submodelContentAllowHosts()
+      );
       if (unsafe) {
         res.status(400).json({ error: "unsafe-endpoint", detail: unsafe });
         return;

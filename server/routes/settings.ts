@@ -98,7 +98,9 @@ router.put(
           await setTenantSetting(tenantId, k, v ? "true" : "false");
         }
       }
-      invalidateTenantNotifyPrefs(tenantId); // TTL 캐시 즉시 무효화(최대 60초 지연 제거)
+      // TTL 캐시 무효화 — 이 프로세스에 한해 즉시. 멀티레플리카에서는 타 레플리카의
+      // 폴러가 자기 TTL(최대 60초)까지 옛 값을 쓸 수 있다(수용된 한계, values.yaml 참조).
+      invalidateTenantNotifyPrefs(tenantId);
       const stored = await getTenantSettings(tenantId, NOTIFY_PREF_KEYS);
       const prefs: Record<string, boolean> = {};
       for (const k of NOTIFY_PREF_KEYS) prefs[k] = stored[k] !== "false";
