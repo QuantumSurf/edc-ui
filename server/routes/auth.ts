@@ -18,6 +18,8 @@ import {
 import { getTenant } from "../lib/tenants.js";
 import { requireAuth } from "../middleware/auth.js";
 import { loginRateLimit } from "../middleware/rateLimit.js";
+import { validateBody } from "../middleware/validate.js";
+import { loginSchema, changePasswordSchema } from "../schemas/auth.js";
 import { recordAudit } from "../lib/audit.js";
 import {
   setAuthCookies,
@@ -27,8 +29,7 @@ import {
 
 const router = Router();
 
-const MAX_TENANT_LEN = 128; // tenant id (BPN) 입력 한도
-const MAX_PASSWORD_LEN = 256; // bcrypt input 한도(72바이트 truncation 고려해 충분히 큼)
+// 입력 길이 한도(tenantId 128·password 256)는 schemas/auth.ts 의 zod 스키마가 소유한다.
 
 // 양의 정수 env 파싱 — 오설정(비숫자·0·음수)을 조용히 삼키지 않고 안전 기본값으로 폴백 + 경고.
 // Number()만 쓰면 'off' 같은 값이 NaN → 'failed >= NaN'이 항상 false → 계정 잠금이 무증상
@@ -38,7 +39,9 @@ function positiveIntEnv(name: string, def: number): number {
   if (raw == null || raw === "") return def;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) {
-    console.warn(`[AUTH] ${name}='${raw}' invalid — falling back to default ${def}`);
+    console.warn(
+      `[AUTH] ${name}='${raw}' invalid — falling back to default ${def}`
+    );
     return def;
   }
   return Math.floor(n);
@@ -55,23 +58,15 @@ const LOGIN_LOCKOUT_MINUTES = positiveIntEnv("LOGIN_LOCKOUT_MINUTES", 15);
 router.post(
   "/login",
   loginRateLimit,
+  // 타입/길이 검증은 zod 게이트가 담당(400 {error:"validation"}). 핸들러는 검증된
+  // 형만 다룬다. trim 후 공백-전용 검사만 라우트에 남긴다(BPN 불변식).
+  validateBody(loginSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { tenantId, password } = req.body ?? {};
-      if (typeof tenantId !== "string" || typeof password !== "string") {
-        res
-          .status(400)
-          .json({ error: "tenantId and password are required strings" });
-        return;
-      }
-      if (
-        tenantId.length > MAX_TENANT_LEN ||
-        password.length > MAX_PASSWORD_LEN ||
-        password.length === 0
-      ) {
-        res.status(400).json({ error: "Invalid tenant id or password length" });
-        return;
-      }
+      const { tenantId, password } = req.body as {
+        tenantId: string;
+        password: string;
+      };
       const bpn = tenantId.trim();
       if (!bpn) {
         res.status(400).json({ error: "tenantId and password are required" });
@@ -355,6 +350,7 @@ router.get(
 router.post(
   "/change-password",
   requireAuth,
+  validateBody(changePasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const uid = req.user?.id;
@@ -362,24 +358,11 @@ router.post(
         res.status(401).json({ error: "unauthorized" });
         return;
       }
-      const { currentPassword, newPassword } = (req.body ?? {}) as {
-        currentPassword?: unknown;
-        newPassword?: unknown;
+      // 타입/정책(최소 8자·과도 길이) 검증은 zod 게이트(changePasswordSchema)가 담당.
+      const { currentPassword, newPassword } = req.body as {
+        currentPassword: string;
+        newPassword: string;
       };
-      if (
-        typeof currentPassword !== "string" ||
-        typeof newPassword !== "string"
-      ) {
-        res
-          .status(400)
-          .json({ error: "currentPassword and newPassword required" });
-        return;
-      }
-      // 최소 8자 + 과도 길이 차단(bcrypt 72바이트 truncation 고려한 상한).
-      if (newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LEN) {
-        res.status(400).json({ error: "password-policy" });
-        return;
-      }
       const { rows } = await getPool().query<{ password_hash: string }>(
         `SELECT password_hash FROM users WHERE id = $1`,
         [uid]

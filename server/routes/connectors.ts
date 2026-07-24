@@ -18,7 +18,13 @@ import {
 import { getTenant } from "../lib/tenants.js";
 import { createEdcClient, EDC_QUERY_LIMIT } from "../lib/edcClient.js";
 import { requireRole } from "../middleware/auth.js";
-import { validateDspEndpoint } from "../middleware/validation.js";
+import { assertEndpointPublic } from "../middleware/validation.js";
+import { validateBody } from "../middleware/validate.js";
+import {
+  createConnectorSchema,
+  updateConnectorSchema,
+  testConnectionSchema,
+} from "../schemas/connectors.js";
 import {
   mapWithConcurrency,
   FLEET_FANOUT_CONCURRENCY,
@@ -35,17 +41,20 @@ const MAX_CONNECTORS_PER_TENANT = Number(
 
 // SSRF 가드: 서버가 호출하게 될 커넥터 URL(managementUrl/dspEndpoint)이
 // 사설/내부/메타데이터 주소를 가리키지 않도록 검증. (catalog 등과 동일 정책)
-function validateConnectorUrls(body: {
+// SSRF 가드 — catalog/negotiation/transfer 와 동일하게 DNS 해석 기반
+// assertEndpointPublic 을 쓴다(문자열 검사만으로는 공인 도메인→내부 IP 해석을 못 막고,
+// managementUrl 은 폴러·플릿이 반복 폴링하므로 등록 시점 강한 가드가 특히 중요).
+async function validateConnectorUrls(body: {
   managementUrl?: unknown;
   dspEndpoint?: unknown;
-}): string | null {
+}): Promise<string | null> {
   const fields: Array<["managementUrl" | "dspEndpoint", unknown]> = [
     ["managementUrl", body.managementUrl],
     ["dspEndpoint", body.dspEndpoint],
   ];
   for (const [field, val] of fields) {
     if (typeof val === "string" && val.trim()) {
-      const err = validateDspEndpoint(val.trim());
+      const err = await assertEndpointPublic(val.trim());
       if (err) return `${field}: ${err}`;
     }
   }
@@ -137,6 +146,9 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 router.post(
   "/",
   adminOnly,
+  // 필수 필드/타입/enum 검증은 zod 게이트(createConnectorSchema)가 담당 —
+  // 누락/오타가 500 으로 새거나 임의 env/roles 가 저장되는 것을 400 으로 명확히 거부.
+  validateBody(createConnectorSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.user?.tenantId;
@@ -148,36 +160,7 @@ router.post(
       // ignoring any client-supplied bpn. tenant_id is likewise forced from the token.
       const tenant = await getTenant(tenantId);
       const entry = { ...req.body, bpn: tenant?.bpn ?? req.body?.bpn };
-      // 필수 필드 타입/값 검증 — 누락/오타가 500(예: env 미지정 → env.toLowerCase())으로 새거나
-      // 임의 env/roles가 저장되는 것을 막고 400으로 명확히 거부한다.
-      if (
-        typeof entry.name !== "string" ||
-        !entry.name.trim() ||
-        typeof entry.managementUrl !== "string" ||
-        !entry.managementUrl.trim() ||
-        typeof entry.dspEndpoint !== "string" ||
-        !entry.dspEndpoint.trim()
-      ) {
-        res
-          .status(400)
-          .json({ error: "name, managementUrl, dspEndpoint are required" });
-        return;
-      }
-      if (entry.env !== "PROD" && entry.env !== "STG" && entry.env !== "DEV") {
-        res.status(400).json({ error: "env must be one of PROD/STG/DEV" });
-        return;
-      }
-      if (
-        entry.roles != null &&
-        !(
-          Array.isArray(entry.roles) &&
-          entry.roles.every((r: unknown) => typeof r === "string")
-        )
-      ) {
-        res.status(400).json({ error: "roles must be an array of strings" });
-        return;
-      }
-      const ssrfErr = validateConnectorUrls(entry);
+      const ssrfErr = await validateConnectorUrls(entry);
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected URL — ${ssrfErr}` });
         return;
@@ -204,14 +187,15 @@ router.post(
 router.post(
   "/test-connection",
   operatorOrAdmin,
+  validateBody(testConnectionSchema),
   async (req: Request, res: Response, _next: NextFunction) => {
     try {
-      const { managementUrl, apiKey } = req.body;
-      if (!managementUrl) {
-        res.status(400).json({ error: "managementUrl is required" });
-        return;
-      }
-      const ssrfErr = validateDspEndpoint(String(managementUrl).trim());
+      const { managementUrl, apiKey } = req.body as {
+        managementUrl: string;
+        apiKey?: string;
+      };
+      // DNS 해석 기반 SSRF 가드(등록 경로와 동일 강도).
+      const ssrfErr = await assertEndpointPublic(managementUrl.trim());
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected managementUrl — ${ssrfErr}` });
         return;
@@ -255,6 +239,7 @@ router.post(
 router.put(
   "/:id",
   adminOnly,
+  validateBody(updateConnectorSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.user?.tenantId;
@@ -270,7 +255,7 @@ router.put(
         return;
       }
 
-      const ssrfErr = validateConnectorUrls(req.body ?? {});
+      const ssrfErr = await validateConnectorUrls(req.body ?? {});
       if (ssrfErr) {
         res.status(400).json({ error: `Rejected URL — ${ssrfErr}` });
         return;
