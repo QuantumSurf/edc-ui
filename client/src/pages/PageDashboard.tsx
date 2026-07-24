@@ -33,6 +33,7 @@ import {
   FileText,
   CheckCircle2,
   Handshake,
+  Download,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -118,6 +119,27 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
     queryFn: () => fetchStatsSummary(conn.id, periodDays),
     refetchInterval: 30_000,
   });
+
+  // 트렌드 CSV 다운로드 — BOM(엑셀 한글 인코딩) + 수식 인젝션 방어(=,+,-,@ 접두 무력화).
+  const downloadTrendCsv = () => {
+    const esc = (v: unknown): string => {
+      let cell = String(v ?? "");
+      if (/^[=+\-@]/.test(cell)) cell = `'${cell}`; // 스프레드시트 수식 실행 차단
+      return /[",\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
+    };
+    const rows = [
+      ["time", "negotiations", "transfers"],
+      ...trendData.map(r => [r.t, r.negs, r.transfers]),
+    ];
+    const csv = "\uFEFF" + rows.map(row => row.map(esc).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trend-${conn.id}-${periodHours}h.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // 전송 '정확 총계'(목록 상한 EDC_QUERY_LIMIT 우회). EDC DB 접속이 설정된 커넥터만
   // exact:true. 미설정이면 아래에서 목록 길이로 폴백.
@@ -331,6 +353,15 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                   </button>
                 ))}
               </div>
+              <button
+                onClick={downloadTrendCsv}
+                aria-label={t.dashboard.exportCsv}
+                title={t.dashboard.exportCsv}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-border hover:bg-muted"
+              >
+                <Download className="w-3 h-3" />
+                CSV
+              </button>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-0.5 bg-blue-500 rounded inline-block" />
                 {t.dashboard.negotiations}
