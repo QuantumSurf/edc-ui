@@ -140,8 +140,13 @@ spec:
               value: {{ .Values.platform.identityHubUrl | quote }}
             - name: IDENTITY_HUB_PARTICIPANT_ID
               value: {{ .Values.platform.identityHubParticipantId | quote }}
+            {{- if .Values.platform.identityHubApiKey }}
             - name: IDENTITY_HUB_API_KEY
-              value: {{ .Values.platform.identityHubApiKey | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: identity-hub-api-key
+            {{- end }}
             # ── 시드 계정 비밀번호(빈 DB 신규 설치 필수, Secret) ──
             {{- if .Values.secrets.seedAdminPassword }}
             - name: SEED_ADMIN_PASSWORD
