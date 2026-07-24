@@ -7,6 +7,10 @@
 const http = require("http");
 
 const PORT = process.env.MOCK_PORT ? parseInt(process.env.MOCK_PORT, 10) : 8090;
+// 목이 자신을 가리켜 광고하는 공개 베이스 URL(EDR endpoint·refreshEndpoint).
+// 실 kmx 데이터플레인이 공개 endpoint 를 광고하는 것과 동일 원리 — compose 밖(통합테스트)
+// 에서는 MOCK_PUBLIC_BASE=http://127.0.0.1:<port> 로 주면 그 주소로 광고한다.
+const PUBLIC_BASE = process.env.MOCK_PUBLIC_BASE || "http://mock-edc:8090";
 const now = Date.now();
 const h = n => now - n * 3600 * 1000; // n시간 전(ms)
 
@@ -612,13 +616,13 @@ const server = http.createServer((req, res) => {
       // 만료 액세스 토큰을 발급해 BFF 의 403→refresh→재시도 자동갱신 루프를 검증할 수 있다.
       const expired = process.env.MOCK_EXPIRE_EDR === "true";
       return send(res, 200, {
-        endpoint: "http://mock-edc:8090/data/sample",
+        endpoint: `${PUBLIC_BASE}/data/sample`,
         authorization: expired
           ? "Bearer edr-access-expired"
           : "Bearer demo-edr-token",
         type: "https://w3id.org/idsa/v4.1/HTTP",
         refreshToken: "mock-refresh-token",
-        refreshEndpoint: "http://mock-edc:8090/api/public/token",
+        refreshEndpoint: `${PUBLIC_BASE}/api/public/token`,
         expiresIn: "300",
       });
     }
