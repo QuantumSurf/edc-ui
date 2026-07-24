@@ -12,6 +12,8 @@ import {
 } from "./lib/notificationGenerator.js";
 import { pruneAuditLogs } from "./lib/audit.js";
 import { pruneFieldHistory } from "./lib/fieldHistory.js";
+import { pruneEdrTokens } from "./lib/edrRefresh.js";
+import { startPubSub, stopPubSub } from "./lib/pubsub.js";
 import { assertAuthConfig } from "./lib/auth.js";
 import { assertOidcConfig } from "./lib/oidc.js";
 
@@ -44,6 +46,10 @@ async function startServer() {
     );
   });
 
+  // 크로스 레플리카 캐시 무효화(pg LISTEN/NOTIFY) — 알림 설정 변경을 타 레플리카가 즉시 반영.
+  // 실패해도 각 캐시 TTL 이 폴백이라 앱은 계속 동작한다.
+  void startPubSub();
+
   // Background watcher for system-event notifications (negotiation TERMINATED,
   // transfer COMPLETED/TERMINATED, EDR expiring, VC expiring, connector unreachable).
   startNotificationGenerator().catch(err =>
@@ -56,6 +62,7 @@ async function startServer() {
     void pruneAuditLogs();
     void pruneFieldHistory();
     void pruneNotifications();
+    void pruneEdrTokens(); // 완료/종료 후 남은 오래된 EDR 토큰 행 정리(24h 초과)
   };
   runRetention();
   const pruneInterval = setInterval(runRetention, 6 * 60 * 60 * 1000);
@@ -75,6 +82,7 @@ async function startServer() {
     }, 10_000);
     force.unref();
     stopNotificationGenerator();
+    void stopPubSub();
     clearInterval(pruneInterval);
     server.close(() => {
       void closeDb()

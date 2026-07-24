@@ -24,7 +24,7 @@ import {
 } from "../lib/tenants.js";
 import {
   NOTIFY_PREF_KEYS,
-  invalidateTenantNotifyPrefs,
+  evictNotifyPrefs,
 } from "../lib/notificationGenerator.js";
 import { validateBody } from "../middleware/validate.js";
 import { notifyPrefsSchema } from "../schemas/settings.js";
@@ -98,9 +98,9 @@ router.put(
           await setTenantSetting(tenantId, k, v ? "true" : "false");
         }
       }
-      // TTL 캐시 무효화 — 이 프로세스에 한해 즉시. 멀티레플리카에서는 타 레플리카의
-      // 폴러가 자기 TTL(최대 60초)까지 옛 값을 쓸 수 있다(수용된 한계, values.yaml 참조).
-      invalidateTenantNotifyPrefs(tenantId);
+      // 캐시 무효화 — 이 프로세스 즉시 + pg NOTIFY 로 타 레플리카까지 방송(전 레플리카 즉시
+      // 반영). NOTIFY 미도달 시에도 각 레플리카 TTL(최대 60초)이 폴백.
+      await evictNotifyPrefs(tenantId);
       const stored = await getTenantSettings(tenantId, NOTIFY_PREF_KEYS);
       const prefs: Record<string, boolean> = {};
       for (const k of NOTIFY_PREF_KEYS) prefs[k] = stored[k] !== "false";

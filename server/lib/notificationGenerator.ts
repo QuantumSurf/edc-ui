@@ -21,6 +21,7 @@ import { listAllConnectorsUnsafe } from "./connectorRegistry.js";
 import { getEdcClient, withJsonLd } from "./edcClient.js";
 import { recordAudit } from "./audit.js";
 import { notificationPollTotal } from "./metrics.js";
+import { notifyEvict, onEvict } from "./pubsub.js";
 
 const POLL_INTERVAL_MS = Number(process.env.KMX_NOTIFY_POLL_MS ?? 60_000);
 const ENABLED = process.env.KMX_NOTIFY_ENABLED !== "false";
@@ -121,9 +122,24 @@ const notifyPrefsCache = new Map<
   { prefs: Record<string, string>; expiresAt: number }
 >();
 
-/** 설정 변경 직후 캐시 무효화 — settings 라우트가 호출(최대 60초 지연 제거). */
+/** 설정 변경 직후 로컬 캐시 무효화(같은 프로세스 즉시 반영). */
 export function invalidateTenantNotifyPrefs(tenantId: string): void {
   notifyPrefsCache.delete(tenantId);
+}
+
+// 멀티레플리카 즉시성 — 다른 인스턴스의 prefs 캐시를 pg NOTIFY 로 무효화한다.
+// payload 접두로 이벤트 종류를 구분한다. NOTIFY 실패/미연결이어도 TTL(60초)이 폴백.
+const PREFS_EVICT_PREFIX = "notify-prefs:";
+onEvict(payload => {
+  if (payload.startsWith(PREFS_EVICT_PREFIX)) {
+    invalidateTenantNotifyPrefs(payload.slice(PREFS_EVICT_PREFIX.length));
+  }
+});
+
+/** 로컬 캐시 무효화 + 다른 레플리카에도 방송 — settings PUT 이 호출(전 레플리카 즉시 반영). */
+export async function evictNotifyPrefs(tenantId: string): Promise<void> {
+  invalidateTenantNotifyPrefs(tenantId);
+  await notifyEvict(PREFS_EVICT_PREFIX + tenantId);
 }
 
 async function isSourceEnabled(

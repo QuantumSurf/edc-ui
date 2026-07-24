@@ -173,6 +173,25 @@ async function createSchema(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_negotiation_meta_connector ON negotiation_metadata(connector_id);`
   );
 
+  // EDR 토큰 공유 저장소(멀티레플리카) — provider 데이터플레인 EDR 의 액세스/refresh 토큰
+  // 쌍을 전송별로 공유해, 어느 레플리카가 갱신하든 최신 토큰을 모두가 본다(인메모리
+  // 프로세스별 캐시의 stale/중복 refresh 제거). 토큰은 at-rest 암호화(server/lib/crypto.ts).
+  // FOR UPDATE 행잠금으로 동시 refresh 를 직렬화한다(edrRefresh.ts).
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS edr_tokens (
+      connector_id     TEXT NOT NULL,
+      tp_id            TEXT NOT NULL,
+      access_token     TEXT NOT NULL,
+      refresh_token    TEXT,
+      refresh_endpoint TEXT,
+      updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (connector_id, tp_id)
+    );
+  `);
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_edr_tokens_updated ON edr_tokens(updated_at);`
+  );
+
   // 사용자 계정 + RBAC 역할 (admin/operator/viewer)
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS users (

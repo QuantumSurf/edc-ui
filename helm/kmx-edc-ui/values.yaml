@@ -1,10 +1,11 @@
 # KMX EDC UI — Helm values
 
-# ⚠️ 멀티레플리카 캐시 한계(설계상 인메모리, 프로세스별):
-#  - EDR refresh 토큰 캐시(server/lib/edrRefresh.ts): 레플리카가 다르면 여분 refresh 가
-#    일어날 수 있으나 403→EDR 재조회로 자가복구한다(정확성 문제 아님, 지연만).
-#  - 알림 source 토글 캐시(60s TTL): PUT 무효화가 로컬 프로세스만 적용 → 타 레플리카는
-#    최대 60초 stale. 완전 즉시성이 필요하면 replicaCount: 1 또는 공유 저장소(후속) 도입.
+# 멀티레플리카 상태 — 공유 저장소(기존 Postgres)로 즉시성 확보(새 인프라 불요):
+#  - EDR refresh 토큰: 공유 테이블 edr_tokens(at-rest 암호화)에 보관하고 refresh 는
+#    FOR UPDATE 행잠금으로 직렬화 → 어느 레플리카가 갱신하든 최신 토큰을 모두 즉시 공유,
+#    중복 refresh·1회용 토큰 경합 제거(server/lib/edrRefresh.ts).
+#  - 알림 source 토글: PUT 시 pg LISTEN/NOTIFY 로 전 레플리카 캐시를 즉시 무효화
+#    (server/lib/pubsub.ts). NOTIFY 미도달 시에도 60s TTL 이 폴백.
 #  세션(JWT)은 stateless 라 레플리카 수와 무관.
 replicaCount: 2
 

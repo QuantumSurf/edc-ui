@@ -515,8 +515,9 @@ router.post(
         "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
         reason: "Completed by consumer",
       });
-      // 종료된 전송의 캐시된 액세스/refresh 토큰을 즉시 정리(불필요한 자격증명 상주 최소화).
-      evictEdrTokens(connectorId, tpId);
+      // 종료된 전송의 공유 저장소 토큰을 즉시 정리(불필요한 자격증명 상주 최소화).
+      // 정리 실패가 완료 처리를 막지 않도록 fire-and-forget(보존정리 prune 가 최종 백스톱).
+      void evictEdrTokens(connectorId, tpId).catch(() => {});
 
       // 완료 메타 기록
       await getPool().query(
