@@ -61,7 +61,7 @@ pnpm perf:smoke   # 스모크
 | 변수            | 기본값                  | 설명                                                        |
 | --------------- | ----------------------- | ----------------------------------------------------------- |
 | `BASE_URL`      | `http://localhost:3001` | 부하 대상 BFF 주소                                          |
-| `PERF_BPN`      | `BPNL000000000PRD`      | `setup()` 로그인 계정(BPN). dev 시드 admin.                 |
+| `PERF_BPN`      | `BPNLDEMOADMIN`         | `setup()` 로그인 계정. fresh 시드 admin(admin@kmx.io). 커넥터 등록된 스택은 그 BPN 지정. |
 | `PERF_PASSWORD` | `0000`                  | 위 계정 비밀번호. dev 시드 기본값 — dev 밖이면 반드시 지정. |
 | `AUTH_TOKEN`    | (없음)                  | Bearer 토큰. 주면 `setup()` 로그인 대신 이 토큰을 쓴다.     |
 | `SMOKE`         | (없음)                  | `1` 이면 스모크 시나리오(1 VU, 30초)                        |

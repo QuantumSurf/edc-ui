@@ -1,0 +1,14 @@
+# 저장소는 LF 정규화(prettier endOfLine: lf 와 일치). 이게 없으면 Windows 개발자의
+# 워킹트리가 CRLF 라 로컬 `pnpm format:check` 가 전량 false-positive 로 실패해
+# CI 게이트를 사전 검증할 수 없다. 커밋/CI(리눅스)와 로컬 결과를 일치시킨다.
+* text=auto eol=lf
+
+# 바이너리/이미지는 정규화 제외.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

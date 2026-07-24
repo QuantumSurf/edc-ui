@@ -11,12 +11,15 @@ on:
 # 비공개 저장소의 Actions 분은 과금 대상이다. 연속 푸시로 이전 런이 남아 있으면 어차피
 # 버려질 실행에 분을 계속 태우므로, 같은 브랜치의 진행 중 런을 취소한다.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # event_name 포함 — 수동 k6(workflow_dispatch) 런이 진행 중 push CI 를 취소하지 않도록.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   lint-and-typecheck:
     name: Lint & Type Check
+    # 수동 k6(workflow_dispatch)에서는 이 잡을 재실행하지 않는다(과금 절감).
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +47,8 @@ jobs:
 
   test:
     name: Unit Tests
+    # 수동 k6(workflow_dispatch)에서는 이 잡을 재실행하지 않는다(과금 절감).
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +65,8 @@ jobs:
 
   integration:
     name: Integration Tests
+    # 수동 k6(workflow_dispatch)에서는 이 잡을 재실행하지 않는다(과금 절감).
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +88,8 @@ jobs:
 
   build:
     name: Build
+    # 수동 k6(workflow_dispatch)에서는 이 잡을 재실행하지 않는다(과금 절감).
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: [lint-and-typecheck, test, integration]
     steps:
@@ -173,7 +182,9 @@ jobs:
           echo "BFF 미기동"; docker compose -f docker-compose.dev.yml logs app | tail -60; exit 1
 
       - name: Run k6 full ramp (threshold gated)
-        run: docker run --rm -i --network host -e BASE_URL=http://localhost:3006 grafana/k6 run - < perf/load-test.js
+        # PERF_BPN: fresh 시드의 admin 테넌트 BPN(admin@kmx.io → BPNLDEMOADMIN, server/lib/db.ts).
+        # 커넥터가 없는 새 스택에선 BPNL000000000PRD 가 존재하지 않아 로그인이 실패한다.
+        run: docker run --rm -i --network host -e BASE_URL=http://localhost:3006 -e PERF_BPN=BPNLDEMOADMIN -e PERF_PASSWORD=0000 grafana/k6 run - < perf/load-test.js
 
       - name: Tear down
         if: always()

@@ -28,9 +28,11 @@ import { Counter, Rate, Trend } from "k6/metrics";
 const BASE_URL = __ENV.BASE_URL || "http://localhost:3001";
 const AUTH_TOKEN = __ENV.AUTH_TOKEN || "";
 const SMOKE = __ENV.SMOKE === "1";
-// dev 시드 계정. BPN 은 식별자(비밀 아님), 비밀번호 기본값은 server/lib/db.ts 의
-// 시드 기본값과 같다. dev 밖을 때릴 때는 반드시 PERF_PASSWORD 로 덮어쓸 것.
-const PERF_BPN = __ENV.PERF_BPN || "BPNL000000000PRD";
+// setup() 로그인 계정. BPN 은 식별자(비밀 아님). fresh 시드의 admin 테넌트 BPN 은
+// admin@kmx.io → BPNLDEMOADMIN(server/lib/db.ts). 커넥터를 등록해 그 BPN 이 테넌트가
+// 된 스택(예: 오래 쓴 로컬 dev)은 -e PERF_BPN 으로 그 BPN(예: BPNL000000000PRD) 지정.
+// dev 밖을 때릴 때는 반드시 PERF_PASSWORD 로 덮어쓸 것.
+const PERF_BPN = __ENV.PERF_BPN || "BPNLDEMOADMIN";
 const PERF_PASSWORD = __ENV.PERF_PASSWORD || "0000";
 
 // 2xx~3xx 와 429(의도적 스로틀)를 '예상 응답'으로 등록 → http_req_failed 가 429 를
