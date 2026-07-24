@@ -53,10 +53,15 @@ export function rateLimit(opts: RateLimitOptions) {
   };
 }
 
-/** Login용 사전 정의: (IP + 대상계정)당 15분에 10번 시도 허용. */
+/** Login용 사전 정의: (IP + 대상계정)당 15분에 시도 허용 횟수.
+ *  프로덕션은 10(무차별 대입 방어). dev/로컬은 관리자·이용자 화면을 자주 오가며 재로그인
+ *  하므로 100으로 완화(단일 IP 버킷 공유로 쉽게 막히던 것 방지). LOGIN_RATE_MAX 로 override. */
 export const loginRateLimit = rateLimit({
   windowMs: 15 * 60_000,
-  max: 10,
+  max: envPositiveInt(
+    "LOGIN_RATE_MAX",
+    process.env.NODE_ENV === "production" ? 10 : 100
+  ),
   message: "Too many login attempts. Try again in 15 minutes.",
   // IP 단독 키는 역방향 프록시 뒤에서 req.ip가 프록시 단일 IP로 붕괴하면 전역 단일 버킷이 되어,
   // 미인증 공격자가 소수 요청으로 플랫폼 전체 로그인을 잠글 수 있다(DoS). IP+대상계정(tenantId/BPN)

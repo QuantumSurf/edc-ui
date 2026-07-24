@@ -9,9 +9,22 @@ import {
   type NextFunction,
 } from "express";
 import { getPool } from "../lib/db.js";
+import { getConnector } from "../lib/connectorRegistry.js";
+import { getEdcClient, withJsonLd } from "../lib/edcClient.js";
 import { getTransferCounts } from "../lib/edcStatsDb.js";
 
 const router = Router();
+
+/** 원시 EDC 항목에서 생성 시각(epoch ms)을 최대한 견고하게 읽는다. */
+function readCreatedMs(o: Record<string, unknown>): number {
+  const v =
+    o["createdAt"] ??
+    o["edc:createdAt"] ??
+    o["stateTimestamp"] ??
+    o["edc:stateTimestamp"];
+  const n = typeof v === "string" ? Date.parse(v) : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
 
 // GET /:id/stats/trend?hours=24
 // Returns array of { hour, negs, transfers } for the last N hours (default 24)
@@ -25,27 +38,34 @@ router.get(
         168
       );
 
-      // 협상: negotiation_metadata.started_at 기준
-      const negRows = await getPool().query<{ hour: string; cnt: string }>(
-        `SELECT date_trunc('hour', started_at) AS hour, COUNT(*) AS cnt
-       FROM negotiation_metadata
-       WHERE connector_id = $1
-         AND started_at >= NOW() - ($2 || ' hours')::INTERVAL
-       GROUP BY 1
-       ORDER BY 1`,
-        [connectorId, hours]
-      );
-
-      // 전송: transfer_metadata.started_at 기준
-      const trRows = await getPool().query<{ hour: string; cnt: string }>(
-        `SELECT date_trunc('hour', started_at) AS hour, COUNT(*) AS cnt
-       FROM transfer_metadata
-       WHERE connector_id = $1
-         AND started_at >= NOW() - ($2 || ' hours')::INTERVAL
-       GROUP BY 1
-       ORDER BY 1`,
-        [connectorId, hours]
-      );
+      // 커넥터의 실제 EDC 협상/전송 목록의 createdAt 기준으로 집계한다.
+      // (과거: negotiation_metadata/transfer_metadata.started_at 기준 → UI가 '시작'한 커넥터에만
+      //  기록돼, provider처럼 상대가 개시한 협상/전송이 mirror돼 있어도 트렌드가 비었다.
+      //  EDC 목록은 해당 커넥터가 '당사자'인 협상/전송을 모두 포함하므로 provider·consumer 양쪽에
+      //  올바르게 반영된다. dashboard 조회 시에만 호출되므로 상시 부하는 아니다.)
+      const conn = await getConnector(connectorId);
+      if (!conn) {
+        res.json([]);
+        return;
+      }
+      const client = getEdcClient(conn.id, {
+        managementUrl: conn.managementUrl,
+        apiKey: conn.apiKey,
+      });
+      const [negResp, trResp] = await Promise.all([
+        client
+          .post("/v3/contractnegotiations/request", withJsonLd({}))
+          .catch(() => ({ data: [] as unknown[] })),
+        client
+          .post("/v3/transferprocesses/request", withJsonLd({}))
+          .catch(() => ({ data: [] as unknown[] })),
+      ]);
+      const negList: Record<string, unknown>[] = Array.isArray(negResp.data)
+        ? (negResp.data as Record<string, unknown>[])
+        : [];
+      const trList: Record<string, unknown>[] = Array.isArray(trResp.data)
+        ? (trResp.data as Record<string, unknown>[])
+        : [];
 
       // 시간 슬롯 생성 (현재 시각 기준 hours개)
       // 라벨은 KST(Asia/Seoul)로 명시 포맷 — d.getHours()는 서버 프로세스 로컬 TZ(컨테이너
@@ -69,17 +89,20 @@ router.get(
         });
       }
 
-      // DB 결과를 epochH 키로 인덱싱
-      const negMap = new Map<number, number>();
-      for (const r of negRows.rows) {
-        const h = Math.floor(new Date(r.hour).getTime() / 3_600_000);
-        negMap.set(h, parseInt(r.cnt, 10));
-      }
-      const trMap = new Map<number, number>();
-      for (const r of trRows.rows) {
-        const h = Math.floor(new Date(r.hour).getTime() / 3_600_000);
-        trMap.set(h, parseInt(r.cnt, 10));
-      }
+      // createdAt(epoch ms) → 시간버킷(epochH) 카운트. 최근 hours 범위만.
+      const cutoff = Date.now() - hours * 3_600_000;
+      const bucketCounts = (list: Record<string, unknown>[]) => {
+        const m = new Map<number, number>();
+        for (const it of list) {
+          const ms = readCreatedMs(it);
+          if (ms < cutoff) continue;
+          const h = Math.floor(ms / 3_600_000);
+          m.set(h, (m.get(h) ?? 0) + 1);
+        }
+        return m;
+      };
+      const negMap = bucketCounts(negList);
+      const trMap = bucketCounts(trList);
 
       const result = slots.map(s => ({
         t: s.label,
