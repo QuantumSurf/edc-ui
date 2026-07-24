@@ -52,25 +52,32 @@ router.post(
 
       // 기존 메타 조회
       const { rows } = await getPool().query(
-        `SELECT negotiation_id, started_at, completed_at
+        `SELECT negotiation_id, started_at, completed_at, last_state
        FROM negotiation_metadata WHERE connector_id = $1`,
         [connectorId]
       );
-      const metaMap = new Map<string, NegotiationMeta>();
+      const metaMap = new Map<
+        string,
+        NegotiationMeta & { last_state?: string | null }
+      >();
       for (const r of rows) {
         metaMap.set(r.negotiation_id, {
           started_at: r.started_at ?? null,
           completed_at: r.completed_at ?? null,
+          last_state: r.last_state ?? null,
         });
       }
 
-      // 터미널 상태(FINALIZED/TERMINATED) 협상 중 미기록 항목 UPSERT
+      // 터미널 상태(FINALIZED/TERMINATED) 협상 중 미기록 항목 UPSERT.
+      // 기준은 last_state — completed_at 기준이면 last_state 컬럼 도입 이전에
+      // completed_at 만 기록된 구행이 영원히 백필되지 않는다(성공률 과소집계).
+      // COALESCE upsert 라 구행도 1회만 갱신되고 completed_at 은 보존된다.
       const TERMINAL = new Set(["FINALIZED", "TERMINATED"]);
       const toUpsert = rawList.filter(raw => {
         const id = (raw["@id"] as string) ?? "";
         const state = (raw["state"] as string) ?? "";
         const existing = metaMap.get(id);
-        return TERMINAL.has(state) && !existing?.completed_at;
+        return TERMINAL.has(state) && !existing?.last_state;
       });
 
       if (toUpsert.length > 0) {
