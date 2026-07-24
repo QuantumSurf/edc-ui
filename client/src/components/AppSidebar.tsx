@@ -40,6 +40,7 @@ import { useI18n } from "@/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import ConnectorSelectorCard from "./ConnectorSelectorCard";
+import { useRole } from "@/lib/rbac";
 
 interface NavItem {
   path: string;
@@ -72,6 +73,11 @@ const C = {
 function useNavGroups(): { build: () => NavGroup[] } {
   const { t } = useI18n();
   const connector = useConnectorStore(s => s.connector);
+  const role = useRole();
+  // 서버 read 가드와 동기: EDR·Vault·감사는 viewer 가 열람 불가(admin/operator 전용,
+  // routes/edrs.ts·vault.ts·audit.ts). 열 수 없는 메뉴는 숨겨 403 안내 왕복을 줄인다.
+  // (라우트 자체는 App.tsx 의 RequireRole 이 이중으로 막는다 — 딥링크 대비.)
+  const opsRead = role === "admin" || role === "operator";
 
   const fleetGroup: NavGroup = {
     key: "fleet",
@@ -95,13 +101,17 @@ function useNavGroups(): { build: () => NavGroup[] } {
     label: t.nav.groupSystem,
     Icon: Wrench,
     items: [
-      { path: "/system/vault", label: t.nav.vault, Icon: VaultIcon },
+      ...(opsRead
+        ? [{ path: "/system/vault", label: t.nav.vault, Icon: VaultIcon }]
+        : []),
       {
         path: "/system/identity-hub",
         label: t.nav.identityHub,
         Icon: Fingerprint,
       },
-      { path: "/system/audit", label: t.nav.audit, Icon: ScrollText },
+      ...(opsRead
+        ? [{ path: "/system/audit", label: t.nav.audit, Icon: ScrollText }]
+        : []),
     ],
   };
 
@@ -160,11 +170,15 @@ function useNavGroups(): { build: () => NavGroup[] } {
           label: t.nav.transfers,
           Icon: Send,
         },
-        {
-          path: `/connectors/${id}/edr`,
-          label: t.nav.edr,
-          Icon: Key,
-        },
+        ...(opsRead
+          ? [
+              {
+                path: `/connectors/${id}/edr`,
+                label: t.nav.edr,
+                Icon: Key,
+              },
+            ]
+          : []),
       ],
     },
   ];

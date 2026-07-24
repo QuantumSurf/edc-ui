@@ -27,6 +27,7 @@ import {
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./contexts/useAuth";
 import PageLogin from "./pages/PageLogin";
+import RequireRole from "./components/RequireRole";
 import { reloadableImport } from "./lib/chunkReload";
 
 // Pages — route 기반 코드 스플리팅(lazy): 16개 페이지를 단일 초기 번들에서 분리해
@@ -99,6 +100,10 @@ function ConnectorSync({ id }: { id: string }) {
   }, [id, connectors, isSuccess, selectConnector, setNavigating, navigate]);
   return null;
 }
+
+// 서버 라우트 가드와 동기 유지(requireRole): EDR 목록·Vault·감사·인프라는 read 도
+// admin/operator 전용이다(routes/edrs.ts·vault.ts·audit.ts·platformInfra.ts).
+const OPS_READ_ROLES = ["admin", "operator"] as const;
 
 function AppRoutes() {
   const [location, navigate] = useLocation();
@@ -194,21 +199,25 @@ function AppRoutes() {
           </Route>
           <Route path="/connectors/:id/edr">
             {({ id }) => (
-              <>
+              <RequireRole roles={OPS_READ_ROLES}>
                 <ConnectorSync id={id} />
                 <PageEDR />
-              </>
+              </RequireRole>
             )}
           </Route>
           {/* System pages — global, not connector-scoped */}
           <Route path="/system/vault">
-            <PageVault />
+            <RequireRole roles={OPS_READ_ROLES}>
+              <PageVault />
+            </RequireRole>
           </Route>
           <Route path="/system/identity-hub">
             <PageIdentityHub onNav={nav} />
           </Route>
           <Route path="/system/audit">
-            <PageAudit />
+            <RequireRole roles={OPS_READ_ROLES}>
+              <PageAudit />
+            </RequireRole>
           </Route>
           <Route path="/registry">
             <PageShells />
@@ -218,10 +227,10 @@ function AppRoutes() {
           </Route>
           <Route path="/connectors/:id/infra">
             {({ id }) => (
-              <>
+              <RequireRole roles={OPS_READ_ROLES}>
                 <ConnectorSync id={id} />
                 <PageInfra />
-              </>
+              </RequireRole>
             )}
           </Route>
 

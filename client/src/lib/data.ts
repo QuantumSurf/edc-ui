@@ -189,6 +189,10 @@ export interface CatalogOffer {
   assetId: string;
   dspEndpoint: string;
   providerDid: string;
+  // AAS 연계(부가) — 서버 attachAasLinks 가 DTR 셸과 매칭했을 때만 채워진다.
+  aasId?: string;
+  aasIdShort?: string;
+  globalAssetId?: string;
 }
 
 export type NegotiationStateName =

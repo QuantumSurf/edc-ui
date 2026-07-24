@@ -136,6 +136,8 @@ export interface RecognizedTemplate {
    */
   caution: boolean;
   ref?: string;
+  /** 외부 사전/정의 조회 링크(있을 때만) — ECLASS 검색, IEC CDD 홈 등. */
+  externalUrl?: string;
 }
 
 /** snake_case / kebab → "Title Case" 근사. 인식 이름 유도용. */
@@ -203,16 +205,23 @@ export function recognizeSemanticId(
     };
   }
 
-  // IRDI(국제 관리형 사전) — ICD 로 사전만 구분해 출처 라벨 부여(외부 조회 없음).
+  // IRDI(국제 관리형 사전) — ICD 로 사전만 구분해 출처 라벨 부여. 실명(preferredName)
+  // 해석은 관리형 사전 라이선스 영역이라 하지 않되, 사용자가 직접 조회할 수 있게
+  // 공개 검색 링크만 제공한다(ECLASS 검색 / IEC CDD 홈).
   if (isLikelyIrdi(v)) {
     const icd = v.slice(0, 4);
     const dict = icd === "0173" ? "ECLASS" : "IEC CDD";
+    const externalUrl =
+      icd === "0173"
+        ? `https://eclass.eu/en/eclass-standard/search-content?tx_a21eclasssearch_ecsearch%5Bquery%5D=${encodeURIComponent(v)}`
+        : "https://cdd.iec.ch/";
     return {
       name: `${dict} (IRDI)`,
       source: "IRDI",
       exact: false,
       caution: false,
       ref: icd,
+      externalUrl,
     };
   }
 

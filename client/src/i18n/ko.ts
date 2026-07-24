@@ -460,6 +460,7 @@ const ko = {
   // ── Catalog ──
   catalog: {
     title: "카탈로그 브라우저",
+    twinLink: "디지털 트윈",
     queryTitle: "상대방 커넥터 조회",
     dspPlaceholder:
       "DSP 엔드포인트 URL (예: http://controlplane:8283/api/v1/dsp)",
@@ -839,6 +840,11 @@ const ko = {
     roleAdmin: "관리자",
     roleOperator: "이용자",
     roleViewer: "열람자",
+    pageForbiddenTitle: "접근 권한이 없습니다",
+    pageForbiddenDesc:
+      "이 페이지는 아래 역할만 볼 수 있습니다. 권한이 필요하면 관리자에게 문의하세요.",
+    requiredRoles: "필요 역할",
+    backToFleet: "커넥터 목록으로",
   },
 
   // ── Add Connector ──
@@ -1229,6 +1235,15 @@ const ko = {
       requiredSubmodel: "Submodel은 ID와 idShort가 필수입니다.",
       requiredEndpointHref:
         "Endpoint 는 Protocol Information.href 가 필수입니다.",
+    },
+    content: {
+      view: "콘텐츠 보기",
+      title: "서브모델 콘텐츠",
+      loading: "서브모델 본문을 불러오는 중…",
+      error:
+        "서브모델 본문을 불러오지 못했습니다 (엔드포인트 미도달·차단·비JSON 응답).",
+      empty:
+        "submodelElements 가 없습니다 (본문이 AAS Part 2 형식이 아닐 수 있음).",
     },
     expose: {
       action: "카탈로그 노출",

@@ -53,6 +53,7 @@ import {
   type ExposeTarget,
 } from "@/components/ExposeSubmodelDialog";
 import { ExposeDtrDialog } from "@/components/ExposeDtrDialog";
+import SubmodelContentViewer from "@/components/SubmodelContentViewer";
 import {
   Boxes,
   PlusCircle,
@@ -685,6 +686,11 @@ function ShellDetailDialog({
   onViewJson: () => void;
   onExpose: (target: ExposeTarget) => void;
 }) {
+  // 서브모델 실본문 뷰어 — 열려 있는 대상(null=닫힘).
+  const [contentTarget, setContentTarget] = useState<{
+    submodelId: string;
+    idShort: string;
+  } | null>(null);
   const { t } = useI18n();
   if (!shell) return null;
   const copy = (s: string) => {
@@ -817,6 +823,20 @@ function ShellDetailDialog({
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <Badge variant="blue">{sub.endpointCount} ep</Badge>
+                      {sub.endpointCount > 0 && (
+                        <button
+                          onClick={() =>
+                            setContentTarget({
+                              submodelId: sub.id,
+                              idShort: sub.idShort,
+                            })
+                          }
+                          className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+                        >
+                          <FileJson className="w-3 h-3" />
+                          {t.twins.content.view}
+                        </button>
+                      )}
                       <RoleGate permission="resource:write">
                         <button
                           onClick={() =>
@@ -853,6 +873,15 @@ function ShellDetailDialog({
           )}
         </DetailSection>
       </div>
+
+      {contentTarget && (
+        <SubmodelContentViewer
+          aasId={shell.id}
+          submodelId={contentTarget.submodelId}
+          idShort={contentTarget.idShort}
+          onClose={() => setContentTarget(null)}
+        />
+      )}
 
       {/* Footer */}
       <div className="px-5 py-4 bg-muted/30 border-t border-border flex items-center gap-2 flex-shrink-0">

@@ -36,6 +36,7 @@ import {
   Info,
   Package,
   X,
+  Boxes,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/RoleGate";
@@ -456,6 +457,16 @@ function CatalogResults({
                           {o.src}
                         </div>
                       )}
+                      {/* AAS 연계 — 이 오퍼가 어느 디지털 트윈의 데이터인지(서버 attachAasLinks) */}
+                      {o.aasId && (
+                        <div
+                          className="flex items-center gap-1 mt-0.5 text-[10px] text-violet-600 dark:text-violet-400 truncate"
+                          title={o.aasId}
+                        >
+                          <Boxes className="w-3 h-3 flex-shrink-0" />
+                          {t.catalog.twinLink}: {o.aasIdShort || o.aasId}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -527,6 +538,15 @@ function CatalogResults({
               {o.type}
               {o.src ? ` · ${o.src}` : ""}
             </div>
+            {o.aasId && (
+              <div
+                className="flex items-center gap-1 -mt-1 mb-2 text-[10px] text-violet-600 dark:text-violet-400 truncate"
+                title={o.aasId}
+              >
+                <Boxes className="w-3 h-3 flex-shrink-0" />
+                {t.catalog.twinLink}: {o.aasIdShort || o.aasId}
+              </div>
+            )}
             <div className="flex flex-wrap gap-1 mb-3">
               {o.pols.map((p, pi) => (
                 <Badge

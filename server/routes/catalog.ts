@@ -11,6 +11,12 @@ import { getConnector } from "../lib/connectorRegistry.js";
 import { getEdcClient } from "../lib/edcClient.js";
 import { assertEndpointPublic } from "../middleware/validation.js";
 import { requireRole } from "../middleware/auth.js";
+import {
+  getDtrClient,
+  mapShellDescriptor,
+  type ShellDescriptorLite,
+} from "../lib/dtrClient.js";
+import { getTenant } from "../lib/tenants.js";
 
 const router = Router();
 
@@ -58,6 +64,57 @@ interface CatalogOffer {
   assetId: string;
   dspEndpoint: string;
   providerDid: string;
+  // ── AAS 연계(부가) — 이 오퍼가 어느 디지털 트윈의 데이터인지. DTR 미가용 시 비어
+  //    있을 수 있으며 카탈로그 자체 동작에는 영향이 없다(attachAasLinks 참조).
+  aasId?: string;
+  aasIdShort?: string;
+  globalAssetId?: string;
+}
+
+/**
+ * 카탈로그 오퍼(EDC assetId) ↔ DTR 셸 연계.
+ * 매칭 근거 2중: (1) 서브모델 디스크립터 endpoint 의 subprotocolBody("id=<assetId>;…")
+ * — ExposeSubmodelDialog 가 생성하는 표준 규약, (2) href 쿼리 등에서 못 찾으면 무시.
+ * 부가 정보이므로 DTR 장애·미설정 시 조용히 건너뛴다(카탈로그를 깨뜨리지 않는다).
+ */
+async function attachAasLinks(
+  req: Request,
+  offers: CatalogOffer[]
+): Promise<void> {
+  if (offers.length === 0) return;
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return;
+    const tenant = await getTenant(tenantId);
+    if (!tenant?.bpn) return;
+    const dtr = getDtrClient(tenant.bpn);
+    const { data } = await dtr.get("/shell-descriptors", {
+      params: { limit: 200 },
+    });
+    const shells: ShellDescriptorLite[] = Array.isArray(data?.result)
+      ? data.result.map(mapShellDescriptor)
+      : [];
+
+    const byAssetId = new Map<string, ShellDescriptorLite>();
+    for (const shell of shells) {
+      for (const sub of shell.submodelDescriptors) {
+        for (const ep of sub.endpoints ?? []) {
+          const m = /(?:^|;)\s*id=([^;]+)/.exec(ep.subprotocolBody ?? "");
+          if (m?.[1]) byAssetId.set(m[1].trim(), shell);
+        }
+      }
+    }
+
+    for (const offer of offers) {
+      const shell = byAssetId.get(offer.assetId);
+      if (!shell) continue;
+      offer.aasId = shell.id;
+      offer.aasIdShort = shell.idShort;
+      offer.globalAssetId = shell.globalAssetId;
+    }
+  } catch {
+    // DTR 미가용 — 부가 정보라 무시하고 카탈로그는 그대로 반환.
+  }
 }
 
 function mapCatalogResponse(
@@ -226,7 +283,11 @@ router.post(
       };
       // 특정 자산만 조회 — assetId 지정 시 querySpec 필터를 부착해 카탈로그 페이지 한계(기본 상한)를
       // 우회한다. (대량 오퍼링 중 방금 발행한 자산을 소비자가 확실히 찾도록 — id 폴백 방지)
-      if (typeof assetId === "string" && assetId.trim() && assetId.length <= 256) {
+      if (
+        typeof assetId === "string" &&
+        assetId.trim() &&
+        assetId.length <= 256
+      ) {
         catalogRequest["querySpec"] = {
           filterExpression: [
             {
@@ -250,6 +311,7 @@ router.post(
         response.data ?? {},
         normalizedDspEndpoint
       );
+      await attachAasLinks(req, offers);
       res.json(offers);
     } catch (error) {
       next(error);

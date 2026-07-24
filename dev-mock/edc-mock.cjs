@@ -493,6 +493,11 @@ const dtrShells = [
               endpointProtocol: "HTTP",
               endpointProtocolVersion: ["1.1"],
               subprotocol: "DSP",
+              // 카탈로그↔AAS 연계 표준 규약(ExposeSubmodelDialog 와 동일) —
+              // BFF attachAasLinks 가 id=<EDC assetId> 를 파싱해 오퍼에 트윈을 연결한다.
+              subprotocolBody:
+                "id=asset-pcf-battery-001;dspEndpoint=http://mock-edc:8090/api/v1/dsp",
+              subprotocolBodyEncoding: "plain",
             },
           },
         ],
@@ -529,6 +534,9 @@ const dtrShells = [
               endpointProtocol: "HTTP",
               endpointProtocolVersion: ["1.1"],
               subprotocol: "DSP",
+              subprotocolBody:
+                "id=asset-traceability-005;dspEndpoint=http://mock-edc:8090/api/v1/dsp",
+              subprotocolBodyEncoding: "plain",
             },
           },
         ],
@@ -652,13 +660,118 @@ const server = http.createServer((req, res) => {
       return send(res, 200, withTransferEnvelope(found));
     }
 
-    // 데이터 plane pull (transfer fetch)
+    // 데이터 plane pull (transfer fetch) + 서브모델 콘텐츠 뷰어(/content 프록시)의
+    // 대상. 실 kmx 스택의 서브모델 엔드포인트는 AAS Part 2 Submodel 본문을 반환하므로
+    // 목도 동일 형식(submodelElements)으로 응답한다 — 뷰어가 실환경과 같은 데이터를 본다.
     if (method === "GET" && url.startsWith("/data/")) {
       // 만료 액세스 토큰(edr-access-expired)은 403 — BFF 가 refresh 후 fresh 토큰으로 재시도해야 200.
       const auth = req.headers["authorization"] || "";
       if (auth.includes("expired")) {
         return send(res, 403, { error: "token expired" });
       }
+      if (url.startsWith("/data/pcf")) {
+        return send(res, 200, {
+          idShort: "Pcf",
+          modelType: "Submodel",
+          semanticId: {
+            keys: [
+              {
+                type: "GlobalReference",
+                value: "urn:samm:io.catenax.pcf:7.0.0#Pcf",
+              },
+            ],
+          },
+          submodelElements: [
+            {
+              idShort: "productCarbonFootprint",
+              modelType: "SubmodelElementCollection",
+              value: [
+                {
+                  idShort: "pcfExcludingBiogenic",
+                  modelType: "Property",
+                  valueType: "xs:double",
+                  value: "12.34",
+                  semanticId: {
+                    keys: [
+                      {
+                        type: "GlobalReference",
+                        value: "0173-1#02-ABG855#001",
+                      },
+                    ],
+                  },
+                },
+                {
+                  idShort: "declaredUnit",
+                  modelType: "Property",
+                  valueType: "xs:string",
+                  value: "kgCO2e/kg",
+                },
+                {
+                  idShort: "referencePeriodStart",
+                  modelType: "Property",
+                  valueType: "xs:date",
+                  value: "2026-01-01",
+                },
+              ],
+            },
+            {
+              idShort: "companyName",
+              modelType: "MultiLanguageProperty",
+              value: [
+                { language: "ko", text: "퀀텀서프" },
+                { language: "en", text: "QuantumSurf" },
+              ],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/data/serialpart")) {
+        return send(res, 200, {
+          idShort: "SerialPart",
+          modelType: "Submodel",
+          semanticId: {
+            keys: [
+              {
+                type: "GlobalReference",
+                value: "urn:samm:io.catenax.serial_part:3.0.0#SerialPart",
+              },
+            ],
+          },
+          submodelElements: [
+            {
+              idShort: "manufacturerId",
+              modelType: "Property",
+              valueType: "xs:string",
+              value: "BPNL000000000PRD",
+            },
+            {
+              idShort: "partInstanceId",
+              modelType: "Property",
+              valueType: "xs:string",
+              value: "SN-BAT-12345",
+            },
+            {
+              idShort: "manufacturingInformation",
+              modelType: "SubmodelElementCollection",
+              value: [
+                {
+                  idShort: "date",
+                  modelType: "Property",
+                  valueType: "xs:dateTime",
+                  value: "2026-05-02T09:00:00Z",
+                },
+                {
+                  idShort: "country",
+                  modelType: "Property",
+                  valueType: "xs:string",
+                  value: "KOR",
+                },
+              ],
+            },
+          ],
+        });
+      }
+      // 그 외 데이터 자산 — 전송 fetch 데모용 일반 JSON.
       return send(res, 200, {
         sample: true,
         pcf: { co2e: 12.34, unit: "kg", asset: "demo" },
@@ -674,6 +787,29 @@ const server = http.createServer((req, res) => {
     if (method === "GET" && /\/shell-descriptors$/.test(url)) {
       return send(res, 200, {
         result: dtrShells,
+        paging_metadata: { cursor: null },
+      });
+    }
+    // 실 DTR 0.11.0 과 동일한 하위 경로 — 셸의 서브모델 디스크립터 목록.
+    // (BFF 의 서브모델 목록·/content 프록시가 이 경로를 쓴다. 폴백 {} 로 떨어지면
+    //  submodel-not-found 오탐이 나므로 실 스택과 같은 {result:[...]} 형태로 응답.)
+    if (
+      method === "GET" &&
+      /\/shell-descriptors\/[^/]+\/submodel-descriptors$/.test(url)
+    ) {
+      const raw = decodeURIComponent(
+        url.split("/shell-descriptors/")[1].split("/submodel-descriptors")[0]
+      );
+      let decoded = raw;
+      try {
+        decoded = Buffer.from(raw, "base64url").toString("utf8");
+      } catch {
+        /* keep raw */
+      }
+      const shell =
+        dtrShells.find(s => s.id === decoded || s.id === raw) ?? null;
+      return send(res, 200, {
+        result: shell ? shell.submodelDescriptors : [],
         paging_metadata: { cursor: null },
       });
     }

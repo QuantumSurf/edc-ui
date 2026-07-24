@@ -458,6 +458,7 @@ const en: Translations = {
   },
 
   catalog: {
+    twinLink: "Digital twin",
     title: "Catalog Browser",
     queryTitle: "Query Partner Connector",
     dspPlaceholder:
@@ -826,6 +827,11 @@ const en: Translations = {
     roleAdmin: "Admin",
     roleOperator: "Operator",
     roleViewer: "Viewer",
+    pageForbiddenTitle: "Access denied",
+    pageForbiddenDesc:
+      "Only the roles below can view this page. Contact an administrator if you need access.",
+    requiredRoles: "Required roles",
+    backToFleet: "Back to fleet",
   },
 
   addConnector: {
@@ -1219,6 +1225,14 @@ const en: Translations = {
       requiredAasId: "AAS ID and idShort are required.",
       requiredSubmodel: "Submodel requires both ID and idShort.",
       requiredEndpointHref: "Endpoint requires Protocol Information.href.",
+    },
+    content: {
+      view: "View content",
+      title: "Submodel content",
+      loading: "Loading submodel payload…",
+      error:
+        "Failed to load submodel payload (endpoint unreachable, blocked, or non-JSON).",
+      empty: "No submodelElements (payload may not be AAS Part 2 format).",
     },
     expose: {
       action: "Expose to catalog",
