@@ -142,8 +142,12 @@ export interface PolicyBuilderInput {
   }[];
 }
 
-// Catena-X 정책에는 odrl:profile(profile2405)이 필수다(CX-0152 / cx-odrl-profile).
-const CX_POLICY_PROFILE = "cx-policy:profile2405";
+// odrl:profile 은 배포 대상 커넥터에 맞춰 설정한다.
+// - KMX-EDC(기본): 프로파일을 검증하지 않고(kmx-policy-extension 에 validator 없음) 자체
+//   e2e 도 프로파일 없이 정책을 만든다 → 기본은 주입하지 않는다.
+// - Catena-X 커넥터를 겨냥할 때만 env EDC_POLICY_PROFILE 로 켠다(CX-0152 는 profile2405 필수).
+//   예: EDC_POLICY_PROFILE=cx-policy:profile2405
+const EDC_POLICY_PROFILE = process.env.EDC_POLICY_PROFILE?.trim() || "";
 // 복수 값을 받는 operator → rightOperand 를 배열로(쉼표 분리). Catena-X 다중 BPN 등.
 const MULTI_VALUE_OPS = new Set(["odrl:isAnyOf", "odrl:isNoneOf", "odrl:in"]);
 
@@ -180,6 +184,13 @@ export function buildPolicyDefinition(
   };
   if (constraintField.length) rule["odrl:constraint"] = constraintField;
 
+  // 정책 본문 — profile 은 EDC_POLICY_PROFILE 이 설정된 경우에만 넣는다(위 주석 참조).
+  const policyBody: Record<string, unknown> = { "@type": "odrl:Set" };
+  if (EDC_POLICY_PROFILE) {
+    policyBody["odrl:profile"] = { "@id": EDC_POLICY_PROFILE };
+  }
+  policyBody[ruleKey] = [rule];
+
   // @context 는 문서 전체에 cx-policy 프리픽스를 적용한다. 정책 객체에 별도 odrl.jsonld
   // 컨텍스트를 두면 cx-policy 가 미정의되어 profile/leftOperand 프리픽스 해석이 깨지므로
   // 명시 odrl: 접두 + 단일 외곽 @context 를 쓴다.
@@ -191,11 +202,7 @@ export function buildPolicyDefinition(
     },
     "@type": "PolicyDefinition",
     "@id": input.policyId,
-    policy: {
-      "@type": "odrl:Set",
-      "odrl:profile": { "@id": CX_POLICY_PROFILE },
-      [ruleKey]: [rule],
-    },
+    policy: policyBody,
   };
 }
 

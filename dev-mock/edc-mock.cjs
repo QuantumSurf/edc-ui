@@ -252,6 +252,12 @@ const transfers = [
   },
 ];
 
+// KMX 충실도: 실 KMX-EDC(0.16.0)의 EDR 목록 엔트리에는 expiresAt 가 없다.
+// EDC 0.15.1 에서 edr_entry.expires_at 컬럼이 제거됐고(GC 는 createdAt 나이 기반),
+// 만료 시각은 dataaddress 응답의 expiresIn(=300s, 아래 /dataaddress 참조)로만 전달돼
+// refresh 로 투명 갱신된다. 과거 목 은 expiresAt 를 날조해 UI 카운트다운이 실환경에서도
+// 되는 것처럼 보였다 → 실 KMX 처럼 expiresAt 없이 두어 UI 가 '활성(만료정보 없음)'을
+// 정직하게 표시하게 한다. (Catena-X 커넥터를 겨냥해 카운트다운을 보려면 expiresAt 를 되살릴 것.)
 const edrs = [
   {
     "@id": "edr-transfer-001",
@@ -259,7 +265,6 @@ const edrs = [
     assetId: "asset-pcf-battery-001",
     providerId: "BPNL000000000PRD",
     createdAt: h(49),
-    expiresAt: now + 3600 * 1000,
   },
   {
     "@id": "edr-transfer-002",
@@ -267,7 +272,6 @@ const edrs = [
     assetId: "asset-pcf-motor-002",
     providerId: "BPNL000000000PRD",
     createdAt: h(29),
-    expiresAt: now + 1800 * 1000,
   },
   {
     "@id": "edr-transfer-003",
@@ -275,7 +279,6 @@ const edrs = [
     assetId: "asset-dcm-forecast-003",
     providerId: "BPNL000000000PRD",
     createdAt: h(2),
-    expiresAt: now + 5400 * 1000,
   },
 ];
 
@@ -322,7 +325,7 @@ function advanceTransfers() {
           assetId: tr.assetId || "",
           providerId: "BPNL000000000PRD",
           createdAt: t,
-          expiresAt: t + 3600 * 1000,
+          // expiresAt 없음 — 실 KMX-EDC 충실도(위 edrs 배열 주석 참조).
         });
       }
     } else {
@@ -602,7 +605,9 @@ const server = http.createServer((req, res) => {
       const expired = process.env.MOCK_EXPIRE_EDR === "true";
       return send(res, 200, {
         endpoint: "http://mock-edc:8090/data/sample",
-        authorization: expired ? "Bearer edr-access-expired" : "Bearer demo-edr-token",
+        authorization: expired
+          ? "Bearer edr-access-expired"
+          : "Bearer demo-edr-token",
         type: "https://w3id.org/idsa/v4.1/HTTP",
         refreshToken: "mock-refresh-token",
         refreshEndpoint: "http://mock-edc:8090/api/public/token",

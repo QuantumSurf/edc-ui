@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   withJsonLd,
   EDC_QUERY_LIMIT,
@@ -148,6 +148,23 @@ describe("buildPolicyDefinition", () => {
     expect(ctx["@vocab"]).toBe("https://w3id.org/edc/v0.0.1/ns/");
     expect(ctx["odrl"]).toBe("http://www.w3.org/ns/odrl/2/");
     expect(ctx["cx-policy"]).toBe("https://w3id.org/catenax/policy/");
+  });
+
+  // KMX 충실도: KMX-EDC 는 policy profile 을 검증하지 않고 e2e 도 프로파일 없이 정책을
+  // 만든다 → 기본은 odrl:profile 을 넣지 않는다. Catena-X 겨냥 시에만 env 로 켠다.
+  it("기본(KMX-EDC)은 odrl:profile 을 넣지 않는다", () => {
+    const p = asObj(buildPolicyDefinition({ policyId: "p" })["policy"]);
+    expect(p["odrl:profile"]).toBeUndefined();
+  });
+
+  it("EDC_POLICY_PROFILE 설정 시에만 odrl:profile 을 주입(Catena-X 겨냥)", async () => {
+    vi.stubEnv("EDC_POLICY_PROFILE", "cx-policy:profile2405");
+    vi.resetModules();
+    const mod = await import("./edcClient.js");
+    const p = asObj(mod.buildPolicyDefinition({ policyId: "p" })["policy"]);
+    expect(p["odrl:profile"]).toEqual({ "@id": "cx-policy:profile2405" });
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 });
 
