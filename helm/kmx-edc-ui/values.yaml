@@ -3,9 +3,13 @@
 replicaCount: 2
 
 image:
-  repository: ghcr.io/kmx/kmx-edc-ui
+  # CI(.github/workflows/ci.yml)가 발행하는 실제 이미지. 배포 시 릴리스 태그(sha)로
+  # override 하는 것을 권장한다(불변 태그 → 롤백/재현 가능).
+  repository: ghcr.io/quantumsurf/edc-ui
+  # "latest" 는 가변 태그라 노드가 이미 캐시한 이미지를 재사용(IfNotPresent)하면 새
+  # 릴리스가 반영되지 않는다. 가변 태그를 쓸 때는 Always, 불변 sha 태그면 IfNotPresent 로.
   tag: "latest"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 imagePullSecrets: []
 nameOverride: ""
@@ -57,14 +61,51 @@ env:
   # 신뢰할 역방향 프록시 홉 수. nginx 인그레스 단일 프록시면 "1"(req.ip가 실제 클라 IP가 되도록).
   # 비어 있으면 앱이 trust proxy=false로 폴백 → rate limit이 프록시 IP로 붕괴(미인증 로그인 DoS).
   TRUST_PROXY: "1"
+  # 운영 튜닝(코드 기본값 존재 — 필요 시 override). 값이 있으면 env 로 주입된다.
+  EDC_POLICY_PROFILE: "" # 정책 odrl:profile(기본 없음=KMX). Catena-X 는 cx-policy:profile2405
+  API_RATE_LIMIT_MAX: "300" # /api per-IP 분당 한도
+  API_RATE_LIMIT_WINDOW_MS: "60000"
+  DB_STATEMENT_TIMEOUT_MS: "" # 폭주 쿼리 방어(기본 off). 예 "30000"
+  AUDIT_RETENTION_DAYS: "90" # 감사 로그 보존기간(컴플라이언스)
+  EDC_QUERY_LIMIT: "1000"
+  DISPLAY_TZ: "Asia/Seoul"
+
+# 위 고정 목록에 없는 임의 env 를 주입하는 탈출구(DTR_TOKEN·LOGIN_MAX_FAILURES·
+# KMX_NOTIFY_* 등). name/value(또는 valueFrom) 형태의 리스트를 그대로 렌더한다.
+# 예:
+#   extraEnv:
+#     - name: DTR_TOKEN
+#       valueFrom: { secretKeyRef: { name: my-dtr, key: token } }
+extraEnv: []
 
 # Application secrets — REQUIRED in production (helm install fails if unset; app also
 # fail-closes at boot). Provide via a values override / --set / a secret manager.
 secrets:
   jwtSecret: "" # >=32 chars, not a public default (server/lib/auth.ts guard)
+  oidcClientSecret: "" # Keycloak confidential client secret — oidc.enabled=true 일 때 필수
+  # 시드 계정 비밀번호 — 빈 DB 로 시작하는 신규 설치에 필수(server/lib/db.ts 가 prod 에서
+  # 미설정/약한 값이면 부팅 실패). 기존 DB(사용자 존재) 업그레이드면 무시된다.
+  seedAdminPassword: "" # >=8 chars, 약한 기본값(0000 등) 금지
+  seedOperatorPassword: "" # >=8 chars
   hubApikeySecret: "" # AES-256-GCM at-rest key for connector api keys (server/lib/crypto.ts)
   platformVaultToken: "" # platform Vault token — never 'root'
   platformDatabaseUrl: "" # platform Postgres URL — not the dev default
+
+# ── OIDC(Keycloak) SSO — 로그인 단계만 IdP 로 위임(세션·RBAC·격리는 기존 그대로) ──
+# 통합 절차·클레임 매퍼·역할 세팅은 docs/KEYCLOAK.md 참조. enabled=false 면 완전 비활성
+# (SSO 버튼 미노출, 라우트는 503). enabled=true 인데 필수값이 비면 부팅이 실패한다(fail-fast).
+oidc:
+  enabled: false
+  issuerUrl: "" # 예: https://keycloak.company.com/realms/kmx
+  clientId: "" # confidential client
+  redirectUrl: "" # 예: https://console.kmx.io/api/auth/oidc/callback
+  scopes: "openid profile email"
+  bpnClaim: "bpn" # 테넌트 매핑용 커스텀 클레임(클라이언트 스코프 매퍼로 주입)
+  roleClaim: "realm_access.roles"
+  roleAdmin: "kmx-admin"
+  roleOperator: "kmx-operator"
+  roleViewer: "kmx-viewer"
+  autoProvision: false # true 면 매핑된 테넌트에 사용자가 없을 때 자동 생성
 
 # Platform infrastructure endpoints (non-secret) + JWT expiry
 platform:

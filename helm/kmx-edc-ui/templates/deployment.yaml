@@ -76,6 +76,36 @@ spec:
                 configMapKeyRef:
                   name: {{ include "kmx-edc-ui.fullname" . }}-config
                   key: edc-default-url
+            {{- if .Values.oidc.enabled }}
+            # ── OIDC(Keycloak) SSO — docs/KEYCLOAK.md ──
+            - name: OIDC_ENABLED
+              value: "true"
+            - name: OIDC_ISSUER_URL
+              value: {{ required "oidc.issuerUrl is required when oidc.enabled=true" .Values.oidc.issuerUrl | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ required "oidc.clientId is required when oidc.enabled=true" .Values.oidc.clientId | quote }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: oidc-client-secret
+            - name: OIDC_REDIRECT_URL
+              value: {{ required "oidc.redirectUrl is required when oidc.enabled=true" .Values.oidc.redirectUrl | quote }}
+            - name: OIDC_SCOPES
+              value: {{ .Values.oidc.scopes | quote }}
+            - name: OIDC_BPN_CLAIM
+              value: {{ .Values.oidc.bpnClaim | quote }}
+            - name: OIDC_ROLE_CLAIM
+              value: {{ .Values.oidc.roleClaim | quote }}
+            - name: OIDC_ROLE_ADMIN
+              value: {{ .Values.oidc.roleAdmin | quote }}
+            - name: OIDC_ROLE_OPERATOR
+              value: {{ .Values.oidc.roleOperator | quote }}
+            - name: OIDC_ROLE_VIEWER
+              value: {{ .Values.oidc.roleViewer | quote }}
+            - name: OIDC_AUTO_PROVISION
+              value: {{ .Values.oidc.autoProvision | quote }}
+            {{- end }}
             # ── 프로덕션 필수 시크릿 (chart-managed Secret) ──
             - name: JWT_SECRET
               valueFrom:
@@ -112,6 +142,32 @@ spec:
               value: {{ .Values.platform.identityHubParticipantId | quote }}
             - name: IDENTITY_HUB_API_KEY
               value: {{ .Values.platform.identityHubApiKey | quote }}
+            # ── 시드 계정 비밀번호(빈 DB 신규 설치 필수, Secret) ──
+            {{- if .Values.secrets.seedAdminPassword }}
+            - name: SEED_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: seed-admin-password
+            {{- end }}
+            {{- if .Values.secrets.seedOperatorPassword }}
+            - name: SEED_OPERATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
+                  key: seed-operator-password
+            {{- end }}
+            # ── 운영 튜닝 env(값이 있을 때만 주입 — 빈 값은 코드 기본값 유지) ──
+            {{- range $k, $v := .Values.env }}
+            {{- if and (not (has $k (list "NODE_ENV" "PORT" "VITE_DISABLE_DEMO" "TRUST_PROXY"))) $v }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- end }}
+            # ── 임의 env 탈출구(DTR_TOKEN 등 — name/value|valueFrom 그대로) ──
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
