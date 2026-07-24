@@ -518,6 +518,32 @@ export interface TrendPoint {
   transfers: number;
 }
 
+/** 성공률 KPI 요약(협상·전송) — 관측된 터미널(metadata.last_state) 기준. */
+export interface StatsSummary {
+  days: number;
+  negotiations: {
+    total: number;
+    finalized: number;
+    terminated: number;
+    successRate: number | null;
+  };
+  transfers: {
+    total: number;
+    completed: number;
+    failed: number;
+    successRate: number | null;
+  };
+}
+export async function fetchStatsSummary(
+  connectorId: string,
+  days = 7
+): Promise<StatsSummary> {
+  const { data } = await http.get(`/connectors/${connectorId}/stats/summary`, {
+    params: { days },
+  });
+  return data as StatsSummary;
+}
+
 export async function fetchTrend(
   connectorId: string,
   hours = 24

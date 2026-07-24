@@ -77,15 +77,17 @@ router.post(
         await Promise.all(
           toUpsert.map(raw => {
             const id = (raw["@id"] as string) ?? "";
+            const state = (raw["state"] as string) ?? "";
             // started_at은 /start 라우트에서만 기록 (EDC createdAt은 사용 안 함)
             // → 목록 최초 발견 시 completed_at만 기록, started_at은 이미 있을 때만 유지
             return getPool().query(
-              `INSERT INTO negotiation_metadata (negotiation_id, connector_id, completed_at)
-             VALUES ($1, $2, NOW())
+              `INSERT INTO negotiation_metadata (negotiation_id, connector_id, completed_at, last_state)
+             VALUES ($1, $2, NOW(), $3)
              ON CONFLICT (negotiation_id, connector_id)
              DO UPDATE SET
-               completed_at = COALESCE(negotiation_metadata.completed_at, NOW())`,
-              [id, connectorId]
+               completed_at = COALESCE(negotiation_metadata.completed_at, NOW()),
+               last_state = COALESCE(negotiation_metadata.last_state, EXCLUDED.last_state)`,
+              [id, connectorId, state]
             );
           })
         );

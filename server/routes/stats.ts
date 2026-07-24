@@ -94,6 +94,87 @@ router.get(
   }
 );
 
+// GET /:id/stats/summary?days=N — 성공률 KPI(협상·전송), 기간 1~90일(기본 7).
+// 데이터원은 metadata 테이블의 last_state(목록 라우트가 터미널 도달 시 1회 기록).
+// EDC 목록 재조회 없이 DB 집계만으로 계산한다 — 대시보드 KPI 카드용.
+// 주의: last_state 는 콘솔이 목록을 열람한 시점에 기록되는 파생값이라, 콘솔이 한 번도
+// 열람하지 않은 협상/전송은 집계에 없다(성공률은 '관측된 터미널' 기준).
+router.get(
+  "/:id/stats/summary",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const connectorId = req.params.id;
+      const daysRaw = Number(req.query.days);
+      const days = Number.isFinite(daysRaw)
+        ? Math.min(Math.max(1, Math.floor(daysRaw)), 90)
+        : 7;
+
+      const [neg, tr] = await Promise.all([
+        getPool().query<{ last_state: string; cnt: string }>(
+          `SELECT last_state, COUNT(*) AS cnt
+             FROM negotiation_metadata
+            WHERE connector_id = $1
+              AND last_state IS NOT NULL
+              AND completed_at >= NOW() - ($2 || ' days')::interval
+            GROUP BY last_state`,
+          [connectorId, String(days)]
+        ),
+        getPool().query<{
+          last_state: string | null;
+          user_completed: boolean;
+          cnt: string;
+        }>(
+          `SELECT last_state, user_completed, COUNT(*) AS cnt
+             FROM transfer_metadata
+            WHERE connector_id = $1
+              AND (last_state IS NOT NULL OR user_completed)
+              AND completed_at >= NOW() - ($2 || ' days')::interval
+            GROUP BY last_state, user_completed`,
+          [connectorId, String(days)]
+        ),
+      ]);
+
+      const negCount = (state: string) =>
+        Number(neg.rows.find(r => r.last_state === state)?.cnt ?? 0);
+      const finalized = negCount("FINALIZED");
+      const negTerminated = negCount("TERMINATED");
+      const negTotal = finalized + negTerminated;
+
+      // 전송 성공 = COMPLETED(소비자완료 오버레이 포함) 또는 user_completed.
+      // 실패 = TERMINATED 이면서 user_completed 아님.
+      let completed = 0;
+      let failed = 0;
+      for (const r of tr.rows) {
+        const n = Number(r.cnt);
+        if (r.last_state === "COMPLETED" || r.user_completed) completed += n;
+        else if (r.last_state === "TERMINATED") failed += n;
+      }
+      const trTotal = completed + failed;
+
+      const rate = (ok: number, total: number) =>
+        total > 0 ? Math.round((ok / total) * 1000) / 10 : null;
+
+      res.json({
+        days,
+        negotiations: {
+          total: negTotal,
+          finalized,
+          terminated: negTerminated,
+          successRate: rate(finalized, negTotal),
+        },
+        transfers: {
+          total: trTotal,
+          completed,
+          failed,
+          successRate: rate(completed, trTotal),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // GET /:id/stats/counts
 // 전송 총계/완료/진행 '정확값'. 목록 조회는 EDC_QUERY_LIMIT 상한이 걸려 대시보드 카드가
 // 상한에서 멈추므로, EDC DB 에 직접 COUNT 해 정확값을 준다(설정된 커넥터만). 미설정이면

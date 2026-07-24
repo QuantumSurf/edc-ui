@@ -155,6 +155,15 @@ async function createSchema(): Promise<void> {
       PRIMARY KEY (negotiation_id, connector_id)
     );
   `);
+  // 성공률 KPI 용 최종 상태 — 목록 라우트가 터미널 상태 도달 시 1회 기록한다.
+  // (협상: FINALIZED/TERMINATED, 전송: COMPLETED/TERMINATED — 소비자완료 오버레이 반영)
+  await getPool().query(
+    `ALTER TABLE negotiation_metadata ADD COLUMN IF NOT EXISTS last_state TEXT;`
+  );
+  await getPool().query(
+    `ALTER TABLE transfer_metadata ADD COLUMN IF NOT EXISTS last_state TEXT;`
+  );
+
   // 핫 조회는 WHERE connector_id=$1 로만 필터하는데, 복합 PK 의 후행 컬럼은 이 조건을 못 타
   // 매 목록/카운트/stats 요청이 seq-scan 이 된다. connector_id 단독 인덱스로 커버.
   await getPool().query(

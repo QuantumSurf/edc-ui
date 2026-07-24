@@ -80,13 +80,18 @@ async function resolveConnector(id: string) {
 /** 특정 커넥터의 메타데이터 Map 조회 */
 async function getMetaMap(
   connectorId: string
-): Promise<Map<string, TransferMeta & { hidden: boolean }>> {
+): Promise<
+  Map<string, TransferMeta & { hidden: boolean; last_state: string | null }>
+> {
   const { rows } = await getPool().query(
-    `SELECT transfer_id, user_completed, started_at, completed_at, size_bytes, fetch_duration_ms, hidden
+    `SELECT transfer_id, user_completed, started_at, completed_at, size_bytes, fetch_duration_ms, hidden, last_state
      FROM transfer_metadata WHERE connector_id = $1`,
     [connectorId]
   );
-  const map = new Map<string, TransferMeta & { hidden: boolean }>();
+  const map = new Map<
+    string,
+    TransferMeta & { hidden: boolean; last_state: string | null }
+  >();
   for (const r of rows) {
     map.set(r.transfer_id, {
       user_completed: r.user_completed,
@@ -96,6 +101,7 @@ async function getMetaMap(
       fetch_duration_ms:
         r.fetch_duration_ms != null ? Number(r.fetch_duration_ms) : null,
       hidden: r.hidden,
+      last_state: r.last_state ?? null,
     });
   }
   return map;
@@ -126,6 +132,33 @@ router.post(
             .filter(t => !t._hidden)
             .map(({ _hidden: _, ...t }) => t)
         : response.data;
+
+      // 성공률 KPI 용 최종 상태 기록 — 터미널(COMPLETED 1200/TERMINATED 1300/
+      // DEPROVISIONED 1400) 도달 항목 중 미기록분만 1회 UPSERT. mapTransfer 의
+      // 소비자완료 오버레이(name=COMPLETED)를 그대로 저장해 provider 측 오탐 실패를
+      // 성공으로 집계한다. 협상 side-write(negotiations.ts)와 동일 패턴.
+      if (Array.isArray(mapped)) {
+        const toRecord = (
+          mapped as Array<{ id: string; state: number; name: string }>
+        ).filter(
+          t => t.state >= 1200 && t.id && !metaMap.get(t.id)?.last_state
+        );
+        if (toRecord.length > 0) {
+          await Promise.all(
+            toRecord.map(t =>
+              getPool().query(
+                `INSERT INTO transfer_metadata (transfer_id, connector_id, completed_at, last_state)
+                 VALUES ($1, $2, NOW(), $3)
+                 ON CONFLICT (transfer_id, connector_id)
+                 DO UPDATE SET
+                   completed_at = COALESCE(transfer_metadata.completed_at, NOW()),
+                   last_state = COALESCE(transfer_metadata.last_state, EXCLUDED.last_state)`,
+                [t.id, connectorId, t.name]
+              )
+            )
+          );
+        }
+      }
 
       res.json(mapped);
     } catch (error) {
@@ -444,14 +477,20 @@ router.post(
             ) {
               const fetchStart = Date.now();
               // 만료(403) 시 EDR refresh 토큰으로 자동 갱신 후 재시도(/fetch 와 동일).
-              const dataRes = await pullEdrData(connectorId, tpId, targetUrl, edr, {
-                responseType: "arraybuffer",
-                timeout: 30_000,
-                // SSRF: 리다이렉트 미추적(EDR 토큰 유출 차단) + 크기 상한(OOM 방지).
-                maxRedirects: 0,
-                maxContentLength: EDR_MAX_RESPONSE_BYTES,
-                maxBodyLength: EDR_MAX_RESPONSE_BYTES,
-              });
+              const dataRes = await pullEdrData(
+                connectorId,
+                tpId,
+                targetUrl,
+                edr,
+                {
+                  responseType: "arraybuffer",
+                  timeout: 30_000,
+                  // SSRF: 리다이렉트 미추적(EDR 토큰 유출 차단) + 크기 상한(OOM 방지).
+                  maxRedirects: 0,
+                  maxContentLength: EDR_MAX_RESPONSE_BYTES,
+                  maxBodyLength: EDR_MAX_RESPONSE_BYTES,
+                }
+              );
               const fetchDurationMs = Date.now() - fetchStart;
               const rawSize = dataRes.data?.length ?? 0;
               // '0'(빈 응답)과 '미측정'을 구분 — 0이면 null로 남겨 통계 왜곡 방지.

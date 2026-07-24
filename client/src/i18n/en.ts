@@ -170,6 +170,14 @@ const en: Translations = {
 
   dashboard: {
     assets: "Assets",
+    negSuccessRate: "Negotiation success rate",
+    trSuccessRate: "Transfer success rate",
+    successRateSub: (ok: number, total: number) =>
+      `${ok} of ${total} observed terminals succeeded`,
+    successRateNoData: "No observed terminals",
+    period24h: "24h",
+    period3d: "3d",
+    period7d: "7d",
     contractAgreements: "Agreements",
     dataTransfers: "Transfers",
     edrActive: "Active EDR",

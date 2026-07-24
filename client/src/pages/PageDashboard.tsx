@@ -11,6 +11,7 @@ import {
   fetchTransfers,
   fetchTrend,
   fetchTransferCounts,
+  fetchStatsSummary,
 } from "@/services";
 import {
   Card,
@@ -30,8 +31,10 @@ import {
   TrendingUp,
   LayoutDashboard,
   FileText,
+  CheckCircle2,
+  Handshake,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   XAxis,
   YAxis,
@@ -95,14 +98,25 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
     refetchIntervalInBackground: true,
   });
 
+  // 기간 선택(24h/3d/7d) — 트렌드(hours)와 성공률 KPI(days)가 함께 따라간다.
+  const [periodHours, setPeriodHours] = useState<24 | 72 | 168>(24);
+  const periodDays = periodHours / 24;
+
   const {
     data: trendData = [],
     refetch: trendRefetch,
     isFetching: trendFetching,
   } = useQuery({
-    queryKey: ["stats-trend", conn.id],
-    queryFn: () => fetchTrend(conn.id, 24),
+    queryKey: ["stats-trend", conn.id, periodHours],
+    queryFn: () => fetchTrend(conn.id, periodHours),
     refetchInterval: 30_000, // 트렌드 집계는 무거워 30초마다
+  });
+
+  // 성공률 KPI — 관측된 터미널(metadata.last_state) 기준. 실패해도 카드만 "—".
+  const { data: summary } = useQuery({
+    queryKey: ["stats-summary", conn.id, periodDays],
+    queryFn: () => fetchStatsSummary(conn.id, periodDays),
+    refetchInterval: 30_000,
   });
 
   // 전송 '정확 총계'(목록 상한 EDC_QUERY_LIMIT 우회). EDC DB 접속이 설정된 커넥터만
@@ -201,7 +215,7 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
       </SectionHdr>
 
       {/* KPI Row — KpiCard 통일 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <KpiCard
           icon={
             <Package className="w-[18px] h-[18px] text-blue-600 dark:text-blue-400" />
@@ -227,6 +241,53 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
           onClick={() => onNav(`/connectors/${conn.id}/transfer`)}
           ariaLabel={`${t.dashboard.dataTransfers} ${transfersError ? "—" : transferTotal}`}
         />
+        {/* 성공률 KPI — 관측된 터미널(콘솔이 열람한 협상/전송) 기준 운영 지표 */}
+        <KpiCard
+          icon={
+            <Handshake className="w-[18px] h-[18px] text-emerald-600 dark:text-emerald-400" />
+          }
+          iconBg="bg-emerald-50 dark:bg-emerald-500/10"
+          value={
+            summary?.negotiations.successRate != null
+              ? `${summary.negotiations.successRate}%`
+              : "—"
+          }
+          title={t.dashboard.negSuccessRate}
+          sub={
+            summary && summary.negotiations.total > 0
+              ? t.dashboard.successRateSub(
+                  summary.negotiations.finalized,
+                  summary.negotiations.total
+                )
+              : t.dashboard.successRateNoData
+          }
+          valueColor="text-emerald-600 dark:text-emerald-400"
+          onClick={() => onNav(`/connectors/${conn.id}/negotiation`)}
+          ariaLabel={`${t.dashboard.negSuccessRate} ${summary?.negotiations.successRate ?? "—"}`}
+        />
+        <KpiCard
+          icon={
+            <CheckCircle2 className="w-[18px] h-[18px] text-violet-600 dark:text-violet-400" />
+          }
+          iconBg="bg-violet-50 dark:bg-violet-500/10"
+          value={
+            summary?.transfers.successRate != null
+              ? `${summary.transfers.successRate}%`
+              : "—"
+          }
+          title={t.dashboard.trSuccessRate}
+          sub={
+            summary && summary.transfers.total > 0
+              ? t.dashboard.successRateSub(
+                  summary.transfers.completed,
+                  summary.transfers.total
+                )
+              : t.dashboard.successRateNoData
+          }
+          valueColor="text-violet-600 dark:text-violet-400"
+          onClick={() => onNav(`/connectors/${conn.id}/transfer`)}
+          ariaLabel={`${t.dashboard.trSuccessRate} ${summary?.transfers.successRate ?? "—"}`}
+        />
       </div>
 
       {/* Charts Row — matching image line chart style */}
@@ -243,6 +304,33 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
           className="xl:col-span-2"
           actions={
             <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              {/* 기간 선택 — 트렌드(hours)와 성공률 KPI(days)가 함께 바뀐다 */}
+              <div
+                className="flex items-center rounded-md border border-border overflow-hidden"
+                role="group"
+                aria-label={t.dashboard.trendTitle}
+              >
+                {(
+                  [
+                    [24, t.dashboard.period24h],
+                    [72, t.dashboard.period3d],
+                    [168, t.dashboard.period7d],
+                  ] as const
+                ).map(([h, label]) => (
+                  <button
+                    key={h}
+                    onClick={() => setPeriodHours(h)}
+                    aria-pressed={periodHours === h}
+                    className={`px-2 py-0.5 text-[11px] ${
+                      periodHours === h
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-0.5 bg-blue-500 rounded inline-block" />
                 {t.dashboard.negotiations}
@@ -264,7 +352,8 @@ export default function PageDashboard({ conn, onNav }: PageDashboardProps) {
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 axisLine={false}
                 tickLine={false}
-                interval={2}
+                // 24h=시간별 24점 → 2칸 간격, 3d/7d=72·168점 → 라벨 과밀 방지 간격 확대
+                interval={periodHours === 24 ? 2 : Math.floor(periodHours / 8)}
               />
               <YAxis
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}

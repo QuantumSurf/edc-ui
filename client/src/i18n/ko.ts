@@ -172,6 +172,14 @@ const ko = {
   // ── Dashboard ──
   dashboard: {
     assets: "자산",
+    negSuccessRate: "협상 성공률",
+    trSuccessRate: "전송 성공률",
+    successRateSub: (ok: number, total: number) =>
+      `관측 터미널 ${total}건 중 ${ok}건 성공`,
+    successRateNoData: "관측된 터미널 없음",
+    period24h: "24시간",
+    period3d: "3일",
+    period7d: "7일",
     contractAgreements: "체결 계약",
     dataTransfers: "데이터 전송",
     edrActive: "EDR 활성",
