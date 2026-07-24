@@ -19,6 +19,24 @@ export default defineConfig({
   },
   envDir: path.resolve(import.meta.dirname),
   root: path.resolve(import.meta.dirname, "client"),
+  // dev 전용: lazy 라우트가 처음 열릴 때 새 의존성이 발견되면 Vite 가 재최적화를
+  // 돌리고, 그 동안 열린 탭의 옛 dep 청크 요청이 504(Outdated Optimize Dep)로
+  // 떨어진다(재시작 직후 정책/대시보드 진입 시 간헐 에러 화면의 원인). 자주 쓰는
+  // 무거운 의존성을 미리 프리번들해 mid-session 재최적화를 예방한다.
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom/client",
+      "recharts",
+      "lucide-react",
+      "@tanstack/react-query",
+      "axios",
+      "zustand",
+      "wouter",
+      "sonner",
+      "zod",
+    ],
+  },
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
