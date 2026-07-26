@@ -4,7 +4,7 @@ openapi: 3.1.0
 # KMX EDC Console — BFF API 계약 (OpenAPI 3.1)
 #
 # 이 문서는 React 콘솔이 소비하는 내부 BFF(Backend-for-Frontend)의 계약을 기술한다.
-# BFF 는 EDC(0.16.0)/DTR/IdentityHub/Vault 를 프록시하며, 다수 응답 바디는 상류
+# BFF 는 EDC(0.17.0)/DTR/IdentityHub/Vault 를 프록시하며, 다수 응답 바디는 상류
 # 서비스의 JSON 을 그대로 전달(pass-through)한다. 그런 바디는 필드를 날조하지 않고
 # 일반 object 로 모델링하고 설명으로 출처를 명시한다(정직성 우선).
 #
@@ -74,6 +74,8 @@ tags:
     description: 데이터 전송 프로세스
   - name: edrs
     description: EDR(Endpoint Data Reference) 캐시
+  - name: bpn-groups
+    description: BPN 그룹 매핑 (kmx-bpn-policy 확장, 커넥터 스코프)
   - name: stats
     description: 커넥터 통계·트렌드
   - name: notifications
@@ -834,6 +836,96 @@ paths:
     delete:
       tags: [edrs]
       summary: EDR 캐시 항목 삭제
+      responses:
+        "204": { description: 삭제됨 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── bpn-groups (kmx-bpn-policy 확장 프록시) ────────────────────────────────
+  /api/connectors/{id}/bpn-groups:
+    parameters:
+      - $ref: "#/components/parameters/ConnectorId"
+    get:
+      tags: [bpn-groups]
+      summary: BPN 그룹 전체 목록(그룹별 멤버 BPN 집계)
+      responses:
+        "200":
+          description: 그룹→멤버 BPN 집계
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        group: { type: string }
+                        bpns:
+                          type: array
+                          items: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [bpn-groups]
+      summary: BPN→그룹 매핑 upsert(POST 409 시 PUT 폴백)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bpn, groups]
+              properties:
+                bpn: { type: string, pattern: "^BPNL[0-9A-Z]{12}$" }
+                groups:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
+      responses:
+        "204": { description: 저장됨 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/connectors/{id}/bpn-groups/bpn/{bpn}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectorId"
+      - name: bpn
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [bpn-groups]
+      summary: 특정 BPN 이 속한 그룹 목록
+      responses:
+        "200":
+          description: BPN 의 그룹 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bpn: { type: string }
+                  groups:
+                    type: array
+                    items: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/connectors/{id}/bpn-groups/{bpn}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectorId"
+      - name: bpn
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [bpn-groups]
+      summary: BPN 의 그룹 매핑 삭제
       responses:
         "204": { description: 삭제됨 }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -1648,7 +1740,7 @@ components:
       type: object
       description: |
         EDC/DTR 상류가 반환하는 JSON-LD 오브젝트를 그대로 전달한 것. 스키마를 고정하지
-        않는다(@context/@id/@type 등 JSON-LD 키 포함 가능). 정확한 형태는 EDC 0.16.0
+        않는다(@context/@id/@type 등 JSON-LD 키 포함 가능). 정확한 형태는 EDC 0.17.0
         Management API 계약을 참조.
       additionalProperties: true
 

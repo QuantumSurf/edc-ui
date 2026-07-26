@@ -6,9 +6,9 @@
 // 이 경로는 자동테스트 0건이었다(TRL 5→6 갭).
 //
 // 업스트림 EDC 는 dev-mock(edc-mock.cjs)을 자식 프로세스로 띄워 대체한다. 목은 실
-// KMX-EDC 의 시간기반 상태전이(협상 8s→FINALIZED, 전송 4s→STARTED)와 EDR refresh
-// 프로토콜(/token)을 흉내낸다. MOCK_EXPIRE_EDR=true 로 만료 액세스 토큰을 발급시켜
-// KMX 고유 경로인 403→refresh→재시도(edrRefresh.ts)까지 실제로 태운다.
+// KMX-EDC 의 시간기반 상태전이(협상 8s→FINALIZED, 전송 4s→STARTED)와 관리 API 강제
+// 갱신(/v3/edrs/{tpId}/refresh)을 흉내낸다. MOCK_EXPIRE_EDR=true 로 만료 액세스 토큰을
+// 발급시켜 KMX 고유 경로인 403→refresh→재시도(edrRefresh.ts)까지 실제로 태운다.
 //
 // testcontainers Postgres — Docker 미가용 시 우아하게 skip(REQUIRE_INTEGRATION=1 이면 실패).
 
@@ -214,8 +214,8 @@ describe("E2E 전송 사이클 (카탈로그→협상→전송→EDR refresh→P
     );
 
     // 5) 데이터 Pull — MOCK_EXPIRE_EDR=true 라 첫 액세스 토큰은 만료(403).
-    //    성공(200)했다는 것 자체가 KMX EDR refresh 프로토콜(403→/token→재시도,
-    //    edrRefresh.ts)이 실제로 완주됐다는 증거다.
+    //    성공(200)했다는 것 자체가 KMX EDR refresh 루프(403→관리 API
+    //    /v3/edrs/{tpId}/refresh→재시도, edrRefresh.ts)가 실제로 완주됐다는 증거다.
     const fetched = await agent
       .post(`/api/connectors/${connId}/transfers/${tpId}/fetch`)
       .set(csrfHdr)

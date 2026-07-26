@@ -27,6 +27,7 @@ import catalogRouter from "./routes/catalog.js";
 import negotiationsRouter from "./routes/negotiations.js";
 import transfersRouter from "./routes/transfers.js";
 import edrsRouter from "./routes/edrs.js";
+import bpnGroupsRouter from "./routes/bpnGroups.js";
 import fleetRouter from "./routes/fleet.js";
 import statsRouter from "./routes/stats.js";
 import notificationsUiRouter from "./routes/notificationsUi.js";
@@ -186,6 +187,7 @@ export function buildApp(): Express {
   app.use("/api/connectors", negotiationsRouter);
   app.use("/api/connectors", transfersRouter);
   app.use("/api/connectors", edrsRouter);
+  app.use("/api/connectors", bpnGroupsRouter);
   app.use("/api/connectors", statsRouter);
   app.use("/api/notifications", notificationsUiRouter);
   app.use("/api/fleet", fleetRouter);

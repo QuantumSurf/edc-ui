@@ -286,6 +286,13 @@ const edrs = [
   },
 ];
 
+// ── BPN 그룹 스토어(kmx-bpn-policy /v3/business-partner-groups 모사) ──
+// bpn → groups 배열. 실 커넥터의 edc_business_partner_group 테이블에 대응.
+const bpnGroupStore = new Map([
+  ["BPNL000000000CON", ["fl-partners"]],
+  ["BPNL000000000002", ["fl-partners"]],
+]);
+
 // ── 데모 E2E 진행 시뮬레이션 ──────────────────────────────────────────
 // 카탈로그→협상→전송 전 과정을 데모에서 실제로 체험할 수 있도록, 동적으로 생성된(_dynamic)
 // 협상/전송을 경과 시간에 따라 상태 전이시킨다(협상/전송 페이지 3s 폴링과 맞춤).
@@ -672,7 +679,80 @@ const server = http.createServer((req, res) => {
         expiresIn: "300",
       });
     }
-    // EDR 토큰 갱신 엔드포인트(실 kmx-edc /token 응답 형태) — refresh 토큰 제출 시 fresh 액세스 발급.
+    // ── BPN 그룹 관리 API(kmx-bpn-policy) ──
+    if (method === "GET" && url === "/v3/business-partner-groups/groups") {
+      const all = new Set();
+      for (const gs of bpnGroupStore.values()) gs.forEach(g => all.add(g));
+      return send(res, 200, { "kmx:groups": [...all] });
+    }
+    if (
+      method === "GET" &&
+      url.startsWith("/v3/business-partner-groups/group/")
+    ) {
+      const g = decodeURIComponent(
+        url.split("/v3/business-partner-groups/group/")[1]
+      );
+      const bpns = [...bpnGroupStore.entries()]
+        .filter(([, gs]) => gs.includes(g))
+        .map(([b]) => b);
+      return send(res, 200, { "@id": g, "kmx:bpns": bpns });
+    }
+    if (method === "GET" && url.startsWith("/v3/business-partner-groups/")) {
+      const b = decodeURIComponent(
+        url.split("/v3/business-partner-groups/")[1]
+      );
+      const gs = bpnGroupStore.get(b);
+      if (!gs) return send(res, 404, { message: `BPN not found: ${b}` });
+      return send(res, 200, { "@id": b, "kmx:groups": gs });
+    }
+    if (
+      (method === "POST" || method === "PUT") &&
+      url === "/v3/business-partner-groups"
+    ) {
+      let parsed = {};
+      try {
+        parsed = JSON.parse(body || "{}");
+      } catch {
+        return send(res, 400, { message: "invalid json" });
+      }
+      const b = parsed["@id"];
+      const gs = parsed["kmx:groups"] ?? parsed["groups"] ?? [];
+      if (!b || !Array.isArray(gs) || gs.length === 0)
+        return send(res, 400, { message: "@id and kmx:groups required" });
+      // 실 커넥터 계약: POST 중복 409, PUT 미존재 404.
+      if (method === "POST" && bpnGroupStore.has(b))
+        return send(res, 409, { message: `BPN already exists: ${b}` });
+      if (method === "PUT" && !bpnGroupStore.has(b))
+        return send(res, 404, { message: `BPN not found: ${b}` });
+      bpnGroupStore.set(b, gs.map(String));
+      res.writeHead(204);
+      return res.end();
+    }
+    if (method === "DELETE" && url.startsWith("/v3/business-partner-groups/")) {
+      const b = decodeURIComponent(
+        url.split("/v3/business-partner-groups/")[1]
+      );
+      if (!bpnGroupStore.has(b))
+        return send(res, 404, { message: `BPN not found: ${b}` });
+      bpnGroupStore.delete(b);
+      res.writeHead(204);
+      return res.end();
+    }
+
+    // EDR 강제 갱신(실 kmx-edc 관리 API POST /v3/edrs/{tpId}/refresh) — 갱신된 DataAddress 반환.
+    // BFF 는 pull 403 시 이 엔드포인트로 fresh 액세스 토큰을 받아 재시도한다.
+    if (method === "POST" && /\/v3\/edrs\/[^/]+\/refresh$/.test(url)) {
+      return send(res, 200, {
+        endpoint: `${PUBLIC_BASE}/data/sample`,
+        authorization: "Bearer edr-access-fresh",
+        type: "https://w3id.org/idsa/v4.1/HTTP",
+        refreshToken: "mock-refresh-token-2",
+        refreshEndpoint: `${PUBLIC_BASE}/api/public/token`,
+        expiresIn: "300",
+      });
+    }
+    // 데이터플레인 public /token(grant_type=refresh_token) — 실 kmx-edc 는 consumer 자체 발급
+    // JWT(Authorization: Bearer)를 요구한다. BFF 는 이 경로를 쓰지 않지만 계약 참고용으로 유지.
     if (method === "POST" && url === "/api/public/token") {
       return send(res, 200, {
         access_token: "edr-access-fresh",
@@ -940,6 +1020,11 @@ const server = http.createServer((req, res) => {
     // 헬스
     if (method === "GET" && (url === "/api/check/health" || url === "/health"))
       return send(res, 200, health);
+
+    // 런타임 버전(BFF system.ts probeEdcVersion 이 조회) — EDC 모듈 버전 배열 형태.
+    // 실 kmx-edc 0.17 런타임은 version API 미노출(폴백 표시) — mock 은 probe 경로 검증용.
+    if (method === "GET" && url === "/api/version")
+      return send(res, 200, [{ version: "0.17.0", name: "kmx-edc (mock)" }]);
 
     // Digital Twin Registry (DTR) — /semantics/registry/api/v3/*
     if (method === "GET" && /\/shell-descriptors$/.test(url)) {

@@ -258,6 +258,15 @@ const en: Translations = {
     idInvalidChars: "Asset ID cannot contain / ? # % & characters.",
     baseUrlRequired: "baseUrl is required.",
     httpsRequired: "baseUrl must use HTTPS.",
+    s3Region: "S3 Region (region)",
+    s3Bucket: "S3 Bucket (bucketName)",
+    s3ObjectName: "Object Key (objectName)",
+    s3Endpoint: "Endpoint Override (endpointOverride)",
+    s3EndpointHint: "Only needed for S3-compatible storage such as MinIO.",
+    s3AccessKeyId: "Access Key ID (accessKeyId)",
+    s3SecretKey: "Secret Access Key (secretAccessKey)",
+    s3CredentialKeepHint: "Leave blank to keep the current credentials.",
+    s3Required: "AmazonS3 assets require region and bucketName.",
     authCodeFormat: "authCode alias must start with 'edc:key'.",
     authCodeRequired: "Authentication key is required.",
     idCheckFailed: "Failed to verify ID availability. Please try again.",
@@ -374,14 +383,33 @@ const en: Translations = {
         "Allow only participants with a signed Traceability framework agreement.",
       "transfer-count-limit":
         "Limit the number of data transfers per agreement to under N.",
-      "bpn-allowlist-bmw-vw":
-        "Allow use for two specified BPNs only (OR combination).",
+      "bpn-allowlist":
+        "Allow use only for participants in the specified BPN list.",
+      "bpn-group":
+        "Allow use only for members of BPN group 'fl-partners'. Manage membership in BPN Groups.",
       "membership-and-framework":
         "Require active membership AND the Data Exchange Governance framework.",
-      "prohibit-third-country-transfer":
-        "Prohibit data transfer to specific countries (prohibition + transfer).",
       "usage-purpose-dtr": "Allow use only for Digital Twin Registry purposes.",
     } as Record<string, string>,
+    bpnGroups: {
+      button: "BPN Groups",
+      title: "BPN Group Management",
+      subtitle:
+        "BPN→group mappings evaluated by BusinessPartnerGroup constraints",
+      hint: "Group policies (isAnyOf, ...) are evaluated against these mappings. Unregistered BPNs are always denied by group policies.",
+      empty: "No groups registered.",
+      addTitle: "Add / Update BPN Mapping",
+      bpnLabel: "BPN",
+      groupsLabel: "Groups (comma-separated)",
+      groupsPlaceholder: "fl-partners, trusted-suppliers",
+      save: "Save",
+      saved: "BPN group mapping saved.",
+      deleted: "BPN group mapping deleted.",
+      deleteConfirm: (bpn: string) => `Delete group mapping for '${bpn}'?`,
+      bpnInvalid: "Invalid BPN format (BPNL + 12 alphanumeric characters).",
+      groupsRequired: "Enter at least one group.",
+      memberCount: (n: number) => `${n} BPNs`,
+    },
     offeringRef: (n: number) => `${n} Contracts`,
     deleteBlockedByOffering:
       "Cannot delete a policy that is linked to a contract.",
@@ -596,6 +624,7 @@ const en: Translations = {
     counterPartyAddressInvalidScheme:
       "Provider DSP endpoint must start with http:// or https://.",
     endpointRequired: "Please enter a data sink Endpoint URL.",
+    s3ObjectNameHint: "Leave blank to keep the source object key.",
     started: "Transfer has been started.",
     startFailed: "Failed to start transfer.",
     totalVolume: "Total Volume",
@@ -928,6 +957,7 @@ const en: Translations = {
     connectorHealthDesc: "Alert on connector UP/DOWN changes",
     totalNotifications: "Total notifications",
     systemInfo: "System Info",
+    versionAssumed: "(assumed)",
     environment: "Environment",
     apiMode: "API Mode",
     integration: "Identity Hub Server",

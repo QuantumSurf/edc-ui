@@ -40,6 +40,12 @@ export interface Asset {
   proxyPath?: string;
   proxyQueryParams?: string;
   contentType?: string;
+  // AmazonS3 dataAddress(kmx-edc data-plane-aws-s3) — 편집 라운드트립용.
+  // 자격증명(accessKeyId/secretAccessKey)은 서버가 반환하지 않는다.
+  region?: string;
+  bucketName?: string;
+  objectName?: string;
+  endpointOverride?: string;
   aasVersion?: string;
   aasId?: string;
   submodelId?: string;
@@ -253,12 +259,9 @@ export function isNegotiationActive(state: number): boolean {
   return state > 0 && state < 1200;
 }
 
-export const SINK_TYPES = [
-  "HttpProxy",
-  "HttpData",
-  "AmazonS3",
-  "AzureStorage",
-] as const;
+// kmx-edc 가 실제 지원하는 sink 만 노출 — AzureStorage 는 데이터플레인에 확장이 없어 제외.
+// AmazonS3 는 PUSH 전용(AmazonS3-PUSH), HttpProxy 는 PULL, HttpData 는 PUSH.
+export const SINK_TYPES = ["HttpProxy", "HttpData", "AmazonS3"] as const;
 export type SinkType = (typeof SINK_TYPES)[number];
 
 export type SemanticModelStatus =
@@ -280,7 +283,9 @@ export interface SemanticModelSummary {
   updatedAt: string;
 }
 
-export interface SemanticModel
-  extends Omit<SemanticModelSummary, "contentBytes"> {
+export interface SemanticModel extends Omit<
+  SemanticModelSummary,
+  "contentBytes"
+> {
   content: string;
 }

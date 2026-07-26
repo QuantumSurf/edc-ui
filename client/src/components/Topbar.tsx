@@ -108,7 +108,7 @@ export default function Topbar() {
 
         {/* 버전 */}
         <span className="hidden sm:block text-[12px] text-muted-foreground font-medium tabular-nums">
-          v0.16.0
+          v0.17.0
         </span>
 
         {/* 다크/라이트 테마 토글 */}

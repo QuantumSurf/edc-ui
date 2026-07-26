@@ -328,6 +328,35 @@ export async function deletePolicy(
   await http.delete(`/connectors/${connectorId}/policies/${id}`);
 }
 
+/* ── BPN Groups (kmx-bpn-policy 확장) ────────────────────────── */
+export interface BpnGroup {
+  group: string;
+  bpns: string[];
+}
+
+export async function fetchBpnGroups(connectorId: string): Promise<BpnGroup[]> {
+  const { data } = await http.get(`/connectors/${connectorId}/bpn-groups`);
+  return data?.groups ?? [];
+}
+
+/** BPN→그룹 매핑 upsert(BFF 가 POST 409 시 PUT 폴백). */
+export async function saveBpnGroupEntry(
+  connectorId: string,
+  bpn: string,
+  groups: string[]
+): Promise<void> {
+  await http.post(`/connectors/${connectorId}/bpn-groups`, { bpn, groups });
+}
+
+export async function deleteBpnGroupEntry(
+  connectorId: string,
+  bpn: string
+): Promise<void> {
+  await http.delete(
+    `/connectors/${connectorId}/bpn-groups/${encodeURIComponent(bpn)}`
+  );
+}
+
 /* ── Offerings ───────────────────────────────────────────────── */
 export async function fetchOfferings(connectorId: string): Promise<Offering[]> {
   const { data } = await http.post(`/connectors/${connectorId}/offerings`, {});
@@ -637,6 +666,8 @@ export async function clearAllNotifications(): Promise<void> {
 export interface SystemInfo {
   connectorHub: string;
   edcRuntime: string;
+  /** "probe"=커넥터 실측, "env"=운영자 지정, "fallback"=번들 기준 추정치 */
+  edcRuntimeSource?: "probe" | "env" | "fallback";
   dspVersion: string;
   dcpVersion: string;
   managementApi: string;

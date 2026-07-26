@@ -53,6 +53,14 @@ function validateAssetBody(
       return "baseUrl 형식이 올바르지 않습니다";
     }
   }
+  // AmazonS3 는 커넥터 CP 검증기(validator-data-address-s3)의 필수값을 선검증해
+  // 사용자에게 더 이른/명확한 오류를 준다.
+  if (String(b.dataAddressType ?? "") === "AmazonS3") {
+    const region = typeof b.region === "string" ? b.region.trim() : "";
+    const bucket = typeof b.bucketName === "string" ? b.bucketName.trim() : "";
+    if (!region || !bucket)
+      return "AmazonS3 자산은 region과 bucketName이 필수입니다";
+  }
   return null;
 }
 

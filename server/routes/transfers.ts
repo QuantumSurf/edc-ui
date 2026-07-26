@@ -215,22 +215,59 @@ router.post(
       }
 
       const sinkType: string = dataSink?.type ?? "HttpProxy";
-      const isProxy = sinkType === "HttpProxy";
+      // sink 타입별 transferType/dataDestination 구성 — kmx-edc 지원 조합:
+      //   HttpProxy → HttpData-PULL, HttpData → HttpData-PUSH, AmazonS3 → AmazonS3-PUSH.
+      // (과거: S3 선택이 HttpData-PUSH 로 조용히 다운그레이드 — kmx-edc 0.17 정합.)
+      let transferType: string;
+      let dataDestination: Record<string, unknown>;
+      if (sinkType === "AmazonS3") {
+        const region = String(dataSink?.region ?? "").trim();
+        const bucketName = String(dataSink?.bucketName ?? "").trim();
+        if (!region || !bucketName) {
+          res.status(400).json({
+            error: "AmazonS3 sink requires region and bucketName",
+          });
+          return;
+        }
+        transferType = "AmazonS3-PUSH";
+        dataDestination = {
+          "@type": "DataAddress",
+          type: "AmazonS3",
+          region,
+          bucketName,
+          ...(dataSink?.objectName
+            ? { objectName: String(dataSink.objectName) }
+            : {}),
+          ...(dataSink?.endpointOverride
+            ? { endpointOverride: String(dataSink.endpointOverride) }
+            : {}),
+          ...(dataSink?.accessKeyId
+            ? { accessKeyId: String(dataSink.accessKeyId) }
+            : {}),
+          ...(dataSink?.secretAccessKey
+            ? { secretAccessKey: String(dataSink.secretAccessKey) }
+            : {}),
+        };
+      } else if (sinkType === "HttpProxy") {
+        transferType = "HttpData-PULL";
+        dataDestination = { "@type": "DataAddress", type: "HttpProxy" };
+      } else {
+        transferType = "HttpData-PUSH";
+        dataDestination = {
+          "@type": "DataAddress",
+          type: "HttpData",
+          baseUrl: dataSink?.endpoint ?? "",
+        };
+      }
 
       const transferRequest: Record<string, unknown> = {
         "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
         "@type": "TransferRequest",
         counterPartyAddress: normalizedDspEndpoint,
         contractId: agreementId,
-        transferType: isProxy ? "HttpData-PULL" : "HttpData-PUSH",
+        transferType,
         protocol: "dataspace-protocol-http:2025-1",
-        dataDestination: isProxy
-          ? { "@type": "DataAddress", type: "HttpProxy" }
-          : {
-              "@type": "DataAddress",
-              type: "HttpData",
-              baseUrl: dataSink?.endpoint ?? "",
-            },
+        dataDestination,
       };
       if (assetId) transferRequest["assetId"] = assetId;
 
@@ -326,17 +363,24 @@ router.post(
       }
 
       // 2. Provider Data Plane에서 실제 데이터 Pull — 소요시간 측정.
-      // 액세스 토큰 만료(403) 시 EDR 의 refresh 토큰으로 자동 갱신 후 재시도(장시간/반복 pull 유지).
+      // 액세스 토큰 만료(403) 시 관리 API /v3/edrs/{tpId}/refresh 로 자동 갱신 후 재시도.
       const fetchStart = Date.now();
-      const dataRes = await pullEdrData(connectorId, tpId, targetUrl, edr, {
-        responseType: "arraybuffer",
-        timeout: 30_000,
-        // SSRF: 리다이렉트 미추적 — provider 가 30x 로 내부/메타데이터 주소로 유도해 EDR
-        // Bearer 토큰을 탈취하는 것 차단. + 응답 크기 상한으로 OOM(공유 BFF 다운) 방지.
-        maxRedirects: 0,
-        maxContentLength: EDR_MAX_RESPONSE_BYTES,
-        maxBodyLength: EDR_MAX_RESPONSE_BYTES,
-      });
+      const dataRes = await pullEdrData(
+        client,
+        connectorId,
+        tpId,
+        targetUrl,
+        edr,
+        {
+          responseType: "arraybuffer",
+          timeout: 30_000,
+          // SSRF: 리다이렉트 미추적 — provider 가 30x 로 내부/메타데이터 주소로 유도해 EDR
+          // Bearer 토큰을 탈취하는 것 차단. + 응답 크기 상한으로 OOM(공유 BFF 다운) 방지.
+          maxRedirects: 0,
+          maxContentLength: EDR_MAX_RESPONSE_BYTES,
+          maxBodyLength: EDR_MAX_RESPONSE_BYTES,
+        }
+      );
       const fetchDurationMs = Date.now() - fetchStart;
 
       const sizeBytes = dataRes.data?.length ?? 0;
@@ -476,8 +520,9 @@ router.post(
               (await assertEndpointPublic(targetUrl)) === null
             ) {
               const fetchStart = Date.now();
-              // 만료(403) 시 EDR refresh 토큰으로 자동 갱신 후 재시도(/fetch 와 동일).
+              // 만료(403) 시 관리 API refresh 로 자동 갱신 후 재시도(/fetch 와 동일).
               const dataRes = await pullEdrData(
+                client,
                 connectorId,
                 tpId,
                 targetUrl,

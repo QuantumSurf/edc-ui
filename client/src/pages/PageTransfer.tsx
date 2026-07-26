@@ -209,6 +209,13 @@ export default function PageTransfer() {
 
   const [sinkType, setSinkType] = useState("HttpProxy");
   const [sinkEndpoint, setSinkEndpoint] = useState("");
+  // AmazonS3 sink(AmazonS3-PUSH) 목적지 — kmx-edc data-plane-aws-s3.
+  const [s3Region, setS3Region] = useState("");
+  const [s3Bucket, setS3Bucket] = useState("");
+  const [s3ObjectName, setS3ObjectName] = useState("");
+  const [s3Endpoint, setS3Endpoint] = useState("");
+  const [s3AccessKeyId, setS3AccessKeyId] = useState("");
+  const [s3SecretKey, setS3SecretKey] = useState("");
   const [agreementId, setAgreementId] = useState(
     () => qParams.get("agreementId") ?? ""
   );
@@ -518,9 +525,12 @@ export default function PageTransfer() {
       toast.warning(t.transfers.counterPartyAddressInvalidScheme);
       return;
     }
-    const isProxy = sinkType === "HttpProxy";
-    if (!isProxy && !sinkEndpoint.trim()) {
+    if (sinkType === "HttpData" && !sinkEndpoint.trim()) {
       toast.warning(t.transfers.endpointRequired);
+      return;
+    }
+    if (sinkType === "AmazonS3" && (!s3Region.trim() || !s3Bucket.trim())) {
+      toast.warning(t.assets.s3Required);
       return;
     }
     if (!connectorId) return;
@@ -531,7 +541,24 @@ export default function PageTransfer() {
           agreementId,
           counterPartyAddress,
           assetId: assetId || undefined,
-          dataSink: { type: sinkType, endpoint: sinkEndpoint },
+          dataSink:
+            sinkType === "AmazonS3"
+              ? {
+                  type: "AmazonS3",
+                  region: s3Region,
+                  bucketName: s3Bucket,
+                  ...(s3ObjectName.trim() ? { objectName: s3ObjectName } : {}),
+                  ...(s3Endpoint.trim()
+                    ? { endpointOverride: s3Endpoint }
+                    : {}),
+                  ...(s3AccessKeyId.trim()
+                    ? { accessKeyId: s3AccessKeyId }
+                    : {}),
+                  ...(s3SecretKey.trim()
+                    ? { secretAccessKey: s3SecretKey }
+                    : {}),
+                }
+              : { type: sinkType, endpoint: sinkEndpoint },
         },
         connectorId
       );
@@ -544,7 +571,7 @@ export default function PageTransfer() {
           value: counterPartyAddress,
         },
         { fieldKey: "transfer.assetId", value: assetId },
-        ...(sinkType !== "HttpProxy"
+        ...(sinkType === "HttpData"
           ? [{ fieldKey: "transfer.dataSink.endpoint", value: sinkEndpoint }]
           : []),
       ]);
@@ -556,6 +583,12 @@ export default function PageTransfer() {
       setAssetId("");
       setSinkEndpoint("");
       setCounterPartyAddress("");
+      setS3Region("");
+      setS3Bucket("");
+      setS3ObjectName("");
+      setS3Endpoint("");
+      setS3AccessKeyId("");
+      setS3SecretKey("");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t.transfers.startFailed;
       toast.error(msg);
@@ -968,7 +1001,7 @@ export default function PageTransfer() {
               </select>
             </FormField>
 
-            {sinkType !== "HttpProxy" && (
+            {sinkType === "HttpData" && (
               <FormField label={t.transfers.endpointUrl} required>
                 <input
                   type="url"
@@ -983,6 +1016,65 @@ export default function PageTransfer() {
                   options={suggestions["transfer.dataSink.endpoint"]}
                 />
               </FormField>
+            )}
+            {sinkType === "AmazonS3" && (
+              <>
+                <FormField label={t.assets.s3Region} required>
+                  <input
+                    value={s3Region}
+                    onChange={e => setS3Region(e.target.value)}
+                    placeholder="ap-northeast-2"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField label={t.assets.s3Bucket} required>
+                  <input
+                    value={s3Bucket}
+                    onChange={e => setS3Bucket(e.target.value)}
+                    placeholder="my-sink-bucket"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField
+                  label={t.assets.s3ObjectName}
+                  hint={t.transfers.s3ObjectNameHint}
+                >
+                  <input
+                    value={s3ObjectName}
+                    onChange={e => setS3ObjectName(e.target.value)}
+                    placeholder="received/object.csv"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField
+                  label={t.assets.s3Endpoint}
+                  hint={t.assets.s3EndpointHint}
+                >
+                  <input
+                    value={s3Endpoint}
+                    onChange={e => setS3Endpoint(e.target.value)}
+                    placeholder="http://minio:9000"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField label={t.assets.s3AccessKeyId}>
+                  <input
+                    value={s3AccessKeyId}
+                    onChange={e => setS3AccessKeyId(e.target.value)}
+                    autoComplete="off"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField label={t.assets.s3SecretKey}>
+                  <input
+                    type="password"
+                    value={s3SecretKey}
+                    onChange={e => setS3SecretKey(e.target.value)}
+                    autoComplete="new-password"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+              </>
             )}
 
             <RoleGate permission="transaction:write">

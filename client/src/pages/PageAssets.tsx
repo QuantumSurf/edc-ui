@@ -1041,6 +1041,15 @@ function AssetWizard({
   const [contentType, setContentType] = useState(
     baseSrc?.contentType ?? "application/json"
   );
+  // AmazonS3 dataAddress(kmx-edc data-plane-aws-s3). 자격증명은 서버가 반환하지 않으므로
+  // 편집 시 빈 값 = 기존 값 유지(전송 생략).
+  const [s3Region, setS3Region] = useState(baseSrc?.region ?? "");
+  const [s3Bucket, setS3Bucket] = useState(baseSrc?.bucketName ?? "");
+  const [s3ObjectName, setS3ObjectName] = useState(baseSrc?.objectName ?? "");
+  const [s3Endpoint, setS3Endpoint] = useState(baseSrc?.endpointOverride ?? "");
+  const [s3AccessKeyId, setS3AccessKeyId] = useState("");
+  const [s3SecretKey, setS3SecretKey] = useState("");
+  const isS3 = addrType === "AmazonS3";
 
   // Step 3 state
   // 신규는 빈 값에서 시작(데모 잔재 발행 방지). 예시는 각 입력 placeholder로만 노출.
@@ -1139,6 +1148,14 @@ function AssetWizard({
   };
 
   const validateStep2 = () => {
+    // AmazonS3 는 CP 검증기 필수값(region+bucketName)만 확인 — HttpData 필드 검증은 건너뜀.
+    if (isS3) {
+      if (!s3Region.trim() || !s3Bucket.trim()) {
+        toast.error(t.assets.s3Required);
+        return false;
+      }
+      return true;
+    }
     if (!baseUrl.trim()) {
       toast.error(t.assets.baseUrlRequired);
       return false;
@@ -1176,15 +1193,26 @@ function AssetWizard({
     return true;
   };
 
-  const dataAddressObj = {
-    "@type": addrType,
-    baseUrl,
-    proxyPath,
-    proxyQueryParams: proxyQuery,
-    // 미입력 시 authCode 키 자체를 미표시(편집 시 기존 인증 별칭 보존 — placeholder로 덮지 않음).
-    ...(authCode.trim() ? { authCode: `{{${authCode}}}` } : {}),
-    contentType,
-  };
+  const dataAddressObj = isS3
+    ? {
+        "@type": "AmazonS3",
+        region: s3Region,
+        bucketName: s3Bucket,
+        ...(s3ObjectName.trim() ? { objectName: s3ObjectName } : {}),
+        ...(s3Endpoint.trim() ? { endpointOverride: s3Endpoint } : {}),
+        // 비밀값은 미리보기에 마스킹 표시(실 전송은 payload 에서만).
+        ...(s3AccessKeyId.trim() ? { accessKeyId: "•••" } : {}),
+        ...(s3SecretKey.trim() ? { secretAccessKey: "•••" } : {}),
+      }
+    : {
+        "@type": addrType,
+        baseUrl,
+        proxyPath,
+        proxyQueryParams: proxyQuery,
+        // 미입력 시 authCode 키 자체를 미표시(편집 시 기존 인증 별칭 보존 — placeholder로 덮지 않음).
+        ...(authCode.trim() ? { authCode: `{{${authCode}}}` } : {}),
+        contentType,
+      };
 
   const handleSubmit = async () => {
     if (!validateStep3()) return;
@@ -1213,13 +1241,25 @@ function AssetWizard({
         ver: version,
         sem: semanticId || null,
         dataAddressType: addrType,
-        baseUrl,
-        proxyPath,
-        proxyQueryParams: proxyQuery,
-        // authCode는 입력했을 때만 전송 — 편집 시 미입력이면 서버가 기존 인증 별칭을 placeholder로
-        // 덮어쓰지 않도록 키 자체를 보내지 않는다 (id 13).
-        ...(authCode.trim() ? { authCode } : {}),
-        contentType,
+        // dataAddress 는 타입별 스키마 분리 — S3 선택 시 HttpData 필드를 보내지 않는다.
+        ...(isS3
+          ? {
+              region: s3Region,
+              bucketName: s3Bucket,
+              ...(s3ObjectName.trim() ? { objectName: s3ObjectName } : {}),
+              ...(s3Endpoint.trim() ? { endpointOverride: s3Endpoint } : {}),
+              ...(s3AccessKeyId.trim() ? { accessKeyId: s3AccessKeyId } : {}),
+              ...(s3SecretKey.trim() ? { secretAccessKey: s3SecretKey } : {}),
+            }
+          : {
+              baseUrl,
+              proxyPath,
+              proxyQueryParams: proxyQuery,
+              // authCode는 입력했을 때만 전송 — 편집 시 미입력이면 서버가 기존 인증 별칭을
+              // placeholder로 덮어쓰지 않도록 키 자체를 보내지 않는다 (id 13).
+              ...(authCode.trim() ? { authCode } : {}),
+              contentType,
+            }),
         aasVersion: aasVersion || undefined,
         aasId: aasId || undefined,
         submodelId: submodelId || undefined,
@@ -1445,112 +1485,201 @@ function AssetWizard({
                 >
                   <option>HttpData</option>
                   <option>AmazonS3</option>
-                  <option>AzureStorage</option>
                 </select>
               </FormField>
-              <FormField label={t.assets.baseUrlLabel} required>
-                <input
-                  value={baseUrl}
-                  onChange={e => {
-                    setBaseUrl(e.target.value);
-                    markDirty();
-                  }}
-                  list={fhId("asset.baseUrl")}
-                  aria-invalid={!!baseUrl && !baseUrl.startsWith("https://")}
-                  aria-describedby={
-                    baseUrl && !baseUrl.startsWith("https://")
-                      ? "asset-baseurl-error"
-                      : undefined
-                  }
-                  className={`${inputBase} mono`}
-                />
-                <HistoryDatalist
-                  id={fhId("asset.baseUrl")}
-                  options={suggestions["asset.baseUrl"]}
-                />
-                {baseUrl && !baseUrl.startsWith("https://") && (
-                  <div
-                    id="asset-baseurl-error"
-                    role="alert"
-                    className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400"
+              {isS3 && (
+                <>
+                  <FormField label={t.assets.s3Region} required>
+                    <input
+                      value={s3Region}
+                      onChange={e => {
+                        setS3Region(e.target.value);
+                        markDirty();
+                      }}
+                      placeholder="ap-northeast-2"
+                      className={`${inputBase} mono`}
+                    />
+                  </FormField>
+                  <FormField label={t.assets.s3Bucket} required>
+                    <input
+                      value={s3Bucket}
+                      onChange={e => {
+                        setS3Bucket(e.target.value);
+                        markDirty();
+                      }}
+                      placeholder="my-data-bucket"
+                      className={`${inputBase} mono`}
+                    />
+                  </FormField>
+                  <FormField label={t.assets.s3ObjectName}>
+                    <input
+                      value={s3ObjectName}
+                      onChange={e => {
+                        setS3ObjectName(e.target.value);
+                        markDirty();
+                      }}
+                      placeholder="path/to/object.csv"
+                      className={`${inputBase} mono`}
+                    />
+                  </FormField>
+                  <FormField
+                    label={t.assets.s3Endpoint}
+                    hint={t.assets.s3EndpointHint}
                   >
-                    <AlertCircle className="w-3 h-3" /> {t.assets.httpsRequired}
-                  </div>
-                )}
-              </FormField>
-              <FormField label={t.assets.proxyPath}>
-                <select
-                  value={proxyPath}
-                  onChange={e => {
-                    setProxyPath(e.target.value);
-                    markDirty();
-                  }}
-                  className={inputBase}
-                >
-                  <option>true</option>
-                  <option>false</option>
-                </select>
-              </FormField>
-              <FormField label={t.assets.authCodeLabel} required={!isEdit}>
-                <input
-                  value={authCode}
-                  onChange={e => {
-                    setAuthCode(e.target.value);
-                    markDirty();
-                  }}
-                  placeholder={
-                    isEdit
-                      ? locale === "ko"
-                        ? "변경하지 않으려면 비워두세요"
-                        : "Leave blank to keep current key"
-                      : "edc:key=<vault-alias>"
-                  }
-                  aria-invalid={!!authCode && !authCode.startsWith("edc:key")}
-                  aria-describedby={
-                    authCode && !authCode.startsWith("edc:key")
-                      ? "asset-authcode-warn"
-                      : undefined
-                  }
-                  className={`${inputBase} mono`}
-                />
-                {authCode && !authCode.startsWith("edc:key") && (
-                  <div
-                    id="asset-authcode-warn"
-                    role="alert"
-                    className="flex items-center gap-1 mt-1 text-[11px] text-amber-600 dark:text-amber-400"
+                    <input
+                      value={s3Endpoint}
+                      onChange={e => {
+                        setS3Endpoint(e.target.value);
+                        markDirty();
+                      }}
+                      placeholder="http://minio:9000"
+                      className={`${inputBase} mono`}
+                    />
+                  </FormField>
+                  <FormField
+                    label={t.assets.s3AccessKeyId}
+                    hint={isEdit ? t.assets.s3CredentialKeepHint : undefined}
                   >
-                    <AlertCircle className="w-3 h-3" /> {t.assets.authCodeHint}
-                  </div>
-                )}
-              </FormField>
-              <FormField label={t.assets.proxyQueryParams}>
-                <select
-                  value={proxyQuery}
-                  onChange={e => {
-                    setProxyQuery(e.target.value);
-                    markDirty();
-                  }}
-                  className={inputBase}
-                >
-                  <option>true</option>
-                  <option>false</option>
-                </select>
-              </FormField>
-              <FormField label={t.assets.contentTypeLabel}>
-                <input
-                  value={contentType}
-                  onChange={e => {
-                    setContentType(e.target.value);
-                    markDirty();
-                  }}
-                  list={fhId("asset.contentType")}
-                  className={inputBase}
-                />
-                <HistoryDatalist
-                  id={fhId("asset.contentType")}
-                  options={suggestions["asset.contentType"]}
-                />
-              </FormField>
+                    <input
+                      value={s3AccessKeyId}
+                      onChange={e => {
+                        setS3AccessKeyId(e.target.value);
+                        markDirty();
+                      }}
+                      autoComplete="off"
+                      className={`${inputBase} mono`}
+                    />
+                  </FormField>
+                  <FormField
+                    label={t.assets.s3SecretKey}
+                    hint={isEdit ? t.assets.s3CredentialKeepHint : undefined}
+                  >
+                    <input
+                      type="password"
+                      value={s3SecretKey}
+                      onChange={e => {
+                        setS3SecretKey(e.target.value);
+                        markDirty();
+                      }}
+                      autoComplete="new-password"
+                      className={`${inputBase} mono`}
+                    />
+                  </FormField>
+                </>
+              )}
+              {!isS3 && (
+                <>
+                  <FormField label={t.assets.baseUrlLabel} required>
+                    <input
+                      value={baseUrl}
+                      onChange={e => {
+                        setBaseUrl(e.target.value);
+                        markDirty();
+                      }}
+                      list={fhId("asset.baseUrl")}
+                      aria-invalid={
+                        !!baseUrl && !baseUrl.startsWith("https://")
+                      }
+                      aria-describedby={
+                        baseUrl && !baseUrl.startsWith("https://")
+                          ? "asset-baseurl-error"
+                          : undefined
+                      }
+                      className={`${inputBase} mono`}
+                    />
+                    <HistoryDatalist
+                      id={fhId("asset.baseUrl")}
+                      options={suggestions["asset.baseUrl"]}
+                    />
+                    {baseUrl && !baseUrl.startsWith("https://") && (
+                      <div
+                        id="asset-baseurl-error"
+                        role="alert"
+                        className="flex items-center gap-1 mt-1 text-[11px] text-rose-600 dark:text-rose-400"
+                      >
+                        <AlertCircle className="w-3 h-3" />{" "}
+                        {t.assets.httpsRequired}
+                      </div>
+                    )}
+                  </FormField>
+                  <FormField label={t.assets.proxyPath}>
+                    <select
+                      value={proxyPath}
+                      onChange={e => {
+                        setProxyPath(e.target.value);
+                        markDirty();
+                      }}
+                      className={inputBase}
+                    >
+                      <option>true</option>
+                      <option>false</option>
+                    </select>
+                  </FormField>
+                  <FormField label={t.assets.authCodeLabel} required={!isEdit}>
+                    <input
+                      value={authCode}
+                      onChange={e => {
+                        setAuthCode(e.target.value);
+                        markDirty();
+                      }}
+                      placeholder={
+                        isEdit
+                          ? locale === "ko"
+                            ? "변경하지 않으려면 비워두세요"
+                            : "Leave blank to keep current key"
+                          : "edc:key=<vault-alias>"
+                      }
+                      aria-invalid={
+                        !!authCode && !authCode.startsWith("edc:key")
+                      }
+                      aria-describedby={
+                        authCode && !authCode.startsWith("edc:key")
+                          ? "asset-authcode-warn"
+                          : undefined
+                      }
+                      className={`${inputBase} mono`}
+                    />
+                    {authCode && !authCode.startsWith("edc:key") && (
+                      <div
+                        id="asset-authcode-warn"
+                        role="alert"
+                        className="flex items-center gap-1 mt-1 text-[11px] text-amber-600 dark:text-amber-400"
+                      >
+                        <AlertCircle className="w-3 h-3" />{" "}
+                        {t.assets.authCodeHint}
+                      </div>
+                    )}
+                  </FormField>
+                  <FormField label={t.assets.proxyQueryParams}>
+                    <select
+                      value={proxyQuery}
+                      onChange={e => {
+                        setProxyQuery(e.target.value);
+                        markDirty();
+                      }}
+                      className={inputBase}
+                    >
+                      <option>true</option>
+                      <option>false</option>
+                    </select>
+                  </FormField>
+                  <FormField label={t.assets.contentTypeLabel}>
+                    <input
+                      value={contentType}
+                      onChange={e => {
+                        setContentType(e.target.value);
+                        markDirty();
+                      }}
+                      list={fhId("asset.contentType")}
+                      className={inputBase}
+                    />
+                    <HistoryDatalist
+                      id={fhId("asset.contentType")}
+                      options={suggestions["asset.contentType"]}
+                    />
+                  </FormField>
+                </>
+              )}
             </div>
             <div>
               <div className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">

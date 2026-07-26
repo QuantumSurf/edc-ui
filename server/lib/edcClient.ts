@@ -149,7 +149,12 @@ export interface PolicyBuilderInput {
 //   예: EDC_POLICY_PROFILE=cx-policy:profile2405
 const EDC_POLICY_PROFILE = process.env.EDC_POLICY_PROFILE?.trim() || "";
 // 복수 값을 받는 operator → rightOperand 를 배열로(쉼표 분리). Catena-X 다중 BPN 등.
-const MULTI_VALUE_OPS = new Set(["odrl:isAnyOf", "odrl:isNoneOf", "odrl:in"]);
+const MULTI_VALUE_OPS = new Set([
+  "odrl:isAnyOf",
+  "odrl:isNoneOf",
+  "odrl:isAllOf",
+  "odrl:in",
+]);
 
 export function buildPolicyDefinition(
   input: PolicyBuilderInput
@@ -240,6 +245,34 @@ export function toEdcAssetBody(
   const s = (v: unknown): string | undefined =>
     typeof v === "string" ? v : undefined;
   const id = forceId ?? s(b.id);
+  const daType = s(b.dataAddressType) ?? "HttpData";
+
+  // dataAddress 는 type 별 스키마가 다르다 — AmazonS3(kmx-edc data-plane-aws-s3)는
+  // bucketName+region 이 CP 검증기 필수이며, HttpData 필드(baseUrl 등)를 넣으면 무의미하다.
+  // (과거: 타입 무관 HttpData 필드만 직렬화해 S3 자산이 항상 400 — kmx-edc 0.17 정합.)
+  const dataAddress: Record<string, unknown> =
+    daType === "AmazonS3"
+      ? {
+          type: "AmazonS3",
+          region: s(b.region),
+          bucketName: s(b.bucketName),
+          ...(s(b.objectName) ? { objectName: s(b.objectName) } : {}),
+          ...(s(b.endpointOverride)
+            ? { endpointOverride: s(b.endpointOverride) }
+            : {}),
+          ...(s(b.accessKeyId) ? { accessKeyId: s(b.accessKeyId) } : {}),
+          ...(s(b.secretAccessKey)
+            ? { secretAccessKey: s(b.secretAccessKey) }
+            : {}),
+        }
+      : {
+          type: daType,
+          baseUrl: s(b.baseUrl),
+          proxyPath: s(b.proxyPath) ?? "false",
+          proxyQueryParams: s(b.proxyQueryParams) ?? "false",
+          authCode: s(b.authCode) ? `{{${s(b.authCode)}}}` : undefined,
+          contentType: s(b.contentType) ?? "application/json",
+        };
 
   // customProperties 병합 — 시스템 예약 키와 겹치는 커스텀 키는 건너뛴다.
   const custom = (b.customProperties ?? {}) as Record<string, unknown>;
@@ -269,14 +302,7 @@ export function toEdcAssetBody(
       ...(s(b.submodelId) ? { "kmx:submodelId": s(b.submodelId) } : {}),
       ...customMerged,
     },
-    dataAddress: {
-      type: s(b.dataAddressType) ?? "HttpData",
-      baseUrl: s(b.baseUrl),
-      proxyPath: s(b.proxyPath) ?? "false",
-      proxyQueryParams: s(b.proxyQueryParams) ?? "false",
-      authCode: s(b.authCode) ? `{{${s(b.authCode)}}}` : undefined,
-      contentType: s(b.contentType) ?? "application/json",
-    },
+    dataAddress,
   };
 }
 
@@ -332,6 +358,12 @@ export function mapAsset(raw: Record<string, unknown>) {
     proxyPath: (jld(da, "proxyPath") as string) ?? "",
     proxyQueryParams: (jld(da, "proxyQueryParams") as string) ?? "",
     contentType: (jld(da, "contentType") as string) ?? "",
+    // AmazonS3 dataAddress 라운드트립(편집 시 복원). 자격증명(accessKeyId/secretAccessKey)은
+    // 비밀값이므로 클라이언트로 반환하지 않는다(편집 시 미입력 = 기존 값 유지).
+    region: (jld(da, "region") as string) ?? "",
+    bucketName: (jld(da, "bucketName") as string) ?? "",
+    objectName: (jld(da, "objectName") as string) ?? "",
+    endpointOverride: (jld(da, "endpointOverride") as string) ?? "",
     aasVersion: (jld(p, "kmx:aasVersion") as string) ?? "",
     aasId: (jld(p, "kmx:aasId") as string) ?? "",
     submodelId: (jld(p, "kmx:submodelId") as string) ?? "",

@@ -53,22 +53,30 @@ import {
   ChevronsRight,
   List,
   Lock,
+  Users,
 } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
+import { BpnGroupsDialog } from "@/components/BpnGroupsDialog";
 import { toast } from "sonner";
 import { cn, clickable } from "@/lib/utils";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 /* ─── ODRL Constants (spec 4.3.1) ────────────────────────────── */
+// kmx-edc 정책 확장(kmx-bpn-policy·kmx-policy-extension)이 인지하는 leftOperand 는 전체 IRI.
+// 평문 "BusinessPartnerNumber"는 @vocab(edc ns)으로 확장돼 커넥터의 검증·평가 대상에서
+// 벗어나므로(제약이 시행되지 않는 정책이 됨) 반드시 kmx IRI 를 사용한다.
+const KMX_NS = "https://w3id.org/kmx/v0.1/ns/";
+const BPN_LEFT = `${KMX_NS}BusinessPartnerNumber`;
+const BPN_GROUP_LEFT = `${KMX_NS}BusinessPartnerGroup`;
+const TRANSFER_COUNT_LEFT = `${KMX_NS}transferCount`;
+
 const LEFT_OPERANDS = [
   { value: "cx-policy:Membership", label: "Membership" },
   { value: "cx-policy:FrameworkAgreement", label: "Framework Agreement" },
-  { value: "BusinessPartnerNumber", label: "Business Partner Number" },
+  { value: BPN_LEFT, label: "Business Partner Number" },
+  { value: BPN_GROUP_LEFT, label: "Business Partner Group" },
   { value: "cx-policy:UsagePurpose", label: "Usage Purpose" },
-  {
-    value: "https://w3id.org/kmx/v0.1/ns/transferCount",
-    label: "Transfer Count (공유 횟수)",
-  },
+  { value: TRANSFER_COUNT_LEFT, label: "Transfer Count (공유 횟수)" },
 ];
 
 const OPERATORS = [
@@ -78,6 +86,44 @@ const OPERATORS = [
   { value: "odrl:gt", label: "gt (>)" },
   { value: "odrl:lt", label: "lt (<)" },
 ];
+
+// kmx-edc 정책 정의 검증기(KmxPolicyDefinitionValidator)의 leftOperand 별 허용 operator.
+// 목록 밖 operator 는 정책 생성 시 커넥터가 400 으로 거부하므로 드롭다운을 분기한다.
+const TRANSFER_COUNT_OPERATORS = [
+  { value: "odrl:eq", label: "eq (=)" },
+  { value: "odrl:neq", label: "neq (!=)" },
+  { value: "odrl:lt", label: "lt (<)" },
+  { value: "odrl:lteq", label: "lteq (<=)" },
+  { value: "odrl:gt", label: "gt (>)" },
+  { value: "odrl:gteq", label: "gteq (>=)" },
+];
+const BPN_OPERATORS = [
+  { value: "odrl:eq", label: "eq (=)" },
+  { value: "odrl:neq", label: "neq (!=)" },
+  { value: "odrl:isPartOf", label: "isPartOf" },
+  { value: "odrl:isA", label: "isA" },
+  { value: "odrl:isAllOf", label: "isAllOf" },
+  { value: "odrl:isAnyOf", label: "isAnyOf" },
+  { value: "odrl:isNoneOf", label: "isNoneOf" },
+  { value: "odrl:hasPart", label: "hasPart" },
+];
+const BPN_GROUP_OPERATORS = [
+  { value: "odrl:eq", label: "eq (=)" },
+  { value: "odrl:neq", label: "neq (!=)" },
+  { value: "odrl:isPartOf", label: "isPartOf" },
+  { value: "odrl:isAllOf", label: "isAllOf" },
+  { value: "odrl:isAnyOf", label: "isAnyOf" },
+  { value: "odrl:isNoneOf", label: "isNoneOf" },
+];
+
+// catenax 2025/9 별칭 IRI(…/policy/BusinessPartnerNumber 등)도 kmx 검증기가 동일하게
+// 취급하므로 접미 일치로 판별 — 직접 타이핑한 별칭 IRI 에도 올바른 목록이 뜬다.
+function operatorsFor(leftOperand: string) {
+  if (leftOperand.endsWith("transferCount")) return TRANSFER_COUNT_OPERATORS;
+  if (leftOperand.endsWith("BusinessPartnerNumber")) return BPN_OPERATORS;
+  if (leftOperand.endsWith("BusinessPartnerGroup")) return BPN_GROUP_OPERATORS;
+  return OPERATORS;
+}
 
 interface PolicyTemplate {
   id: string;
@@ -126,29 +172,38 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
     action: "use",
     constraints: [
       {
-        leftOperand: "https://w3id.org/kmx/v0.1/ns/transferCount",
+        leftOperand: TRANSFER_COUNT_LEFT,
         operator: "odrl:lt",
         rightOperand: "5",
       },
     ],
   },
   {
-    id: "bpn-allowlist-bmw-vw",
-    label: "BPN Allowlist (BMW + VW)",
-    description: "지정된 BPN 두 곳만 사용 허가 (OR 결합).",
+    id: "bpn-allowlist",
+    label: "BPN Allowlist (isAnyOf)",
+    description: "지정된 BPN 목록에 속한 참여자에게만 사용 허가.",
     ruleType: "permission",
     action: "use",
-    logicOp: "or",
     constraints: [
       {
-        leftOperand: "BusinessPartnerNumber",
-        operator: "odrl:eq",
-        rightOperand: "BPNL000000000BMW",
+        leftOperand: BPN_LEFT,
+        operator: "odrl:isAnyOf",
+        rightOperand: "BPNL000000000CON,BPNL000000000002",
       },
+    ],
+  },
+  {
+    id: "bpn-group",
+    label: "BPN Group (fl-partners)",
+    description:
+      "BPN 그룹 'fl-partners' 소속 참여자에게만 사용 허가. 그룹 멤버십은 BPN 그룹 관리에서 등록.",
+    ruleType: "permission",
+    action: "use",
+    constraints: [
       {
-        leftOperand: "BusinessPartnerNumber",
-        operator: "odrl:eq",
-        rightOperand: "BPNL000000000VW",
+        leftOperand: BPN_GROUP_LEFT,
+        operator: "odrl:isAnyOf",
+        rightOperand: "fl-partners",
       },
     ],
   },
@@ -170,20 +225,6 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
         leftOperand: "cx-policy:FrameworkAgreement",
         operator: "odrl:eq",
         rightOperand: "DataExchangeGovernance:1.0",
-      },
-    ],
-  },
-  {
-    id: "prohibit-third-country-transfer",
-    label: "Prohibition: 3rd-country Transfer",
-    description: "특정 국가로의 데이터 전송 금지 (prohibition + transfer).",
-    ruleType: "prohibition",
-    action: "transfer",
-    constraints: [
-      {
-        leftOperand: "cx-policy:DataDestination",
-        operator: "odrl:in",
-        rightOperand: "CN,RU,KP",
       },
     ],
   },
@@ -210,7 +251,9 @@ const RIGHT_OPERAND_SUGGESTIONS: Record<string, string[]> = {
     "Traceability:1.0",
     "QualityManagement:1.0",
   ],
-  BusinessPartnerNumber: ["BPNL000000000BMW", "BPNL000000000VW"],
+  // 현행 데이터스페이스 참가자 BPN(provider/consumer/consumer2) — kmx-edc compose 기준.
+  [BPN_LEFT]: ["BPNL000000000CON", "BPNL000000000002", "BPNL000000000PRD"],
+  [BPN_GROUP_LEFT]: ["fl-partners"],
   "cx-policy:UsagePurpose": [
     "cx.core.digitalTwinRegistry:1",
     "cx.core.industrycore:1",
@@ -355,6 +398,7 @@ export default function PagePolicy() {
   const [editTarget, setEditTarget] = useState<Policy | null>(null);
   const [duplicateSource, setDuplicateSource] = useState<Policy | null>(null);
   const [jsonTarget, setJsonTarget] = useState<Policy | null>(null);
+  const [bpnGroupsOpen, setBpnGroupsOpen] = useState(false);
   const {
     data: policies = [],
     isLoading,
@@ -418,6 +462,13 @@ export default function PagePolicy() {
               busy={isFetching}
               label={t.common.refresh}
             />
+            <button
+              onClick={() => setBpnGroupsOpen(true)}
+              className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-md border border-border hover:bg-muted transition-colors text-muted-foreground font-medium"
+            >
+              <Users className="w-3 h-3" />
+              {t.policies.bpnGroups.button}
+            </button>
             <RoleGate permission="resource:write">
               <PrimaryActionButton
                 onClick={() => switchTab("builder")}
@@ -581,6 +632,14 @@ export default function PagePolicy() {
             ["policies", connectorId],
             ["sidebar-counts", connectorId],
           ]}
+        />
+      )}
+
+      {connectorId && (
+        <BpnGroupsDialog
+          connectorId={connectorId}
+          open={bpnGroupsOpen}
+          onClose={() => setBpnGroupsOpen(false)}
         />
       )}
     </>
@@ -1401,6 +1460,11 @@ function ODRLBuilder({
     const next = [...constraints];
     next[idx] = { ...next[idx], [field]: value };
     if (field === "leftOperand") {
+      // leftOperand 별 허용 operator 가 다르다(kmx 검증기) — 목록 밖이면 첫 허용값으로 보정.
+      const allowed = operatorsFor(value);
+      if (!allowed.some(o => o.value === next[idx].operator)) {
+        next[idx].operator = allowed[0].value;
+      }
       const suggestions = RIGHT_OPERAND_SUGGESTIONS[value];
       if (suggestions?.length) next[idx].rightOperand = suggestions[0];
     }
@@ -1426,10 +1490,22 @@ function ODRLBuilder({
   // action: 콜론 없으면 odrl: 접두 부여 후 { "@id" }. operator도 { "@id" }. logicOp 래핑은 다중 제약일 때만.
   const ruleKey = `odrl:${ruleType}`;
   const actionId = action.includes(":") ? action : `odrl:${action}`;
+  // 복수값 operator 는 서버(buildPolicyDefinition MULTI_VALUE_OPS)와 동일하게 배열로 직렬화.
+  const MULTI_VALUE_OPS = new Set([
+    "odrl:isAnyOf",
+    "odrl:isNoneOf",
+    "odrl:isAllOf",
+    "odrl:in",
+  ]);
   const constraintNodes = constraints.map(c => ({
     "odrl:leftOperand": c.leftOperand,
     "odrl:operator": { "@id": c.operator },
-    "odrl:rightOperand": c.rightOperand,
+    "odrl:rightOperand": MULTI_VALUE_OPS.has(c.operator)
+      ? c.rightOperand
+          .split(",")
+          .map(s => s.trim())
+          .filter(Boolean)
+      : c.rightOperand,
   }));
   const constraintField =
     constraints.length > 1
@@ -1758,7 +1834,7 @@ function ODRLBuilder({
                     }
                     className={inputBase}
                   >
-                    {OPERATORS.map(o => (
+                    {operatorsFor(c.leftOperand).map(o => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>
@@ -1769,8 +1845,12 @@ function ODRLBuilder({
                   {(() => {
                     // 비교 연산자(> / <)는 순서 있는 값(이 앱에선 숫자)에만 의미가 있으므로
                     // 입력 시점에 숫자 키패드 힌트 + 안내/경고를 제공한다(저장 전 사전 안내).
-                    const isCompare =
-                      c.operator === "odrl:gt" || c.operator === "odrl:lt";
+                    const isCompare = [
+                      "odrl:gt",
+                      "odrl:lt",
+                      "odrl:gteq",
+                      "odrl:lteq",
+                    ].includes(c.operator);
                     const numeric = /^-?\d+(\.\d+)?$/.test(
                       c.rightOperand.trim()
                     );

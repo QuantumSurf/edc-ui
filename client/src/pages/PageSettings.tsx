@@ -304,7 +304,15 @@ export default function PageSettings() {
               />
               <ProfileRow
                 label="EDC Runtime"
-                value={sysInfo?.edcRuntime ?? "—"}
+                value={
+                  sysInfo?.edcRuntime
+                    ? // fallback = 커넥터가 version API 를 노출하지 않아 번들 기준 추정치 —
+                      // 실측값처럼 보이지 않게 표기를 구분한다.
+                      sysInfo.edcRuntimeSource === "fallback"
+                      ? `${sysInfo.edcRuntime} ${t.settings.versionAssumed}`
+                      : sysInfo.edcRuntime
+                    : "—"
+                }
               />
               <ProfileRow
                 label="DSP Version"

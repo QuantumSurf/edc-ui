@@ -20,9 +20,22 @@ const router = Router();
 
 /* ─── EDC runtime version cache (queried lazily, refreshed every 1h) ───
  * 캐시를 테넌트별로 분리(키=tenantId) — 남의 테넌트 커넥터 자격증명으로 프로브하던
- * 전역 동작/전역 캐시 노출 제거(id 85). 자기 테넌트 커넥터만 사용. */
-const edcVersionCache = new Map<string, { value: string; expiresAt: number }>();
+ * 전역 동작/전역 캐시 노출 제거(id 85). 자기 테넌트 커넥터만 사용.
+ * source 를 함께 보관해 프로브 실패 시 폴백 상수임을 클라이언트에 표시한다
+ * (kmx-edc 0.17 런타임은 version API 를 노출하지 않아 프로브가 항상 실패 — 폴백을
+ *  실측값처럼 보여주지 않기 위함). */
+type EdcVersionSource = "env" | "probe" | "fallback";
+interface EdcVersionInfo {
+  value: string;
+  source: EdcVersionSource;
+}
+const edcVersionCache = new Map<
+  string,
+  { info: EdcVersionInfo; expiresAt: number }
+>();
 const EDC_VERSION_TTL_MS = 60 * 60 * 1000;
+// 프로브 실패 시 폴백 — 이 UI 가 계약을 맞춰 검증한 kmx-edc 번들 버전.
+const EDC_VERSION_FALLBACK = "v0.17.0";
 
 async function probeEdcVersion(tenantId: string): Promise<string | null> {
   try {
@@ -50,18 +63,24 @@ async function probeEdcVersion(tenantId: string): Promise<string | null> {
   }
 }
 
-async function getEdcRuntimeVersion(tenantId?: string): Promise<string> {
+async function getEdcRuntimeVersion(
+  tenantId?: string
+): Promise<EdcVersionInfo> {
   // Env override always wins.
-  if (process.env.EDC_RUNTIME_VERSION) return process.env.EDC_RUNTIME_VERSION;
+  if (process.env.EDC_RUNTIME_VERSION) {
+    return { value: process.env.EDC_RUNTIME_VERSION, source: "env" };
+  }
   // 테넌트가 없으면 프로브 없이 기본값 — 타 테넌트 커넥터 접근 방지.
-  if (!tenantId) return "v0.16.0";
+  if (!tenantId) return { value: EDC_VERSION_FALLBACK, source: "fallback" };
   const now = Date.now();
   const cached = edcVersionCache.get(tenantId);
-  if (cached && cached.expiresAt > now) return cached.value;
+  if (cached && cached.expiresAt > now) return cached.info;
   const probed = await probeEdcVersion(tenantId);
-  const value = probed ?? "v0.16.0";
-  edcVersionCache.set(tenantId, { value, expiresAt: now + EDC_VERSION_TTL_MS });
-  return value;
+  const info: EdcVersionInfo = probed
+    ? { value: probed, source: "probe" }
+    : { value: EDC_VERSION_FALLBACK, source: "fallback" };
+  edcVersionCache.set(tenantId, { info, expiresAt: now + EDC_VERSION_TTL_MS });
+  return info;
 }
 
 /* ─── Read connector-hub version from package.json once at boot ───── */
@@ -110,7 +129,10 @@ router.get("/info", async (req: Request, res: Response) => {
 
   res.json({
     connectorHub: connectorHubVersion,
-    edcRuntime,
+    edcRuntime: edcRuntime.value,
+    // "probe"=커넥터 실측, "env"=운영자 지정, "fallback"=번들 기준 추정치(커넥터가
+    // version API 를 노출하지 않음). 클라이언트는 fallback 을 추정치로 표기한다.
+    edcRuntimeSource: edcRuntime.source,
     dspVersion: process.env.DSP_VERSION ?? "2025-1",
     dcpVersion: process.env.DCP_VERSION ?? "1.0",
     managementApi: process.env.EDC_MANAGEMENT_API_VERSION ?? "v3",
