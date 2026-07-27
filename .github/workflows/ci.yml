@@ -112,33 +112,51 @@ jobs:
           retention-days: 7
 
   docker:
-    name: Docker Build & Push
+    name: Docker Build & Push (Harbor)
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v3
+      # Harbor 자격(HARBOR_USERNAME/HARBOR_PASSWORD 시크릿)이 아직 없으면 발행을 건너뛴다.
+      # 시크릿 미설정 상태에서 로그인이 실패해 main CI 전체가 red 가 되는 것을 막는다
+      # (팀이 로봇계정 시크릿을 추가하면 이후 push 부터 자동으로 발행이 켜진다).
+      - name: Harbor 자격 확인
+        id: creds
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+        run: |
+          if [ -n "$HARBOR_USERNAME" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::HARBOR_USERNAME 시크릿 미설정 — 이미지 발행을 건너뜁니다."
+          fi
 
-      - uses: docker/login-action@v3
+      - if: steps.creds.outputs.enabled == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - if: steps.creds.outputs.enabled == 'true'
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: harbor.quantum-x.co.kr
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
 
-      - uses: docker/metadata-action@v5
+      - if: steps.creds.outputs.enabled == 'true'
+        uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: harbor.quantum-x.co.kr/kmx/edc-ui
           tags: |
             type=sha,prefix=
             type=raw,value=latest
 
-      - uses: docker/build-push-action@v5
+      - if: steps.creds.outputs.enabled == 'true'
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true

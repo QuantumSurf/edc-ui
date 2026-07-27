@@ -10,15 +10,21 @@
 replicaCount: 2
 
 image:
-  # CI(.github/workflows/ci.yml)가 발행하는 실제 이미지. 배포 시 릴리스 태그(sha)로
-  # override 하는 것을 권장한다(불변 태그 → 롤백/재현 가능).
-  repository: ghcr.io/quantumsurf/edc-ui
+  # CI(.github/workflows/ci.yml)가 Harbor(kmx 프로젝트)로 발행하는 실제 이미지. 배포 시
+  # 릴리스 태그(sha)로 override 하는 것을 권장한다(불변 태그 → 롤백/재현 가능).
+  repository: harbor.quantum-x.co.kr/kmx/edc-ui
   # "latest" 는 가변 태그라 노드가 이미 캐시한 이미지를 재사용(IfNotPresent)하면 새
   # 릴리스가 반영되지 않는다. 가변 태그를 쓸 때는 Always, 불변 sha 태그면 IfNotPresent 로.
   tag: "latest"
   pullPolicy: Always
 
-imagePullSecrets: []
+# Harbor(kmx)는 사설 레지스트리 — 노드가 이미지를 pull 하려면 dockerconfigjson 시크릿이
+# 필요하다. 아래 이름의 시크릿을 배포 네임스페이스에 미리 생성한다(자격값은 커밋 금지):
+#   kubectl create secret docker-registry harbor-quantum-x \
+#     --docker-server=harbor.quantum-x.co.kr \
+#     --docker-username=<robot> --docker-password=<token>
+imagePullSecrets:
+  - name: harbor-quantum-x
 nameOverride: ""
 fullnameOverride: ""
 
