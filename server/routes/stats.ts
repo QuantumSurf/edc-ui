@@ -10,7 +10,7 @@ import {
 } from "express";
 import { getPool } from "../lib/db.js";
 import { getConnector } from "../lib/connectorRegistry.js";
-import { getEdcClient, withJsonLd } from "../lib/edcClient.js";
+import { getEdcClient, withJsonLd, EDC_QUERY_LIMIT } from "../lib/edcClient.js";
 import { getTransferCounts } from "../lib/edcStatsDb.js";
 
 const router = Router();
@@ -24,6 +24,37 @@ function readCreatedMs(o: Record<string, unknown>): number {
     o["edc:stateTimestamp"];
   const n = typeof v === "string" ? Date.parse(v) : Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+// 트렌드 응답 캐시 — 대시보드가 30초 폴링하므로(뷰어 수만큼 배가) EDC 전체 목록 재조회를
+// TTL 로 묶는다. 버킷이 1시간 단위라 60초 지연은 표시에 무해.
+const TREND_CACHE_TTL_MS = 60_000;
+const trendCache = new Map<string, { at: number; result: unknown }>();
+
+// 창 내 목록을 페이지로 끝까지 수집한다. withJsonLd 기본(최신순 DESC + 상한)만 쓰면 창 내
+// 데이터가 상한을 넘을 때 최신 N건만 집계돼 과거 버킷이 가짜 0 절벽이 된다(적대검증 확정).
+// 최신순이므로 페이지 마지막 항목이 cutoff 이전이면 창을 전부 덮은 것 → 중단.
+const TREND_MAX_PAGES = 10; // 폭주 방지 상한(페이지당 EDC_QUERY_LIMIT건)
+async function fetchListSince(
+  client: ReturnType<typeof getEdcClient>,
+  path: string,
+  cutoffMs: number
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  for (let page = 0; page < TREND_MAX_PAGES; page++) {
+    const resp = await client.post(
+      path,
+      withJsonLd({ limit: EDC_QUERY_LIMIT, offset: page * EDC_QUERY_LIMIT })
+    );
+    const list: Record<string, unknown>[] = Array.isArray(resp.data)
+      ? (resp.data as Record<string, unknown>[])
+      : [];
+    out.push(...list);
+    if (list.length < EDC_QUERY_LIMIT) break;
+    const oldest = readCreatedMs(list[list.length - 1]);
+    if (oldest !== 0 && oldest < cutoffMs) break;
+  }
+  return out;
 }
 
 // GET /:id/stats/trend?hours=24
@@ -42,7 +73,13 @@ router.get(
       // (과거: negotiation_metadata/transfer_metadata.started_at 기준 → UI가 '시작'한 커넥터에만
       //  기록돼, provider처럼 상대가 개시한 협상/전송이 mirror돼 있어도 트렌드가 비었다.
       //  EDC 목록은 해당 커넥터가 '당사자'인 협상/전송을 모두 포함하므로 provider·consumer 양쪽에
-      //  올바르게 반영된다. dashboard 조회 시에만 호출되므로 상시 부하는 아니다.)
+      //  올바르게 반영된다. 대시보드가 30초 폴링하므로 60초 캐시로 상시 부하를 상수화한다.)
+      const cacheKey = `${connectorId}:${hours}`;
+      const cached = trendCache.get(cacheKey);
+      if (cached && Date.now() - cached.at < TREND_CACHE_TTL_MS) {
+        res.json(cached.result);
+        return;
+      }
       const conn = await getConnector(connectorId);
       if (!conn) {
         res.json([]);
@@ -52,20 +89,13 @@ router.get(
         managementUrl: conn.managementUrl,
         apiKey: conn.apiKey,
       });
-      const [negResp, trResp] = await Promise.all([
-        client
-          .post("/v3/contractnegotiations/request", withJsonLd({}))
-          .catch(() => ({ data: [] as unknown[] })),
-        client
-          .post("/v3/transferprocesses/request", withJsonLd({}))
-          .catch(() => ({ data: [] as unknown[] })),
+      // 조회 실패는 무음 0 이 아니라 에러로 전파한다 — 빈 차트는 "데이터 없음"과 구분이 안 돼
+      // 장애를 숨긴다(적대검증). 창 기준 cutoff 는 버킷 집계와 동일 값을 쓴다.
+      const cutoff = Date.now() - hours * 3_600_000;
+      const [negList, trList] = await Promise.all([
+        fetchListSince(client, "/v3/contractnegotiations/request", cutoff),
+        fetchListSince(client, "/v3/transferprocesses/request", cutoff),
       ]);
-      const negList: Record<string, unknown>[] = Array.isArray(negResp.data)
-        ? (negResp.data as Record<string, unknown>[])
-        : [];
-      const trList: Record<string, unknown>[] = Array.isArray(trResp.data)
-        ? (trResp.data as Record<string, unknown>[])
-        : [];
 
       // 시간 슬롯 생성 (현재 시각 기준 hours개)
       // 라벨은 KST(Asia/Seoul)로 명시 포맷 — d.getHours()는 서버 프로세스 로컬 TZ(컨테이너
@@ -90,7 +120,6 @@ router.get(
       }
 
       // createdAt(epoch ms) → 시간버킷(epochH) 카운트. 최근 hours 범위만.
-      const cutoff = Date.now() - hours * 3_600_000;
       const bucketCounts = (list: Record<string, unknown>[]) => {
         const m = new Map<number, number>();
         for (const it of list) {
@@ -110,6 +139,13 @@ router.get(
         transfers: trMap.get(s.epochH) ?? 0,
       }));
 
+      trendCache.set(cacheKey, { at: Date.now(), result });
+      // 캐시 무한 증가 방지 — 커넥터×기간 조합이 쌓이면 만료분만 정리.
+      if (trendCache.size > 200) {
+        for (const [k, v] of trendCache) {
+          if (Date.now() - v.at >= TREND_CACHE_TTL_MS) trendCache.delete(k);
+        }
+      }
       res.json(result);
     } catch (error) {
       next(error);

@@ -31,6 +31,56 @@ async function resolveConnector(id: string) {
   };
 }
 
+// dataAddress 시크릿 필드 — 편집 화면이 보안상 비워서 시작하고 저장 시 생략하는 값들.
+const SECRET_DA_FIELDS = [
+  "accessKeyId",
+  "secretAccessKey",
+  "authCode",
+] as const;
+
+/** JSON-LD compact 응답에서 필드를 관용적으로 추출(접두/전체 IRI 허용). */
+function pickDaField(obj: Record<string, unknown>, name: string): unknown {
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === name || k.endsWith(`:${name}`) || k.endsWith(`/${name}`))
+      return v;
+  }
+  return undefined;
+}
+
+// EDC 의 자산 PUT 은 dataAddress 를 병합이 아니라 통째로 교체한다(적대검증 실측 확정).
+// 편집 화면은 시크릿(S3 자격증명·authCode)을 비워 시작하고 저장 시 생략하므로, 그대로
+// PUT 하면 objectName 하나만 바꿔도 자격증명이 소실돼 이후 전송이 인증 실패한다.
+// → 생략된 시크릿 필드는 기존 자산에서 읽어 보존한다("미입력 = 기존 값 유지" 시맨틱 실현).
+async function preserveOmittedSecrets(
+  client: ReturnType<typeof getEdcClient>,
+  assetId: string,
+  edcBody: Record<string, unknown>
+): Promise<void> {
+  const da = edcBody["dataAddress"] as Record<string, unknown> | undefined;
+  if (!da) return;
+  const missing = SECRET_DA_FIELDS.filter(f => da[f] === undefined);
+  if (missing.length === 0) return;
+  let cur: Record<string, unknown>;
+  try {
+    cur = (await client.get(`/v3/assets/${encodeURIComponent(assetId)}`))
+      .data as Record<string, unknown>;
+  } catch {
+    return; // 기존 자산 조회 실패(신규 등) — 병합만 생략하고 PUT 은 그대로 진행
+  }
+  const curDaRaw = pickDaField(cur, "dataAddress");
+  const curDa = (Array.isArray(curDaRaw) ? curDaRaw[0] : curDaRaw) as
+    | Record<string, unknown>
+    | undefined;
+  if (!curDa || typeof curDa !== "object") return;
+  // 타입 변경(HttpData→AmazonS3 등) 시 기존 시크릿은 다른 스키마의 값이라 보존하지 않는다.
+  const curType = String(pickDaField(curDa, "type") ?? "");
+  if (curType && curType !== String(da["type"] ?? "")) return;
+  for (const f of missing) {
+    const v = pickDaField(curDa, f);
+    if (typeof v === "string" && v) da[f] = v;
+  }
+}
+
 // 서버 측 자산 입력 검증(이중 방어) — 클라이언트 검증을 우회한 직접 API 호출로도 깨진
 // 자산이 EDC에 저장되는 것을 막는다. 단, 기존 정상 데이터를 깨지 않도록 보수적으로:
 //  - baseUrl은 'https 강제'가 아니라 '파싱 가능한 URL'만 확인(내부 클러스터 http 주소 보존).
@@ -172,6 +222,8 @@ router.put(
         req.body as Record<string, unknown>,
         req.params.assetId
       );
+      // 생략된 시크릿(S3 자격증명·authCode)은 기존 값 보존 — EDC PUT 은 전체 교체라 필수.
+      await preserveOmittedSecrets(client, req.params.assetId, edcBody);
       const response = await client.put("/v3/assets", edcBody);
       res.json(response.data);
     } catch (error) {
