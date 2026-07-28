@@ -14,7 +14,14 @@ import {
   fetchTransferData,
   deleteAllTransfers,
   fetchEDRs,
+  startBulkTransfer,
+  cancelBulkTransfer,
 } from "@/services";
+import {
+  useTransferProgress,
+  type TransferProgressSnapshot,
+} from "@/hooks/useTransferProgress";
+import { TransferProgress } from "@/components/TransferProgress";
 import { SINK_TYPES, type Transfer, isTransferActive } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { DataTablePagination } from "@/components/DataTablePagination";
@@ -261,6 +268,55 @@ export default function PageTransfer() {
   const connector = useConnectorStore(s => s.connector);
   const connectorId = connector?.id;
   const queryClient = useQueryClient();
+
+  // 대량 데이터 전송(실시간) — 상세 시트에서 시작/취소, SSE 로 진행률 구독.
+  const [bulkWatchTp, setBulkWatchTp] = useState<string | null>(null);
+  const [bulkStarting, setBulkStarting] = useState(false);
+  const [bulkCanceling, setBulkCanceling] = useState(false);
+  const { snapshot: bulkSnapshot } = useTransferProgress(
+    connectorId ?? null,
+    bulkWatchTp,
+    !!bulkWatchTp
+  );
+
+  async function handleStartBulk(tpId: string) {
+    if (!connectorId) return;
+    setBulkStarting(true);
+    try {
+      const dataSink: Record<string, string> = {};
+      if (s3Bucket) dataSink.bucketName = s3Bucket;
+      if (s3Region) dataSink.region = s3Region;
+      if (s3Endpoint) dataSink.endpointOverride = s3Endpoint;
+      if (s3AccessKeyId) dataSink.accessKeyId = s3AccessKeyId;
+      if (s3SecretKey) dataSink.secretAccessKey = s3SecretKey;
+      await startBulkTransfer(tpId, connectorId, {
+        dataSink,
+        objectName: s3ObjectName || undefined,
+      });
+      setBulkWatchTp(tpId);
+      toast.success(t.transfers.bulk.startedToast);
+    } catch (e) {
+      const msg =
+        (e as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error ?? (e as Error).message;
+      toast.error(t.transfers.bulk.startFailed, { description: msg });
+    } finally {
+      setBulkStarting(false);
+    }
+  }
+
+  async function handleCancelBulk(tpId: string) {
+    if (!connectorId) return;
+    setBulkCanceling(true);
+    try {
+      await cancelBulkTransfer(tpId, connectorId);
+      toast.success(t.transfers.bulk.canceledToast);
+    } catch {
+      /* 취소 실패는 조용히 — 진행 스냅샷이 상태를 반영 */
+    } finally {
+      setBulkCanceling(false);
+    }
+  }
 
   // 첫 로드 여부 추적 — 초기 스냅샷의 TERMINATED는 toast 제외
   const initializedRef = useRef(false);
@@ -622,6 +678,15 @@ export default function PageTransfer() {
           }
           onComplete={() => handleComplete(liveDetailTarget.id)}
           onTerminate={() => handleTerminate(liveDetailTarget.id)}
+          bulkSnapshot={
+            bulkSnapshot && bulkSnapshot.transferId === liveDetailTarget.id
+              ? bulkSnapshot
+              : null
+          }
+          onStartBulk={() => handleStartBulk(liveDetailTarget.id)}
+          onCancelBulk={() => handleCancelBulk(liveDetailTarget.id)}
+          bulkStarting={bulkStarting}
+          bulkCanceling={bulkCanceling}
         />
       )}
 
@@ -1103,6 +1168,11 @@ function TransferDetailSheet({
   onFetch,
   onComplete,
   onTerminate,
+  bulkSnapshot,
+  onStartBulk,
+  onCancelBulk,
+  bulkStarting,
+  bulkCanceling,
 }: {
   target: Transfer;
   startedNoEdr: boolean;
@@ -1110,6 +1180,11 @@ function TransferDetailSheet({
   onFetch: () => void;
   onComplete: () => void;
   onTerminate: () => void;
+  bulkSnapshot: TransferProgressSnapshot | null;
+  onStartBulk: () => void;
+  onCancelBulk: () => void;
+  bulkStarting: boolean;
+  bulkCanceling: boolean;
 }) {
   const { t } = useI18n();
   const stateLabel =
@@ -1195,6 +1270,35 @@ function TransferDetailSheet({
                 {target.errorDetail}
               </p>
             </div>
+          </div>
+        )}
+
+        {/* 대량 데이터 전송(실시간 진행률) — 소스 pull → S3/MinIO 스트리밍 */}
+        {(target.name === "STARTED" || bulkSnapshot) && (
+          <div className="space-y-2 pt-1">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+              {t.transfers.bulk.title}
+            </p>
+            {bulkSnapshot ? (
+              <TransferProgress
+                snapshot={bulkSnapshot}
+                onCancel={onCancelBulk}
+                canceling={bulkCanceling}
+              />
+            ) : (
+              <RoleGate permission="transaction:write">
+                <button
+                  onClick={onStartBulk}
+                  disabled={bulkStarting}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors disabled:opacity-50"
+                >
+                  <Send size={13} />{" "}
+                  {bulkStarting
+                    ? t.transfers.bulk.starting
+                    : t.transfers.bulk.start}
+                </button>
+              </RoleGate>
+            )}
           </div>
         )}
       </div>

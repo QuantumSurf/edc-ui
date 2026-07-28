@@ -19,6 +19,7 @@ import type {
   SemanticModel,
   SemanticModelSummary,
 } from "@/lib/data";
+import type { TransferProgressSnapshot } from "@/hooks/useTransferProgress";
 
 // withCredentials: 세션은 httpOnly 쿠키(kmx_token)로 운반되므로 쿠키를 함께 전송하도록 명시.
 const http = axios.create({
@@ -506,6 +507,37 @@ export async function deleteAllTransfers(
   connectorId: string
 ): Promise<{ deleted: number }> {
   const { data } = await http.delete(`/connectors/${connectorId}/transfers`);
+  return data;
+}
+
+export interface BulkTransferInput {
+  dataSink?: Record<string, string>;
+  objectName?: string;
+  files?: Array<{ path?: string; name?: string; size?: number }>;
+}
+
+/** 대량 데이터 전송 시작(소스 pull → S3/MinIO 스트리밍). 초기 진행 스냅샷 반환. */
+export async function startBulkTransfer(
+  tpId: string,
+  connectorId: string,
+  input: BulkTransferInput
+): Promise<TransferProgressSnapshot> {
+  const { data } = await http.post(
+    `/connectors/${connectorId}/transfers/${tpId}/bulk-transfer`,
+    input
+  );
+  return data;
+}
+
+/** 진행 중 대량 전송 취소. */
+export async function cancelBulkTransfer(
+  tpId: string,
+  connectorId: string
+): Promise<{ canceled: boolean }> {
+  const { data } = await http.post(
+    `/connectors/${connectorId}/transfers/${tpId}/cancel`,
+    {}
+  );
   return data;
 }
 

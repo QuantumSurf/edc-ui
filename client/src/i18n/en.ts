@@ -596,6 +596,34 @@ const en: Translations = {
     sinkType: "Sink Type",
     endpointUrl: "Endpoint URL",
     containerName: "Container Name",
+    // Bulk data transfer (realtime progress)
+    bulk: {
+      title: "Bulk Data Transfer",
+      start: "Start Bulk Transfer",
+      starting: "Starting...",
+      cancel: "Cancel",
+      canceling: "Canceling...",
+      overall: "Overall",
+      currentFile: "Current file",
+      speed: "Speed",
+      eta: "Time left",
+      computing: "Calculating...",
+      filesProgress: (done: number, total: number) =>
+        `${done} of ${total} files`,
+      ofValue: (a: string, b: string) => `${a} / ${b}`,
+      etaValue: (h: number, m: number, s: number) =>
+        h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`,
+      startedToast: "Bulk transfer started.",
+      startFailed: "Failed to start bulk transfer.",
+      canceledToast: "Transfer canceled.",
+      states: {
+        PENDING: "Pending",
+        RUNNING: "Transferring",
+        COMPLETED: "Completed",
+        FAILED: "Failed",
+        CANCELED: "Canceled",
+      },
+    },
     fsmCodes: "State Codes",
     states: {
       REQUESTING: "Requesting",

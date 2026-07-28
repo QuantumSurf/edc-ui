@@ -600,6 +600,34 @@ const ko = {
     sinkType: "Sink 유형",
     endpointUrl: "엔드포인트 URL",
     containerName: "컨테이너 이름",
+    // 대량 데이터 전송(실시간 진행률)
+    bulk: {
+      title: "대량 데이터 전송",
+      start: "대량 전송 시작",
+      starting: "전송 시작 중...",
+      cancel: "취소",
+      canceling: "취소 중...",
+      overall: "전체",
+      currentFile: "현재 파일",
+      speed: "속도",
+      eta: "남은 시간",
+      computing: "계산 중...",
+      filesProgress: (done: number, total: number) =>
+        `${total}개 파일 중 ${done}개`,
+      ofValue: (a: string, b: string) => `${a} / ${b}`,
+      etaValue: (h: number, m: number, s: number) =>
+        h > 0 ? `${h}시간 ${m}분` : m > 0 ? `${m}분 ${s}초` : `${s}초`,
+      startedToast: "대량 전송을 시작했습니다.",
+      startFailed: "대량 전송 시작에 실패했습니다.",
+      canceledToast: "전송을 취소했습니다.",
+      states: {
+        PENDING: "대기 중",
+        RUNNING: "전송 중",
+        COMPLETED: "완료",
+        FAILED: "실패",
+        CANCELED: "취소됨",
+      },
+    },
     fsmCodes: "상태 코드",
     states: {
       REQUESTING: "요청 전송 중",
