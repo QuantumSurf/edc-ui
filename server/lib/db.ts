@@ -197,6 +197,35 @@ async function createSchema(): Promise<void> {
   await getPool().query(
     `CREATE INDEX IF NOT EXISTS idx_transfer_progress_connector ON transfer_progress(connector_id);`
   );
+
+  // 대량 전송 재개(resume) — 프로세스 크래시/재기동 후 진행 중이던 전송을 이어받는다.
+  // transfer_job: 재구성용 잡 플랜(파일 목록·objectName·S3 비밀아닌 목적지). 자격(S3 키)은
+  //   저장하지 않는다 → 재개는 S3 자격이 env 로 있을 때만 가능(요청별 dataSink 시크릿은 소실).
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS transfer_job (
+      transfer_id   TEXT NOT NULL,
+      connector_id  TEXT NOT NULL,
+      plan          JSONB NOT NULL, -- { files:[{path,name,size}], objectName, s3:{bucket,region,endpoint,forcePathStyle} }
+      status        TEXT NOT NULL DEFAULT 'RUNNING', -- RUNNING|DONE (DONE=재개 대상 아님)
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (transfer_id, connector_id)
+    );
+  `);
+  // transfer_multipart: 객체별 S3 멀티파트 상태(uploadId + 완료 파트). 재개 시 ListParts 로
+  //   S3 를 authoritative 로 재조정한 뒤 남은 파트만 이어 올린다.
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS transfer_multipart (
+      transfer_id   TEXT NOT NULL,
+      connector_id  TEXT NOT NULL,
+      object_key    TEXT NOT NULL,
+      upload_id     TEXT NOT NULL,
+      part_size     BIGINT NOT NULL,
+      parts         JSONB NOT NULL DEFAULT '[]', -- [{PartNumber,ETag,Size}]
+      completed     BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (transfer_id, connector_id, object_key)
+    );
+  `);
   await getPool().query(
     `CREATE INDEX IF NOT EXISTS idx_negotiation_meta_connector ON negotiation_metadata(connector_id);`
   );

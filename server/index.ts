@@ -14,6 +14,7 @@ import { pruneAuditLogs } from "./lib/audit.js";
 import { pruneFieldHistory } from "./lib/fieldHistory.js";
 import { pruneEdrTokens } from "./lib/edrRefresh.js";
 import { startPubSub, stopPubSub } from "./lib/pubsub.js";
+import { resumePendingTransfers } from "./lib/bulkTransferService.js";
 import { assertAuthConfig } from "./lib/auth.js";
 import { assertOidcConfig } from "./lib/oidc.js";
 
@@ -49,6 +50,12 @@ async function startServer() {
   // 크로스 레플리카 캐시 무효화(pg LISTEN/NOTIFY) — 알림 설정 변경을 타 레플리카가 즉시 반영.
   // 실패해도 각 캐시 TTL 이 폴백이라 앱은 계속 동작한다.
   void startPubSub();
+
+  // 대량 전송 크래시 재개 — 재기동 전에 진행 중이던(RUNNING) 전송을 저장된 멀티파트 상태로
+  // 이어받는다(ListParts 재조정 → 남은 파트만). S3 자격이 env 로 있어야 재개 가능. best-effort.
+  resumePendingTransfers().catch(err =>
+    console.error("[resume] failed to start:", err)
+  );
 
   // Background watcher for system-event notifications (negotiation TERMINATED,
   // transfer COMPLETED/TERMINATED, EDR expiring, VC expiring, connector unreachable).

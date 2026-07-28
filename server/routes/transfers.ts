@@ -24,17 +24,18 @@ import { requireRole } from "../middleware/auth.js";
 import { assertEndpointPublic } from "../middleware/validation.js";
 import { pullEdrData, evictEdrTokens } from "../lib/edrRefresh.js";
 import {
-  startBulkTransfer,
   cancelBulkTransfer,
   subscribe,
   getSnapshot,
-  createS3Uploader,
-  type SourceFile,
   type ProgressSnapshot,
 } from "../lib/transferWorker.js";
 import { resolveS3Target, isS3TargetUsable } from "../lib/s3.js";
-import { persistSnapshot, readSnapshot } from "../lib/transferProgressStore.js";
-import type { Readable } from "node:stream";
+import { readSnapshot } from "../lib/transferProgressStore.js";
+import {
+  startBulkFromPlan,
+  type JobPlan,
+  type JobPlanFile,
+} from "../lib/bulkTransferService.js";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
@@ -443,7 +444,6 @@ router.post(
     try {
       const connectorId = req.params.id;
       const tpId = req.params.tpId;
-      const { client } = await resolveConnector(connectorId);
 
       // S3 목적지 해석(dataSink 우선, env 폴백). 버킷/자격 없으면 시작 불가.
       const s3 = resolveS3Target(
@@ -457,44 +457,15 @@ router.post(
         return;
       }
 
-      // EDR DataAddress(endpoint + token) 조회.
-      const edrRes = await client.get(`/v3/edrs/${tpId}/dataaddress`);
-      const edr = edrRes.data as Record<string, unknown>;
-      const endpoint = edr["endpoint"] as string;
-      const token = edr["authorization"] as string;
-      if (!endpoint || !token) {
-        res
-          .status(404)
-          .json({ error: "EDR not found or expired for this transfer" });
-        return;
-      }
-
-      // 소스 파일 목록 — files 제공 시 각 하위경로(매니페스트), 없으면 단일 객체(기본값).
+      // 잡 플랜 구성 — 재구성용 파일 키/경로/크기 + 비밀 아닌 목적지(자격 미저장).
+      // files 제공 시 각 하위경로(매니페스트), 없으면 단일 객체(기본값).
       const objectPrefix =
         typeof req.body?.objectName === "string" ? req.body.objectName : "";
       const specs: Array<{ path?: string; name?: string; size?: number }> =
         Array.isArray(req.body?.files) && req.body.files.length
           ? req.body.files
           : [{ name: objectPrefix || "data" }];
-
-      const files: SourceFile[] = [];
-      for (let i = 0; i < specs.length; i++) {
-        const spec = specs[i];
-        const targetUrl = appendProxyPath(endpoint, spec.path, undefined);
-        if (targetUrl === null) {
-          res
-            .status(400)
-            .json({ error: "file.path must be a relative sub-path" });
-          return;
-        }
-        // 각 소스 URL 을 미리 SSRF 검증(미신뢰 provider EDR endpoint → 사설/메타 차단).
-        const ssrf = await assertEndpointPublic(targetUrl);
-        if (ssrf) {
-          res
-            .status(502)
-            .json({ error: `Rejected EDR data endpoint: ${ssrf}` });
-          return;
-        }
+      const planFiles: JobPlanFile[] = specs.map((spec, i) => {
         const name =
           spec.name ||
           (spec.path ? spec.path.replace(/^\/+/, "") : "") ||
@@ -503,51 +474,35 @@ router.post(
           objectPrefix && specs.length > 1
             ? `${objectPrefix.replace(/\/+$/, "")}/${name}`
             : name;
-        files.push({
-          name: key,
+        return {
+          path: spec.path,
+          key,
           size:
             typeof spec.size === "number" && spec.size >= 0
               ? spec.size
               : undefined,
-          open: async () => {
-            const r = await pullEdrData(
-              client,
-              connectorId,
-              tpId,
-              targetUrl,
-              edr,
-              {
-                responseType: "stream",
-                maxRedirects: 0,
-                // 스트리밍이라 전량 버퍼링 없음 → 대량 허용(총량 상한 미적용).
-                maxContentLength: Infinity,
-                maxBodyLength: Infinity,
-              }
-            );
-            return r.data as Readable;
-          },
-        });
-      }
+        };
+      });
+      const plan: JobPlan = {
+        connectorId,
+        transferId: tpId,
+        files: planFiles,
+        objectName: objectPrefix || undefined,
+        s3: {
+          bucket: s3.bucket,
+          region: s3.region,
+          endpoint: s3.endpoint,
+          forcePathStyle: s3.forcePathStyle,
+        },
+      };
 
-      let snap: ProgressSnapshot;
-      try {
-        snap = startBulkTransfer({
-          connectorId,
-          transferId: tpId,
-          files,
-          uploader: createS3Uploader(s3),
-          onProgress: s => void persistSnapshot(s),
-        });
-      } catch (e) {
-        if (/too many/i.test((e as Error).message)) {
-          res
-            .status(429)
-            .json({ error: "too many active transfers, retry later" });
-          return;
-        }
-        throw e;
+      // 시작(또는 크래시 재개와 동일 경로) — SSRF/EDR 검증·재개 업로더는 서비스가 담당.
+      const r = await startBulkFromPlan(plan, s3);
+      if (r.error) {
+        res.status(r.status ?? 500).json({ error: r.error });
+        return;
       }
-      res.status(202).json(snap);
+      res.status(202).json(r.snapshot);
     } catch (error) {
       next(error);
     }
