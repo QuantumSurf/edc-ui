@@ -628,6 +628,7 @@ const ko = {
         "계약(EDC) 전송은 계속 활성입니다 — 다시 시작하거나 강제 종료하세요.",
       startedToast: "대량 전송을 시작했습니다.",
       startFailed: "대량 전송 시작에 실패했습니다.",
+      tooMany: "동시 전송이 많습니다. 잠시 후 다시 시도하세요.",
       canceledToast: "전송을 취소했습니다.",
       states: {
         PENDING: "대기 중",

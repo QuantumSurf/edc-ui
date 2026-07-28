@@ -3,6 +3,7 @@
 
 import { useI18n } from "@/i18n";
 import { ProgressBar } from "@/components/ui-kmx";
+import { RoleGate } from "@/components/RoleGate";
 import {
   formatBytes,
   formatSpeed,
@@ -54,13 +55,15 @@ export function TransferProgress({ snapshot, onCancel, canceling }: Props) {
           )}
         </div>
         {running && onCancel && (
-          <button
-            onClick={onCancel}
-            disabled={canceling}
-            className="px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-100 dark:hover:bg-red-500/15 rounded-md transition-colors disabled:opacity-50"
-          >
-            {canceling ? b.canceling : b.cancel}
-          </button>
+          <RoleGate permission="transaction:write">
+            <button
+              onClick={onCancel}
+              disabled={canceling}
+              className="px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-100 dark:hover:bg-red-500/15 rounded-md transition-colors disabled:opacity-50"
+            >
+              {canceling ? b.canceling : b.cancel}
+            </button>
+          </RoleGate>
         )}
       </div>
 
@@ -104,6 +107,16 @@ export function TransferProgress({ snapshot, onCancel, canceling }: Props) {
           </div>
           <ProgressBar value={filePct ?? 0} colorClass={color} />
         </div>
+      )}
+
+      {/* 단일 파일이면 현재 바 대신 오브젝트 키만 한 줄 표기(무엇을 올리는지 식별). */}
+      {!multi && snapshot.currentFile && (
+        <p
+          className="text-[11px] text-muted-foreground truncate"
+          title={snapshot.currentFile}
+        >
+          {b.currentFile}: {snapshot.currentFile}
+        </p>
       )}
 
       {/* 진행 중일 때만 속도·남은시간(터미널에선 정지값 박제·'0초'를 피해 숨긴다) */}

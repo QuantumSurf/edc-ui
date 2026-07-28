@@ -624,6 +624,7 @@ const en: Translations = {
         "The contract (EDC) transfer is still active — restart or force-terminate it.",
       startedToast: "Bulk transfer started.",
       startFailed: "Failed to start bulk transfer.",
+      tooMany: "Too many concurrent transfers. Please try again shortly.",
       canceledToast: "Transfer canceled.",
       states: {
         PENDING: "Pending",

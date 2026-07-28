@@ -23,6 +23,7 @@ import {
   type TransferProgressSnapshot,
 } from "@/hooks/useTransferProgress";
 import { TransferProgress } from "@/components/TransferProgress";
+import { useCan } from "@/lib/rbac";
 import { SINK_TYPES, type Transfer, isTransferActive } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { DataTablePagination } from "@/components/DataTablePagination";
@@ -277,6 +278,7 @@ export default function PageTransfer() {
   const connector = useConnectorStore(s => s.connector);
   const connectorId = connector?.id;
   const queryClient = useQueryClient();
+  const canWrite = useCan("transaction:write");
 
   // 대량 데이터 전송(실시간) — 상세 시트에서 시작/취소, SSE 로 진행률 구독.
   const [bulkWatchTp, setBulkWatchTp] = useState<string | null>(null);
@@ -312,10 +314,16 @@ export default function PageTransfer() {
       setBulkWatchTp(tpId);
       toast.success(t.transfers.bulk.startedToast);
     } catch (e) {
-      const msg =
-        (e as { response?: { data?: { error?: string } } })?.response?.data
-          ?.error ?? (e as Error).message;
-      toast.error(t.transfers.bulk.startFailed, { description: msg });
+      const err = e as {
+        response?: { status?: number; data?: { error?: string } };
+      };
+      if (err?.response?.status === 429) {
+        // 동시 상한 초과 — 일시적. 일반 실패로 오인하지 않게 전용 안내.
+        toast.error(t.transfers.bulk.tooMany);
+      } else {
+        const msg = err?.response?.data?.error ?? (e as Error).message;
+        toast.error(t.transfers.bulk.startFailed, { description: msg });
+      }
     } finally {
       setBulkStarting(false);
     }
@@ -740,6 +748,7 @@ export default function PageTransfer() {
           bulkCanceling={bulkCanceling}
           bulkDest={bulkDest}
           setBulkDest={setBulkDest}
+          canWrite={canWrite}
         />
       )}
 
@@ -1228,6 +1237,7 @@ function TransferDetailSheet({
   bulkCanceling,
   bulkDest,
   setBulkDest,
+  canWrite,
 }: {
   target: Transfer;
   startedNoEdr: boolean;
@@ -1242,6 +1252,7 @@ function TransferDetailSheet({
   bulkCanceling: boolean;
   bulkDest: BulkDest;
   setBulkDest: React.Dispatch<React.SetStateAction<BulkDest>>;
+  canWrite: boolean;
 }) {
   const { t } = useI18n();
   const stateLabel =
@@ -1330,8 +1341,9 @@ function TransferDetailSheet({
           </div>
         )}
 
-        {/* 대량 데이터 전송(실시간 진행률) — 소스 pull → S3/MinIO 스트리밍 */}
-        {(target.name === "STARTED" || bulkSnapshot) && (
+        {/* 대량 데이터 전송(실시간 진행률) — 소스 pull → S3/MinIO 스트리밍.
+            viewer(쓰기권한 없음)는 진행 중 스냅샷이 있을 때만 노출(빈 헤딩 방지). */}
+        {((target.name === "STARTED" && canWrite) || bulkSnapshot) && (
           <div className="space-y-2 pt-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
               {t.transfers.bulk.title}
