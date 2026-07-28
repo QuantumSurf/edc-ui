@@ -137,6 +137,7 @@ async function buildSourceFiles(
           headers: { Authorization: `Bearer ${edr["authorization"] ?? ""}` },
           timeout: 5000,
           maxRedirects: 0,
+          validateStatus: s => s === 200, // 200 이 아니면 신뢰하지 않음(404 본문 길이 오용 방지)
         });
         const len = Number(head.headers["content-length"]);
         if (Number.isFinite(len) && len > 0) size = len;

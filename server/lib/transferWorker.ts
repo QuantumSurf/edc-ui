@@ -283,17 +283,25 @@ async function runJob(job: Job, params: BulkTransferParams): Promise<void> {
         loaded => {
           job.snap.currentFileBytes = loaded;
           job.snap.transferredBytes = doneBytes + loaded;
+          // 총량 추정(HEAD)이 실제보다 작으면(부정확 HEAD) 실측으로 끌어올려 % 왜곡/역행 방지.
+          if (
+            job.snap.totalBytes != null &&
+            job.snap.transferredBytes > job.snap.totalBytes
+          )
+            job.snap.totalBytes = job.snap.transferredBytes;
         },
         job.abort.signal
       );
-      // 파일 크기가 미상이었으면 실제 전송량으로 확정.
-      doneBytes += f.size ?? job.snap.currentFileBytes;
+      // 최종 누적은 '실제 업로드된 바이트'로 확정한다(선언 size 는 부정확할 수 있으므로 신뢰 안 함).
+      doneBytes += job.snap.currentFileBytes;
       job.snap.transferredBytes = doneBytes;
       job.snap.filesDone = i + 1;
     }
     job.snap.state = "COMPLETED";
     job.snap.currentFile = null;
-    if (job.snap.totalBytes == null) job.snap.totalBytes = doneBytes;
+    // 총량 미상이거나 추정이 실측보다 작았으면 실측으로 확정(완료 시 100% 정합).
+    if (job.snap.totalBytes == null || job.snap.totalBytes < doneBytes)
+      job.snap.totalBytes = doneBytes;
     job.snap.etaSec = 0;
   } catch (e) {
     job.snap.state = job.canceled ? "CANCELED" : "FAILED";
