@@ -210,6 +210,14 @@ function DataViewer({
 }
 
 /* ── component ────────────────────────────────────────────────── */
+type BulkDest = {
+  bucket: string;
+  endpoint: string;
+  accessKeyId: string;
+  secretKey: string;
+  objectName: string;
+};
+
 export default function PageTransfer() {
   const { t } = useI18n();
   const search = useSearch();
@@ -274,6 +282,14 @@ export default function PageTransfer() {
   const [bulkWatchTp, setBulkWatchTp] = useState<string | null>(null);
   const [bulkStarting, setBulkStarting] = useState(false);
   const [bulkCanceling, setBulkCanceling] = useState(false);
+  // 대량 전송 목적지 — DataSink(EDC 전송) 폼과 분리된 전용 상태(입력을 상세 시트 안에 둔다).
+  const [bulkDest, setBulkDest] = useState<BulkDest>({
+    bucket: "",
+    endpoint: "",
+    accessKeyId: "",
+    secretKey: "",
+    objectName: "",
+  });
   const { snapshot: bulkSnapshot } = useTransferProgress(
     connectorId ?? null,
     bulkWatchTp,
@@ -285,14 +301,13 @@ export default function PageTransfer() {
     setBulkStarting(true);
     try {
       const dataSink: Record<string, string> = {};
-      if (s3Bucket) dataSink.bucketName = s3Bucket;
-      if (s3Region) dataSink.region = s3Region;
-      if (s3Endpoint) dataSink.endpointOverride = s3Endpoint;
-      if (s3AccessKeyId) dataSink.accessKeyId = s3AccessKeyId;
-      if (s3SecretKey) dataSink.secretAccessKey = s3SecretKey;
+      if (bulkDest.bucket) dataSink.bucketName = bulkDest.bucket;
+      if (bulkDest.endpoint) dataSink.endpointOverride = bulkDest.endpoint;
+      if (bulkDest.accessKeyId) dataSink.accessKeyId = bulkDest.accessKeyId;
+      if (bulkDest.secretKey) dataSink.secretAccessKey = bulkDest.secretKey;
       await startBulkTransfer(tpId, connectorId, {
         dataSink,
-        objectName: s3ObjectName || undefined,
+        objectName: bulkDest.objectName || undefined,
       });
       setBulkWatchTp(tpId);
       toast.success(t.transfers.bulk.startedToast);
@@ -723,6 +738,8 @@ export default function PageTransfer() {
           onCancelBulk={() => handleCancelBulk(liveDetailTarget.id)}
           bulkStarting={bulkStarting}
           bulkCanceling={bulkCanceling}
+          bulkDest={bulkDest}
+          setBulkDest={setBulkDest}
         />
       )}
 
@@ -1209,6 +1226,8 @@ function TransferDetailSheet({
   onCancelBulk,
   bulkStarting,
   bulkCanceling,
+  bulkDest,
+  setBulkDest,
 }: {
   target: Transfer;
   startedNoEdr: boolean;
@@ -1221,6 +1240,8 @@ function TransferDetailSheet({
   onCancelBulk: () => void;
   bulkStarting: boolean;
   bulkCanceling: boolean;
+  bulkDest: BulkDest;
+  setBulkDest: React.Dispatch<React.SetStateAction<BulkDest>>;
 }) {
   const { t } = useI18n();
   const stateLabel =
@@ -1323,7 +1344,59 @@ function TransferDetailSheet({
               />
             ) : (
               <RoleGate permission="transaction:write">
-                <div className="space-y-1.5">
+                <div className="space-y-2">
+                  {/* 목적지 입력을 상세 시트 안에 둔다(DataSink 폼의 Sink 유형과 분리). */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      aria-label={t.transfers.bulk.bucket}
+                      placeholder={t.transfers.bulk.bucket}
+                      value={bulkDest.bucket}
+                      onChange={e =>
+                        setBulkDest(d => ({ ...d, bucket: e.target.value }))
+                      }
+                      className={inputBase}
+                    />
+                    <input
+                      aria-label={t.transfers.bulk.objectKey}
+                      placeholder={t.transfers.bulk.objectKey}
+                      value={bulkDest.objectName}
+                      onChange={e =>
+                        setBulkDest(d => ({ ...d, objectName: e.target.value }))
+                      }
+                      className={inputBase}
+                    />
+                    <input
+                      aria-label={t.transfers.bulk.endpoint}
+                      placeholder={t.transfers.bulk.endpoint}
+                      value={bulkDest.endpoint}
+                      onChange={e =>
+                        setBulkDest(d => ({ ...d, endpoint: e.target.value }))
+                      }
+                      className={`${inputBase} col-span-2`}
+                    />
+                    <input
+                      aria-label={t.transfers.bulk.accessKey}
+                      placeholder={t.transfers.bulk.accessKey}
+                      value={bulkDest.accessKeyId}
+                      onChange={e =>
+                        setBulkDest(d => ({
+                          ...d,
+                          accessKeyId: e.target.value,
+                        }))
+                      }
+                      className={inputBase}
+                    />
+                    <input
+                      type="password"
+                      aria-label={t.transfers.bulk.secretKey}
+                      placeholder={t.transfers.bulk.secretKey}
+                      value={bulkDest.secretKey}
+                      onChange={e =>
+                        setBulkDest(d => ({ ...d, secretKey: e.target.value }))
+                      }
+                      className={inputBase}
+                    />
+                  </div>
                   <button
                     onClick={onStartBulk}
                     disabled={bulkStarting}

@@ -465,16 +465,20 @@ router.post(
       const specs: Array<{ path?: string; name?: string; size?: number }> =
         Array.isArray(req.body?.files) && req.body.files.length
           ? req.body.files
-          : [{ name: objectPrefix || "data" }];
+          : [{}];
+      const multi = specs.length > 1;
       const planFiles: JobPlanFile[] = specs.map((spec, i) => {
         const name =
           spec.name ||
           (spec.path ? spec.path.replace(/^\/+/, "") : "") ||
-          `file-${i + 1}`;
-        const key =
-          objectPrefix && specs.length > 1
+          (multi ? `file-${i + 1}` : "data");
+        // 목적지 키: objectName 이 있으면 그 접두(다수는 하위경로), 없으면 transferId 로
+        // 네임스페이스 → 여러 전송이 기본 'data' 키로 서로 덮어쓰는 데이터 유실 방지.
+        const key = objectPrefix
+          ? multi
             ? `${objectPrefix.replace(/\/+$/, "")}/${name}`
-            : name;
+            : objectPrefix
+          : `bulk/${tpId}/${name}`;
         return {
           path: spec.path,
           key,
