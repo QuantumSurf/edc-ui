@@ -8,7 +8,7 @@ import type { Readable } from "node:stream";
 import { getPool } from "./db.js";
 import { getConnector } from "./connectorRegistry.js";
 import { getEdcClient } from "./edcClient.js";
-import { pullEdrData } from "./edrRefresh.js";
+import { pullEdrData, evictEdrTokens } from "./edrRefresh.js";
 import { assertEndpointPublic } from "../middleware/validation.js";
 import { resolveS3Target, isS3TargetUsable, type S3Target } from "./s3.js";
 import {
@@ -69,6 +69,40 @@ export async function markJobDone(
       WHERE transfer_id=$1 AND connector_id=$2`,
     [transferId, connectorId]
   );
+}
+
+/**
+ * 대량 전송이 COMPLETED 되면 EDC 전송을 완료 처리한다(수동 "완료 처리" 버튼과 동등, 단 데이터는
+ * 이미 S3 로 옮겼으므로 재-fetch 는 생략). EDC terminate + EDR 토큰 정리 + completed_at/
+ * user_completed=TRUE + size_bytes 기록 → UI 상태 배지가 '전송 완료'로 오버레이된다.
+ */
+async function completeEdcTransfer(
+  client: ReturnType<typeof getEdcClient>,
+  connectorId: string,
+  transferId: string,
+  bytes: number
+): Promise<void> {
+  try {
+    await client.post(`/v3/transferprocesses/${transferId}/terminate`, {
+      "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
+      reason: "Completed by bulk transfer",
+    });
+  } catch {
+    // terminate 실패(이미 종료/네트워크)해도 완료 마킹은 진행(수동 완료와 동일 정책).
+  }
+  void evictEdrTokens(connectorId, transferId).catch(() => {});
+  try {
+    await getPool().query(
+      `INSERT INTO transfer_metadata (transfer_id, connector_id, completed_at, user_completed, size_bytes)
+       VALUES ($1, $2, NOW(), TRUE, $3)
+       ON CONFLICT (transfer_id, connector_id)
+       DO UPDATE SET completed_at = NOW(), user_completed = TRUE,
+                     size_bytes = COALESCE($3, transfer_metadata.size_bytes)`,
+      [transferId, connectorId, bytes > 0 ? bytes : null]
+    );
+  } catch (e) {
+    console.error(`[bulk] 완료 마킹 실패 ${transferId}:`, (e as Error).message);
+  }
 }
 
 async function loadPendingJobPlans(): Promise<JobPlan[]> {
@@ -176,6 +210,14 @@ export async function startBulkFromPlan(
           bulkTransfersTotal.inc({ state: s.state.toLowerCase() });
           bulkBytesTransferred.inc(s.transferredBytes);
           void markJobDone(plan.connectorId, plan.transferId);
+          // 데이터가 실제로 다 옮겨졌으면 EDC 전송도 완료 처리 → 상태 배지 '전송 완료'.
+          if (s.state === "COMPLETED")
+            void completeEdcTransfer(
+              client,
+              plan.connectorId,
+              plan.transferId,
+              s.transferredBytes
+            );
         }
       },
     });
