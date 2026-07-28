@@ -1231,6 +1231,22 @@ const server = http.createServer((req, res) => {
         assetId: b.assetId || "",
         connectorId: "BPNL000000000CON",
       });
+      // AmazonS3-PUSH(KMX 0.17): 목적지 MinIO 계약을 캡처해 검증에 노출. 시크릿은 마스킹.
+      if (b.transferType === "AmazonS3-PUSH" && b.dataDestination) {
+        const dd = b.dataDestination;
+        console.log(
+          "[mock] AmazonS3-PUSH dataDestination:",
+          JSON.stringify({
+            type: dd.type,
+            region: dd.region,
+            bucketName: dd.bucketName,
+            endpointOverride: dd.endpointOverride,
+            objectName: dd.objectName,
+            accessKeyId: dd.accessKeyId ? "***" : undefined,
+            secretAccessKey: dd.secretAccessKey ? "***" : undefined,
+          })
+        );
+      }
       return send(res, 201, {
         "@id": id,
         "@type": "IdResponse",

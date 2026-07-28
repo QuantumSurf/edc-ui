@@ -597,7 +597,7 @@ const en: Translations = {
     sinkTypeLabels: {
       HttpProxy: "Receive (Pull — via EDR)",
       HttpData: "Push (HTTP)",
-      AmazonS3: "MinIO / S3 (live streaming)",
+      AmazonS3: "MinIO / S3 (push — provider-direct)",
     },
     endpointUrl: "Endpoint URL",
     containerName: "Container Name",

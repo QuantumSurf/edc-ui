@@ -601,7 +601,7 @@ const ko = {
     sinkTypeLabels: {
       HttpProxy: "받기 (Pull — EDR로 조회)",
       HttpData: "밀기 (HTTP Push)",
-      AmazonS3: "MinIO / S3 (실시간 스트리밍)",
+      AmazonS3: "MinIO / S3 (푸시 — provider가 직접)",
     },
     endpointUrl: "엔드포인트 URL",
     containerName: "컨테이너 이름",

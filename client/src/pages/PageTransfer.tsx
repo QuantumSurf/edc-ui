@@ -14,7 +14,6 @@ import {
   fetchTransferData,
   deleteAllTransfers,
   fetchEDRs,
-  startBulkTransfer,
   cancelBulkTransfer,
   fetchTransferProgress,
 } from "@/services";
@@ -270,15 +269,11 @@ export default function PageTransfer() {
   const connectorId = connector?.id;
   const queryClient = useQueryClient();
 
-  // S3/MinIO 전송 진행률(SSE) 구독 + 취소. 스트리밍 목적지는 시작 폼(전달방식=MinIO/S3)에서
-  // 정하고, 협상 완료(STARTED)되면 아래 auto-chain 이 자동으로 스트리밍을 건다.
+  // 진행률(SSE) 구독 + 취소 — pull-streaming 잡이 있을 때만 표시된다. 현재 S3 sink 는 네이티브
+  // AmazonS3-PUSH(provider 직접 푸시)라 바이트가 콘솔을 안 지나므로 이 패널은 비활성 상태다
+  // (진행률이 필요하면 목적지 폴링 또는 pull-streaming 경로를 별도 옵션으로 되살릴 수 있음).
   const [bulkWatchTp, setBulkWatchTp] = useState<string | null>(null);
   const [bulkCanceling, setBulkCanceling] = useState(false);
-  // S3/MinIO 목적지(자격 포함)를 협상 완료 전까지 클라 메모리에 보관 → STARTED 시 자동 스트리밍.
-  // 서버에 시크릿을 영속하지 않기 위함(새로고침 시 소실 — 그 경우 전송을 다시 시작).
-  const pendingS3Ref = useRef<
-    Map<string, { dataSink: Record<string, string>; objectName?: string }>
-  >(new Map());
   const { snapshot: bulkSnapshot } = useTransferProgress(
     connectorId ?? null,
     bulkWatchTp,
@@ -377,41 +372,6 @@ export default function PageTransfer() {
     tr.name === "STARTED" &&
     tr.size === "—" &&
     !activeEdrTps.has(tr.id.slice(0, 12));
-
-  // S3/MinIO auto-chain: 시작 폼에서 MinIO/S3 를 고르면 PULL 전송이 시작되는데, 그 전송이
-  // STARTED 되면 보관해 둔 목적지로 자동 스트리밍한다. EDR 미준비(404)·동시상한(429)은 다음
-  // 폴링에서 재시도, 협상 실패(TERMINATED)면 취소한다.
-  useEffect(() => {
-    if (!connectorId || pendingS3Ref.current.size === 0) return;
-    for (const [tpId, dest] of [...pendingS3Ref.current.entries()]) {
-      const tr = transfers.find(x => x.id === tpId);
-      if (!tr) continue;
-      if (tr.name === "TERMINATED") {
-        pendingS3Ref.current.delete(tpId);
-        toast.error(t.transfers.bulk.negotiationFailed);
-        continue;
-      }
-      if (tr.name !== "STARTED") continue;
-      // 중복 발사 방지로 먼저 제거 — 전송적(404/429) 실패면 아래에서 재등록해 다음 폴링 재시도.
-      pendingS3Ref.current.delete(tpId);
-      const cid = connectorId;
-      void startBulkTransfer(tpId, cid, {
-        dataSink: dest.dataSink,
-        objectName: dest.objectName,
-      })
-        .then(() => {
-          setBulkWatchTp(tpId);
-          toast.success(t.transfers.bulk.streamAutoStarted);
-        })
-        .catch((e: unknown) => {
-          const st = (e as { response?: { status?: number } })?.response
-            ?.status;
-          if (st === 404 || st === 429) pendingS3Ref.current.set(tpId, dest);
-          else toast.error(t.transfers.bulk.startFailed);
-        });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transfers, connectorId]);
 
   // 커넥터 전환 시 추적 ref를 재시딩한다. 그러지 않으면 새 커넥터의 transfers가
   // 도착할 때 초기 스냅샷 분기를 건너뛰어(initializedRef가 이미 true), 그 커넥터에
@@ -635,49 +595,44 @@ export default function PageTransfer() {
       toast.warning(t.transfers.endpointRequired);
       return;
     }
-    // MinIO/S3 스트리밍은 버킷만 필수(region 은 MinIO 에 불필요). 비우면 서버 S3_* 폴백.
-    if (sinkType === "AmazonS3" && !s3Bucket.trim()) {
-      toast.warning(t.transfers.bulk.destHint);
+    // MinIO/S3 (AmazonS3-PUSH): provider 데이터플레인이 region+bucketName 을 요구.
+    if (sinkType === "AmazonS3" && (!s3Region.trim() || !s3Bucket.trim())) {
+      toast.warning(t.assets.s3Required);
       return;
     }
     if (!connectorId) return;
     setSubmitting(true);
     try {
-      const isS3 = sinkType === "AmazonS3";
-      // S3/MinIO = 실시간 스트리밍. 스트리밍은 STARTED(EDR) 후 BFF 워커가 pull→S3 하므로,
-      // 먼저 PULL(HttpProxy) 전송을 시작하고, 협상 완료되면 보관한 목적지로 자동 스트리밍한다.
-      const res = await startTransfer(
+      // MinIO/S3 = 네이티브 AmazonS3-PUSH: B(소비자)가 자기 MinIO 정보(버킷·엔드포인트·자격)를
+      // dataDestination 에 실어 보내면, provider(A) 데이터플레인이 그 MinIO 로 직접 푸시한다.
+      // (KMX EDC 0.17 의 data-plane-aws-s3 필요.) 바이트가 콘솔을 안 지나므로 실시간 진행률 없음.
+      await startTransfer(
         {
           agreementId,
           counterPartyAddress,
           assetId: assetId || undefined,
-          dataSink: isS3
-            ? { type: "HttpProxy" }
-            : { type: sinkType, endpoint: sinkEndpoint },
+          dataSink:
+            sinkType === "AmazonS3"
+              ? {
+                  type: "AmazonS3",
+                  region: s3Region,
+                  bucketName: s3Bucket,
+                  ...(s3ObjectName.trim() ? { objectName: s3ObjectName } : {}),
+                  ...(s3Endpoint.trim()
+                    ? { endpointOverride: s3Endpoint }
+                    : {}),
+                  ...(s3AccessKeyId.trim()
+                    ? { accessKeyId: s3AccessKeyId }
+                    : {}),
+                  ...(s3SecretKey.trim()
+                    ? { secretAccessKey: s3SecretKey }
+                    : {}),
+                }
+              : { type: sinkType, endpoint: sinkEndpoint },
         },
         connectorId
       );
-      if (isS3) {
-        const tpId =
-          (res as { "@id"?: string })["@id"] ??
-          (res as { id?: string }).id ??
-          "";
-        if (tpId) {
-          const dataSink: Record<string, string> = {};
-          if (s3Bucket) dataSink.bucketName = s3Bucket;
-          if (s3Region) dataSink.region = s3Region;
-          if (s3Endpoint) dataSink.endpointOverride = s3Endpoint;
-          if (s3AccessKeyId) dataSink.accessKeyId = s3AccessKeyId;
-          if (s3SecretKey) dataSink.secretAccessKey = s3SecretKey;
-          pendingS3Ref.current.set(tpId, {
-            dataSink,
-            objectName: s3ObjectName || undefined,
-          });
-        }
-        toast.success(t.transfers.bulk.streamPending);
-      } else {
-        toast.success(t.transfers.started);
-      }
+      toast.success(t.transfers.started);
       // 입력값을 서버 이력에 기록(다음 작성 시 자동완성). record() 가 빈값은 무시.
       record([
         { fieldKey: "transfer.agreementId", value: agreementId },
@@ -1141,11 +1096,11 @@ export default function PageTransfer() {
             )}
             {sinkType === "AmazonS3" && (
               <>
-                <FormField label={t.assets.s3Region}>
+                <FormField label={t.assets.s3Region} required>
                   <input
                     value={s3Region}
                     onChange={e => setS3Region(e.target.value)}
-                    placeholder="ap-northeast-2 (MinIO 는 불필요)"
+                    placeholder="us-east-1 (MinIO 는 아무 값이나)"
                     className={INPUT_CLS}
                   />
                 </FormField>
