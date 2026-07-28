@@ -6,6 +6,15 @@ import { DtrApiError } from "../lib/dtrClient.js";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
+// EDC 데이터플레인이 잘못된 dataDestination 을 에러 본문에 그대로 에코할 경우,
+// S3 인라인 자격(accessKeyId/secretAccessKey)이 로그·응답으로 역류할 수 있다. 값만 마스킹한다.
+function redactSecrets(message: string): string {
+  return message.replace(
+    /("?(?:accessKeyId|secretAccessKey)"?\s*[:=]\s*")([^"]*)(")/gi,
+    "$1***$3"
+  );
+}
+
 function sanitizeMessage(message: string): string {
   if (IS_PRODUCTION) {
     // In production, never expose internal details
@@ -27,8 +36,10 @@ export function errorHandler(
   _next: NextFunction
 ) {
   if (err instanceof EdcApiError) {
+    const detail = redactSecrets(err.detail);
+    err.detail = detail;
     console.error(
-      `[BFF] EDC API Error [req:${req.reqId ?? "-"}]: ${err.status} ${err.detail}`
+      `[BFF] EDC API Error [req:${req.reqId ?? "-"}]: ${err.status} ${detail}`
     );
     const role = req.user?.role;
     const privileged = role === "admin" || role === "operator";

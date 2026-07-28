@@ -628,10 +628,6 @@ const en: Translations = {
       terminalNote:
         "The contract (EDC) transfer is still active — restart or force-terminate it.",
       startedToast: "Bulk transfer started.",
-      streamPending:
-        "Transfer started — will stream to MinIO/S3 once negotiated.",
-      streamAutoStarted: "Negotiated — starting MinIO/S3 streaming.",
-      negotiationFailed: "Negotiation failed — MinIO/S3 streaming canceled.",
       startFailed: "Failed to start bulk transfer.",
       tooMany: "Too many concurrent transfers. Please try again shortly.",
       canceledToast: "Transfer canceled.",
@@ -672,7 +668,14 @@ const en: Translations = {
     counterPartyAddressInvalidScheme:
       "Provider DSP endpoint must start with http:// or https://.",
     endpointRequired: "Please enter a data sink Endpoint URL.",
-    s3ObjectNameHint: "Leave blank to keep the source object key.",
+    s3ObjectNameHint:
+      "Leave blank and the provider data plane stores it under a unique key (push/<UUID>) to avoid overwrites.",
+    s3CredentialsRequired:
+      "MinIO/S3 transfers require Endpoint, Access Key, and Secret Key.",
+    s3CredentialWarning:
+      "These credentials are sent to the provider (A) data plane, which writes directly to this bucket. Use short-lived credentials scoped to write only this bucket. Completion depends on the provider's signal — verify the actual upload in the destination bucket.",
+    s3BucketPreexistHint:
+      "The destination bucket must already exist (KMX 0.17 does not auto-create it).",
     started: "Transfer has been started.",
     startFailed: "Failed to start transfer.",
     totalVolume: "Total Volume",

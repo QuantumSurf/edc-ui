@@ -632,9 +632,6 @@ const ko = {
       terminalNote:
         "계약(EDC) 전송은 계속 활성입니다 — 다시 시작하거나 강제 종료하세요.",
       startedToast: "대량 전송을 시작했습니다.",
-      streamPending: "전송 시작 — 협상 완료 후 MinIO/S3로 스트리밍합니다.",
-      streamAutoStarted: "협상 완료 — MinIO/S3 스트리밍을 시작합니다.",
-      negotiationFailed: "협상 실패로 MinIO/S3 스트리밍을 취소했습니다.",
       startFailed: "대량 전송 시작에 실패했습니다.",
       tooMany: "동시 전송이 많습니다. 잠시 후 다시 시도하세요.",
       canceledToast: "전송을 취소했습니다.",
@@ -675,7 +672,14 @@ const ko = {
     counterPartyAddressInvalidScheme:
       "Provider DSP 엔드포인트는 http:// 또는 https:// 로 시작해야 합니다.",
     endpointRequired: "데이터 수신 엔드포인트 URL을 입력하세요.",
-    s3ObjectNameHint: "비워두면 원본 객체 키를 그대로 사용합니다.",
+    s3ObjectNameHint:
+      "비우면 provider 데이터플레인이 고유 키(push/<UUID>)로 저장합니다(덮어쓰기 방지).",
+    s3CredentialsRequired:
+      "MinIO/S3 전송은 엔드포인트·Access Key·Secret Key가 모두 필요합니다.",
+    s3CredentialWarning:
+      "이 자격은 provider(A) 데이터플레인으로 전송되어 provider가 직접 이 버킷에 씁니다. 해당 버킷 쓰기 권한만 가진 수명 짧은 자격을 사용하세요. 전송 완료는 provider 신호에 의존하며, 실제 적재 여부는 대상 버킷에서 확인하세요.",
+    s3BucketPreexistHint:
+      "목적지 버킷은 미리 존재해야 합니다(KMX 0.17은 자동 생성하지 않음).",
     started: "전송이 시작되었습니다.",
     startFailed: "전송 시작에 실패했습니다.",
     totalVolume: "총 전송량",

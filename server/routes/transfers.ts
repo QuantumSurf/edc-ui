@@ -12,6 +12,7 @@ import {
   type Response,
   type NextFunction,
 } from "express";
+import { randomUUID } from "node:crypto";
 import { getConnector } from "../lib/connectorRegistry.js";
 import {
   getEdcClient,
@@ -237,30 +238,41 @@ router.post(
       if (sinkType === "AmazonS3") {
         const region = String(dataSink?.region ?? "").trim();
         const bucketName = String(dataSink?.bucketName ?? "").trim();
+        const endpointOverride = String(
+          dataSink?.endpointOverride ?? ""
+        ).trim();
+        const accessKeyId = String(dataSink?.accessKeyId ?? "").trim();
+        const secretAccessKey = String(dataSink?.secretAccessKey ?? "").trim();
+        // KMX EDC 0.17 은 data-plane-provision-aws-s3 를 끄고 배포한다(주변 vault 자격 없음).
+        // 따라서 provider 데이터플레인의 유일한 인증 수단은 dataDestination 인라인 자격이며,
+        // MinIO 대상은 endpointOverride 가 없으면 AWS us-east-1 로 오조준된다. 넷 다 필수.
         if (!region || !bucketName) {
           res.status(400).json({
             error: "AmazonS3 sink requires region and bucketName",
           });
           return;
         }
+        if (!endpointOverride || !accessKeyId || !secretAccessKey) {
+          res.status(400).json({
+            error:
+              "AmazonS3 sink requires endpointOverride, accessKeyId and secretAccessKey " +
+              "(KMX EDC 0.17 disables S3 provisioning, so inline destination credentials are mandatory)",
+          });
+          return;
+        }
+        // objectName 미입력 시 고유 키를 주입해 같은 버킷 반복 전송의 덮어쓰기(데이터 유실)를 방지한다.
+        // (tpId 는 EDC 응답 후에야 알 수 있어 여기서는 UUID 로 네임스페이싱.)
+        const objectName = String(dataSink?.objectName ?? "").trim();
         transferType = "AmazonS3-PUSH";
         dataDestination = {
           "@type": "DataAddress",
           type: "AmazonS3",
           region,
           bucketName,
-          ...(dataSink?.objectName
-            ? { objectName: String(dataSink.objectName) }
-            : {}),
-          ...(dataSink?.endpointOverride
-            ? { endpointOverride: String(dataSink.endpointOverride) }
-            : {}),
-          ...(dataSink?.accessKeyId
-            ? { accessKeyId: String(dataSink.accessKeyId) }
-            : {}),
-          ...(dataSink?.secretAccessKey
-            ? { secretAccessKey: String(dataSink.secretAccessKey) }
-            : {}),
+          objectName: objectName || `push/${randomUUID()}`,
+          endpointOverride,
+          accessKeyId,
+          secretAccessKey,
         };
       } else if (sinkType === "HttpProxy") {
         transferType = "HttpData-PULL";

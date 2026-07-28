@@ -261,6 +261,60 @@ describe("E2E 전송 사이클 (카탈로그→협상→전송→EDR refresh→P
   });
 
   it(
+    "AmazonS3 sink: KMX 0.17 provision-off 전제 — endpoint/자격 누락 시 400 으로 거부한다",
+    { timeout: 30_000 },
+    async ctx => {
+      if (!ready) return ctx.skip();
+      const { agent, csrf } = await login(adminBpn);
+      const csrfHdr = { "X-CSRF-Token": csrf };
+      // 유효 커넥터 등록(resolveConnector 통과 후 S3 검증 분기에 도달시키기 위함).
+      const created = await agent.post("/api/connectors").set(csrfHdr).send({
+        name: "e2e-s3-guard",
+        managementUrl: MOCK_BASE,
+        dspEndpoint: DSP,
+        env: "DEV",
+        apiKey: "demo-key",
+      });
+      expect(created.status).toBe(201);
+      const connId = created.body.id as string;
+
+      const base = {
+        agreementId: "agr-any",
+        counterPartyAddress: DSP,
+        assetId: "asset-any",
+      };
+      // region/bucket 만 있고 endpoint·자격이 비면 → 데이터가 안 넘어가므로 400.
+      const noCreds = await agent
+        .post(`/api/connectors/${connId}/transfers/start`)
+        .set(csrfHdr)
+        .send({
+          ...base,
+          dataSink: { type: "AmazonS3", region: "us-east-1", bucketName: "b" },
+        });
+      expect(noCreds.status).toBe(400);
+      expect(String(noCreds.body.error)).toMatch(
+        /endpointOverride|credential/i
+      );
+
+      // endpoint 는 있으나 secretAccessKey 누락 → 여전히 400.
+      const partial = await agent
+        .post(`/api/connectors/${connId}/transfers/start`)
+        .set(csrfHdr)
+        .send({
+          ...base,
+          dataSink: {
+            type: "AmazonS3",
+            region: "us-east-1",
+            bucketName: "b",
+            endpointOverride: "http://minio:9000",
+            accessKeyId: "k",
+          },
+        });
+      expect(partial.status).toBe(400);
+    }
+  );
+
+  it(
     "실패 주입: 존재하지 않는 agreement 로 전송을 시작해도 사이클이 오염되지 않는다",
     {
       timeout: 30_000,

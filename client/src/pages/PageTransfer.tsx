@@ -301,6 +301,12 @@ export default function PageTransfer() {
       setBulkWatchTp(null);
       return;
     }
+    // PUSH 전송(HttpData/AmazonS3-PUSH)은 스트리밍 진행 스냅샷을 만들지 않아 항상 404 →
+    // 상세를 열 때마다의 무의미한 프로브를 생략한다.
+    if (detailTarget.transferType === "PUSH") {
+      setBulkWatchTp(null);
+      return;
+    }
     const id = detailTarget.id;
     let cancelled = false;
     void fetchTransferProgress(id, connectorId).then(snap => {
@@ -368,9 +374,12 @@ export default function PageTransfer() {
   );
   // STARTED인데 (아직 데이터 미수신: size "—") + 활성 EDR 없음 → 데이터플레인 미가용/EDR 대기.
   // 이미 fetch해 size가 기록된 전송은 EDR이 만료돼도 정상이므로 힌트 제외(오탐 방지).
+  // PUSH(HttpData-PUSH / AmazonS3-PUSH)는 EDR(pull 토큰)을 애초에 발급하지 않으므로
+  // "EDR 대기" 힌트 대상에서 제외한다(그러지 않으면 정상 push 전송이 영구 오탐).
   const startedNoEdr = (tr: Transfer) =>
     tr.name === "STARTED" &&
     tr.size === "—" &&
+    tr.transferType !== "PUSH" &&
     !activeEdrTps.has(tr.id.slice(0, 12));
 
   // 커넥터 전환 시 추적 ref를 재시딩한다. 그러지 않으면 새 커넥터의 transfers가
@@ -595,10 +604,18 @@ export default function PageTransfer() {
       toast.warning(t.transfers.endpointRequired);
       return;
     }
-    // MinIO/S3 (AmazonS3-PUSH): provider 데이터플레인이 region+bucketName 을 요구.
-    if (sinkType === "AmazonS3" && (!s3Region.trim() || !s3Bucket.trim())) {
-      toast.warning(t.assets.s3Required);
-      return;
+    // MinIO/S3 (AmazonS3-PUSH): KMX EDC 0.17 은 S3 프로비저닝을 끄고 배포하므로
+    // provider 데이터플레인의 유일 인증 수단이 인라인 목적지 자격이다. endpoint·자격이 비면
+    // 전송은 시작되지만 데이터가 안 넘어간다 → region+bucket+endpoint+accessKey+secret 모두 필수.
+    if (sinkType === "AmazonS3") {
+      if (!s3Region.trim() || !s3Bucket.trim()) {
+        toast.warning(t.assets.s3Required);
+        return;
+      }
+      if (!s3Endpoint.trim() || !s3AccessKeyId.trim() || !s3SecretKey.trim()) {
+        toast.warning(t.transfers.s3CredentialsRequired);
+        return;
+      }
     }
     if (!connectorId) return;
     setSubmitting(true);
@@ -877,13 +894,16 @@ export default function PageTransfer() {
                           permission="transaction:write"
                           fallback={<span className="truncate">—</span>}
                         >
-                          <button
-                            onClick={() => handleFetch(tr.id, tr.asset)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 transition-colors"
-                          >
-                            <Download className="w-3 h-3" />{" "}
-                            {t.transfers.fetchData}
-                          </button>
+                          {/* PUSH(HttpData/AmazonS3-PUSH)는 pull EDR이 없어 fetch가 404 → 버튼 숨김 */}
+                          {tr.transferType !== "PUSH" && (
+                            <button
+                              onClick={() => handleFetch(tr.id, tr.asset)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 transition-colors"
+                            >
+                              <Download className="w-3 h-3" />{" "}
+                              {t.transfers.fetchData}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleComplete(tr.id)}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15 transition-colors"
@@ -1096,6 +1116,10 @@ export default function PageTransfer() {
             )}
             {sinkType === "AmazonS3" && (
               <>
+                <div className="flex gap-2 items-start rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>{t.transfers.s3CredentialWarning}</span>
+                </div>
                 <FormField label={t.assets.s3Region} required>
                   <input
                     value={s3Region}
@@ -1104,7 +1128,11 @@ export default function PageTransfer() {
                     className={INPUT_CLS}
                   />
                 </FormField>
-                <FormField label={t.assets.s3Bucket} required>
+                <FormField
+                  label={t.assets.s3Bucket}
+                  hint={t.transfers.s3BucketPreexistHint}
+                  required
+                >
                   <input
                     value={s3Bucket}
                     onChange={e => setS3Bucket(e.target.value)}
@@ -1126,6 +1154,7 @@ export default function PageTransfer() {
                 <FormField
                   label={t.assets.s3Endpoint}
                   hint={t.assets.s3EndpointHint}
+                  required
                 >
                   <input
                     value={s3Endpoint}
@@ -1134,7 +1163,7 @@ export default function PageTransfer() {
                     className={INPUT_CLS}
                   />
                 </FormField>
-                <FormField label={t.assets.s3AccessKeyId}>
+                <FormField label={t.assets.s3AccessKeyId} required>
                   <input
                     value={s3AccessKeyId}
                     onChange={e => setS3AccessKeyId(e.target.value)}
@@ -1142,7 +1171,7 @@ export default function PageTransfer() {
                     className={INPUT_CLS}
                   />
                 </FormField>
-                <FormField label={t.assets.s3SecretKey}>
+                <FormField label={t.assets.s3SecretKey} required>
                   <input
                     type="password"
                     value={s3SecretKey}
@@ -1302,12 +1331,15 @@ function TransferDetailSheet({
         {target.name === "STARTED" && (
           <>
             <RoleGate permission="transaction:write">
-              <button
-                onClick={onFetch}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors"
-              >
-                <Download size={13} /> {t.transfers.fetchData}
-              </button>
+              {/* PUSH 전송은 pull EDR이 없어 fetch가 404 → 버튼 숨김 */}
+              {target.transferType !== "PUSH" && (
+                <button
+                  onClick={onFetch}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors"
+                >
+                  <Download size={13} /> {t.transfers.fetchData}
+                </button>
+              )}
               <button
                 onClick={onComplete}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15 rounded-md transition-colors"
