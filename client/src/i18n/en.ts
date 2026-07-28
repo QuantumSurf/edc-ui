@@ -601,6 +601,8 @@ const en: Translations = {
       title: "Bulk Data Transfer",
       start: "Start Bulk Transfer",
       starting: "Starting...",
+      destHint:
+        "An S3/MinIO destination is required — set Sink Type to AmazonS3 in 'Start Transfer (DataSink)' below and enter bucket/endpoint/keys, or use the server S3_* defaults.",
       cancel: "Cancel",
       canceling: "Canceling...",
       overall: "Overall",

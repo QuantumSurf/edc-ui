@@ -1287,16 +1287,21 @@ function TransferDetailSheet({
               />
             ) : (
               <RoleGate permission="transaction:write">
-                <button
-                  onClick={onStartBulk}
-                  disabled={bulkStarting}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors disabled:opacity-50"
-                >
-                  <Send size={13} />{" "}
-                  {bulkStarting
-                    ? t.transfers.bulk.starting
-                    : t.transfers.bulk.start}
-                </button>
+                <div className="space-y-1.5">
+                  <button
+                    onClick={onStartBulk}
+                    disabled={bulkStarting}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    <Send size={13} />{" "}
+                    {bulkStarting
+                      ? t.transfers.bulk.starting
+                      : t.transfers.bulk.start}
+                  </button>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {t.transfers.bulk.destHint}
+                  </p>
+                </div>
               </RoleGate>
             )}
           </div>

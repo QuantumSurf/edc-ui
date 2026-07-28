@@ -605,6 +605,8 @@ const ko = {
       title: "대량 데이터 전송",
       start: "대량 전송 시작",
       starting: "전송 시작 중...",
+      destHint:
+        "S3/MinIO 목적지가 필요합니다 — 아래 '전송 시작(DataSink)'에서 Sink 유형을 AmazonS3로 바꿔 버킷·엔드포인트·키를 입력하거나, 서버 S3_* 기본값을 사용하세요.",
       cancel: "취소",
       canceling: "취소 중...",
       overall: "전체",
