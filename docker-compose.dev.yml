@@ -69,6 +69,14 @@ services:
       # 레이트리밋을 재게 된다 → 부하 실행 시에만 올린다:
       #   $env:API_RATE_LIMIT_MAX="200000"; docker compose -f docker-compose.dev.yml up -d app
       - API_RATE_LIMIT_MAX=${API_RATE_LIMIT_MAX:-300}
+      # 대량 전송 목적지(유즈케이스1: 커넥터 → push → MinIO S3). dev 전용 자격(0000 시드와
+      # 동급 데모값 — 실 시크릿 아님). dataSink 미지정 시 이 env 폴백으로 MinIO 로 스트리밍.
+      - S3_ENDPOINT=http://minio:9000
+      - S3_REGION=us-east-1
+      - S3_BUCKET=bulk
+      - S3_ACCESS_KEY_ID=minioadmin
+      - S3_SECRET_ACCESS_KEY=minioadmin12345
+      - S3_FORCE_PATH_STYLE=true
     volumes:
       - ./:/app
       - devnodemodules:/app/node_modules
@@ -78,6 +86,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_started
     # corepack로 pnpm 활성화 → 의존성 설치(멱등) → BFF 백그라운드 + Vite 포그라운드
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -102,6 +112,41 @@ services:
       - "8090"
     restart: unless-stopped
 
+  # 대량 전송 목적지 — MinIO(S3 호환). 유즈케이스1의 "커넥터 → push → MinIO S3".
+  # 콘솔 http://localhost:9101 (minioadmin / minioadmin12345) 에서 적재 객체 확인.
+  minio:
+    image: minio/minio
+    container_name: kmx-edc-ui-dev-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin12345
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "9100:9000" # S3 API (host 직접 접근용)
+      - "9101:9001" # 웹 콘솔
+    volumes:
+      - devminiodata:/data
+    restart: unless-stopped
+
+  # 버킷 자동 생성(멱등). minio 가 뜰 때까지 재시도 후 bulk 버킷을 만든다.
+  minio-init:
+    image: minio/mc
+    container_name: kmx-edc-ui-dev-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 minioadmin minioadmin12345; do
+          echo 'MinIO 대기...'; sleep 1;
+        done
+        mc mb --ignore-existing local/bulk
+        echo 'bucket bulk ready'
+    restart: "no"
+
 volumes:
   devpgdata:
   devnodemodules:
+  devminiodata:
