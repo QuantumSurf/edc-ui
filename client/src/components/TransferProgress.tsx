@@ -106,27 +106,34 @@ export function TransferProgress({ snapshot, onCancel, canceling }: Props) {
         </div>
       )}
 
-      {/* 속도 · 남은시간 */}
-      <div className="flex items-center gap-6 text-xs">
-        <div className="flex items-center gap-1">
-          <span className="text-muted-foreground">{b.speed}</span>
-          <span className="tabular-nums font-medium">
-            {formatSpeed(snapshot.bytesPerSec)}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-muted-foreground">{b.eta}</span>
-          <span className="tabular-nums font-medium">
-            {snapshot.state === "COMPLETED"
-              ? b.etaValue(0, 0, 0)
-              : snapshot.totalBytes == null
+      {/* 진행 중일 때만 속도·남은시간(터미널에선 정지값 박제·'0초'를 피해 숨긴다) */}
+      {running && (
+        <div className="flex items-center gap-6 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">{b.speed}</span>
+            <span className="tabular-nums font-medium">
+              {formatSpeed(snapshot.bytesPerSec)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">{b.eta}</span>
+            <span className="tabular-nums font-medium">
+              {snapshot.totalBytes == null
                 ? "—" // 총량 미상 → ETA 계산 불가('계산 중'으로 오도하지 않음)
                 : eta
                   ? b.etaValue(eta.h, eta.m, eta.s)
                   : b.computing}
-          </span>
+            </span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* 취소/실패 시: 계약(EDC) 전송은 여전히 활성 — 배지 '진행 중'과 모순처럼 보이지 않게 안내 */}
+      {(snapshot.state === "CANCELED" || snapshot.state === "FAILED") && (
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {b.terminalNote}
+        </p>
+      )}
 
       {snapshot.state === "FAILED" && snapshot.error && (
         <p className="text-xs text-red-600 dark:text-red-400 break-all">

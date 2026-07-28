@@ -619,6 +619,8 @@ const ko = {
       ofValue: (a: string, b: string) => `${a} / ${b}`,
       etaValue: (h: number, m: number, s: number) =>
         h > 0 ? `${h}시간 ${m}분` : m > 0 ? `${m}분 ${s}초` : `${s}초`,
+      terminalNote:
+        "계약(EDC) 전송은 계속 활성입니다 — 다시 시작하거나 강제 종료하세요.",
       startedToast: "대량 전송을 시작했습니다.",
       startFailed: "대량 전송 시작에 실패했습니다.",
       canceledToast: "전송을 취소했습니다.",

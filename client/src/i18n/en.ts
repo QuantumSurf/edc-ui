@@ -615,6 +615,8 @@ const en: Translations = {
       ofValue: (a: string, b: string) => `${a} / ${b}`,
       etaValue: (h: number, m: number, s: number) =>
         h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`,
+      terminalNote:
+        "The contract (EDC) transfer is still active — restart or force-terminate it.",
       startedToast: "Bulk transfer started.",
       startFailed: "Failed to start bulk transfer.",
       canceledToast: "Transfer canceled.",

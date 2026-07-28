@@ -337,6 +337,23 @@ export default function PageTransfer() {
     };
   }, [detailTarget, connectorId]);
 
+  // 대량 전송이 종료되면 목록/EDR 쿼리를 즉시 무효화해 상태 배지·Footer 액션을 동기화한다.
+  // (자동완료가 폴링(3s)으로만 반영돼, 그 창에 '완료 처리/강제 종료'를 누르면 이미 terminate 된
+  //  전송에 재요청→에러가 나던 지뢰 창을 제거.) 터미널 스냅샷 반복 무효화 방지용 ref 가드.
+  const lastBulkTerminalRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!bulkSnapshot || !connectorId) return;
+    const st = bulkSnapshot.state;
+    if (st !== "COMPLETED" && st !== "FAILED" && st !== "CANCELED") return;
+    const key = `${bulkSnapshot.transferId}:${st}`;
+    if (lastBulkTerminalRef.current === key) return;
+    lastBulkTerminalRef.current = key;
+    void queryClient.invalidateQueries({
+      queryKey: ["transfers", connectorId],
+    });
+    void queryClient.invalidateQueries({ queryKey: ["edrs", connectorId] });
+  }, [bulkSnapshot, connectorId, queryClient]);
+
   // 첫 로드 여부 추적 — 초기 스냅샷의 TERMINATED는 toast 제외
   const initializedRef = useRef(false);
 
