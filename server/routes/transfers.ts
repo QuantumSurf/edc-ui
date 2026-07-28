@@ -469,6 +469,18 @@ router.post(
         });
         return;
       }
+      // 목적지 endpoint SSRF 가드 — 콘솔(BFF)이 자격을 SigV4 서명해 직접 요청하는 유일한
+      // 아웃바운드이므로, 소스 endpoint(assertEndpointPublic)와 동일하게 사설/메타데이터
+      // 대역으로의 요청을 차단한다(dev 는 ALLOW_PRIVATE_DSP 로 완화, 소스와 일관).
+      if (s3.endpoint) {
+        const sinkSsrfErr = await assertEndpointPublic(s3.endpoint);
+        if (sinkSsrfErr) {
+          res
+            .status(400)
+            .json({ error: `Rejected S3 endpoint: ${sinkSsrfErr}` });
+          return;
+        }
+      }
 
       // 잡 플랜 구성 — 재구성용 파일 키/경로/크기 + 비밀 아닌 목적지(자격 미저장).
       // files 제공 시 각 하위경로(매니페스트), 없으면 단일 객체(기본값).
@@ -479,6 +491,9 @@ router.post(
           ? req.body.files
           : [{}];
       const multi = specs.length > 1;
+      // 잡 내 목적지 키 중복 방지 — 같은 name/objectName 이 겹치면 뒤 파일이 앞을 덮어
+      // 사일런트 유실이 난다. 중복 시 -{i} 접미로 유니크화.
+      const usedKeys = new Set<string>();
       const planFiles: JobPlanFile[] = specs.map((spec, i) => {
         const name =
           spec.name ||
@@ -486,11 +501,13 @@ router.post(
           (multi ? `file-${i + 1}` : "data");
         // 목적지 키: objectName 이 있으면 그 접두(다수는 하위경로), 없으면 transferId 로
         // 네임스페이스 → 여러 전송이 기본 'data' 키로 서로 덮어쓰는 데이터 유실 방지.
-        const key = objectPrefix
+        let key = objectPrefix
           ? multi
             ? `${objectPrefix.replace(/\/+$/, "")}/${name}`
             : objectPrefix
           : `bulk/${tpId}/${name}`;
+        if (usedKeys.has(key)) key = `${key}-${i}`;
+        usedKeys.add(key);
         return {
           path: spec.path,
           key,

@@ -158,12 +158,17 @@ function emit(job: Job, onProgress?: (s: ProgressSnapshot) => void): void {
   }
 }
 
-/** 민감정보(쿼리스트링·Bearer 토큰) 제거 후 짧은 오류 메시지. */
+/** 민감정보(쿼리스트링·Bearer 토큰·S3 accessKeyId) 제거 후 짧은 오류 메시지. */
 function sanitizeError(e: unknown): string {
   let msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
   msg = msg
     .replace(/\?[^\s]*/g, "?…")
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer …");
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer …")
+    // S3 SignatureDoesNotMatch 등은 본문에 accessKeyId 를 에코한다(env 폴백 시 콘솔 자격).
+    .replace(
+      /((?:AWS)?[Aa]ccess[Kk]ey(?:[Ii]d)?)["'>:=\s]+[^\s"'<>&]+/g,
+      "$1=…"
+    );
   return msg.slice(0, 300);
 }
 

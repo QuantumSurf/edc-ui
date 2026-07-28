@@ -693,6 +693,8 @@ const ko = {
       "받기 전송을 시작했습니다 — EDR 준비되면 자동으로 MinIO 스트리밍을 시작합니다.",
     s3StreamAutoStarted: "MinIO 스트리밍을 시작했습니다 — 진행률을 표시합니다.",
     s3StreamFailed: "MinIO 스트리밍 시작에 실패했습니다.",
+    s3StreamNoId:
+      "전송은 시작됐으나 전송 ID를 받지 못해 MinIO 스트리밍을 예약하지 못했습니다. 전송 상세에서 다시 시도하세요.",
     started: "전송이 시작되었습니다.",
     startFailed: "전송 시작에 실패했습니다.",
     totalVolume: "총 전송량",

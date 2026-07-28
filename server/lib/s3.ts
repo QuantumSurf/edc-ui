@@ -15,21 +15,37 @@ export interface S3Target {
   forcePathStyle?: boolean;
 }
 
-/** dataSink(사용자 입력) 우선, 없으면 서버 env 폴백으로 S3 목적지 구성을 해석한다. */
+/**
+ * dataSink(사용자 입력) 우선, 없으면 서버 env 폴백으로 S3 목적지 구성을 해석한다.
+ *
+ * 보안: endpoint·accessKeyId·secretAccessKey 는 **all-or-nothing** 으로 취급한다. 사용자가
+ * 셋 중 하나라도 dataSink 로 주면 그 셋은 전부 dataSink 에서만 취하고 env 와 섞지 않는다.
+ * (혼합을 허용하면 "사용자 endpoint + 콘솔 env 자격" 조합으로 콘솔의 env 자격이 사용자가
+ *  지정한 임의 endpoint 로 SigV4 서명돼 나가는 SSRF/자격 오배송이 성립한다.)
+ */
 export function resolveS3Target(sink?: Record<string, unknown>): S3Target {
   const s = sink ?? {};
-  const endpoint =
-    (typeof s.endpointOverride === "string" && s.endpointOverride) ||
-    process.env.S3_ENDPOINT ||
-    undefined;
-  const accessKeyId =
-    (typeof s.accessKeyId === "string" && s.accessKeyId) ||
-    process.env.S3_ACCESS_KEY_ID ||
-    undefined;
-  const secretAccessKey =
-    (typeof s.secretAccessKey === "string" && s.secretAccessKey) ||
-    process.env.S3_SECRET_ACCESS_KEY ||
-    undefined;
+  const sinkEndpoint =
+    typeof s.endpointOverride === "string" && s.endpointOverride
+      ? s.endpointOverride
+      : "";
+  const sinkAccess =
+    typeof s.accessKeyId === "string" && s.accessKeyId ? s.accessKeyId : "";
+  const sinkSecret =
+    typeof s.secretAccessKey === "string" && s.secretAccessKey
+      ? s.secretAccessKey
+      : "";
+  // 사용자가 endpoint/자격 중 하나라도 제공했으면 그 묶음은 dataSink 전용(env 미혼합).
+  const userProvided = Boolean(sinkEndpoint || sinkAccess || sinkSecret);
+  const endpoint = userProvided
+    ? sinkEndpoint || undefined
+    : process.env.S3_ENDPOINT || undefined;
+  const accessKeyId = userProvided
+    ? sinkAccess || undefined
+    : process.env.S3_ACCESS_KEY_ID || undefined;
+  const secretAccessKey = userProvided
+    ? sinkSecret || undefined
+    : process.env.S3_SECRET_ACCESS_KEY || undefined;
   return {
     bucket: String(s.bucketName ?? process.env.S3_BUCKET ?? "").trim(),
     region: String(s.region ?? process.env.S3_REGION ?? "us-east-1").trim(),

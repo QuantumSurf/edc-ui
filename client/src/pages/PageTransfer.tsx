@@ -281,7 +281,15 @@ export default function PageTransfer() {
   // 받기-스트리밍(pull) 모드 자동 체이닝: PULL 전송 시작 후 EDR 준비되면 bulk-transfer 를 1회 발사.
   // pendingBulkRef 는 시작~EDR 준비 사이 목적지 계약을 보관(폼 리셋과 무관하게 ref 로 유지).
   const pendingBulkRef = useRef<
-    Map<string, { dataSink: Record<string, string>; objectName?: string }>
+    Map<
+      string,
+      {
+        dataSink: Record<string, string>;
+        objectName?: string;
+        tries: number;
+        since: number;
+      }
+    >
   >(new Map());
   const firedBulkRef = useRef<Set<string>>(new Set());
   const { snapshot: bulkSnapshot } = useTransferProgress(
@@ -397,30 +405,51 @@ export default function PageTransfer() {
   // 전송이 TERMINATED 로 끝나면 예약을 취소한다. 성공 시 진행률 패널(bulkWatchTp)을 연다.
   useEffect(() => {
     if (!connectorId || pendingBulkRef.current.size === 0) return;
+    const MAX_TRIES = 3;
+    const TTL_MS = 5 * 60 * 1000;
     for (const tr of transfers) {
       const pend = pendingBulkRef.current.get(tr.id);
       if (!pend) continue;
-      if (tr.name === "TERMINATED") {
+      // 종착 정리: 실패(TERMINATED)·완료(COMPLETED)·TTL 초과 전송은 예약을 버린다.
+      // (그러지 않으면 EDR 이 끝내 활성 안 되는 전송이 map 에 영구 잔존해 누수·조용한 no-op.)
+      if (
+        tr.name === "TERMINATED" ||
+        tr.name === "COMPLETED" ||
+        Date.now() - pend.since > TTL_MS
+      ) {
         pendingBulkRef.current.delete(tr.id);
         continue;
       }
       const edrReady =
         tr.name === "STARTED" && activeEdrTps.has(tr.id.slice(0, 12));
+      // 발사 in-flight 중복 방지: firedBulkRef 는 이번 시도 동안만 막고, 결과에 따라 정리.
       if (!edrReady || firedBulkRef.current.has(tr.id)) continue;
       firedBulkRef.current.add(tr.id);
-      pendingBulkRef.current.delete(tr.id);
       startBulkTransfer(tr.id, connectorId, {
         dataSink: pend.dataSink,
         objectName: pend.objectName,
       })
         .then(() => {
+          // 성공 시에만 예약 해제(그전에 지우면 실패 후 재시도가 죽는다).
+          pendingBulkRef.current.delete(tr.id);
           setBulkWatchTp(tr.id);
           toast.success(t.transfers.s3StreamAutoStarted);
         })
         .catch((err: unknown) => {
-          firedBulkRef.current.delete(tr.id);
+          firedBulkRef.current.delete(tr.id); // 재시도 허용
+          const nextTries = pend.tries + 1;
+          if (nextTries >= MAX_TRIES) {
+            pendingBulkRef.current.delete(tr.id); // 시도 상한 → 포기
+          } else {
+            pendingBulkRef.current.set(tr.id, { ...pend, tries: nextTries });
+          }
+          // 서버가 준 원인 메시지(예: 자격/버킷 400)를 우선 표면화한다.
+          const serverMsg = (
+            err as { response?: { data?: { error?: string } } }
+          )?.response?.data?.error;
           toast.error(
-            err instanceof Error ? err.message : t.transfers.s3StreamFailed
+            serverMsg ||
+              (err instanceof Error ? err.message : t.transfers.s3StreamFailed)
           );
         });
     }
@@ -433,6 +462,11 @@ export default function PageTransfer() {
     initializedRef.current = false;
     toastedRef.current = new Set();
     userActionRef.current = new Set();
+    // 받기-스트리밍 추적도 커넥터별로 초기화 — 그러지 않으면 이전 커넥터의 stale tpId 로
+    // 진행률(SSE)을 구독해 404→폴링 무한 재시도가 되고, fired/pending 이 세션 내 누적된다.
+    firedBulkRef.current.clear();
+    pendingBulkRef.current.clear();
+    setBulkWatchTp(null);
   }, [connectorId]);
 
   /* ── toast on TERMINATED (신규 실패만, 기존 상태 제외) ─────── */
@@ -709,9 +743,14 @@ export default function PageTransfer() {
               ...(s3SecretKey.trim() ? { secretAccessKey: s3SecretKey } : {}),
             },
             objectName: s3ObjectName.trim() || undefined,
+            tries: 0,
+            since: Date.now(),
           });
+          toast.success(t.transfers.s3StreamStarted);
+        } else {
+          // @id 가 없으면 스트리밍이 예약되지 않으므로 거짓 성공을 내지 않는다.
+          toast.warning(t.transfers.s3StreamNoId);
         }
-        toast.success(t.transfers.s3StreamStarted);
       } else {
         toast.success(t.transfers.started);
       }

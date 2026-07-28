@@ -689,6 +689,8 @@ const en: Translations = {
       "Receive transfer started — MinIO streaming will begin automatically once the EDR is ready.",
     s3StreamAutoStarted: "MinIO streaming started — showing progress.",
     s3StreamFailed: "Failed to start MinIO streaming.",
+    s3StreamNoId:
+      "The transfer started but no transfer ID was returned, so MinIO streaming could not be scheduled. Retry from the transfer detail.",
     started: "Transfer has been started.",
     startFailed: "Failed to start transfer.",
     totalVolume: "Total Volume",
