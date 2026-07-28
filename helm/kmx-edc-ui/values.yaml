@@ -85,6 +85,19 @@ env:
   AUDIT_RETENTION_DAYS: "90" # 감사 로그 보존기간(컴플라이언스)
   EDC_QUERY_LIMIT: "1000"
   DISPLAY_TZ: "Asia/Seoul"
+  # 대량 데이터 전송(유즈케이스1: 소스 pull → S3/MinIO 스트리밍) 튜닝.
+  BULK_TRANSFER_MAX_JOBS: "" # 동시 대량전송 상한(기본 4). 워커 메모리/대역 부하 억제.
+  # S3/MinIO 목적지 기본값(폴백). 전송 시작 요청의 dataSink 가 우선이며, 아래는 dataSink
+  # 미지정 시 폴백이다. 자격(키/시크릿)은 여기 넣지 말고 extraEnv 로 Secret 을 주입한다:
+  #   extraEnv:
+  #     - name: S3_ACCESS_KEY_ID
+  #       valueFrom: { secretKeyRef: { name: kmx-minio, key: accessKeyId } }
+  #     - name: S3_SECRET_ACCESS_KEY
+  #       valueFrom: { secretKeyRef: { name: kmx-minio, key: secretAccessKey } }
+  S3_ENDPOINT: "" # MinIO 등 S3 호환 엔드포인트(예 http://minio:9000). 지정 시 path-style on.
+  S3_REGION: "" # 기본 us-east-1
+  S3_BUCKET: "" # 기본 목적지 버킷
+  S3_FORCE_PATH_STYLE: "" # "true" 강제(엔드포인트 지정 시 기본 on)
 
 # 위 고정 목록에 없는 임의 env 를 주입하는 탈출구(DTR_TOKEN·LOGIN_MAX_FAILURES·
 # KMX_NOTIFY_* 등). name/value(또는 valueFrom) 형태의 리스트를 그대로 렌더한다.
