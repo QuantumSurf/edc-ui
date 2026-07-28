@@ -23,6 +23,18 @@ import { getPool } from "../lib/db.js";
 import { requireRole } from "../middleware/auth.js";
 import { assertEndpointPublic } from "../middleware/validation.js";
 import { pullEdrData, evictEdrTokens } from "../lib/edrRefresh.js";
+import {
+  startBulkTransfer,
+  cancelBulkTransfer,
+  subscribe,
+  getSnapshot,
+  createS3Uploader,
+  type SourceFile,
+  type ProgressSnapshot,
+} from "../lib/transferWorker.js";
+import { resolveS3Target, isS3TargetUsable } from "../lib/s3.js";
+import { persistSnapshot, readSnapshot } from "../lib/transferProgressStore.js";
+import type { Readable } from "node:stream";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
@@ -414,6 +426,235 @@ router.post(
       }
 
       res.json({ data: body, sizeBytes, contentType, previewOmitted });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /:id/transfers/:tpId/bulk-transfer — 대량 데이터 전송 시작(소스 pull → S3/MinIO 스트리밍)
+// body: { dataSink?: {bucketName,region,endpointOverride,accessKeyId,secretAccessKey,objectName},
+//         objectName?: string, files?: [{ path?, name?, size? }] }
+// 진행률은 GET .../progress/stream(SSE) 또는 .../progress(스냅샷)로 조회. write 가드.
+router.post(
+  "/:id/transfers/:tpId/bulk-transfer",
+  writeGuard,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const connectorId = req.params.id;
+      const tpId = req.params.tpId;
+      const { client } = await resolveConnector(connectorId);
+
+      // S3 목적지 해석(dataSink 우선, env 폴백). 버킷/자격 없으면 시작 불가.
+      const s3 = resolveS3Target(
+        (req.body?.dataSink as Record<string, unknown>) ?? {}
+      );
+      if (!isS3TargetUsable(s3)) {
+        res.status(400).json({
+          error:
+            "S3 destination requires bucket + credentials (dataSink or env)",
+        });
+        return;
+      }
+
+      // EDR DataAddress(endpoint + token) 조회.
+      const edrRes = await client.get(`/v3/edrs/${tpId}/dataaddress`);
+      const edr = edrRes.data as Record<string, unknown>;
+      const endpoint = edr["endpoint"] as string;
+      const token = edr["authorization"] as string;
+      if (!endpoint || !token) {
+        res
+          .status(404)
+          .json({ error: "EDR not found or expired for this transfer" });
+        return;
+      }
+
+      // 소스 파일 목록 — files 제공 시 각 하위경로(매니페스트), 없으면 단일 객체(기본값).
+      const objectPrefix =
+        typeof req.body?.objectName === "string" ? req.body.objectName : "";
+      const specs: Array<{ path?: string; name?: string; size?: number }> =
+        Array.isArray(req.body?.files) && req.body.files.length
+          ? req.body.files
+          : [{ name: objectPrefix || "data" }];
+
+      const files: SourceFile[] = [];
+      for (let i = 0; i < specs.length; i++) {
+        const spec = specs[i];
+        const targetUrl = appendProxyPath(endpoint, spec.path, undefined);
+        if (targetUrl === null) {
+          res
+            .status(400)
+            .json({ error: "file.path must be a relative sub-path" });
+          return;
+        }
+        // 각 소스 URL 을 미리 SSRF 검증(미신뢰 provider EDR endpoint → 사설/메타 차단).
+        const ssrf = await assertEndpointPublic(targetUrl);
+        if (ssrf) {
+          res
+            .status(502)
+            .json({ error: `Rejected EDR data endpoint: ${ssrf}` });
+          return;
+        }
+        const name =
+          spec.name ||
+          (spec.path ? spec.path.replace(/^\/+/, "") : "") ||
+          `file-${i + 1}`;
+        const key =
+          objectPrefix && specs.length > 1
+            ? `${objectPrefix.replace(/\/+$/, "")}/${name}`
+            : name;
+        files.push({
+          name: key,
+          size:
+            typeof spec.size === "number" && spec.size >= 0
+              ? spec.size
+              : undefined,
+          open: async () => {
+            const r = await pullEdrData(
+              client,
+              connectorId,
+              tpId,
+              targetUrl,
+              edr,
+              {
+                responseType: "stream",
+                maxRedirects: 0,
+                // 스트리밍이라 전량 버퍼링 없음 → 대량 허용(총량 상한 미적용).
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity,
+              }
+            );
+            return r.data as Readable;
+          },
+        });
+      }
+
+      let snap: ProgressSnapshot;
+      try {
+        snap = startBulkTransfer({
+          connectorId,
+          transferId: tpId,
+          files,
+          uploader: createS3Uploader(s3),
+          onProgress: s => void persistSnapshot(s),
+        });
+      } catch (e) {
+        if (/too many/i.test((e as Error).message)) {
+          res
+            .status(429)
+            .json({ error: "too many active transfers, retry later" });
+          return;
+        }
+        throw e;
+      }
+      res.status(202).json(snap);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /:id/transfers/:tpId/cancel — 진행 중 대량 전송 취소. write 가드.
+router.post(
+  "/:id/transfers/:tpId/cancel",
+  writeGuard,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const canceled = cancelBulkTransfer(req.params.id, req.params.tpId);
+      res.json({ canceled });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /:id/transfers/:tpId/progress — 진행 스냅샷 1회(로컬 이미터 우선, 없으면 DB 폴백).
+router.get(
+  "/:id/transfers/:tpId/progress",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const connectorId = req.params.id;
+      const tpId = req.params.tpId;
+      const snap =
+        getSnapshot(connectorId, tpId) ??
+        (await readSnapshot(connectorId, tpId));
+      if (!snap) {
+        res.status(404).json({ error: "no transfer progress" });
+        return;
+      }
+      res.json(snap);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /:id/transfers/:tpId/progress/stream — SSE 실시간 진행률.
+// 로컬 잡이면 워커 이미터 실시간 구독, 아니면 DB 스냅샷 1s 폴백 폴링.
+router.get(
+  "/:id/transfers/:tpId/progress/stream",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const connectorId = req.params.id;
+      const tpId = req.params.tpId;
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no"); // 프록시 버퍼링 방지
+      res.flushHeaders?.();
+
+      const isTerminal = (st: string): boolean =>
+        st === "COMPLETED" || st === "FAILED" || st === "CANCELED";
+      const send = (snap: ProgressSnapshot): void => {
+        res.write(`data: ${JSON.stringify(snap)}\n\n`);
+      };
+
+      let closed = false;
+      let unsub: (() => void) | null = null;
+      let pollTimer: NodeJS.Timeout | null = null;
+      const heartbeat = setInterval(() => {
+        if (!closed) res.write(`: ping\n\n`);
+      }, 15_000);
+      heartbeat.unref?.();
+
+      const cleanup = (): void => {
+        if (closed) return;
+        closed = true;
+        clearInterval(heartbeat);
+        if (unsub) unsub();
+        if (pollTimer) clearInterval(pollTimer);
+        res.end();
+      };
+      req.on("close", cleanup);
+
+      if (getSnapshot(connectorId, tpId)) {
+        // 로컬 잡 — 이미터 실시간 구독(즉시 현재 스냅샷 1회 + 이후 갱신).
+        unsub = subscribe(connectorId, tpId, snap => {
+          if (closed) return;
+          send(snap);
+          if (isTerminal(snap.state)) cleanup();
+        });
+      } else {
+        // 원격/종료 — DB 스냅샷 폴백 폴링(1s).
+        const initial = await readSnapshot(connectorId, tpId);
+        if (initial) {
+          send(initial);
+          if (isTerminal(initial.state)) {
+            cleanup();
+            return;
+          }
+        }
+        pollTimer = setInterval(() => {
+          if (closed) return;
+          void readSnapshot(connectorId, tpId).then(snap => {
+            if (closed || !snap) return;
+            send(snap);
+            if (isTerminal(snap.state)) cleanup();
+          });
+        }, 1000);
+        pollTimer.unref?.();
+      }
     } catch (error) {
       next(error);
     }
