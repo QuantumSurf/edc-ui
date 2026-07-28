@@ -91,6 +91,14 @@ export function getSnapshot(
   return jobs.get(jobKey(connectorId, transferId))?.snap ?? null;
 }
 
+/** 특정 잡의 현재 진행 구독자(SSE) 수 — 누수 검증/관측용. */
+export function subscriberCount(
+  connectorId: string,
+  transferId: string
+): number {
+  return subscribers.get(jobKey(connectorId, transferId))?.size ?? 0;
+}
+
 export function activeJobCount(): number {
   let n = 0;
   for (const j of jobs.values())
