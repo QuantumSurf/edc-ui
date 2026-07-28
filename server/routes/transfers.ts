@@ -31,6 +31,7 @@ import {
 } from "../lib/transferWorker.js";
 import { resolveS3Target, isS3TargetUsable } from "../lib/s3.js";
 import { readSnapshot } from "../lib/transferProgressStore.js";
+import { bulkSseConnections } from "../lib/metrics.js";
 import {
   startBulkFromPlan,
   type JobPlan,
@@ -558,6 +559,7 @@ router.get(
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-Accel-Buffering", "no"); // 프록시 버퍼링 방지
       res.flushHeaders?.();
+      bulkSseConnections.inc();
 
       const isTerminal = (st: string): boolean =>
         st === "COMPLETED" || st === "FAILED" || st === "CANCELED";
@@ -576,6 +578,7 @@ router.get(
       const cleanup = (): void => {
         if (closed) return;
         closed = true;
+        bulkSseConnections.dec();
         clearInterval(heartbeat);
         if (unsub) unsub();
         if (pollTimer) clearInterval(pollTimer);

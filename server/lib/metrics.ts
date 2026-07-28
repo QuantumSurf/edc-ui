@@ -9,10 +9,42 @@ import {
   collectDefaultMetrics,
   Histogram,
   Counter,
+  Gauge,
 } from "prom-client";
+import { activeJobCount } from "./transferWorker.js";
 
 export const register = new Registry();
 collectDefaultMetrics({ register });
+
+// ── 대량 데이터 전송(유즈케이스1) 관측 지표 ──
+// 스트리밍 경로는 k6 읽기 램프가 못 잡으므로, 실운영 회귀는 이 지표로 관측한다.
+export const bulkActiveJobs = new Gauge({
+  name: "bulk_transfer_active_jobs",
+  help: "진행 중(RUNNING/PENDING) 대량 전송 잡 수",
+  registers: [register],
+  collect() {
+    this.set(activeJobCount());
+  },
+});
+
+export const bulkSseConnections = new Gauge({
+  name: "bulk_transfer_sse_connections",
+  help: "열린 대량 전송 진행률 SSE 연결 수",
+  registers: [register],
+});
+
+export const bulkBytesTransferred = new Counter({
+  name: "bulk_transfer_bytes_total",
+  help: "대량 전송으로 목적지에 전송된 누적 바이트",
+  registers: [register],
+});
+
+export const bulkTransfersTotal = new Counter({
+  name: "bulk_transfer_total",
+  help: "종료된 대량 전송 수(상태별)",
+  labelNames: ["state"] as const, // completed|failed|canceled
+  registers: [register],
+});
 
 export const httpRequestDuration = new Histogram({
   name: "http_request_duration_seconds",

@@ -21,6 +21,7 @@ import {
   type ProgressSnapshot,
 } from "./transferWorker.js";
 import { persistSnapshot } from "./transferProgressStore.js";
+import { bulkTransfersTotal, bulkBytesTransferred } from "./metrics.js";
 
 export interface JobPlanFile {
   path?: string; // EDR endpoint 하위 경로(없으면 루트)
@@ -171,8 +172,11 @@ export async function startBulkFromPlan(
           s.state === "COMPLETED" ||
           s.state === "FAILED" ||
           s.state === "CANCELED"
-        )
+        ) {
+          bulkTransfersTotal.inc({ state: s.state.toLowerCase() });
+          bulkBytesTransferred.inc(s.transferredBytes);
           void markJobDone(plan.connectorId, plan.transferId);
+        }
       },
     });
     return { snapshot };
