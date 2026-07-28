@@ -627,11 +627,12 @@ const en: Translations = {
       tooMany: "Too many concurrent transfers. Please try again shortly.",
       canceledToast: "Transfer canceled.",
       states: {
+        // Distinct from the badge (EDC transfer state) — this is the S3 upload layer.
         PENDING: "Pending",
-        RUNNING: "Transferring",
-        COMPLETED: "Completed",
-        FAILED: "Failed",
-        CANCELED: "Canceled",
+        RUNNING: "Uploading",
+        COMPLETED: "Upload complete",
+        FAILED: "Upload failed",
+        CANCELED: "Upload canceled",
       },
     },
     fsmCodes: "State Codes",

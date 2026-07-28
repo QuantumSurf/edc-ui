@@ -44,6 +44,21 @@ export function useTransferProgress(
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
 
+    // 진행 중 전송량을 단조 증가로 클램프 — 크래시 재개 시 새 잡이 0부터 카운트해 진행바가
+    // 순간 역행(예 60%→0%)하는 깜빡임을 막는다(터미널은 서버 값을 그대로 반영).
+    let maxBytes = 0;
+    const apply = (s: TransferProgressSnapshot): void => {
+      if (
+        (s.state === "RUNNING" || s.state === "PENDING") &&
+        s.transferredBytes < maxBytes
+      ) {
+        setSnapshot({ ...s, transferredBytes: maxBytes });
+        return;
+      }
+      maxBytes = Math.max(maxBytes, s.transferredBytes);
+      setSnapshot(s);
+    };
+
     const stopPolling = (): void => {
       if (pollTimer != null) {
         clearInterval(pollTimer);
@@ -61,7 +76,7 @@ export function useTransferProgress(
           if (!r.ok) return;
           const s = (await r.json()) as TransferProgressSnapshot;
           if (stopped) return;
-          setSnapshot(s);
+          apply(s);
           if (isTerminal(s.state)) stopPolling();
         } catch {
           /* 폴링 실패 무시(다음 주기 재시도) */
@@ -79,7 +94,7 @@ export function useTransferProgress(
         try {
           const s = JSON.parse(ev.data) as TransferProgressSnapshot;
           if (stopped) return;
-          setSnapshot(s);
+          apply(s);
           if (isTerminal(s.state)) es?.close();
         } catch {
           /* 파싱 실패 무시 */

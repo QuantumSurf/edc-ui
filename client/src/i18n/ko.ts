@@ -631,11 +631,12 @@ const ko = {
       tooMany: "동시 전송이 많습니다. 잠시 후 다시 시도하세요.",
       canceledToast: "전송을 취소했습니다.",
       states: {
+        // 배지(EDC 전송 상태)와 구분되는 S3 업로드 계층임을 문구로 명시(모순처럼 안 보이게).
         PENDING: "대기 중",
-        RUNNING: "전송 중",
-        COMPLETED: "완료",
-        FAILED: "실패",
-        CANCELED: "취소됨",
+        RUNNING: "업로드 중",
+        COMPLETED: "업로드 완료",
+        FAILED: "업로드 실패",
+        CANCELED: "업로드 취소됨",
       },
     },
     fsmCodes: "상태 코드",

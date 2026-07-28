@@ -799,7 +799,7 @@ const server = http.createServer((req, res) => {
     // 목도 동일 형식(submodelElements)으로 응답한다 — 뷰어가 실환경과 같은 데이터를 본다.
     // 대용량 소스 HEAD — BFF 가 진행률 총량(Content-Length)을 미리 확보하도록 지원.
     if (method === "HEAD" && url.startsWith("/data/large")) {
-      const m = (url.split("?")[1] || "").match(/mb=(\d+)/);
+      const m = (req.url || "").match(/mb=(\d+)/); // 라우팅 url 은 쿼리 제거됨 → req.url 사용
       const mb = Math.min(1024, Math.max(1, m ? parseInt(m[1], 10) : 32));
       res.writeHead(200, {
         "Content-Type": "application/octet-stream",
@@ -816,7 +816,7 @@ const server = http.createServer((req, res) => {
       // 소크 부하용 대용량 스트림 — /data/large?mb=N (기본 32, 상한 1024). 실제 바이트를
       // 백프레셔(res.write→drain) 준수하며 흘려 BFF 스트리밍 경로의 메모리/역압을 검증한다.
       if (url.startsWith("/data/large")) {
-        const m = (url.split("?")[1] || "").match(/mb=(\d+)/);
+        const m = (req.url || "").match(/mb=(\d+)/); // 라우팅 url 은 쿼리 제거됨 → req.url 사용
         const mb = Math.min(1024, Math.max(1, m ? parseInt(m[1], 10) : 32));
         res.writeHead(200, {
           "Content-Type": "application/octet-stream",
