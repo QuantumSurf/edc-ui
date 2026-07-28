@@ -169,6 +169,34 @@ async function createSchema(): Promise<void> {
   await getPool().query(
     `CREATE INDEX IF NOT EXISTS idx_transfer_meta_connector ON transfer_metadata(connector_id);`
   );
+
+  // 대량 전송 실시간 진행률 스냅샷 — 전송 워커가 ≈1/s 스로틀로 UPSERT 한다. SSE/폴백폴링이
+  // 이 스냅샷을 읽어 UI(전체%·전송량·파일 N개중M개·현재파일바·MB/s·ETA)를 그린다.
+  // 워커는 인메모리 이미터로 실시간 push 하고(로컬 잡), 이 테이블은 재접속/폴백/타 레플리카
+  // 가시성용 최신 스냅샷이다. 자격(S3 키)은 저장하지 않는다(요청/env 에서만 해석).
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS transfer_progress (
+      transfer_id        TEXT NOT NULL,
+      connector_id       TEXT NOT NULL,
+      state              TEXT NOT NULL DEFAULT 'PENDING', -- PENDING|RUNNING|COMPLETED|FAILED|CANCELED
+      total_bytes        BIGINT,          -- 전체 총량(알 수 있으면), NULL=미상
+      transferred_bytes  BIGINT NOT NULL DEFAULT 0,
+      file_count         INTEGER NOT NULL DEFAULT 1,
+      files_done         INTEGER NOT NULL DEFAULT 0,
+      current_file       TEXT,
+      current_file_bytes BIGINT NOT NULL DEFAULT 0,
+      current_file_total BIGINT,
+      bytes_per_sec      DOUBLE PRECISION, -- EMA 평활 속도
+      eta_sec            INTEGER,          -- 남은 예상 초
+      error              TEXT,             -- FAILED 사유(민감정보 제외)
+      started_at         TIMESTAMPTZ,
+      updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (transfer_id, connector_id)
+    );
+  `);
+  await getPool().query(
+    `CREATE INDEX IF NOT EXISTS idx_transfer_progress_connector ON transfer_progress(connector_id);`
+  );
   await getPool().query(
     `CREATE INDEX IF NOT EXISTS idx_negotiation_meta_connector ON negotiation_metadata(connector_id);`
   );
