@@ -77,6 +77,8 @@ services:
       - S3_ACCESS_KEY_ID=minioadmin
       - S3_SECRET_ACCESS_KEY=minioadmin12345
       - S3_FORCE_PATH_STYLE=true
+      # 소크 부하(perf/bulk-soak.mjs)에서 동시 전송 상한을 올릴 때 주입. 빈값=코드 기본(4).
+      - BULK_TRANSFER_MAX_JOBS=${BULK_TRANSFER_MAX_JOBS:-}
     volumes:
       - ./:/app
       - devnodemodules:/app/node_modules
@@ -105,6 +107,9 @@ services:
     image: node:22-alpine
     container_name: kmx-edc-ui-dev-mock
     working_dir: /mock
+    environment:
+      # 소크 부하(perf/bulk-soak.mjs)에서 EDR 소스를 대용량으로 바꿀 때 주입. 빈값=104B 샘플.
+      - MOCK_EDR_ENDPOINT=${MOCK_EDR_ENDPOINT:-}
     volumes:
       - ./dev-mock:/mock:ro
     command: ["node", "/mock/edc-mock.cjs"]

@@ -65,7 +65,8 @@ export interface BulkTransferParams {
 }
 
 const SPEED_ALPHA = 0.35; // EMA 계수(높을수록 최근값 민감)
-const MAX_ACTIVE_JOBS = Number(process.env.BULK_TRANSFER_MAX_JOBS ?? 4);
+// 빈 문자열(compose 가 미설정 var 를 "" 로 주입)·비수치는 코드 기본값 4 로 폴백.
+const MAX_ACTIVE_JOBS = Number(process.env.BULK_TRANSFER_MAX_JOBS) || 4;
 
 interface Job {
   key: string;

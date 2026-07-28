@@ -11,6 +11,10 @@ const PORT = process.env.MOCK_PORT ? parseInt(process.env.MOCK_PORT, 10) : 8090;
 // 실 kmx 데이터플레인이 공개 endpoint 를 광고하는 것과 동일 원리 — compose 밖(통합테스트)
 // 에서는 MOCK_PUBLIC_BASE=http://127.0.0.1:<port> 로 주면 그 주소로 광고한다.
 const PUBLIC_BASE = process.env.MOCK_PUBLIC_BASE || "http://mock-edc:8090";
+// EDR dataaddress 가 광고하는 소스 endpoint. 소크 부하 시 대용량 스트림을 흘리려면
+// MOCK_EDR_ENDPOINT=http://mock-edc:8090/data/large?mb=32 처럼 덮어쓴다(기본은 104B 샘플).
+const EDR_ENDPOINT =
+  process.env.MOCK_EDR_ENDPOINT || `${PUBLIC_BASE}/data/sample`;
 const now = Date.now();
 const h = n => now - n * 3600 * 1000; // n시간 전(ms)
 
@@ -669,7 +673,7 @@ const server = http.createServer((req, res) => {
       // 만료 액세스 토큰을 발급해 BFF 의 403→refresh→재시도 자동갱신 루프를 검증할 수 있다.
       const expired = process.env.MOCK_EXPIRE_EDR === "true";
       return send(res, 200, {
-        endpoint: `${PUBLIC_BASE}/data/sample`,
+        endpoint: EDR_ENDPOINT,
         authorization: expired
           ? "Bearer edr-access-expired"
           : "Bearer demo-edr-token",
@@ -743,7 +747,7 @@ const server = http.createServer((req, res) => {
     // BFF 는 pull 403 시 이 엔드포인트로 fresh 액세스 토큰을 받아 재시도한다.
     if (method === "POST" && /\/v3\/edrs\/[^/]+\/refresh$/.test(url)) {
       return send(res, 200, {
-        endpoint: `${PUBLIC_BASE}/data/sample`,
+        endpoint: EDR_ENDPOINT,
         authorization: "Bearer edr-access-fresh",
         type: "https://w3id.org/idsa/v4.1/HTTP",
         refreshToken: "mock-refresh-token-2",
@@ -798,6 +802,27 @@ const server = http.createServer((req, res) => {
       const auth = req.headers["authorization"] || "";
       if (auth.includes("expired")) {
         return send(res, 403, { error: "token expired" });
+      }
+      // 소크 부하용 대용량 스트림 — /data/large?mb=N (기본 32, 상한 1024). 실제 바이트를
+      // 백프레셔(res.write→drain) 준수하며 흘려 BFF 스트리밍 경로의 메모리/역압을 검증한다.
+      if (url.startsWith("/data/large")) {
+        const m = (url.split("?")[1] || "").match(/mb=(\d+)/);
+        const mb = Math.min(1024, Math.max(1, m ? parseInt(m[1], 10) : 32));
+        res.writeHead(200, {
+          "Content-Type": "application/octet-stream",
+          "Content-Length": String(mb * 1024 * 1024),
+        });
+        const chunk = Buffer.alloc(1024 * 1024, 65);
+        let sent = 0;
+        const pump = () => {
+          while (sent < mb) {
+            const ok = res.write(chunk);
+            sent++;
+            if (!ok) return res.once("drain", pump);
+          }
+          res.end();
+        };
+        return pump();
       }
       if (url.startsWith("/data/pcf")) {
         return send(res, 200, {
