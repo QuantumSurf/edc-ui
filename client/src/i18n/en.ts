@@ -597,7 +597,7 @@ const en: Translations = {
     sinkTypeLabels: {
       HttpProxy: "Receive (Pull — via EDR)",
       HttpData: "Push (HTTP)",
-      AmazonS3: "MinIO / S3 (push — provider-direct)",
+      AmazonS3: "MinIO / S3",
     },
     endpointUrl: "Endpoint URL",
     containerName: "Container Name",
@@ -676,6 +676,19 @@ const en: Translations = {
       "These credentials are sent to the provider (A) data plane, which writes directly to this bucket. Use short-lived credentials scoped to write only this bucket. Completion depends on the provider's signal — verify the actual upload in the destination bucket.",
     s3BucketPreexistHint:
       "The destination bucket must already exist (KMX 0.17 does not auto-create it).",
+    s3ModeLabel: "Delivery mode",
+    s3ModePush: "Push — provider-direct",
+    s3ModePushHint:
+      "The provider writes directly to the destination MinIO. No realtime progress (requires KMX 0.17).",
+    s3ModePull: "Receive streaming — realtime progress",
+    s3ModePullHint:
+      "The console receives the data and stores it to MinIO with a progress bar (via console; server load).",
+    s3StreamInfo:
+      "Receive streaming: the provider sends data to the console (BFF), which stores it to MinIO and shows realtime progress. Leave credentials blank to use the console's default store (server config). Large payloads pass through the console, adding server load.",
+    s3StreamStarted:
+      "Receive transfer started — MinIO streaming will begin automatically once the EDR is ready.",
+    s3StreamAutoStarted: "MinIO streaming started — showing progress.",
+    s3StreamFailed: "Failed to start MinIO streaming.",
     started: "Transfer has been started.",
     startFailed: "Failed to start transfer.",
     totalVolume: "Total Volume",

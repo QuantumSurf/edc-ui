@@ -601,7 +601,7 @@ const ko = {
     sinkTypeLabels: {
       HttpProxy: "받기 (Pull — EDR로 조회)",
       HttpData: "밀기 (HTTP Push)",
-      AmazonS3: "MinIO / S3 (푸시 — provider가 직접)",
+      AmazonS3: "MinIO / S3",
     },
     endpointUrl: "엔드포인트 URL",
     containerName: "컨테이너 이름",
@@ -680,6 +680,19 @@ const ko = {
       "이 자격은 provider(A) 데이터플레인으로 전송되어 provider가 직접 이 버킷에 씁니다. 해당 버킷 쓰기 권한만 가진 수명 짧은 자격을 사용하세요. 전송 완료는 provider 신호에 의존하며, 실제 적재 여부는 대상 버킷에서 확인하세요.",
     s3BucketPreexistHint:
       "목적지 버킷은 미리 존재해야 합니다(KMX 0.17은 자동 생성하지 않음).",
+    s3ModeLabel: "전달 모드",
+    s3ModePush: "푸시 — provider가 직접",
+    s3ModePushHint:
+      "provider가 대상 MinIO에 직접 씁니다. 실시간 진행률은 없습니다(KMX 0.17 필요).",
+    s3ModePull: "받기 스트리밍 — 실시간 진행률",
+    s3ModePullHint:
+      "콘솔이 데이터를 받아 MinIO에 저장하며 진행률을 표시합니다(콘솔 경유·서버 부하).",
+    s3StreamInfo:
+      "받기-스트리밍: provider가 콘솔(BFF)로 보낸 데이터를 콘솔이 MinIO에 저장하며 실시간 진행률을 표시합니다. 자격을 비우면 콘솔 기본 저장소(서버 설정)에 저장됩니다. 대용량은 콘솔을 경유하므로 서버 부하가 있습니다.",
+    s3StreamStarted:
+      "받기 전송을 시작했습니다 — EDR 준비되면 자동으로 MinIO 스트리밍을 시작합니다.",
+    s3StreamAutoStarted: "MinIO 스트리밍을 시작했습니다 — 진행률을 표시합니다.",
+    s3StreamFailed: "MinIO 스트리밍 시작에 실패했습니다.",
     started: "전송이 시작되었습니다.",
     startFailed: "전송 시작에 실패했습니다.",
     totalVolume: "총 전송량",

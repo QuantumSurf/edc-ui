@@ -14,6 +14,7 @@ import {
   fetchTransferData,
   deleteAllTransfers,
   fetchEDRs,
+  startBulkTransfer,
   cancelBulkTransfer,
   fetchTransferProgress,
 } from "@/services";
@@ -223,6 +224,9 @@ export default function PageTransfer() {
   const [s3Endpoint, setS3Endpoint] = useState("");
   const [s3AccessKeyId, setS3AccessKeyId] = useState("");
   const [s3SecretKey, setS3SecretKey] = useState("");
+  // MinIO/S3 전달 하위모드: "push"=AmazonS3-PUSH(provider 직접, 진행률 없음),
+  // "pull"=HttpProxy PULL 후 콘솔(BFF)이 MinIO로 스트리밍(실시간 진행률).
+  const [s3Mode, setS3Mode] = useState<"push" | "pull">("push");
   const [agreementId, setAgreementId] = useState(
     () => qParams.get("agreementId") ?? ""
   );
@@ -274,6 +278,12 @@ export default function PageTransfer() {
   // (진행률이 필요하면 목적지 폴링 또는 pull-streaming 경로를 별도 옵션으로 되살릴 수 있음).
   const [bulkWatchTp, setBulkWatchTp] = useState<string | null>(null);
   const [bulkCanceling, setBulkCanceling] = useState(false);
+  // 받기-스트리밍(pull) 모드 자동 체이닝: PULL 전송 시작 후 EDR 준비되면 bulk-transfer 를 1회 발사.
+  // pendingBulkRef 는 시작~EDR 준비 사이 목적지 계약을 보관(폼 리셋과 무관하게 ref 로 유지).
+  const pendingBulkRef = useRef<
+    Map<string, { dataSink: Record<string, string>; objectName?: string }>
+  >(new Map());
+  const firedBulkRef = useRef<Set<string>>(new Set());
   const { snapshot: bulkSnapshot } = useTransferProgress(
     connectorId ?? null,
     bulkWatchTp,
@@ -381,6 +391,40 @@ export default function PageTransfer() {
     tr.size === "—" &&
     tr.transferType !== "PUSH" &&
     !activeEdrTps.has(tr.id.slice(0, 12));
+
+  // 받기-스트리밍 자동 체이닝: 예약된(pendingBulkRef) PULL 전송이 STARTED + 활성 EDR 에
+  // 도달하면 bulk-transfer(콘솔→MinIO 스트리밍)를 1회 발사한다(firedBulkRef 로 중복 방지).
+  // 전송이 TERMINATED 로 끝나면 예약을 취소한다. 성공 시 진행률 패널(bulkWatchTp)을 연다.
+  useEffect(() => {
+    if (!connectorId || pendingBulkRef.current.size === 0) return;
+    for (const tr of transfers) {
+      const pend = pendingBulkRef.current.get(tr.id);
+      if (!pend) continue;
+      if (tr.name === "TERMINATED") {
+        pendingBulkRef.current.delete(tr.id);
+        continue;
+      }
+      const edrReady =
+        tr.name === "STARTED" && activeEdrTps.has(tr.id.slice(0, 12));
+      if (!edrReady || firedBulkRef.current.has(tr.id)) continue;
+      firedBulkRef.current.add(tr.id);
+      pendingBulkRef.current.delete(tr.id);
+      startBulkTransfer(tr.id, connectorId, {
+        dataSink: pend.dataSink,
+        objectName: pend.objectName,
+      })
+        .then(() => {
+          setBulkWatchTp(tr.id);
+          toast.success(t.transfers.s3StreamAutoStarted);
+        })
+        .catch((err: unknown) => {
+          firedBulkRef.current.delete(tr.id);
+          toast.error(
+            err instanceof Error ? err.message : t.transfers.s3StreamFailed
+          );
+        });
+    }
+  }, [transfers, activeEdrTps, connectorId, t]);
 
   // 커넥터 전환 시 추적 ref를 재시딩한다. 그러지 않으면 새 커넥터의 transfers가
   // 도착할 때 초기 스냅샷 분기를 건너뛰어(initializedRef가 이미 true), 그 커넥터에
@@ -604,10 +648,10 @@ export default function PageTransfer() {
       toast.warning(t.transfers.endpointRequired);
       return;
     }
-    // MinIO/S3 (AmazonS3-PUSH): KMX EDC 0.17 은 S3 프로비저닝을 끄고 배포하므로
-    // provider 데이터플레인의 유일 인증 수단이 인라인 목적지 자격이다. endpoint·자격이 비면
-    // 전송은 시작되지만 데이터가 안 넘어간다 → region+bucket+endpoint+accessKey+secret 모두 필수.
-    if (sinkType === "AmazonS3") {
+    // 푸시 모드만 인라인 목적지 자격이 필수다. KMX 0.17 은 S3 프로비저닝을 끄고 배포하므로
+    // provider 데이터플레인의 유일 인증수단이 인라인 자격 — 비면 전송은 시작되나 데이터가 안 넘어간다.
+    // 받기-스트리밍 모드는 콘솔(BFF)이 목적지에 쓰므로, 자격이 비면 서버 env(S3_*)로 폴백한다.
+    if (sinkType === "AmazonS3" && s3Mode === "push") {
       if (!s3Region.trim() || !s3Bucket.trim()) {
         toast.warning(t.assets.s3Required);
         return;
@@ -620,36 +664,57 @@ export default function PageTransfer() {
     if (!connectorId) return;
     setSubmitting(true);
     try {
-      // MinIO/S3 = 네이티브 AmazonS3-PUSH: B(소비자)가 자기 MinIO 정보(버킷·엔드포인트·자격)를
-      // dataDestination 에 실어 보내면, provider(A) 데이터플레인이 그 MinIO 로 직접 푸시한다.
-      // (KMX EDC 0.17 의 data-plane-aws-s3 필요.) 바이트가 콘솔을 안 지나므로 실시간 진행률 없음.
-      await startTransfer(
+      // 전달방식별 dataSink 구성:
+      //  - AmazonS3 + 푸시: 네이티브 AmazonS3-PUSH(provider 직접, 진행률 없음, KMX 0.17)
+      //  - AmazonS3 + 받기-스트리밍: HttpProxy PULL 로 시작 → EDR 준비되면 콘솔이 MinIO 로 스트리밍(진행률)
+      //  - 그 외: 기존 HttpProxy/HttpData 그대로
+      const isS3Pull = sinkType === "AmazonS3" && s3Mode === "pull";
+      const dataSink: Record<string, string> = isS3Pull
+        ? { type: "HttpProxy" }
+        : sinkType === "AmazonS3"
+          ? {
+              type: "AmazonS3",
+              region: s3Region,
+              bucketName: s3Bucket,
+              ...(s3ObjectName.trim() ? { objectName: s3ObjectName } : {}),
+              ...(s3Endpoint.trim() ? { endpointOverride: s3Endpoint } : {}),
+              ...(s3AccessKeyId.trim() ? { accessKeyId: s3AccessKeyId } : {}),
+              ...(s3SecretKey.trim() ? { secretAccessKey: s3SecretKey } : {}),
+            }
+          : { type: sinkType, endpoint: sinkEndpoint };
+
+      const res = await startTransfer(
         {
           agreementId,
           counterPartyAddress,
           assetId: assetId || undefined,
-          dataSink:
-            sinkType === "AmazonS3"
-              ? {
-                  type: "AmazonS3",
-                  region: s3Region,
-                  bucketName: s3Bucket,
-                  ...(s3ObjectName.trim() ? { objectName: s3ObjectName } : {}),
-                  ...(s3Endpoint.trim()
-                    ? { endpointOverride: s3Endpoint }
-                    : {}),
-                  ...(s3AccessKeyId.trim()
-                    ? { accessKeyId: s3AccessKeyId }
-                    : {}),
-                  ...(s3SecretKey.trim()
-                    ? { secretAccessKey: s3SecretKey }
-                    : {}),
-                }
-              : { type: sinkType, endpoint: sinkEndpoint },
+          dataSink,
         },
         connectorId
       );
-      toast.success(t.transfers.started);
+
+      if (isS3Pull) {
+        // 방금 시작한 PULL 전송의 tpId 를 잡아, EDR 준비 시 bulk-transfer(콘솔→MinIO 스트리밍)를
+        // 1회 자동 발사하도록 목적지 계약을 예약한다. 자격이 비면 서버가 env(S3_*)로 폴백.
+        const tpId = (res as unknown as Record<string, unknown>)["@id"] as
+          | string
+          | undefined;
+        if (tpId) {
+          pendingBulkRef.current.set(tpId, {
+            dataSink: {
+              ...(s3Bucket.trim() ? { bucketName: s3Bucket } : {}),
+              ...(s3Region.trim() ? { region: s3Region } : {}),
+              ...(s3Endpoint.trim() ? { endpointOverride: s3Endpoint } : {}),
+              ...(s3AccessKeyId.trim() ? { accessKeyId: s3AccessKeyId } : {}),
+              ...(s3SecretKey.trim() ? { secretAccessKey: s3SecretKey } : {}),
+            },
+            objectName: s3ObjectName.trim() || undefined,
+          });
+        }
+        toast.success(t.transfers.s3StreamStarted);
+      } else {
+        toast.success(t.transfers.started);
+      }
       // 입력값을 서버 이력에 기록(다음 작성 시 자동완성). record() 가 빈값은 무시.
       record([
         { fieldKey: "transfer.agreementId", value: agreementId },
@@ -1116,11 +1181,59 @@ export default function PageTransfer() {
             )}
             {sinkType === "AmazonS3" && (
               <>
+                {/* 전달 하위모드: 푸시(provider 직접·진행률 없음) vs 받기-스트리밍(콘솔 경유·진행률) */}
+                <FormField label={t.transfers.s3ModeLabel} required>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="flex items-start gap-2 text-[12px] cursor-pointer">
+                      <input
+                        type="radio"
+                        name="s3Mode"
+                        aria-label={t.transfers.s3ModePush}
+                        checked={s3Mode === "push"}
+                        onChange={() => setS3Mode("push")}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="font-medium">
+                          {t.transfers.s3ModePush}
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {t.transfers.s3ModePushHint}
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-[12px] cursor-pointer">
+                      <input
+                        type="radio"
+                        name="s3Mode"
+                        aria-label={t.transfers.s3ModePull}
+                        checked={s3Mode === "pull"}
+                        onChange={() => setS3Mode("pull")}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="font-medium">
+                          {t.transfers.s3ModePull}
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {t.transfers.s3ModePullHint}
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </FormField>
                 <div className="flex gap-2 items-start rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">
                   <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>{t.transfers.s3CredentialWarning}</span>
+                  <span>
+                    {s3Mode === "push"
+                      ? t.transfers.s3CredentialWarning
+                      : t.transfers.s3StreamInfo}
+                  </span>
                 </div>
-                <FormField label={t.assets.s3Region} required>
+                <FormField
+                  label={t.assets.s3Region}
+                  required={s3Mode === "push"}
+                >
                   <input
                     value={s3Region}
                     onChange={e => setS3Region(e.target.value)}
@@ -1131,7 +1244,7 @@ export default function PageTransfer() {
                 <FormField
                   label={t.assets.s3Bucket}
                   hint={t.transfers.s3BucketPreexistHint}
-                  required
+                  required={s3Mode === "push"}
                 >
                   <input
                     value={s3Bucket}
@@ -1154,7 +1267,7 @@ export default function PageTransfer() {
                 <FormField
                   label={t.assets.s3Endpoint}
                   hint={t.assets.s3EndpointHint}
-                  required
+                  required={s3Mode === "push"}
                 >
                   <input
                     value={s3Endpoint}
@@ -1163,7 +1276,10 @@ export default function PageTransfer() {
                     className={INPUT_CLS}
                   />
                 </FormField>
-                <FormField label={t.assets.s3AccessKeyId} required>
+                <FormField
+                  label={t.assets.s3AccessKeyId}
+                  required={s3Mode === "push"}
+                >
                   <input
                     value={s3AccessKeyId}
                     onChange={e => setS3AccessKeyId(e.target.value)}
@@ -1171,7 +1287,10 @@ export default function PageTransfer() {
                     className={INPUT_CLS}
                   />
                 </FormField>
-                <FormField label={t.assets.s3SecretKey} required>
+                <FormField
+                  label={t.assets.s3SecretKey}
+                  required={s3Mode === "push"}
+                >
                   <input
                     type="password"
                     value={s3SecretKey}
