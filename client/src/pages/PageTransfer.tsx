@@ -23,7 +23,6 @@ import {
   type TransferProgressSnapshot,
 } from "@/hooks/useTransferProgress";
 import { TransferProgress } from "@/components/TransferProgress";
-import { useCan } from "@/lib/rbac";
 import { SINK_TYPES, type Transfer, isTransferActive } from "@/lib/data";
 import { useConnectorStore } from "@/stores/connectorStore";
 import { DataTablePagination } from "@/components/DataTablePagination";
@@ -211,14 +210,6 @@ function DataViewer({
 }
 
 /* ── component ────────────────────────────────────────────────── */
-type BulkDest = {
-  bucket: string;
-  endpoint: string;
-  accessKeyId: string;
-  secretKey: string;
-  objectName: string;
-};
-
 export default function PageTransfer() {
   const { t } = useI18n();
   const search = useSearch();
@@ -278,56 +269,21 @@ export default function PageTransfer() {
   const connector = useConnectorStore(s => s.connector);
   const connectorId = connector?.id;
   const queryClient = useQueryClient();
-  const canWrite = useCan("transaction:write");
 
-  // 대량 데이터 전송(실시간) — 상세 시트에서 시작/취소, SSE 로 진행률 구독.
+  // S3/MinIO 전송 진행률(SSE) 구독 + 취소. 스트리밍 목적지는 시작 폼(전달방식=MinIO/S3)에서
+  // 정하고, 협상 완료(STARTED)되면 아래 auto-chain 이 자동으로 스트리밍을 건다.
   const [bulkWatchTp, setBulkWatchTp] = useState<string | null>(null);
-  const [bulkStarting, setBulkStarting] = useState(false);
   const [bulkCanceling, setBulkCanceling] = useState(false);
-  // 대량 전송 목적지 — DataSink(EDC 전송) 폼과 분리된 전용 상태(입력을 상세 시트 안에 둔다).
-  const [bulkDest, setBulkDest] = useState<BulkDest>({
-    bucket: "",
-    endpoint: "",
-    accessKeyId: "",
-    secretKey: "",
-    objectName: "",
-  });
+  // S3/MinIO 목적지(자격 포함)를 협상 완료 전까지 클라 메모리에 보관 → STARTED 시 자동 스트리밍.
+  // 서버에 시크릿을 영속하지 않기 위함(새로고침 시 소실 — 그 경우 전송을 다시 시작).
+  const pendingS3Ref = useRef<
+    Map<string, { dataSink: Record<string, string>; objectName?: string }>
+  >(new Map());
   const { snapshot: bulkSnapshot } = useTransferProgress(
     connectorId ?? null,
     bulkWatchTp,
     !!bulkWatchTp
   );
-
-  async function handleStartBulk(tpId: string) {
-    if (!connectorId) return;
-    setBulkStarting(true);
-    try {
-      const dataSink: Record<string, string> = {};
-      if (bulkDest.bucket) dataSink.bucketName = bulkDest.bucket;
-      if (bulkDest.endpoint) dataSink.endpointOverride = bulkDest.endpoint;
-      if (bulkDest.accessKeyId) dataSink.accessKeyId = bulkDest.accessKeyId;
-      if (bulkDest.secretKey) dataSink.secretAccessKey = bulkDest.secretKey;
-      await startBulkTransfer(tpId, connectorId, {
-        dataSink,
-        objectName: bulkDest.objectName || undefined,
-      });
-      setBulkWatchTp(tpId);
-      toast.success(t.transfers.bulk.startedToast);
-    } catch (e) {
-      const err = e as {
-        response?: { status?: number; data?: { error?: string } };
-      };
-      if (err?.response?.status === 429) {
-        // 동시 상한 초과 — 일시적. 일반 실패로 오인하지 않게 전용 안내.
-        toast.error(t.transfers.bulk.tooMany);
-      } else {
-        const msg = err?.response?.data?.error ?? (e as Error).message;
-        toast.error(t.transfers.bulk.startFailed, { description: msg });
-      }
-    } finally {
-      setBulkStarting(false);
-    }
-  }
 
   async function handleCancelBulk(tpId: string) {
     if (!connectorId) return;
@@ -421,6 +377,41 @@ export default function PageTransfer() {
     tr.name === "STARTED" &&
     tr.size === "—" &&
     !activeEdrTps.has(tr.id.slice(0, 12));
+
+  // S3/MinIO auto-chain: 시작 폼에서 MinIO/S3 를 고르면 PULL 전송이 시작되는데, 그 전송이
+  // STARTED 되면 보관해 둔 목적지로 자동 스트리밍한다. EDR 미준비(404)·동시상한(429)은 다음
+  // 폴링에서 재시도, 협상 실패(TERMINATED)면 취소한다.
+  useEffect(() => {
+    if (!connectorId || pendingS3Ref.current.size === 0) return;
+    for (const [tpId, dest] of [...pendingS3Ref.current.entries()]) {
+      const tr = transfers.find(x => x.id === tpId);
+      if (!tr) continue;
+      if (tr.name === "TERMINATED") {
+        pendingS3Ref.current.delete(tpId);
+        toast.error(t.transfers.bulk.negotiationFailed);
+        continue;
+      }
+      if (tr.name !== "STARTED") continue;
+      // 중복 발사 방지로 먼저 제거 — 전송적(404/429) 실패면 아래에서 재등록해 다음 폴링 재시도.
+      pendingS3Ref.current.delete(tpId);
+      const cid = connectorId;
+      void startBulkTransfer(tpId, cid, {
+        dataSink: dest.dataSink,
+        objectName: dest.objectName,
+      })
+        .then(() => {
+          setBulkWatchTp(tpId);
+          toast.success(t.transfers.bulk.streamAutoStarted);
+        })
+        .catch((e: unknown) => {
+          const st = (e as { response?: { status?: number } })?.response
+            ?.status;
+          if (st === 404 || st === 429) pendingS3Ref.current.set(tpId, dest);
+          else toast.error(t.transfers.bulk.startFailed);
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transfers, connectorId]);
 
   // 커넥터 전환 시 추적 ref를 재시딩한다. 그러지 않으면 새 커넥터의 transfers가
   // 도착할 때 초기 스냅샷 분기를 건너뛰어(initializedRef가 이미 true), 그 커넥터에
@@ -644,40 +635,49 @@ export default function PageTransfer() {
       toast.warning(t.transfers.endpointRequired);
       return;
     }
-    if (sinkType === "AmazonS3" && (!s3Region.trim() || !s3Bucket.trim())) {
-      toast.warning(t.assets.s3Required);
+    // MinIO/S3 스트리밍은 버킷만 필수(region 은 MinIO 에 불필요). 비우면 서버 S3_* 폴백.
+    if (sinkType === "AmazonS3" && !s3Bucket.trim()) {
+      toast.warning(t.transfers.bulk.destHint);
       return;
     }
     if (!connectorId) return;
     setSubmitting(true);
     try {
-      await startTransfer(
+      const isS3 = sinkType === "AmazonS3";
+      // S3/MinIO = 실시간 스트리밍. 스트리밍은 STARTED(EDR) 후 BFF 워커가 pull→S3 하므로,
+      // 먼저 PULL(HttpProxy) 전송을 시작하고, 협상 완료되면 보관한 목적지로 자동 스트리밍한다.
+      const res = await startTransfer(
         {
           agreementId,
           counterPartyAddress,
           assetId: assetId || undefined,
-          dataSink:
-            sinkType === "AmazonS3"
-              ? {
-                  type: "AmazonS3",
-                  region: s3Region,
-                  bucketName: s3Bucket,
-                  ...(s3ObjectName.trim() ? { objectName: s3ObjectName } : {}),
-                  ...(s3Endpoint.trim()
-                    ? { endpointOverride: s3Endpoint }
-                    : {}),
-                  ...(s3AccessKeyId.trim()
-                    ? { accessKeyId: s3AccessKeyId }
-                    : {}),
-                  ...(s3SecretKey.trim()
-                    ? { secretAccessKey: s3SecretKey }
-                    : {}),
-                }
-              : { type: sinkType, endpoint: sinkEndpoint },
+          dataSink: isS3
+            ? { type: "HttpProxy" }
+            : { type: sinkType, endpoint: sinkEndpoint },
         },
         connectorId
       );
-      toast.success(t.transfers.started);
+      if (isS3) {
+        const tpId =
+          (res as { "@id"?: string })["@id"] ??
+          (res as { id?: string }).id ??
+          "";
+        if (tpId) {
+          const dataSink: Record<string, string> = {};
+          if (s3Bucket) dataSink.bucketName = s3Bucket;
+          if (s3Region) dataSink.region = s3Region;
+          if (s3Endpoint) dataSink.endpointOverride = s3Endpoint;
+          if (s3AccessKeyId) dataSink.accessKeyId = s3AccessKeyId;
+          if (s3SecretKey) dataSink.secretAccessKey = s3SecretKey;
+          pendingS3Ref.current.set(tpId, {
+            dataSink,
+            objectName: s3ObjectName || undefined,
+          });
+        }
+        toast.success(t.transfers.bulk.streamPending);
+      } else {
+        toast.success(t.transfers.started);
+      }
       // 입력값을 서버 이력에 기록(다음 작성 시 자동완성). record() 가 빈값은 무시.
       record([
         { fieldKey: "transfer.agreementId", value: agreementId },
@@ -742,13 +742,8 @@ export default function PageTransfer() {
               ? bulkSnapshot
               : null
           }
-          onStartBulk={() => handleStartBulk(liveDetailTarget.id)}
           onCancelBulk={() => handleCancelBulk(liveDetailTarget.id)}
-          bulkStarting={bulkStarting}
           bulkCanceling={bulkCanceling}
-          bulkDest={bulkDest}
-          setBulkDest={setBulkDest}
-          canWrite={canWrite}
         />
       )}
 
@@ -1122,7 +1117,7 @@ export default function PageTransfer() {
               >
                 {SINK_TYPES.map(st => (
                   <option key={st} value={st}>
-                    {st}
+                    {t.transfers.sinkTypeLabels[st] ?? st}
                   </option>
                 ))}
               </select>
@@ -1146,11 +1141,11 @@ export default function PageTransfer() {
             )}
             {sinkType === "AmazonS3" && (
               <>
-                <FormField label={t.assets.s3Region} required>
+                <FormField label={t.assets.s3Region}>
                   <input
                     value={s3Region}
                     onChange={e => setS3Region(e.target.value)}
-                    placeholder="ap-northeast-2"
+                    placeholder="ap-northeast-2 (MinIO 는 불필요)"
                     className={INPUT_CLS}
                   />
                 </FormField>
@@ -1231,13 +1226,8 @@ function TransferDetailSheet({
   onComplete,
   onTerminate,
   bulkSnapshot,
-  onStartBulk,
   onCancelBulk,
-  bulkStarting,
   bulkCanceling,
-  bulkDest,
-  setBulkDest,
-  canWrite,
 }: {
   target: Transfer;
   startedNoEdr: boolean;
@@ -1246,13 +1236,8 @@ function TransferDetailSheet({
   onComplete: () => void;
   onTerminate: () => void;
   bulkSnapshot: TransferProgressSnapshot | null;
-  onStartBulk: () => void;
   onCancelBulk: () => void;
-  bulkStarting: boolean;
   bulkCanceling: boolean;
-  bulkDest: BulkDest;
-  setBulkDest: React.Dispatch<React.SetStateAction<BulkDest>>;
-  canWrite: boolean;
 }) {
   const { t } = useI18n();
   const stateLabel =
@@ -1341,90 +1326,18 @@ function TransferDetailSheet({
           </div>
         )}
 
-        {/* 대량 데이터 전송(실시간 진행률) — 소스 pull → S3/MinIO 스트리밍.
-            viewer(쓰기권한 없음)는 진행 중 스냅샷이 있을 때만 노출(빈 헤딩 방지). */}
-        {((target.name === "STARTED" && canWrite) || bulkSnapshot) && (
+        {/* S3/MinIO 실시간 스트리밍 진행률 — 전송 시작 폼에서 MinIO/S3 를 고르면 협상 완료 후
+            자동으로 시작되고, 여기서 진행률만 보여준다(취소는 진행 패널 안에서). */}
+        {bulkSnapshot && (
           <div className="space-y-2 pt-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
               {t.transfers.bulk.title}
             </p>
-            {bulkSnapshot ? (
-              <TransferProgress
-                snapshot={bulkSnapshot}
-                onCancel={onCancelBulk}
-                canceling={bulkCanceling}
-              />
-            ) : (
-              <RoleGate permission="transaction:write">
-                <div className="space-y-2">
-                  {/* 목적지 입력을 상세 시트 안에 둔다(DataSink 폼의 Sink 유형과 분리). */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      aria-label={t.transfers.bulk.bucket}
-                      placeholder={t.transfers.bulk.bucket}
-                      value={bulkDest.bucket}
-                      onChange={e =>
-                        setBulkDest(d => ({ ...d, bucket: e.target.value }))
-                      }
-                      className={inputBase}
-                    />
-                    <input
-                      aria-label={t.transfers.bulk.objectKey}
-                      placeholder={t.transfers.bulk.objectKey}
-                      value={bulkDest.objectName}
-                      onChange={e =>
-                        setBulkDest(d => ({ ...d, objectName: e.target.value }))
-                      }
-                      className={inputBase}
-                    />
-                    <input
-                      aria-label={t.transfers.bulk.endpoint}
-                      placeholder={t.transfers.bulk.endpoint}
-                      value={bulkDest.endpoint}
-                      onChange={e =>
-                        setBulkDest(d => ({ ...d, endpoint: e.target.value }))
-                      }
-                      className={`${inputBase} col-span-2`}
-                    />
-                    <input
-                      aria-label={t.transfers.bulk.accessKey}
-                      placeholder={t.transfers.bulk.accessKey}
-                      value={bulkDest.accessKeyId}
-                      onChange={e =>
-                        setBulkDest(d => ({
-                          ...d,
-                          accessKeyId: e.target.value,
-                        }))
-                      }
-                      className={inputBase}
-                    />
-                    <input
-                      type="password"
-                      aria-label={t.transfers.bulk.secretKey}
-                      placeholder={t.transfers.bulk.secretKey}
-                      value={bulkDest.secretKey}
-                      onChange={e =>
-                        setBulkDest(d => ({ ...d, secretKey: e.target.value }))
-                      }
-                      className={inputBase}
-                    />
-                  </div>
-                  <button
-                    onClick={onStartBulk}
-                    disabled={bulkStarting}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/15 rounded-md transition-colors disabled:opacity-50"
-                  >
-                    <Send size={13} />{" "}
-                    {bulkStarting
-                      ? t.transfers.bulk.starting
-                      : t.transfers.bulk.start}
-                  </button>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    {t.transfers.bulk.destHint}
-                  </p>
-                </div>
-              </RoleGate>
-            )}
+            <TransferProgress
+              snapshot={bulkSnapshot}
+              onCancel={onCancelBulk}
+              canceling={bulkCanceling}
+            />
           </div>
         )}
       </div>

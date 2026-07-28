@@ -597,7 +597,12 @@ const ko = {
     startTransfer: "전송 시작",
     starting: "전송 시작 중...",
     dataSink: "전송 시작 (DataSink)",
-    sinkType: "Sink 유형",
+    sinkType: "전달 방식",
+    sinkTypeLabels: {
+      HttpProxy: "받기 (Pull — EDR로 조회)",
+      HttpData: "밀기 (HTTP Push)",
+      AmazonS3: "MinIO / S3 (실시간 스트리밍)",
+    },
     endpointUrl: "엔드포인트 URL",
     containerName: "컨테이너 이름",
     // 대량 데이터 전송(실시간 진행률)
@@ -627,6 +632,9 @@ const ko = {
       terminalNote:
         "계약(EDC) 전송은 계속 활성입니다 — 다시 시작하거나 강제 종료하세요.",
       startedToast: "대량 전송을 시작했습니다.",
+      streamPending: "전송 시작 — 협상 완료 후 MinIO/S3로 스트리밍합니다.",
+      streamAutoStarted: "협상 완료 — MinIO/S3 스트리밍을 시작합니다.",
+      negotiationFailed: "협상 실패로 MinIO/S3 스트리밍을 취소했습니다.",
       startFailed: "대량 전송 시작에 실패했습니다.",
       tooMany: "동시 전송이 많습니다. 잠시 후 다시 시도하세요.",
       canceledToast: "전송을 취소했습니다.",

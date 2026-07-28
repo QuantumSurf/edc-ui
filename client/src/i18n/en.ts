@@ -593,7 +593,12 @@ const en: Translations = {
     startTransfer: "Start Transfer",
     starting: "Starting Transfer...",
     dataSink: "Start Transfer (DataSink)",
-    sinkType: "Sink Type",
+    sinkType: "Delivery",
+    sinkTypeLabels: {
+      HttpProxy: "Receive (Pull — via EDR)",
+      HttpData: "Push (HTTP)",
+      AmazonS3: "MinIO / S3 (live streaming)",
+    },
     endpointUrl: "Endpoint URL",
     containerName: "Container Name",
     // Bulk data transfer (realtime progress)
@@ -623,6 +628,10 @@ const en: Translations = {
       terminalNote:
         "The contract (EDC) transfer is still active — restart or force-terminate it.",
       startedToast: "Bulk transfer started.",
+      streamPending:
+        "Transfer started — will stream to MinIO/S3 once negotiated.",
+      streamAutoStarted: "Negotiated — starting MinIO/S3 streaming.",
+      negotiationFailed: "Negotiation failed — MinIO/S3 streaming canceled.",
       startFailed: "Failed to start bulk transfer.",
       tooMany: "Too many concurrent transfers. Please try again shortly.",
       canceledToast: "Transfer canceled.",
