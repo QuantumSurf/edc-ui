@@ -541,6 +541,21 @@ export async function cancelBulkTransfer(
   return data;
 }
 
+/** 대량 전송 진행 스냅샷 1회 조회. 없으면(404) null — 상세 열 때 재부착 프로브에 사용. */
+export async function fetchTransferProgress(
+  tpId: string,
+  connectorId: string
+): Promise<TransferProgressSnapshot | null> {
+  try {
+    const { data } = await http.get(
+      `/connectors/${connectorId}/transfers/${tpId}/progress`
+    );
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchTransferData(
   tpId: string,
   connectorId: string,

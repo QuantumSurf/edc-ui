@@ -76,7 +76,16 @@ export function TransferProgress({ snapshot, onCancel, canceling }: Props) {
             {overallPct != null && `  ·  ${overallPct.toFixed(0)}%`}
           </span>
         </div>
-        <ProgressBar value={overallPct ?? 0} colorClass={color} />
+        {running && overallPct == null ? (
+          // 총량 미상 + 진행 중 → 불확정(indeterminate) 바(0% 고정처럼 보이지 않게).
+          <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full w-1/3 rounded-full animate-pulse ${color}`}
+            />
+          </div>
+        ) : (
+          <ProgressBar value={overallPct ?? 0} colorClass={color} />
+        )}
       </div>
 
       {/* 현재 파일 진행바(다수 파일일 때) */}
@@ -110,9 +119,11 @@ export function TransferProgress({ snapshot, onCancel, canceling }: Props) {
           <span className="tabular-nums font-medium">
             {snapshot.state === "COMPLETED"
               ? b.etaValue(0, 0, 0)
-              : eta
-                ? b.etaValue(eta.h, eta.m, eta.s)
-                : b.computing}
+              : snapshot.totalBytes == null
+                ? "—" // 총량 미상 → ETA 계산 불가('계산 중'으로 오도하지 않음)
+                : eta
+                  ? b.etaValue(eta.h, eta.m, eta.s)
+                  : b.computing}
           </span>
         </div>
       </div>

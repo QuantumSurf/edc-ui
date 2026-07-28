@@ -4,6 +4,7 @@
 // 재구성에 필요한 비밀 아닌 정보(파일 목록·objectName·S3 목적지)만 저장한다. S3 자격은 저장하지
 // 않으므로 재개는 자격이 env 로 있을 때만 가능하다(요청별 dataSink 시크릿은 재기동 후 소실).
 
+import axios from "axios";
 import type { Readable } from "node:stream";
 import { getPool } from "./db.js";
 import { getConnector } from "./connectorRegistry.js";
@@ -127,9 +128,25 @@ async function buildSourceFiles(
       return { error: "file.path must be a relative sub-path" };
     const ssrf = await assertEndpointPublic(targetUrl);
     if (ssrf) return { error: `Rejected EDR data endpoint: ${ssrf}` };
+    // 크기 미상이면 소스에 HEAD 로 Content-Length 를 시도 → 진행률 %/ETA 확보(다운로더 표준).
+    // HEAD 미지원/실패/미노출은 미상(undefined) 유지 → UI 가 불확정 바로 폴백한다.
+    let size = typeof f.size === "number" && f.size >= 0 ? f.size : undefined;
+    if (size == null) {
+      try {
+        const head = await axios.head(targetUrl, {
+          headers: { Authorization: `Bearer ${edr["authorization"] ?? ""}` },
+          timeout: 5000,
+          maxRedirects: 0,
+        });
+        const len = Number(head.headers["content-length"]);
+        if (Number.isFinite(len) && len > 0) size = len;
+      } catch {
+        /* HEAD 미지원/실패 → 미상 유지 */
+      }
+    }
     out.push({
       name: f.key,
-      size: typeof f.size === "number" && f.size >= 0 ? f.size : undefined,
+      size,
       open: async () => {
         const r = await pullEdrData(
           client,

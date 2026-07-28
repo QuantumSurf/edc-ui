@@ -797,6 +797,16 @@ const server = http.createServer((req, res) => {
     // 데이터 plane pull (transfer fetch) + 서브모델 콘텐츠 뷰어(/content 프록시)의
     // 대상. 실 kmx 스택의 서브모델 엔드포인트는 AAS Part 2 Submodel 본문을 반환하므로
     // 목도 동일 형식(submodelElements)으로 응답한다 — 뷰어가 실환경과 같은 데이터를 본다.
+    // 대용량 소스 HEAD — BFF 가 진행률 총량(Content-Length)을 미리 확보하도록 지원.
+    if (method === "HEAD" && url.startsWith("/data/large")) {
+      const m = (url.split("?")[1] || "").match(/mb=(\d+)/);
+      const mb = Math.min(1024, Math.max(1, m ? parseInt(m[1], 10) : 32));
+      res.writeHead(200, {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": String(mb * 1024 * 1024),
+      });
+      return res.end();
+    }
     if (method === "GET" && url.startsWith("/data/")) {
       // 만료 액세스 토큰(edr-access-expired)은 403 — BFF 가 refresh 후 fresh 토큰으로 재시도해야 200.
       const auth = req.headers["authorization"] || "";

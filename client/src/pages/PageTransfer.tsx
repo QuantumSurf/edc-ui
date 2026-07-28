@@ -16,6 +16,7 @@ import {
   fetchEDRs,
   startBulkTransfer,
   cancelBulkTransfer,
+  fetchTransferProgress,
 } from "@/services";
 import {
   useTransferProgress,
@@ -317,6 +318,24 @@ export default function PageTransfer() {
       setBulkCanceling(false);
     }
   }
+
+  // 상세 시트가 열릴 때 서버 진행 스냅샷을 조회해, 진행/완료 이력이 있으면 자동 재부착한다.
+  // (bulkWatchTp 가 시작 클릭에서만 세팅되던 휘발성 문제 → 새로고침/다른 탭/재접속에서도 복원.)
+  // 스냅샷이 없으면(404) 구독하지 않아 '대량 전송 시작' 버튼이 그대로 보인다.
+  useEffect(() => {
+    if (!detailTarget || !connectorId) {
+      setBulkWatchTp(null);
+      return;
+    }
+    const id = detailTarget.id;
+    let cancelled = false;
+    void fetchTransferProgress(id, connectorId).then(snap => {
+      if (!cancelled && snap) setBulkWatchTp(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [detailTarget, connectorId]);
 
   // 첫 로드 여부 추적 — 초기 스냅샷의 TERMINATED는 toast 제외
   const initializedRef = useRef(false);
