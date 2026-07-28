@@ -57,12 +57,15 @@ services:
       # 데모 로그인 계정 비번 고정(미설정 시 0000)
       - SEED_ADMIN_PASSWORD=0000
       - SEED_OPERATOR_PASSWORD=0000
-      # OIDC(Keycloak) SSO — 기본 비활성. 로컬 검증 시 아래를 채우면 로그인 화면에
-      # SSO 버튼이 뜬다(절차는 docs/KEYCLOAK.md). 시크릿을 커밋하지 말 것.
+      # OIDC(Keycloak) SSO — 기본 비활성. qx-portal 과 같은 공유 realm(qx-central)에 붙는다.
+      # 차장님 Keycloak 준비 완료 시 아래 주석만 해제·시크릿만 채우면 즉시 활성(절차·caveat는
+      # docs/KEYCLOAK.md 부록, import용 클라이언트 docs/keycloak/kmx-console-qx-central.json).
+      # 시크릿 커밋 금지. ⚠️ BFF(컨테이너)가 token/jwks 를 서버측에서 도달해야 함 → Keycloak 을
+      # 단일 호스트네임(host.docker.internal:8089)으로 광고해야 dev 콘솔 SSO 가 끝까지 간다.
       # - OIDC_ENABLED=true
-      # - OIDC_ISSUER_URL=http://host.docker.internal:8085/realms/kmx
+      # - OIDC_ISSUER_URL=http://host.docker.internal:8089/realms/qx-central
       # - OIDC_CLIENT_ID=kmx-console
-      # - OIDC_CLIENT_SECRET=<로컬 전용>
+      # - OIDC_CLIENT_SECRET=<로컬 전용 — kmx-console Credentials 탭>
       # - OIDC_REDIRECT_URL=http://localhost:3005/api/auth/oidc/callback
       # /api per-IP 레이트리밋. 기본은 운영과 같은 300/분.
       # k6 는 단일 IP 라 기본값이면 요청 대부분이 429 로 잘려 앱 지연 대신

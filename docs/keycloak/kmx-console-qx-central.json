@@ -1,0 +1,39 @@
+{
+  "_comment": "connector-hub(콘솔) BFF 서버측 OIDC 클라이언트 — qx-central realm 에 import. import 후 Credentials 탭에서 Client secret 확보 → connector-hub OIDC_CLIENT_SECRET 에 넣는다. redirectUris/webOrigins 의 REPLACE-console-host 를 운영 콘솔 호스트로 바꾼다. realm roles kmx-admin/kmx-operator/kmx-viewer 는 별도 생성·배정(realm_access.roles 는 토큰에 기본 포함). 자세한 절차는 docs/KEYCLOAK.md 부록 참조.",
+  "clientId": "kmx-console",
+  "name": "KMX EDC Connector Hub",
+  "description": "connector-hub BFF server-side OIDC client (Authorization Code + PKCE, confidential).",
+  "protocol": "openid-connect",
+  "enabled": true,
+  "publicClient": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "frontchannelLogout": false,
+  "redirectUris": [
+    "http://localhost:3005/api/auth/oidc/callback",
+    "https://REPLACE-console-host/api/auth/oidc/callback"
+  ],
+  "webOrigins": ["http://localhost:3005", "https://REPLACE-console-host"],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "http://localhost:3005/+##https://REPLACE-console-host/+"
+  },
+  "protocolMappers": [
+    {
+      "name": "bpn",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "bpn",
+        "claim.name": "bpn",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true"
+      }
+    }
+  ]
+}

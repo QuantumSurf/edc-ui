@@ -149,3 +149,51 @@ docker compose -f docker-compose.dev.yml up -d app
 - **리버스 프록시**: `/api/auth/oidc/*` 경로가 BFF 로 그대로 프록시되는지,
   `Set-Cookie` 가 제거되지 않는지 확인.
 - 만료 이슈: state 쿠키 TTL 은 10분 — IdP 화면에서 10분 이상 머물면 `state-mismatch`.
+
+---
+
+## 부록: qx-central(qx-portal 공유 realm) 빠른 활성화
+
+connector-hub 를 qx-portal 과 **같은 Keycloak(공유 realm `qx-central`)** 에 붙여, 포털에
+로그인한 사용자가 콘솔에도 SSO 로 들어오게 하는 절차. 코드는 이미 완비 — 차장님의 Keycloak
+준비가 끝나면 아래만 하면 **즉시 연결**된다.
+
+### 확정된 값 (qx-portal 규약)
+
+| 항목                    | dev                                                  | 운영                                    |
+| ----------------------- | ---------------------------------------------------- | --------------------------------------- |
+| realm                   | `qx-central`                                         | `qx-central`                            |
+| Keycloak URL            | `http://host.docker.internal:8089`                   | `https://<공개 Keycloak 호스트>`        |
+| issuer(OIDC_ISSUER_URL) | `http://host.docker.internal:8089/realms/qx-central` | `https://<호스트>/realms/qx-central`    |
+| 콘솔 클라이언트         | `kmx-console` (confidential, 신규)                   | 동일                                    |
+| redirect                | `http://localhost:3005/api/auth/oidc/callback`       | `https://<콘솔>/api/auth/oidc/callback` |
+
+포털(qx-portal)은 public 프론트 클라이언트 `qx-portal`, 콘솔은 **서버측 confidential 클라이언트
+`kmx-console`** 로 별도로 붙는다(같은 realm, SSO 세션 공유).
+
+### 활성화 체크리스트 (Keycloak 준비 완료 시)
+
+1. **클라이언트 import**: `docs/keycloak/kmx-console-qx-central.json` 을 qx-central realm 에
+   import(또는 위 1단계대로 수동 생성). redirect 의 `REPLACE-console-host` 를 운영 콘솔 호스트로.
+2. **Client secret 확보**: `kmx-console` → Credentials 탭.
+3. **역할**: realm roles `kmx-admin`/`kmx-operator`/`kmx-viewer` 생성·배정(또는 qx-central 기존
+   역할명을 쓰면 `OIDC_ROLE_ADMIN/OPERATOR/VIEWER` 로 재지정).
+4. **BPN**: 사용자/그룹 attribute `bpn`=`BPNL...`(콘솔 테넌트와 일치). 매퍼는 위 JSON 에 포함.
+5. **connector-hub env 채우기**(시크릿만 남음): `OIDC_ENABLED=true` · `OIDC_ISSUER_URL` ·
+   `OIDC_CLIENT_ID=kmx-console` · `OIDC_CLIENT_SECRET=<2단계>` · `OIDC_REDIRECT_URL`.
+   dev 는 `docker-compose.dev.yml` OIDC 블록 주석 해제, 운영은 Helm `oidc:` + `secrets.oidcClientSecret`.
+   재기동하면 로그인 화면에 SSO 버튼이 뜬다.
+
+### ⚠️ 핵심 caveat — BFF(서버측) 도달성 (차장님 확인 1순위)
+
+콘솔은 **BFF(서버)** 가 토큰 교환·JWKS 검증을 하므로, **discovery 가 광고하는 `token_endpoint`·
+`jwks_uri` 가 connector-hub 서버에서 도달 가능해야 한다**(브라우저만 되면 되는 포털과 다르다).
+
+- dev qx-central 은 issuer/authorization 은 `host.docker.internal:8089` 인데 token/jwks 는
+  `localhost:8089` 로 광고된다 → **app 컨테이너에서 localhost:8089 는 자기 자신이라 실패**.
+  dev 에서 콘솔 SSO 를 끝까지 태우려면 Keycloak 이 **모든 엔드포인트를 단일 호스트네임으로**
+  광고해야 한다(예: `KC_HOSTNAME=host.docker.internal`, backchannel 도 동일 호스트).
+- **운영은 Keycloak 이 단일 공개 호스트라 이 split 이 없어 그대로 동작**한다.
+
+검증 현황: 콘솔 OIDC 배선은 오프라인 목 테스트 통과, app 컨테이너에서 실 qx-central discovery
+(`host.docker.internal:8089`) 200 확인. 남은 건 위 호스트네임 정합 + 클라이언트/역할 생성뿐이다.

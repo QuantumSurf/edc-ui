@@ -121,13 +121,14 @@ secrets:
   platformDatabaseUrl: "" # platform Postgres URL — not the dev default
 
 # ── OIDC(Keycloak) SSO — 로그인 단계만 IdP 로 위임(세션·RBAC·격리는 기존 그대로) ──
-# 통합 절차·클레임 매퍼·역할 세팅은 docs/KEYCLOAK.md 참조. enabled=false 면 완전 비활성
-# (SSO 버튼 미노출, 라우트는 503). enabled=true 인데 필수값이 비면 부팅이 실패한다(fail-fast).
+# 통합 절차·클레임 매퍼·역할 세팅은 docs/KEYCLOAK.md 참조(qx-central 공유 realm 활성화는 부록).
+# enabled=false 면 완전 비활성(SSO 버튼 미노출, 라우트 503). enabled=true 인데 필수값 비면 부팅 실패.
+# 운영은 qx-portal 과 같은 realm qx-central 에 kmx-console(confidential) 클라이언트로 붙는다.
 oidc:
   enabled: false
-  issuerUrl: "" # 예: https://keycloak.company.com/realms/kmx
-  clientId: "" # confidential client
-  redirectUrl: "" # 예: https://console.kmx.io/api/auth/oidc/callback
+  issuerUrl: "" # 예: https://<공개 Keycloak 호스트>/realms/qx-central
+  clientId: "" # confidential client (예: kmx-console)
+  redirectUrl: "" # 예: https://<콘솔 호스트>/api/auth/oidc/callback
   scopes: "openid profile email"
   bpnClaim: "bpn" # 테넌트 매핑용 커스텀 클레임(클라이언트 스코프 매퍼로 주입)
   roleClaim: "realm_access.roles"
