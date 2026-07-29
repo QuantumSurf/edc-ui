@@ -172,6 +172,27 @@ describe("transferWorker — 진행률/상태", () => {
     expect(seen[seen.length - 1]).toBe("COMPLETED");
     expect(getSnapshot("c1", "sub")?.state).toBe("COMPLETED");
   });
+
+  it("바이트 상한 초과 → FAILED(사유 명시)", async () => {
+    const prev = process.env.BULK_TRANSFER_MAX_BYTES;
+    process.env.BULK_TRANSFER_MAX_BYTES = "50";
+    try {
+      const { uploader } = collectUploader();
+      startBulkTransfer({
+        connectorId: "cap-b",
+        transferId: "over",
+        // 크기 미상(사전차단 우회) → 런타임 그물이 상한 초과를 잡아야 한다.
+        files: [unsizedSource("big", 100)],
+        uploader,
+      });
+      const snap = await waitTerminal("cap-b", "over");
+      expect(snap.state).toBe("FAILED");
+      expect(snap.error).toMatch(/byte cap/i);
+    } finally {
+      if (prev === undefined) delete process.env.BULK_TRANSFER_MAX_BYTES;
+      else process.env.BULK_TRANSFER_MAX_BYTES = prev;
+    }
+  });
 });
 
 describe("computeSpeedSample — 속도(EMA)·ETA", () => {

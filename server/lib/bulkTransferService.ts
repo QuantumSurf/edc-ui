@@ -18,6 +18,7 @@ import {
 } from "./resumableUploader.js";
 import {
   startBulkTransfer,
+  bulkMaxBytes,
   type SourceFile,
   type ProgressSnapshot,
 } from "./transferWorker.js";
@@ -206,6 +207,21 @@ export async function startBulkFromPlan(
       error: built.error,
       status: /sub-path/.test(built.error) ? 400 : 502,
     };
+
+  // 사전 상한 체크 — 소스 크기를 알 수 있으면(HEAD/plan) 시작 전에 거부(fail-fast).
+  // 크기 미상이면 워커 런타임 그물이 스트리밍 중 상한 초과를 잡는다.
+  const maxBytes = bulkMaxBytes();
+  if (maxBytes > 0) {
+    const knownTotal = built.reduce(
+      (a, f) => a + (typeof f.size === "number" ? f.size : 0),
+      0
+    );
+    if (knownTotal > maxBytes)
+      return {
+        error: `source size ${knownTotal} exceeds byte cap ${maxBytes}`,
+        status: 400,
+      };
+  }
 
   await saveJobPlan(plan);
   const uploader = createResumableS3Uploader(

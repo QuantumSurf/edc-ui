@@ -28,6 +28,7 @@ import {
   cancelBulkTransfer,
   subscribe,
   getSnapshot,
+  bulkMaxFiles,
   type ProgressSnapshot,
 } from "../lib/transferWorker.js";
 import { resolveS3Target, isS3TargetUsable } from "../lib/s3.js";
@@ -490,6 +491,14 @@ router.post(
         Array.isArray(req.body?.files) && req.body.files.length
           ? req.body.files
           : [{}];
+      // 파일수 상한 — 미신뢰 provider 가 거대한 매니페스트로 잡을 폭주시키는 것 방어.
+      const maxFiles = bulkMaxFiles();
+      if (maxFiles > 0 && specs.length > maxFiles) {
+        res.status(400).json({
+          error: `file count ${specs.length} exceeds cap ${maxFiles}`,
+        });
+        return;
+      }
       const multi = specs.length > 1;
       // 잡 내 목적지 키 중복 방지 — 같은 name/objectName 이 겹치면 뒤 파일이 앞을 덮어
       // 사일런트 유실이 난다. 중복 시 -{i} 접미로 유니크화.

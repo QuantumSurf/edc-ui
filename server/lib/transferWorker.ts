@@ -68,11 +68,29 @@ const SPEED_ALPHA = 0.35; // EMA 계수(높을수록 최근값 민감)
 // 빈 문자열(compose 가 미설정 var 를 "" 로 주입)·비수치는 코드 기본값 4 로 폴백.
 const MAX_ACTIVE_JOBS = Number(process.env.BULK_TRANSFER_MAX_JOBS) || 4;
 
+// env 숫자 파싱(미설정/빈값/비수치→기본값, 음수 거부, 0 은 유효=무제한 의미로 보존).
+function envNum(name: string, dflt: number): number {
+  const v = process.env[name];
+  if (v === undefined || v === "") return dflt;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : dflt;
+}
+// 대량 전송 상한(런타임 조회 — 테스트/설정이 즉시 반영). 0 = 무제한.
+// 미신뢰 provider 가 무한 스트림/파일을 주입해 콘솔 대역·저장 비용을 소진(DoS)하는 것을 막는다.
+export function bulkMaxBytes(): number {
+  return envNum("BULK_TRANSFER_MAX_BYTES", 10 * 1024 * 1024 * 1024); // 기본 10 GiB
+}
+export function bulkMaxFiles(): number {
+  return envNum("BULK_TRANSFER_MAX_FILES", 1000);
+}
+
 interface Job {
   key: string;
   snap: ProgressSnapshot;
   abort: AbortController;
   canceled: boolean;
+  // 상한(바이트) 초과로 중단됐을 때의 사유 — canceled 와 구분해 FAILED 로 표면화.
+  limitError?: string;
   // 속도 계산용 직전 표본
   lastSampleBytes: number;
   lastSampleAt: number;
@@ -268,6 +286,7 @@ export function startBulkTransfer(
 async function runJob(job: Job, params: BulkTransferParams): Promise<void> {
   job.snap.state = "RUNNING";
   emit(job, params.onProgress);
+  const maxBytes = bulkMaxBytes(); // 0 = 무제한
   let doneBytes = 0;
   const tick = setInterval(() => {
     computeSpeedEta(job);
@@ -288,6 +307,17 @@ async function runJob(job: Job, params: BulkTransferParams): Promise<void> {
         loaded => {
           job.snap.currentFileBytes = loaded;
           job.snap.transferredBytes = doneBytes + loaded;
+          // 상한 초과 시 즉시 중단(미신뢰 provider 의 무한 스트림 방어). 크기 미상(HEAD 실패)
+          // 이라 사전차단 못 한 경우의 런타임 그물.
+          if (
+            maxBytes > 0 &&
+            job.snap.transferredBytes > maxBytes &&
+            !job.limitError
+          ) {
+            job.limitError = `transfer exceeded byte cap (${maxBytes} bytes)`;
+            job.abort.abort();
+            return;
+          }
           // 총량 추정(HEAD)이 실제보다 작으면(부정확 HEAD) 실측으로 끌어올려 % 왜곡/역행 방지.
           if (
             job.snap.totalBytes != null &&
@@ -297,6 +327,8 @@ async function runJob(job: Job, params: BulkTransferParams): Promise<void> {
         },
         job.abort.signal
       );
+      // 상한 초과가 단일 청크라 abort 로 못 끊긴 경우(업로드가 그대로 완료)도 실패로 확정.
+      if (job.limitError) throw new Error(job.limitError);
       // 최종 누적은 '실제 업로드된 바이트'로 확정한다(선언 size 는 부정확할 수 있으므로 신뢰 안 함).
       doneBytes += job.snap.currentFileBytes;
       job.snap.transferredBytes = doneBytes;
@@ -309,8 +341,14 @@ async function runJob(job: Job, params: BulkTransferParams): Promise<void> {
       job.snap.totalBytes = doneBytes;
     job.snap.etaSec = 0;
   } catch (e) {
-    job.snap.state = job.canceled ? "CANCELED" : "FAILED";
-    if (!job.canceled) job.snap.error = sanitizeError(e);
+    if (job.limitError) {
+      // 상한 초과로 abort 된 경우 — 취소가 아니라 실패(사유 명시)로 표면화.
+      job.snap.state = "FAILED";
+      job.snap.error = job.limitError;
+    } else {
+      job.snap.state = job.canceled ? "CANCELED" : "FAILED";
+      if (!job.canceled) job.snap.error = sanitizeError(e);
+    }
   } finally {
     clearInterval(tick);
     emit(job, params.onProgress);

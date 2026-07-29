@@ -677,7 +677,7 @@ const ko = {
     s3CredentialsRequired:
       "MinIO/S3 전송은 엔드포인트·Access Key·Secret Key가 모두 필요합니다.",
     s3CredentialWarning:
-      "이 자격은 provider(A) 데이터플레인으로 전송되어 provider가 직접 이 버킷에 씁니다. 해당 버킷 쓰기 권한만 가진 수명 짧은 자격을 사용하세요. 전송 완료는 provider 신호에 의존하며, 실제 적재 여부는 대상 버킷에서 확인하세요.",
+      "이 자격은 provider(A) 데이터플레인으로 전송되어 provider가 직접 이 버킷에 씁니다. 즉 외부에 스토리지 쓰기 자격을 넘기는 방식이라, 수신측 보안정책상 부담·거부될 수 있습니다(가급적 '받기 스트리밍'을 권장). 부득이 사용할 경우 해당 버킷 쓰기 권한만 가진 수명 짧은 자격을 쓰고, 실제 적재 여부는 대상 버킷에서 확인하세요.",
     s3BucketPreexistHint:
       "목적지 버킷은 미리 존재해야 합니다(KMX 0.17은 자동 생성하지 않음).",
     s3ModeLabel: "전달 모드",
