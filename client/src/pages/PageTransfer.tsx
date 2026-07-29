@@ -660,6 +660,24 @@ export default function PageTransfer() {
     });
   }
 
+  // dev 전용 테스트값 프리셋 — dev 목/MinIO 로 푸시·받기스트리밍을 즉시 시험하기 위한 편의.
+  // import.meta.env.DEV 게이팅으로 프로덕션 번들/화면에는 노출되지 않는다(자격 미유출).
+  function fillDevPreset(mode: "push" | "pull") {
+    setAgreementId("agreement-002");
+    setCounterPartyAddress("http://mock-edc:8090/api/v1/dsp");
+    setAssetId("asset-pcf-battery-001");
+    setSinkType("AmazonS3");
+    setS3Mode(mode);
+    setS3Region("us-east-1");
+    setS3Bucket("bulk");
+    setS3ObjectName(
+      mode === "push" ? "push-test/data.bin" : "pull-test/data.bin"
+    );
+    setS3Endpoint("http://minio:9000");
+    setS3AccessKeyId("minioadmin");
+    setS3SecretKey("minioadmin12345");
+  }
+
   /* ── start transfer handler ─────────────────────────────────── */
   async function handleStart() {
     if (!agreementId.trim()) {
@@ -1140,6 +1158,28 @@ export default function PageTransfer() {
         {/* ── DataSink Start Form ─────────────────────────────── */}
         <Card title={t.transfers.dataSink}>
           <div className="space-y-3">
+            {/* dev 전용 테스트값 프리셋(프로덕션 빌드에서는 렌더되지 않음) */}
+            {import.meta.env.DEV && (
+              <div className="flex flex-wrap items-center gap-2 rounded border border-dashed border-border bg-muted/30 px-3 py-2 text-[11px]">
+                <span className="text-muted-foreground">
+                  {t.transfers.devPresetLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => fillDevPreset("push")}
+                  className="px-2 py-1 rounded border border-border bg-card hover:bg-muted text-foreground font-medium transition-colors"
+                >
+                  {t.transfers.devPresetPush}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDevPreset("pull")}
+                  className="px-2 py-1 rounded border border-border bg-card hover:bg-muted text-foreground font-medium transition-colors"
+                >
+                  {t.transfers.devPresetPull}
+                </button>
+              </div>
+            )}
             <FormField label={t.transfers.agreementId} required>
               <input
                 type="text"

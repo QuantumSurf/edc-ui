@@ -695,6 +695,9 @@ const ko = {
     s3StreamFailed: "MinIO 스트리밍 시작에 실패했습니다.",
     s3StreamNoId:
       "전송은 시작됐으나 전송 ID를 받지 못해 MinIO 스트리밍을 예약하지 못했습니다. 전송 상세에서 다시 시도하세요.",
+    devPresetLabel: "dev 테스트값:",
+    devPresetPush: "푸시 채우기",
+    devPresetPull: "받기 스트리밍 채우기",
     started: "전송이 시작되었습니다.",
     startFailed: "전송 시작에 실패했습니다.",
     totalVolume: "총 전송량",

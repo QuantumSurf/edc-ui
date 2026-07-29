@@ -691,6 +691,9 @@ const en: Translations = {
     s3StreamFailed: "Failed to start MinIO streaming.",
     s3StreamNoId:
       "The transfer started but no transfer ID was returned, so MinIO streaming could not be scheduled. Retry from the transfer detail.",
+    devPresetLabel: "dev test values:",
+    devPresetPush: "Fill push",
+    devPresetPull: "Fill receive-streaming",
     started: "Transfer has been started.",
     startFailed: "Failed to start transfer.",
     totalVolume: "Total Volume",
