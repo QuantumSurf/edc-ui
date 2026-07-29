@@ -288,9 +288,9 @@ router.post(
           return;
         }
         const blobName = String(dataSink?.blobName ?? "").trim();
-        // EDC AzureStorageDataSinkFactory 는 keyName 이 가리키는 DataAddress 속성(또는 vault alias)
-        // 에서 SAS 를 읽는다. 인라인으로 넣기 위해 keyName="sasToken", 그 속성에 AzureSasToken JSON.
-        const sasKey = "sasToken";
+        // EDC AzureStorageDataSinkFactory.getSecret 는 인라인 SAS 를 **`secret`** 속성에서 읽고
+        // (없으면 vault 를 keyName alias 로 조회), 그 값을 AzureSasToken(JSON `{"sas":...}`)으로 파싱한다.
+        // keyName 은 validateKeyNameOrSecret 통과용으로 함께 넣는다(인라인이면 vault 조회는 안 감).
         transferType = "AzureStorage-PUSH";
         dataDestination = {
           "@type": "DataAddress",
@@ -298,8 +298,8 @@ router.post(
           account,
           container,
           blobName: blobName || `push-${randomUUID()}`,
-          keyName: sasKey,
-          [sasKey]: JSON.stringify({ sas: sasToken }),
+          keyName: "azure-sas",
+          secret: JSON.stringify({ sas: sasToken }),
         };
       } else if (sinkType === "HttpProxy") {
         transferType = "HttpData-PULL";
