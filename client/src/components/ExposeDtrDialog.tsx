@@ -128,6 +128,8 @@ export function ExposeDtrDialog({
       id: aid,
       name: "Digital Twin Registry",
       type: "cx-taxo:DigitalTwinRegistry",
+      // CX-0002-CAC-018/019: DTR Dataset 은 구현한 AAS 스펙 버전을 명시해야 한다
+      ver: "3.0",
       dataAddressType: "HttpData",
       baseUrl: dtrUrl.trim(),
       proxyPath: "true",

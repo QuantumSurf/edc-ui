@@ -221,6 +221,12 @@ export function buildPolicyDefinition(
  *   customProperties?: Record<string,string>   // 사용자 정의 속성(시스템 키 제외 후 병합 — id 12)
  * forceId: PUT에서는 @id를 URL :assetId로 강제 정합(본문 id 불일치 방지).
  */
+/**
+ * cx-common:version 기본값 — CX-0002 는 구현한 AAS 스펙의 major.minor 를 요구하며
+ * 최소 "3.0" 이어야 한다(CAC-018/019/039/040). 현재 DTR 은 AAS API 3.1 을 서빙한다.
+ */
+const DEFAULT_AAS_VERSION = "3.0";
+
 // properties에 병합 시 덮어쓰면 안 되는 시스템 예약 키(커스텀 속성과 충돌 방지).
 const ASSET_SYSTEM_PROP_KEYS = new Set([
   "name",
@@ -228,7 +234,10 @@ const ASSET_SYSTEM_PROP_KEYS = new Set([
   "cx-common:version",
   "version",
   "semanticId",
+  "aas-semantics:semanticId",
   "dct:type",
+  // 표준 IRI(http)와 과거에 잘못 쓰이던 https 형태를 모두 예약어로 둔다.
+  "http://purl.org/dc/terms/type",
   "https://purl.org/dc/terms/type",
   "kmx:aasVersion",
   "kmx:aasId",
@@ -287,16 +296,21 @@ export function toEdcAssetBody(
     "@context": {
       "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
       "cx-common": "https://w3id.org/catenax/ontology/common#",
-      dct: "https://purl.org/dc/terms/",
+      // CX-0002-CAC-017/038: dct prefix 는 반드시 http:// 로 해석되어야 한다.
+      // https:// 로 두면 확장 IRI 가 달라져 상대 커넥터가 dct:type 을 인식하지 못한다.
+      dct: "http://purl.org/dc/terms/",
       "cx-taxo": "https://w3id.org/catenax/taxonomy#",
+      // CX-0002-CAC-041/042: semanticId 는 AAS HasSemantics 네임스페이스를 쓴다.
+      "aas-semantics": "https://admin-shell.io/aas/3/0/HasSemantics/",
     },
     "@id": id,
     properties: {
       name: s(b.name) ?? id,
       ...(s(b.description) ? { description: s(b.description) } : {}),
-      "cx-common:version": s(b.ver) ?? "",
+      // CX-0002-CAC-018/019/039/040: 구현한 AAS 스펙의 major.minor (최소 "3.0")
+      "cx-common:version": s(b.ver) ?? DEFAULT_AAS_VERSION,
       ...(s(b.type) ? { "dct:type": { "@id": s(b.type) } } : {}),
-      ...(s(b.sem) ? { semanticId: s(b.sem) } : {}),
+      ...(s(b.sem) ? { "aas-semantics:semanticId": s(b.sem) } : {}),
       ...(s(b.aasVersion) ? { "kmx:aasVersion": s(b.aasVersion) } : {}),
       ...(s(b.aasId) ? { "kmx:aasId": s(b.aasId) } : {}),
       ...(s(b.submodelId) ? { "kmx:submodelId": s(b.submodelId) } : {}),
@@ -324,8 +338,11 @@ function props(obj: Record<string, unknown>): Record<string, unknown> {
 export function mapAsset(raw: Record<string, unknown>) {
   const p = props(raw);
   const da = (raw["dataAddress"] ?? {}) as Record<string, unknown>;
-  // dct:type may come as { "@id": "cx-taxo:..." } or as a plain string
-  const dctTypeRaw = p["dct:type"] ?? p["https://purl.org/dc/terms/type"];
+  // dct:type may come as { "@id": "cx-taxo:..." } or as a plain string.
+  // 표준 IRI(http)를 우선하되, 과거 https 로 저장된 자산도 계속 읽을 수 있게 둔다.
+  const dctTypeRaw = p["dct:type"]
+    ?? p["http://purl.org/dc/terms/type"]
+    ?? p["https://purl.org/dc/terms/type"];
   const dctType = dctTypeRaw
     ? typeof dctTypeRaw === "object"
       ? (((dctTypeRaw as Record<string, unknown>)["@id"] as string) ?? "")
@@ -344,7 +361,10 @@ export function mapAsset(raw: Record<string, unknown>) {
     id: raw["@id"] ?? jld(p, "id") ?? "",
     type: dctType,
     ver: jld(p, "cx-common:version") ?? jld(p, "version") ?? "",
-    sem: jld(p, "semanticId") ?? null,
+    sem: jld(p, "aas-semantics:semanticId")
+      ?? p["https://admin-shell.io/aas/3/0/HasSemantics/semanticId"]
+      ?? jld(p, "semanticId")
+      ?? null,
     offered: true,
     created: jld(raw, "createdAt")
       ? fmtDateTimeShort(new Date(jld(raw, "createdAt") as number))

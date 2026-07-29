@@ -134,7 +134,12 @@ export function ExposeSubmodelDialog({
     const assetBody = {
       id: aid,
       name: target.idShort || aid,
-      type: "cx-taxo:SubmodelBundle",
+      // CX-0002-CAC-037/038: 단일 Submodel 을 하나의 Dataset 으로 노출할 때는
+      // cx-taxo:Submodel 이어야 한다. SubmodelBundle 은 여러 Submodel 을 묶은
+      // Dataset(CAC-035/036, MAY)에만 쓴다.
+      type: "cx-taxo:Submodel",
+      // CX-0002-CAC-039/040: 구현한 AAS 스펙 버전
+      ver: "3.0",
       sem: target.semanticId || "",
       aasId: target.aasId,
       submodelId: target.submodelId,
