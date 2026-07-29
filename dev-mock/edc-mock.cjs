@@ -320,20 +320,34 @@ function advanceNegotiations() {
   }
 }
 
+// PUSH 전송이 STARTED 후 COMPLETED 로 전이하기까지의 지연(ms, env 로 조정, 기본 8s).
+// PUSH 는 provider 데이터플레인이 목적지로 직접 push 하고 완료를 신호하므로 콘솔이 완료를
+// 몰지 않는다. 실 데이터플레인이 없는 목에서는 그 provider 완료를 상태로만 시뮬한다
+// (실제 S3 적재는 없음 — PULL 처럼 바이트가 콘솔을 지나지 않는다).
+const PUSH_COMPLETE_MS = Number(process.env.MOCK_PUSH_COMPLETE_MS) || 8000;
+
 function advanceTransfers() {
   const t = Date.now();
+  const isPush = tr => String(tr.transferType || "").includes("PUSH");
   for (const tr of transfers) {
     if (!tr._dynamic || tr.state === "TERMINATED" || tr.state === "COMPLETED")
       continue;
     const el = t - tr._startMs;
+    // PUSH: STARTED 를 잠깐 거친 뒤 provider 완료를 시뮬(상태만).
+    if (isPush(tr) && el >= PUSH_COMPLETE_MS) {
+      tr.state = "COMPLETED";
+      tr.stateTimestamp = t;
+      continue;
+    }
     if (el >= 4000) {
       if (tr.state !== "STARTED") {
         tr.state = "STARTED";
         tr.stateTimestamp = t;
       }
-      // STARTED 도달 시 EDR 1회 발급 — 데이터 Pull/완료 처리 테스트 가능하게.
+      // STARTED 도달 시 EDR 1회 발급(PULL 데이터 Pull/완료 처리용). PUSH 는 EDR 을 쓰지
+      // 않으므로 발급하지 않는다(EDR 목록 오염 방지).
       const tid = tr["@id"];
-      if (!edrs.some(e => e.transferProcessId === tid)) {
+      if (!isPush(tr) && !edrs.some(e => e.transferProcessId === tid)) {
         edrs.unshift({
           "@id": `edr-${tid}`,
           transferProcessId: tid,
