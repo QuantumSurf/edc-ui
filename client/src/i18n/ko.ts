@@ -602,6 +602,7 @@ const ko = {
       HttpProxy: "받기 (Pull — EDR로 조회)",
       HttpData: "밀기 (HTTP Push)",
       AmazonS3: "MinIO / S3",
+      AzureStorage: "Azure Blob Storage (푸시)",
     },
     endpointUrl: "엔드포인트 URL",
     containerName: "컨테이너 이름",
@@ -680,6 +681,18 @@ const ko = {
       "이 자격은 provider(A) 데이터플레인으로 전송되어 provider가 직접 이 버킷에 씁니다. 즉 외부에 스토리지 쓰기 자격을 넘기는 방식이라, 수신측 보안정책상 부담·거부될 수 있습니다(가급적 '받기 스트리밍'을 권장). 부득이 사용할 경우 해당 버킷 쓰기 권한만 가진 수명 짧은 자격을 쓰고, 실제 적재 여부는 대상 버킷에서 확인하세요.",
     s3BucketPreexistHint:
       "목적지 버킷은 미리 존재해야 합니다(KMX 0.17은 자동 생성하지 않음).",
+    azAccount: "스토리지 계정 (account)",
+    azContainer: "컨테이너 (container)",
+    azContainerHint: "대상 컨테이너는 미리 존재해야 합니다(자동 생성 안 함).",
+    azBlobName: "Blob 이름 (blobName)",
+    azBlobNameHint: "비우면 고유 키(push-<UUID>)로 저장합니다(덮어쓰기 방지).",
+    azSasToken: "SAS 토큰 (sasToken)",
+    azSasTokenHint:
+      "해당 컨테이너 쓰기 권한(Write/Create)을 가진 SAS 토큰. provider가 이 토큰으로 직접 blob에 씁니다.",
+    azureCredentialsRequired:
+      "Azure Blob 전송은 account, container, SAS 토큰이 모두 필요합니다.",
+    azureCredentialWarning:
+      "이 SAS 토큰은 provider(A) 데이터플레인으로 전송되어 provider가 직접 이 컨테이너에 blob을 씁니다. 해당 컨테이너 쓰기만 가진 수명 짧은 SAS를 사용하세요. 실제 적재 여부는 대상 컨테이너에서 확인하세요.",
     s3ModeLabel: "전달 모드",
     s3ModePush: "푸시 — provider가 직접",
     s3ModePushHint:

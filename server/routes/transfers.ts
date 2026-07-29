@@ -275,6 +275,32 @@ router.post(
           accessKeyId,
           secretAccessKey,
         };
+      } else if (sinkType === "AzureStorage") {
+        // Azure Blob Storage 푸시(대표님 요청) — provider 데이터플레인이 대상 컨테이너에 직접 blob 적재.
+        // 대상 컨테이너는 사전 존재해야 하며(프로비저닝 미포함), SAS 토큰이 유일 인증수단이다.
+        const account = String(dataSink?.account ?? "").trim();
+        const container = String(dataSink?.container ?? "").trim();
+        const sasToken = String(dataSink?.sasToken ?? "").trim();
+        if (!account || !container || !sasToken) {
+          res.status(400).json({
+            error: "AzureStorage sink requires account, container and sasToken",
+          });
+          return;
+        }
+        const blobName = String(dataSink?.blobName ?? "").trim();
+        // EDC AzureStorageDataSinkFactory 는 keyName 이 가리키는 DataAddress 속성(또는 vault alias)
+        // 에서 SAS 를 읽는다. 인라인으로 넣기 위해 keyName="sasToken", 그 속성에 AzureSasToken JSON.
+        const sasKey = "sasToken";
+        transferType = "AzureStorage-PUSH";
+        dataDestination = {
+          "@type": "DataAddress",
+          type: "AzureStorage",
+          account,
+          container,
+          blobName: blobName || `push-${randomUUID()}`,
+          keyName: sasKey,
+          [sasKey]: JSON.stringify({ sas: sasToken }),
+        };
       } else if (sinkType === "HttpProxy") {
         transferType = "HttpData-PULL";
         dataDestination = { "@type": "DataAddress", type: "HttpProxy" };

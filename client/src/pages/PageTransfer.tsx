@@ -224,6 +224,11 @@ export default function PageTransfer() {
   const [s3Endpoint, setS3Endpoint] = useState("");
   const [s3AccessKeyId, setS3AccessKeyId] = useState("");
   const [s3SecretKey, setS3SecretKey] = useState("");
+  // AzureStorage sink(AzureStorage-PUSH) 목적지 — kmx-edc data-plane-azure-storage.
+  const [azAccount, setAzAccount] = useState("");
+  const [azContainer, setAzContainer] = useState("");
+  const [azBlobName, setAzBlobName] = useState("");
+  const [azSasToken, setAzSasToken] = useState("");
   // MinIO/S3 전달 하위모드: "push"=AmazonS3-PUSH(provider 직접, 진행률 없음),
   // "pull"=HttpProxy PULL 후 콘솔(BFF)이 MinIO로 스트리밍(실시간 진행률).
   const [s3Mode, setS3Mode] = useState<"push" | "pull">("push");
@@ -713,6 +718,13 @@ export default function PageTransfer() {
         return;
       }
     }
+    // Azure Blob 푸시: account/container/SAS 가 유일 인증수단 — 셋 다 필수.
+    if (sinkType === "AzureStorage") {
+      if (!azAccount.trim() || !azContainer.trim() || !azSasToken.trim()) {
+        toast.warning(t.transfers.azureCredentialsRequired);
+        return;
+      }
+    }
     if (!connectorId) return;
     setSubmitting(true);
     try {
@@ -733,7 +745,15 @@ export default function PageTransfer() {
               ...(s3AccessKeyId.trim() ? { accessKeyId: s3AccessKeyId } : {}),
               ...(s3SecretKey.trim() ? { secretAccessKey: s3SecretKey } : {}),
             }
-          : { type: sinkType, endpoint: sinkEndpoint };
+          : sinkType === "AzureStorage"
+            ? {
+                type: "AzureStorage",
+                account: azAccount,
+                container: azContainer,
+                ...(azBlobName.trim() ? { blobName: azBlobName } : {}),
+                sasToken: azSasToken,
+              }
+            : { type: sinkType, endpoint: sinkEndpoint };
 
       const res = await startTransfer(
         {
@@ -798,6 +818,10 @@ export default function PageTransfer() {
       setS3Endpoint("");
       setS3AccessKeyId("");
       setS3SecretKey("");
+      setAzAccount("");
+      setAzContainer("");
+      setAzBlobName("");
+      setAzSasToken("");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t.transfers.startFailed;
       toast.error(msg);
@@ -1375,6 +1399,59 @@ export default function PageTransfer() {
                     value={s3SecretKey}
                     onChange={e => setS3SecretKey(e.target.value)}
                     autoComplete="new-password"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+              </>
+            )}
+            {sinkType === "AzureStorage" && (
+              <>
+                <div className="flex gap-2 items-start rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>{t.transfers.azureCredentialWarning}</span>
+                </div>
+                <FormField label={t.transfers.azAccount} required>
+                  <input
+                    value={azAccount}
+                    onChange={e => setAzAccount(e.target.value)}
+                    placeholder="devstoreaccount1 (Azurite) 또는 실제 계정명"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField
+                  label={t.transfers.azContainer}
+                  hint={t.transfers.azContainerHint}
+                  required
+                >
+                  <input
+                    value={azContainer}
+                    onChange={e => setAzContainer(e.target.value)}
+                    placeholder="my-container"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField
+                  label={t.transfers.azBlobName}
+                  hint={t.transfers.azBlobNameHint}
+                >
+                  <input
+                    value={azBlobName}
+                    onChange={e => setAzBlobName(e.target.value)}
+                    placeholder="received/object.bin"
+                    className={INPUT_CLS}
+                  />
+                </FormField>
+                <FormField
+                  label={t.transfers.azSasToken}
+                  hint={t.transfers.azSasTokenHint}
+                  required
+                >
+                  <input
+                    type="password"
+                    value={azSasToken}
+                    onChange={e => setAzSasToken(e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="?sv=...&sig=..."
                     className={INPUT_CLS}
                   />
                 </FormField>

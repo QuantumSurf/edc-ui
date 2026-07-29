@@ -598,6 +598,7 @@ const en: Translations = {
       HttpProxy: "Receive (Pull — via EDR)",
       HttpData: "Push (HTTP)",
       AmazonS3: "MinIO / S3",
+      AzureStorage: "Azure Blob Storage (push)",
     },
     endpointUrl: "Endpoint URL",
     containerName: "Container Name",
@@ -676,6 +677,20 @@ const en: Translations = {
       "These credentials are sent to the provider (A) data plane, which writes directly to this bucket. That means handing storage write-access to an external party — the receiving side may object or refuse on security grounds (prefer 'Receive streaming'). If you must use it, scope credentials to write-only this bucket with a short TTL, and verify the actual upload in the destination bucket.",
     s3BucketPreexistHint:
       "The destination bucket must already exist (KMX 0.17 does not auto-create it).",
+    azAccount: "Storage account",
+    azContainer: "Container",
+    azContainerHint:
+      "The destination container must already exist (not auto-created).",
+    azBlobName: "Blob name",
+    azBlobNameHint:
+      "Leave blank to store under a unique key (push-<UUID>) to avoid overwrites.",
+    azSasToken: "SAS token",
+    azSasTokenHint:
+      "A SAS token with write/create permission on the container. The provider writes the blob directly using this token.",
+    azureCredentialsRequired:
+      "Azure Blob transfers require account, container, and a SAS token.",
+    azureCredentialWarning:
+      "This SAS token is sent to the provider (A) data plane, which writes the blob directly to this container. Use a short-lived SAS scoped to write only this container. Verify the actual upload in the destination container.",
     s3ModeLabel: "Delivery mode",
     s3ModePush: "Push — provider-direct",
     s3ModePushHint:
