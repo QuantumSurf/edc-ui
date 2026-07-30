@@ -1,27 +1,27 @@
 {
   "clientId": "kmx-console",
-  "name": "KMX EDC Connector Hub",
-  "description": "connector-hub BFF OIDC 클라이언트(Auth Code+PKCE, confidential). import 후: Credentials secret→OIDC_CLIENT_SECRET, REPLACE-console-host 교체, realm roles kmx-admin/operator/viewer 생성·배정. realm roles->ID token 매퍼 필수(없으면 no-role). 절차: docs/KEYCLOAK.md 부록",
-  "protocol": "openid-connect",
+  "name": "KMX Connector Hub Console",
+  "description": "EDC UI(Connector Hub) BFF — Authorization Code + PKCE(S256), confidential. bpn/realm-role 매퍼 포함(docs/KEYCLOAK.md)",
   "enabled": true,
+  "protocol": "openid-connect",
   "publicClient": false,
+  "clientAuthenticatorType": "client-secret",
   "standardFlowEnabled": true,
   "implicitFlowEnabled": false,
   "directAccessGrantsEnabled": false,
   "serviceAccountsEnabled": false,
-  "frontchannelLogout": false,
+  "frontchannelLogout": true,
   "redirectUris": [
-    "http://localhost:3005/api/auth/oidc/callback",
-    "https://REPLACE-console-host/api/auth/oidc/callback"
+    "https://kmx-console.example.com/api/auth/oidc/callback"
   ],
-  "webOrigins": ["http://localhost:3005", "https://REPLACE-console-host"],
+  "webOrigins": ["https://kmx-console.example.com"],
   "attributes": {
     "pkce.code.challenge.method": "S256",
-    "post.logout.redirect.uris": "http://localhost:3005/+##https://REPLACE-console-host/+"
+    "post.logout.redirect.uris": "https://kmx-console.example.com/*"
   },
   "protocolMappers": [
     {
-      "name": "bpn",
+      "name": "bpn (user attribute)",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-usermodel-attribute-mapper",
       "consentRequired": false,
@@ -35,7 +35,7 @@
       }
     },
     {
-      "name": "realm roles -> ID token",
+      "name": "realm roles → ID token",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-usermodel-realm-role-mapper",
       "consentRequired": false,

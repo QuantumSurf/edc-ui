@@ -1,0 +1,124 @@
+{
+  "realm": "kmx",
+  "displayName": "KMX Connector Hub",
+  "enabled": true,
+  "sslRequired": "${KMX_SSL_REQUIRED:external}",
+  "bruteForceProtected": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": false,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ko", "en"],
+  "defaultLocale": "ko",
+  "roles": {
+    "realm": [
+      {
+        "name": "kmx-admin",
+        "description": "Connector Hub admin — 전체 관리 (콘솔 role: admin)"
+      },
+      {
+        "name": "kmx-operator",
+        "description": "Connector Hub operator — 운영 기능 (콘솔 role: operator)"
+      },
+      {
+        "name": "kmx-viewer",
+        "description": "Connector Hub viewer — 읽기 전용 (콘솔 role: viewer)"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "admin@kmx.io",
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin@kmx.io",
+      "emailVerified": true,
+      "attributes": {
+        "bpn": ["BPNL000000000PRD"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "0000",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["kmx-admin"]
+    },
+    {
+      "username": "operator@kmx.io",
+      "enabled": true,
+      "firstName": "Ops",
+      "lastName": "Engineer",
+      "email": "operator@kmx.io",
+      "emailVerified": true,
+      "attributes": {
+        "bpn": ["BPNL000000000PRD"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "0000",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["kmx-operator"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "kmx-console",
+      "name": "KMX Connector Hub Console",
+      "description": "EDC UI(Connector Hub) BFF — Authorization Code + PKCE(S256), confidential",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${KMX_CONSOLE_CLIENT_SECRET:kmx-console-dev-secret}",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "redirectUris": [
+        "${KMX_CONSOLE_URL:http://localhost:3005}/api/auth/oidc/callback"
+      ],
+      "webOrigins": ["${KMX_CONSOLE_URL:http://localhost:3005}"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${KMX_CONSOLE_URL:http://localhost:3005}/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "bpn (user attribute)",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "bpn",
+            "claim.name": "bpn",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm roles → ID token",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ]
+}

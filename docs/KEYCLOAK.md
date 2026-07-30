@@ -3,6 +3,10 @@
 Connector Hub 로그인에 회사 Keycloak 을 붙이는 절차. **코드 수정은 필요 없다** —
 Keycloak 쪽 설정과 env 값만 채우면 된다. 연동 코드는 이미 들어 있다:
 
+> **빠른 길**: [keycloak/](../keycloak/README.md) 의 import 파일이 아래 1~2단계와
+> ID 토큰 역할 매퍼(3단계 노트)를 자동화한다 — 로컬 검증은 전체 realm 자동 생성(6장),
+> 회사 Keycloak 반입은 `keycloak/kmx-console-client.json` 업로드.
+
 - 서버: `server/lib/oidc.ts`(discovery/JWKS/PKCE/클레임 매핑), `server/routes/authOidc.ts`(status/login/callback)
 - 클라: 로그인 화면이 `GET /api/auth/oidc/status` 로 활성 여부를 물어 SSO 버튼을 노출
 - 부팅: `OIDC_ENABLED=true` 인데 필수 env 가 비면 **부팅이 실패**한다(반쪽 배포 방지)
@@ -68,6 +72,13 @@ Keycloak 쪽 설정과 env 값만 채우면 된다. 연동 코드는 이미 들�
 (admin > operator > viewer 우선). 매핑되는 역할이 하나도 없으면 로그인 거부
 (`no-role`) — 최소권한 기본.
 
+> **⚠️ ID 토큰 매퍼 필수**: Keycloak 기본(빌트인 `roles` scope)은 realm 역할을
+> **access token 에만** 싣는다. 콘솔 BFF 는 **ID 토큰**을 검증하므로, 클라이언트
+> dedicated scope 에 **User Realm Role** 매퍼(Token Claim Name `realm_access.roles`,
+> Add to ID token **On**)를 추가해야 한다 — 없으면 역할을 배정해도 전원 `no-role`
+> 거부된다(예제 ID 토큰 실측으로 확인). `keycloak/`·`docs/keycloak/` 의 import JSON
+> 에는 이미 포함되어 있다.
+
 다른 역할 체계를 쓰면 env 로 재지정:
 
 - `OIDC_ROLE_CLAIM` — 점 경로(예: 클라이언트 역할이면
@@ -108,21 +119,30 @@ Keycloak 쪽 설정과 env 값만 채우면 된다. 연동 코드는 이미 들�
 
 ## 6. 로컬 검증 (회사 IdP 없이)
 
+[keycloak/realm-import/](../keycloak/README.md) 가 realm `kmx` 를 완성 상태(클라이언트
++매퍼+역할+테스트 사용자)로 자동 생성한다 — 1~3단계 수동 작업 불필요:
+
 ```powershell
-# 1) 로컬 Keycloak
+# 1) 로컬 Keycloak — realm kmx 자동 import (레포 루트에서)
 docker run -d --name kc-local -p 8085:8080 `
   -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin `
-  quay.io/keycloak/keycloak:26.0 start-dev
+  -v "${PWD}\keycloak\realm-import:/opt/keycloak/data/import:ro" `
+  quay.io/keycloak/keycloak:26.0 start-dev --import-realm
 
-# 2) http://localhost:8085 접속 → realm `kmx` 생성 → 위 1~3단계 수행
-#    (redirect URI 는 http://localhost:3005/api/auth/oidc/callback)
-#    테스트 사용자: attribute bpn=BPNL000000000PRD, 역할 kmx-admin, 이메일 설정
-
-# 3) docker-compose.dev.yml 의 OIDC_* 주석 해제·값 입력 후
+# 2) docker-compose.dev.yml 의 OIDC_* 주석 해제 후, 로컬 kmx realm 기준으로 값 교체
+#    (주석의 기본값은 qx-central 연동용 — 부록 참조):
+#      OIDC_ISSUER_URL=http://host.docker.internal:8085/realms/kmx
+#      OIDC_CLIENT_SECRET=kmx-console-dev-secret   (import 기본값 — dev 전용)
 docker compose -f docker-compose.dev.yml up -d app
 
-# 4) http://localhost:3005 → "Keycloak SSO 로그인" 버튼 → Keycloak 로그인 → 콘솔 진입
+# 3) http://localhost:3005 → "Keycloak SSO 로그인" 버튼 →
+#    admin@kmx.io / 0000 (또는 operator@kmx.io / 0000) → 콘솔 진입
 ```
+
+수동으로 구성하려면(회사 Keycloak 반입 리허설 등): realm `kmx` 생성 → 위 1~3단계
+수행(redirect URI 는 `http://localhost:3005/api/auth/oidc/callback`) → 테스트 사용자
+생성(콘솔 시드와 같은 이메일 `admin@kmx.io`, attribute `bpn=BPNL000000000PRD`,
+역할 `kmx-admin`).
 
 ## 7. 트러블슈팅
 
@@ -136,7 +156,7 @@ docker compose -f docker-compose.dev.yml up -d app
 | `verify-failed`        | 서명/iss/aud/nonce 검증 실패              | `OIDC_ISSUER_URL` 이 토큰 iss 와 정확히 같은지(내부/외부 URL 불일치가 단골), 서버 시각 동기화 |
 | `no-email`             | 이메일 클레임 없음                        | 사용자 이메일 설정, scope `email`                                                             |
 | `no-bpn`               | BPN 클레임 없음                           | 2단계 매퍼 확인(ID token 에 포함되는지)                                                       |
-| `no-role`              | 매핑 역할 없음                            | 3단계 역할 배정/이름 확인                                                                     |
+| `no-role`              | 매핑 역할 없음                            | 3단계 역할 배정/이름 + **ID 토큰 매퍼**(3장 노트 — 역할이 access token 에만 실리는 게 단골)   |
 | `unknown-tenant`       | BPN 에 해당하는 콘솔 테넌트 없음/아카이브 | 콘솔 테넌트 BPN 과 attribute 값 대조                                                          |
 | `tenant-mismatch`      | 이메일이 다른 테넌트 소속                 | 5단계 참조                                                                                    |
 | `user-not-provisioned` | 사전 등록 사용자 없음(자동 생성 off)      | 사용자 생성 또는 `OIDC_AUTO_PROVISION=true`                                                   |
@@ -175,6 +195,8 @@ connector-hub 를 qx-portal 과 **같은 Keycloak(공유 realm `qx-central`)** �
 
 1. **클라이언트 import**: `docs/keycloak/kmx-console-qx-central.json` 을 qx-central realm 에
    import(또는 위 1단계대로 수동 생성). redirect 의 `REPLACE-console-host` 를 운영 콘솔 호스트로.
+   JSON 편집 시 주의: 최상위에 `_comment` 같은 임의 필드를 넣으면 Admin REST 가 400
+   (unknown field)으로, `description` 이 255자를 넘으면 500(DB 컬럼 초과)으로 거부한다(실측).
 2. **Client secret 확보**: `kmx-console` → Credentials 탭.
 3. **역할**: realm roles `kmx-admin`/`kmx-operator`/`kmx-viewer` 생성·배정(또는 qx-central 기존
    역할명을 쓰면 `OIDC_ROLE_ADMIN/OPERATOR/VIEWER` 로 재지정).
