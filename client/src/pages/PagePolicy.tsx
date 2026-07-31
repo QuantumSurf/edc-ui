@@ -87,16 +87,75 @@ function canonicalizePolicyIri(v: string): string {
   return v;
 }
 
+// CX-0152 제약 카탈로그 전체 — 커넥터 kmx-cx-policy(CxConstraints.java)가 등록하는
+// 25종과 1:1. 자주 쓰는 크리덴셜/접근 제약을 앞에, 나머지는 계약 문구(거버넌스) 제약.
+// 규칙 유형 제한이 있는 제약은 라벨에 표기(사용=Usage permission, 금지=prohibition,
+// 의무=obligation 전용) — 위반 시 커넥터 검증기가 400 으로 거부한다.
 const LEFT_OPERANDS = [
   { value: "cx-policy:Membership", label: "Membership (MembershipCredential)" },
   {
     value: "cx-policy:FrameworkAgreement",
     label: "Framework Agreement (DataExchangeGovernanceCredential)",
   },
-  { value: BPN_LEFT, label: "Business Partner Number" },
-  { value: BPN_GROUP_LEFT, label: "Business Partner Group" },
-  { value: "cx-policy:UsagePurpose", label: "Usage Purpose" },
-  { value: TRANSFER_COUNT_LEFT, label: "Transfer Count (공유 횟수)" },
+  { value: BPN_LEFT, label: "Business Partner Number (Access 전용)" },
+  { value: BPN_GROUP_LEFT, label: "Business Partner Group (Access 전용)" },
+  { value: "cx-policy:UsagePurpose", label: "Usage Purpose (사용 목적)" },
+  {
+    value: TRANSFER_COUNT_LEFT,
+    label: "Transfer Count (공유 횟수 — KMX 고유)",
+  },
+  // ── 계열사(Affiliates) ─────────────────────────────────────────
+  { value: "cx-policy:AffiliatesBpnl", label: "계열사 BPNL (Affiliates)" },
+  { value: "cx-policy:AffiliatesRegion", label: "계열사 지역 (Affiliates)" },
+  // ── 사용 조건 ──────────────────────────────────────────────────
+  { value: "cx-policy:ExclusiveUsage", label: "독점 사용 (Exclusive Usage)" },
+  { value: "cx-policy:UsageRestriction", label: "사용 제한 (금지 규칙 전용)" },
+  { value: "cx-policy:DataFrequency", label: "데이터 제공 빈도" },
+  // ── 계약 조건 ──────────────────────────────────────────────────
+  {
+    value: "cx-policy:ContractReference",
+    label: "계약 참조 (Contract Reference)",
+  },
+  { value: "cx-policy:ContractTermination", label: "계약 종료 시 데이터 처리" },
+  {
+    value: "cx-policy:JurisdictionLocation",
+    label: "관할 지역 (Jurisdiction)",
+  },
+  {
+    value: "cx-policy:JurisdictionLocationReference",
+    label: "관할 지역 참조",
+  },
+  { value: "cx-policy:Liability", label: "책임 범위 (Liability)" },
+  { value: "cx-policy:Precedence", label: "문서 우선순위 (Precedence)" },
+  { value: "cx-policy:VersionChanges", label: "버전 변경 재계약 기준" },
+  // ── 보증(Warranty) — Definition/DurationMonths 는 동시 사용 불가 ──
+  { value: "cx-policy:Warranty", label: "보증 (Warranty)" },
+  { value: "cx-policy:WarrantyDefinition", label: "보증 기간 정의" },
+  { value: "cx-policy:WarrantyDurationMonths", label: "보증 기간(개월)" },
+  // ── 기밀정보 ───────────────────────────────────────────────────
+  {
+    value: "cx-policy:ConfidentialInformationMeasures",
+    label: "기밀정보 보호조치",
+  },
+  {
+    value: "cx-policy:ConfidentialInformationSharing",
+    label: "기밀정보 공유 범위",
+  },
+  // ── 데이터 사용/제공 종료 — 같은 묶음끼리 동시 사용 불가 ─────────
+  { value: "cx-policy:DataUsageEndDate", label: "데이터 사용 종료일" },
+  {
+    value: "cx-policy:DataUsageEndDurationDays",
+    label: "데이터 사용 기간(일)",
+  },
+  { value: "cx-policy:DataUsageEndDefinition", label: "데이터 사용 종료 정의" },
+  {
+    value: "cx-policy:DataProvisioningEndDate",
+    label: "데이터 제공 종료일 (의무 규칙 전용)",
+  },
+  {
+    value: "cx-policy:DataProvisioningEndDurationDays",
+    label: "데이터 제공 기간(일) (의무 규칙 전용)",
+  },
 ];
 
 const OPERATORS = [
@@ -136,23 +195,59 @@ const BPN_GROUP_OPERATORS = [
   { value: "odrl:isNoneOf", label: "isNoneOf" },
 ];
 
-// CX 크리덴셜 제약의 허용 operator (커넥터 CxConstraints 카탈로그와 일치 — 밖이면 400).
+// CX 제약의 허용 operator (커넥터 CxConstraints 카탈로그와 일치 — 밖이면 400).
 const EQ_ONLY_OPERATORS = [{ value: "odrl:eq", label: "eq (=)" }];
 const ANY_OF_ONLY_OPERATORS = [{ value: "odrl:isAnyOf", label: "isAnyOf" }];
+const ALL_OF_ONLY_OPERATORS = [{ value: "odrl:isAllOf", label: "isAllOf" }];
 
-// catenax 2025/9 별칭 IRI(…/policy/BusinessPartnerNumber 등)도 kmx 검증기가 동일하게
-// 취급하므로 접미 일치로 판별 — 직접 타이핑한 별칭 IRI 에도 올바른 목록이 뜬다.
+// CX-0152 카탈로그의 로컬명 → 허용 operator (명시 없는 이름은 기본 OPERATORS).
+const CX_OPERATORS_BY_NAME: Record<string, { value: string; label: string }[]> =
+  {
+    Membership: EQ_ONLY_OPERATORS,
+    FrameworkAgreement: EQ_ONLY_OPERATORS,
+    UsagePurpose: ANY_OF_ONLY_OPERATORS,
+    AffiliatesBpnl: ANY_OF_ONLY_OPERATORS,
+    AffiliatesRegion: ANY_OF_ONLY_OPERATORS,
+    ExclusiveUsage: EQ_ONLY_OPERATORS,
+    UsageRestriction: ALL_OF_ONLY_OPERATORS,
+    DataFrequency: EQ_ONLY_OPERATORS,
+    ContractReference: ALL_OF_ONLY_OPERATORS,
+    ContractTermination: EQ_ONLY_OPERATORS,
+    JurisdictionLocation: EQ_ONLY_OPERATORS,
+    JurisdictionLocationReference: EQ_ONLY_OPERATORS,
+    Liability: EQ_ONLY_OPERATORS,
+    Precedence: EQ_ONLY_OPERATORS,
+    VersionChanges: EQ_ONLY_OPERATORS,
+    Warranty: EQ_ONLY_OPERATORS,
+    WarrantyDefinition: EQ_ONLY_OPERATORS,
+    WarrantyDurationMonths: EQ_ONLY_OPERATORS,
+    ConfidentialInformationMeasures: EQ_ONLY_OPERATORS,
+    ConfidentialInformationSharing: ANY_OF_ONLY_OPERATORS,
+    DataUsageEndDate: EQ_ONLY_OPERATORS,
+    DataUsageEndDurationDays: EQ_ONLY_OPERATORS,
+    DataUsageEndDefinition: EQ_ONLY_OPERATORS,
+    DataProvisioningEndDate: EQ_ONLY_OPERATORS,
+    DataProvisioningEndDurationDays: EQ_ONLY_OPERATORS,
+  };
+
+// 접두형(cx-policy:X, kmx:X)·전체 IRI(…/policy/X) 어느 표기로 와도 로컬명으로 판별한다.
+function operandLocalName(v: string): string {
+  const i = Math.max(
+    v.lastIndexOf(":"),
+    v.lastIndexOf("/"),
+    v.lastIndexOf("#")
+  );
+  return i < 0 ? v : v.slice(i + 1);
+}
+
 function operatorsFor(leftOperand: string) {
-  if (leftOperand.endsWith("transferCount")) return TRANSFER_COUNT_OPERATORS;
-  if (leftOperand.endsWith("BusinessPartnerNumber")) return BPN_OPERATORS;
-  if (leftOperand.endsWith("BusinessPartnerGroup")) return BPN_GROUP_OPERATORS;
-  if (
-    leftOperand.endsWith("Membership") ||
-    leftOperand.endsWith("FrameworkAgreement")
-  )
-    return EQ_ONLY_OPERATORS;
-  if (leftOperand.endsWith("UsagePurpose")) return ANY_OF_ONLY_OPERATORS;
-  return OPERATORS;
+  const name = operandLocalName(leftOperand);
+  if (name === "transferCount") return TRANSFER_COUNT_OPERATORS;
+  // BPN 계열은 kmx 검증기(KmxPolicyDefinitionValidator) 허용 목록이 CX 카탈로그보다
+  // 넓다(eq 등 포함) — 커넥터가 실제 수용하는 범위를 그대로 노출한다.
+  if (name === "BusinessPartnerNumber") return BPN_OPERATORS;
+  if (name === "BusinessPartnerGroup") return BPN_GROUP_OPERATORS;
+  return CX_OPERATORS_BY_NAME[name] ?? OPERATORS;
 }
 
 // 저장·임포트된 제약의 operator 가 현행 허용 목록 밖이면 첫 허용값으로 보정한다.
@@ -413,13 +508,71 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
   },
 ];
 
+// 값 제안 — ENUM 제약은 커넥터 CxConstraints 허용값 전체(밖의 값은 생성 시 400),
+// PATTERN/FREE 제약은 형식 예시.
 const RIGHT_OPERAND_SUGGESTIONS: Record<string, string[]> = {
   "cx-policy:Membership": ["active"],
+  "cx-policy:AffiliatesBpnl": ["BPNL000000000CON"],
+  "cx-policy:AffiliatesRegion": [
+    "cx.region.all:1",
+    "cx.region.europe:1",
+    "cx.region.northAmerica:1",
+    "cx.region.southAmerica:1",
+    "cx.region.africa:1",
+    "cx.region.asia:1",
+    "cx.region.oceania:1",
+    "cx.region.antarctica:1",
+  ],
+  "cx-policy:ExclusiveUsage": ["cx.exclusiveUsage.dataConsumer:1"],
+  "cx-policy:UsageRestriction": [
+    "cx.thirdParty.forbidden:1",
+    "cx.manipulation.forbidden:1",
+    "cx.derivations.forbidden:1",
+    "cx.extraordinaryAnalytics.forbidden:1",
+    "cx.dataProviderRemoval.forbidden:1",
+  ],
+  "cx-policy:DataFrequency": [
+    "cx.dataFrequency.once:1",
+    "cx.dataFrequency.unlimited:1",
+  ],
+  "cx-policy:ContractTermination": ["cx.data.deletion:1", "cx.data.keeping:1"],
+  "cx-policy:JurisdictionLocationReference": [
+    "cx.location.dataConsumer:1",
+    "cx.location.contractReference:1",
+  ],
+  "cx-policy:Liability": ["cx.grossNegligence:1", "cx.slightNegligence:1"],
+  "cx-policy:Precedence": [
+    "cx.precedence.contractReference:1",
+    "cx.precedence.rcAgreement:1",
+  ],
+  "cx-policy:VersionChanges": [
+    "cx.versionChanges.minor:1",
+    "cx.versionChanges.major:1",
+  ],
+  "cx-policy:Warranty": [
+    "cx.warranty.none:1",
+    "cx.warranty.contractReference:1",
+    "cx.warranty.dataQualityIssues:1",
+  ],
+  "cx-policy:WarrantyDefinition": ["cx.warranty.contractEndDate:1"],
+  "cx-policy:WarrantyDurationMonths": ["12"],
+  "cx-policy:ConfidentialInformationMeasures": [
+    "cx.confidentiality.measures:1",
+  ],
+  "cx-policy:ConfidentialInformationSharing": [
+    "cx.sharing.affiliates:1",
+    "cx.sharing.managedLegalEntity:1",
+  ],
+  "cx-policy:DataUsageEndDate": ["2027-12-31T23:59:59Z"],
+  "cx-policy:DataUsageEndDurationDays": ["365"],
+  "cx-policy:DataUsageEndDefinition": ["cx.dataUsageEnd.unlimited:1"],
+  "cx-policy:DataProvisioningEndDate": ["2027-12-31T23:59:59Z"],
+  "cx-policy:DataProvisioningEndDurationDays": ["365"],
   // 커넥터 검증기(CxConstraints)가 허용하는 값은 DataExchangeGovernance:1.0 뿐 —
   // 다른 프레임워크 값은 정책 생성 시 400 으로 거부된다.
   "cx-policy:FrameworkAgreement": ["DataExchangeGovernance:1.0"],
-  // 현행 데이터스페이스 참가자 BPN(provider/consumer/consumer2) — kmx-edc compose 기준.
-  [BPN_LEFT]: ["BPNL000000000CON", "BPNL000000000002", "BPNL000000000PRD"],
+  // 현행 데이터스페이스 참가자 BPN(consumer/vendor2/provider) — 로컬 override 기준.
+  [BPN_LEFT]: ["BPNL000000000CON", "BPNL0000000002ND", "BPNL000000000PRD"],
   [BPN_GROUP_LEFT]: ["fl-partners"],
   "cx-policy:UsagePurpose": [
     "cx.core.digitalTwinRegistry:1",
