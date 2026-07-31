@@ -385,9 +385,10 @@ const ko = {
         "DataExchangeGovernance 프레임워크 크리덴셜 보유자만 접근 허가 (Access 정책).",
       "transfer-count-limit":
         "계약(agreement)당 데이터 전송 횟수를 N회 미만으로 제한.",
-      "bpn-allowlist": "지정된 BPN 목록에 속한 참여자에게만 사용 허가.",
+      "bpn-allowlist":
+        "지정된 BPN 목록에 속한 참여자에게만 접근 허가 (Access 정책).",
       "bpn-group":
-        "BPN 그룹 'fl-partners' 소속 참여자에게만 사용 허가. 그룹 멤버십은 BPN 그룹 관리에서 등록.",
+        "BPN 그룹 'fl-partners' 소속 참여자에게만 접근 허가 (Access 정책). 그룹 멤버십은 BPN 그룹 관리에서 등록.",
       "credential-3set-access":
         "지갑 크리덴셜 3종(Membership·DataExchangeGovernance·BPN)을 모두 검증하는 접근 정책.",
       "usage-purpose-dtr":

@@ -385,9 +385,9 @@ const en: Translations = {
       "transfer-count-limit":
         "Limit the number of data transfers per agreement to under N.",
       "bpn-allowlist":
-        "Allow use only for participants in the specified BPN list.",
+        "Allow access only for participants in the specified BPN list (Access policy).",
       "bpn-group":
-        "Allow use only for members of BPN group 'fl-partners'. Manage membership in BPN Groups.",
+        "Allow access only for members of BPN group 'fl-partners' (Access policy). Manage membership in BPN Groups.",
       "credential-3set-access":
         "Access policy verifying all three wallet credentials (Membership, DataExchangeGovernance, BPN).",
       "usage-purpose-dtr":

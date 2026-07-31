@@ -67,8 +67,11 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 // (cx-policy:/kmx:)을 쓰고, 서버 buildPolicyDefinition 이 저장 직전 전체 IRI 로
 // 정규화한다(읽기 시엔 다시 접두형으로 축약 — 라운드트립 유지).
 const KMX_NS = "https://w3id.org/kmx/v0.1/ns/";
-const BPN_LEFT = "kmx:BusinessPartnerNumber";
-const BPN_GROUP_LEFT = "kmx:BusinessPartnerGroup";
+// BPN 계열은 커넥터가 kmx·cx-policy(2025/9) 두 네임스페이스를 같은 함수로 바인딩한다
+// (BpnNamespaces.BPN_*_KEYS) — UI 는 CX 표준 표기로 통일. transferCount 만 CX 표준에
+// 없는 KMX 고유 제약이라 kmx: 접두를 유지한다.
+const BPN_LEFT = "cx-policy:BusinessPartnerNumber";
+const BPN_GROUP_LEFT = "cx-policy:BusinessPartnerGroup";
 const TRANSFER_COUNT_LEFT = "kmx:transferCount";
 
 // 서버 buildPolicyDefinition 과 동일한 정규화(미리보기=저장 정합) — 접두형 문자열은
@@ -334,9 +337,10 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
   {
     id: "bpn-allowlist",
     label: "BPN Allowlist (isAnyOf)",
-    description: "지정된 BPN 목록에 속한 참여자에게만 사용 허가.",
+    // CX 규칙상 BPN 제약은 Access 정책 전용(usage 허용목록에 없음 — CAC-002).
+    description: "지정된 BPN 목록에 속한 참여자에게만 접근 허가 (Access 정책).",
     ruleType: "permission",
-    action: "use",
+    action: "cx-policy:access",
     constraints: [
       {
         leftOperand: BPN_LEFT,
@@ -349,9 +353,9 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
     id: "bpn-group",
     label: "BPN Group (fl-partners)",
     description:
-      "BPN 그룹 'fl-partners' 소속 참여자에게만 사용 허가. 그룹 멤버십은 BPN 그룹 관리에서 등록.",
+      "BPN 그룹 'fl-partners' 소속 참여자에게만 접근 허가 (Access 정책). 그룹 멤버십은 BPN 그룹 관리에서 등록.",
     ruleType: "permission",
-    action: "use",
+    action: "cx-policy:access",
     constraints: [
       {
         leftOperand: BPN_GROUP_LEFT,
