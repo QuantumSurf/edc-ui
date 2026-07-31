@@ -321,6 +321,7 @@ const en: Translations = {
     constraints: "Constraints",
     constraintN: (n: number) => `Constraint #${n}`,
     leftOperand: "Left Operand",
+    leftOperandPlaceholder: "Select or type (e.g. cx-policy:Membership)",
     operator: "Operator",
     rightOperand: "Right Operand",
     addConstraint: "Add Constraint",
@@ -378,18 +379,19 @@ const en: Translations = {
     templateApplied: (name: string) => `Applied template '${name}'.`,
     templateDesc: {
       "membership-active":
-        "Allow use only for participants with an active Catena-X membership.",
-      "framework-traceability":
-        "Allow only participants with a signed Traceability framework agreement.",
+        "Allow access only for participants with an active Catena-X membership (Access policy).",
+      "framework-dataexchange":
+        "Allow access only for holders of the DataExchangeGovernance framework credential (Access policy).",
       "transfer-count-limit":
         "Limit the number of data transfers per agreement to under N.",
       "bpn-allowlist":
         "Allow use only for participants in the specified BPN list.",
       "bpn-group":
         "Allow use only for members of BPN group 'fl-partners'. Manage membership in BPN Groups.",
-      "membership-and-framework":
-        "Require active membership AND the Data Exchange Governance framework.",
-      "usage-purpose-dtr": "Allow use only for Digital Twin Registry purposes.",
+      "credential-3set-access":
+        "Access policy verifying all three wallet credentials (Membership, DataExchangeGovernance, BPN).",
+      "usage-purpose-dtr":
+        "Required Usage policy pair (CAC-019) — framework agreement + Digital Twin Registry purpose.",
     } as Record<string, string>,
     bpnGroups: {
       button: "BPN Groups",

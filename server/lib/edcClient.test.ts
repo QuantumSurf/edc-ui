@@ -143,18 +143,82 @@ describe("buildPolicyDefinition", () => {
     expect(asArr(asObj(cons[0])["odrl:and"])).toHaveLength(2);
   });
 
-  it("@context 에 edc/odrl/cx-policy 프리픽스를 포함", () => {
+  it("@context 에 edc/odrl/cx-policy(2025/9) 프리픽스를 포함", () => {
     const ctx = asObj(buildPolicyDefinition({ policyId: "p" })["@context"]);
     expect(ctx["@vocab"]).toBe("https://w3id.org/edc/v0.0.1/ns/");
     expect(ctx["odrl"]).toBe("http://www.w3.org/ns/odrl/2/");
-    expect(ctx["cx-policy"]).toBe("https://w3id.org/catenax/policy/");
+    expect(ctx["cx-policy"]).toBe("https://w3id.org/catenax/2025/9/policy/");
   });
 
-  // KMX 충실도: KMX-EDC 는 policy profile 을 검증하지 않고 e2e 도 프로파일 없이 정책을
-  // 만든다 → 기본은 odrl:profile 을 넣지 않는다. Catena-X 겨냥 시에만 env 로 켠다.
-  it("기본(KMX-EDC)은 odrl:profile 을 넣지 않는다", () => {
+  // 커넥터는 leftOperand 를 바인딩 IRI 와 문자열 비교하므로 접두형은 전체 IRI 로 정규화.
+  it("cx-policy:/kmx: 접두 leftOperand·action 을 전체 IRI 로 정규화", () => {
+    const p = asObj(
+      buildPolicyDefinition({
+        policyId: "p",
+        action: "cx-policy:access",
+        constraints: [
+          {
+            leftOperand: "cx-policy:Membership",
+            operator: "odrl:eq",
+            rightOperand: "active",
+          },
+          {
+            leftOperand: "kmx:transferCount",
+            operator: "odrl:lt",
+            rightOperand: "5",
+          },
+        ],
+        logicOp: "and",
+      })["policy"]
+    );
+    const perm = asObj(asArr(p["odrl:permission"])[0]);
+    expect(asObj(perm["odrl:action"])["@id"]).toBe(
+      "https://w3id.org/catenax/2025/9/policy/access"
+    );
+    const cons = asArr(asObj(asArr(perm["odrl:constraint"])[0])["odrl:and"]);
+    expect(asObj(cons[0])["odrl:leftOperand"]).toBe(
+      "https://w3id.org/catenax/2025/9/policy/Membership"
+    );
+    expect(asObj(cons[1])["odrl:leftOperand"]).toBe(
+      "https://w3id.org/kmx/v0.1/ns/transferCount"
+    );
+  });
+
+  it("CX 제약 사용 시 odrl:profile 자동 주입(CAC-010)", () => {
+    const p = asObj(
+      buildPolicyDefinition({
+        policyId: "p",
+        constraints: [
+          {
+            leftOperand: "cx-policy:Membership",
+            operator: "odrl:eq",
+            rightOperand: "active",
+          },
+        ],
+      })["policy"]
+    );
+    expect(p["odrl:profile"]).toEqual({
+      "@id": "https://w3id.org/catenax/2025/9/policy/",
+    });
+  });
+
+  // KMX 전용 정책은 CX 검증기 관할 밖 — profile 을 넣지 않는다.
+  it("kmx 전용/무제약 정책은 odrl:profile 을 넣지 않는다", () => {
     const p = asObj(buildPolicyDefinition({ policyId: "p" })["policy"]);
     expect(p["odrl:profile"]).toBeUndefined();
+    const kmxOnly = asObj(
+      buildPolicyDefinition({
+        policyId: "p",
+        constraints: [
+          {
+            leftOperand: "https://w3id.org/kmx/v0.1/ns/BusinessPartnerGroup",
+            operator: "odrl:isAnyOf",
+            rightOperand: "fl-partners",
+          },
+        ],
+      })["policy"]
+    );
+    expect(kmxOnly["odrl:profile"]).toBeUndefined();
   });
 
   it("EDC_POLICY_PROFILE 설정 시에만 odrl:profile 을 주입(Catena-X 겨냥)", async () => {
@@ -289,6 +353,64 @@ describe("mapPolicy (라운드트립)", () => {
     });
     const m = mapPolicy(built);
     expect(m.rules[0].constraints[0].right).toBe("A,B");
+  });
+
+  // EDC 가 배열 rightOperand 를 JSON-LD 잔재 toString 문자열로 되돌리는 경우 값 복원.
+  it("뭉개진 배열 rightOperand([{@value=...string=X}...])를 쉼표결합으로 복원", () => {
+    const m = mapPolicy({
+      "@id": "p",
+      policy: {
+        "odrl:permission": {
+          "odrl:action": { "@id": "odrl:use" },
+          "odrl:constraint": {
+            "odrl:leftOperand": { "@id": "kmx:BusinessPartnerNumber" },
+            "odrl:operator": { "@id": "odrl:isAnyOf" },
+            "odrl:rightOperand":
+              "[{@value={valueType=STRING, chars=BPNL000000000CON, string=BPNL000000000CON}}, {@value={valueType=STRING, chars=BPNL000000000002, string=BPNL000000000002}}]",
+          },
+        },
+      },
+    });
+    expect(m.rules[0].constraints[0].right).toBe(
+      "BPNL000000000CON,BPNL000000000002"
+    );
+  });
+
+  it("뭉개진 rightOperand 의 값에 쉼표가 있어도 잘리지 않는다", () => {
+    const m = mapPolicy({
+      "@id": "p",
+      policy: {
+        "odrl:permission": {
+          "odrl:action": { "@id": "odrl:use" },
+          "odrl:constraint": {
+            "odrl:leftOperand": { "@id": "kmx:BusinessPartnerGroup" },
+            "odrl:operator": { "@id": "odrl:isAnyOf" },
+            "odrl:rightOperand":
+              "[{@value={valueType=STRING, chars=a,b group, string=a,b group}}]",
+          },
+        },
+      },
+    });
+    expect(m.rules[0].constraints[0].right).toBe("a,b group");
+  });
+
+  // 저장 시 전체 IRI 로 정규화(2025/9)한 것을 읽기에서 접두형으로 되돌린다 — 편집 라운드트립.
+  it("CX 전체 IRI(leftOperand·action)를 cx-policy: 접두형으로 축약 복원", () => {
+    const built = buildPolicyDefinition({
+      policyId: "p",
+      action: "cx-policy:access",
+      constraints: [
+        {
+          leftOperand: "cx-policy:Membership",
+          operator: "odrl:eq",
+          rightOperand: "active",
+        },
+      ],
+    });
+    const m = mapPolicy(built);
+    expect(m.action).toBe("cx-policy:access");
+    expect(m.rules[0].constraints[0].left).toBe("cx-policy:Membership");
+    expect(m.constraint).toBe("cx-policy:Membership eq active");
   });
 });
 

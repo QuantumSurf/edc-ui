@@ -325,6 +325,7 @@ const ko = {
     constraints: "제약 조건",
     constraintN: (n: number) => `제약 조건 #${n}`,
     leftOperand: "왼쪽 피연산자",
+    leftOperandPlaceholder: "선택 또는 입력 (예: cx-policy:Membership)",
     operator: "연산자",
     rightOperand: "오른쪽 피연산자",
     addConstraint: "제약 조건 추가",
@@ -378,17 +379,19 @@ const ko = {
     templateHint: "Catena-X 표준 정책 패턴을 빠르게 적용합니다.",
     templateApplied: (name: string) => `'${name}' 템플릿이 적용되었습니다.`,
     templateDesc: {
-      "membership-active": "Catena-X 멤버십이 활성화된 참여자에게만 사용 허가.",
-      "framework-traceability":
-        "Traceability 프레임워크 계약을 체결한 참여자만 허가.",
+      "membership-active":
+        "Catena-X 멤버십이 활성화된 참여자에게만 접근 허가 (Access 정책).",
+      "framework-dataexchange":
+        "DataExchangeGovernance 프레임워크 크리덴셜 보유자만 접근 허가 (Access 정책).",
       "transfer-count-limit":
         "계약(agreement)당 데이터 전송 횟수를 N회 미만으로 제한.",
       "bpn-allowlist": "지정된 BPN 목록에 속한 참여자에게만 사용 허가.",
       "bpn-group":
         "BPN 그룹 'fl-partners' 소속 참여자에게만 사용 허가. 그룹 멤버십은 BPN 그룹 관리에서 등록.",
-      "membership-and-framework":
-        "활성 멤버십 AND Data Exchange Governance 프레임워크 동시 충족.",
-      "usage-purpose-dtr": "디지털 트윈 레지스트리 용도로만 사용 허가.",
+      "credential-3set-access":
+        "지갑 크리덴셜 3종(Membership·DataExchangeGovernance·BPN)을 모두 검증하는 접근 정책.",
+      "usage-purpose-dtr":
+        "사용(Usage) 정책 필수 조합(CAC-019) — 프레임워크 계약 + 디지털 트윈 레지스트리 용도.",
     } as Record<string, string>,
     bpnGroups: {
       button: "BPN 그룹",

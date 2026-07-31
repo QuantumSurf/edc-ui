@@ -70,9 +70,25 @@ const BPN_LEFT = `${KMX_NS}BusinessPartnerNumber`;
 const BPN_GROUP_LEFT = `${KMX_NS}BusinessPartnerGroup`;
 const TRANSFER_COUNT_LEFT = `${KMX_NS}transferCount`;
 
+// 서버 buildPolicyDefinition 과 동일한 정규화(미리보기=저장 정합) — 접두형 문자열은
+// 커넥터에 리터럴로 저장되어 제약이 시행되지 않으므로 전체 IRI 로 확장해 보여준다.
+const CX_POLICY_NS = "https://w3id.org/catenax/2025/9/policy/";
+function canonicalizePolicyIri(v: string): string {
+  if (v.startsWith("cx-policy:")) {
+    return CX_POLICY_NS + v.slice("cx-policy:".length);
+  }
+  if (v.startsWith("kmx:")) {
+    return KMX_NS + v.slice("kmx:".length);
+  }
+  return v;
+}
+
 const LEFT_OPERANDS = [
-  { value: "cx-policy:Membership", label: "Membership" },
-  { value: "cx-policy:FrameworkAgreement", label: "Framework Agreement" },
+  { value: "cx-policy:Membership", label: "Membership (MembershipCredential)" },
+  {
+    value: "cx-policy:FrameworkAgreement",
+    label: "Framework Agreement (DataExchangeGovernanceCredential)",
+  },
   { value: BPN_LEFT, label: "Business Partner Number" },
   { value: BPN_GROUP_LEFT, label: "Business Partner Group" },
   { value: "cx-policy:UsagePurpose", label: "Usage Purpose" },
@@ -116,13 +132,31 @@ const BPN_GROUP_OPERATORS = [
   { value: "odrl:isNoneOf", label: "isNoneOf" },
 ];
 
+// CX 크리덴셜 제약의 허용 operator (커넥터 CxConstraints 카탈로그와 일치 — 밖이면 400).
+const EQ_ONLY_OPERATORS = [{ value: "odrl:eq", label: "eq (=)" }];
+const ANY_OF_ONLY_OPERATORS = [{ value: "odrl:isAnyOf", label: "isAnyOf" }];
+
 // catenax 2025/9 별칭 IRI(…/policy/BusinessPartnerNumber 등)도 kmx 검증기가 동일하게
 // 취급하므로 접미 일치로 판별 — 직접 타이핑한 별칭 IRI 에도 올바른 목록이 뜬다.
 function operatorsFor(leftOperand: string) {
   if (leftOperand.endsWith("transferCount")) return TRANSFER_COUNT_OPERATORS;
   if (leftOperand.endsWith("BusinessPartnerNumber")) return BPN_OPERATORS;
   if (leftOperand.endsWith("BusinessPartnerGroup")) return BPN_GROUP_OPERATORS;
+  if (
+    leftOperand.endsWith("Membership") ||
+    leftOperand.endsWith("FrameworkAgreement")
+  )
+    return EQ_ONLY_OPERATORS;
+  if (leftOperand.endsWith("UsagePurpose")) return ANY_OF_ONLY_OPERATORS;
   return OPERATORS;
+}
+
+// 저장·임포트된 제약의 operator 가 현행 허용 목록 밖이면 첫 허용값으로 보정한다.
+// updateConstraint 와 동일 규칙 — 편집/복제/JSON 임포트 진입 경로에도 적용해, 컨트롤드
+// select 가 빈 값으로 보이다가 저장 시 커넥터 400 을 맞는 desync 를 막는다.
+function reconcileOperator(leftOperand: string, operator: string): string {
+  const allowed = operatorsFor(leftOperand);
+  return allowed.some(o => o.value === operator) ? operator : allowed[0].value;
 }
 
 interface PolicyTemplate {
@@ -135,13 +169,16 @@ interface PolicyTemplate {
   constraints: Constraint[];
 }
 
+// CX-0152 규칙: Membership/FrameworkAgreement/BPN 은 Access 정책(action cx-policy:access),
+// Usage(use) 정책은 FrameworkAgreement+UsagePurpose 필수(CAC-019) — 커넥터 검증기가 강제.
 const POLICY_TEMPLATES: PolicyTemplate[] = [
   {
     id: "membership-active",
     label: "Catena-X Membership (Active)",
-    description: "Catena-X 멤버십이 활성화된 참여자에게만 사용 허가.",
+    description:
+      "Catena-X 멤버십이 활성화된 참여자에게만 접근 허가 (Access 정책).",
     ruleType: "permission",
-    action: "use",
+    action: "cx-policy:access",
     constraints: [
       {
         leftOperand: "cx-policy:Membership",
@@ -151,16 +188,17 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
     ],
   },
   {
-    id: "framework-traceability",
-    label: "Framework Agreement (Traceability 1.0)",
-    description: "Traceability 프레임워크 계약을 체결한 참여자만 허가.",
+    id: "framework-dataexchange",
+    label: "Framework Agreement (DataExchangeGovernance)",
+    description:
+      "DataExchangeGovernance 프레임워크 크리덴셜 보유자만 접근 허가 (Access 정책).",
     ruleType: "permission",
-    action: "use",
+    action: "cx-policy:access",
     constraints: [
       {
         leftOperand: "cx-policy:FrameworkAgreement",
         operator: "odrl:eq",
-        rightOperand: "Traceability:1.0",
+        rightOperand: "DataExchangeGovernance:1.0",
       },
     ],
   },
@@ -208,12 +246,12 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
     ],
   },
   {
-    id: "membership-and-framework",
-    label: "Membership + Framework (AND)",
+    id: "credential-3set-access",
+    label: "크리덴셜 3종 검증 (Access)",
     description:
-      "활성 멤버십 AND Data Exchange Governance 프레임워크 동시 충족.",
+      "지갑 크리덴셜 3종(Membership·DataExchangeGovernance·BPN)을 모두 검증하는 접근 정책.",
     ruleType: "permission",
-    action: "use",
+    action: "cx-policy:access",
     logicOp: "and",
     constraints: [
       {
@@ -226,18 +264,30 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
         operator: "odrl:eq",
         rightOperand: "DataExchangeGovernance:1.0",
       },
+      {
+        leftOperand: BPN_LEFT,
+        operator: "odrl:isAnyOf",
+        rightOperand: "BPNL000000000CON,BPNL000000000002",
+      },
     ],
   },
   {
     id: "usage-purpose-dtr",
-    label: "Usage Purpose: Digital Twin Registry",
-    description: "디지털 트윈 레지스트리 용도로만 사용 허가.",
+    label: "Usage: Framework + Purpose (DTR)",
+    description:
+      "사용(Usage) 정책 필수 조합(CAC-019) — 프레임워크 계약 + 디지털 트윈 레지스트리 용도.",
     ruleType: "permission",
     action: "use",
+    logicOp: "and",
     constraints: [
       {
-        leftOperand: "cx-policy:UsagePurpose",
+        leftOperand: "cx-policy:FrameworkAgreement",
         operator: "odrl:eq",
+        rightOperand: "DataExchangeGovernance:1.0",
+      },
+      {
+        leftOperand: "cx-policy:UsagePurpose",
+        operator: "odrl:isAnyOf",
         rightOperand: "cx.core.digitalTwinRegistry:1",
       },
     ],
@@ -246,11 +296,9 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
 
 const RIGHT_OPERAND_SUGGESTIONS: Record<string, string[]> = {
   "cx-policy:Membership": ["active"],
-  "cx-policy:FrameworkAgreement": [
-    "DataExchangeGovernance:1.0",
-    "Traceability:1.0",
-    "QualityManagement:1.0",
-  ],
+  // 커넥터 검증기(CxConstraints)가 허용하는 값은 DataExchangeGovernance:1.0 뿐 —
+  // 다른 프레임워크 값은 정책 생성 시 400 으로 거부된다.
+  "cx-policy:FrameworkAgreement": ["DataExchangeGovernance:1.0"],
   // 현행 데이터스페이스 참가자 BPN(provider/consumer/consumer2) — kmx-edc compose 기준.
   [BPN_LEFT]: ["BPNL000000000CON", "BPNL000000000002", "BPNL000000000PRD"],
   [BPN_GROUP_LEFT]: ["fl-partners"],
@@ -336,11 +384,12 @@ function policyConstraints(p: Policy): ParsedConstraint[] {
   return parseConstraints(p.constraint);
 }
 
-/** 정책의 첫 rule 액션 표시값(odrl: 접두 정규화). 서버 미제공 시 'use' 폴백. */
+/** 정책의 첫 rule 액션 표시값(odrl: 접두 정규화). 서버 미제공 시 'use' 폴백.
+ *  cx-policy:access 등 접두가 이미 있는 액션에는 odrl: 을 덧붙이지 않는다. */
 function policyAction(p: Policy): string {
   const a = (p as PolicyWithRules).action;
   const raw = a && a.trim() ? a : "use";
-  return raw.startsWith("odrl:") ? raw : `odrl:${raw}`;
+  return raw.includes(":") ? raw : `odrl:${raw}`;
 }
 
 /** 정책의 첫 rule 유형. 서버 미제공 시 permission 폴백. */
@@ -1239,33 +1288,31 @@ function ODRLBuilder({
   const baseSrc: Policy | null = editTarget ?? duplicateSource ?? null;
 
   const initialConstraints: Constraint[] = (() => {
+    // 새 정책은 빈 행 하나로 시작한다(placeholder 가 예시를 안내).
+    // 값을 미리 채우면 datalist 필터링으로 나머지 옵션이 가려진다.
     if (!baseSrc)
       return [
         {
-          leftOperand: "cx-policy:Membership",
+          leftOperand: "",
           operator: "odrl:eq",
-          rightOperand: "active",
+          rightOperand: "",
         },
       ];
     // 편집/복제는 서버 구조화 rules를 우선 소비(레거시 문자열 폴백 포함)해 라운드트립 정확화.
+    // 제약 0개 정책은 0개 그대로 보여준다 — 가짜 행을 만들면 저장 시 정책이 조용히 바뀐다.
     const parsed = policyConstraints(baseSrc);
-    if (parsed.length === 0)
-      return [
-        {
-          leftOperand: "cx-policy:Membership",
-          operator: "odrl:eq",
-          rightOperand: "active",
-        },
-      ];
-    return parsed.map(c => ({
-      leftOperand: c.left || "cx-policy:Membership",
-      operator: c.op
+    return parsed.map(c => {
+      const op = c.op
         ? c.op.startsWith("odrl:")
           ? c.op
           : `odrl:${c.op}`
-        : "odrl:eq",
-      rightOperand: c.right || "",
-    }));
+        : "odrl:eq";
+      return {
+        leftOperand: c.left,
+        operator: reconcileOperator(c.left, op),
+        rightOperand: c.right || "",
+      };
+    });
   })();
 
   const initialId = editTarget
@@ -1397,7 +1444,12 @@ function ODRLBuilder({
       setRuleType(detectedRule);
       setAction(detectedAction);
       setLogicOp(detectedLogic);
-      setConstraints(allConstraints);
+      setConstraints(
+        allConstraints.map(c => ({
+          ...c,
+          operator: reconcileOperator(c.leftOperand, c.operator),
+        }))
+      );
       setJsonError(null);
       markDirty();
       // 초과로 일부만 가져온 경우 사용자에게 안내(차단은 아님 — 가져온 만큼은 유효).
@@ -1441,10 +1493,12 @@ function ODRLBuilder({
   };
 
   const addConstraint = () => {
+    // 기본값을 미리 채우지 않는다 — 채워두면 datalist 가 그 텍스트로 필터되어
+    // 나머지 옵션이 안 보이고, 지우지 않고 저장하면 중복 제약이 조용히 들어간다.
     setConstraints([
       ...constraints,
       {
-        leftOperand: "cx-policy:Membership",
+        leftOperand: "",
         operator: "odrl:eq",
         rightOperand: "",
       },
@@ -1488,8 +1542,11 @@ function ODRLBuilder({
 
   // 미리보기는 서버 buildPolicyDefinition과 동일한 변환 규칙으로 구성한다(미리보기=저장 정합 — id 17).
   // action: 콜론 없으면 odrl: 접두 부여 후 { "@id" }. operator도 { "@id" }. logicOp 래핑은 다중 제약일 때만.
+  // 접두형 IRI(cx-policy:/kmx:)는 서버와 동일하게 전체 IRI 로 정규화해 보여준다.
   const ruleKey = `odrl:${ruleType}`;
-  const actionId = action.includes(":") ? action : `odrl:${action}`;
+  const actionId = canonicalizePolicyIri(
+    action.includes(":") ? action : `odrl:${action}`
+  );
   // 복수값 operator 는 서버(buildPolicyDefinition MULTI_VALUE_OPS)와 동일하게 배열로 직렬화.
   const MULTI_VALUE_OPS = new Set([
     "odrl:isAnyOf",
@@ -1498,7 +1555,7 @@ function ODRLBuilder({
     "odrl:in",
   ]);
   const constraintNodes = constraints.map(c => ({
-    "odrl:leftOperand": c.leftOperand,
+    "odrl:leftOperand": canonicalizePolicyIri(c.leftOperand),
     "odrl:operator": { "@id": c.operator },
     "odrl:rightOperand": MULTI_VALUE_OPS.has(c.operator)
       ? c.rightOperand
@@ -1513,9 +1570,19 @@ function ODRLBuilder({
       : constraintNodes;
   const rule: Record<string, unknown> = { "odrl:action": { "@id": actionId } };
   if (constraintField.length) rule["odrl:constraint"] = constraintField;
+  // CX 정책이면 서버와 동일하게 odrl:profile 이 주입됨(CAC-010)을 미리보기에도 반영.
+  const usesCxPolicy =
+    actionId.startsWith(CX_POLICY_NS) ||
+    constraintNodes.some(n => n["odrl:leftOperand"].startsWith(CX_POLICY_NS));
+  // @context/@type 도 서버 buildPolicyDefinition 과 동일한 형태로 맞춘다(미리보기=저장 정합).
   const odrlObj = {
-    "@context": "http://www.w3.org/ns/odrl.jsonld",
-    "@type": "Set",
+    "@context": {
+      "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
+      odrl: "http://www.w3.org/ns/odrl/2/",
+      "cx-policy": CX_POLICY_NS,
+    },
+    "@type": "odrl:Set",
+    ...(usesCxPolicy ? { "odrl:profile": { "@id": CX_POLICY_NS } } : {}),
     [ruleKey]: [rule],
   };
 
@@ -1815,7 +1882,7 @@ function ODRLBuilder({
                       updateConstraint(idx, "leftOperand", e.target.value)
                     }
                     list="odrl-left-operands"
-                    placeholder="cx-policy:Membership"
+                    placeholder={t.policies.leftOperandPlaceholder}
                     className={`${inputBase} mono`}
                   />
                   <datalist id="odrl-left-operands">

@@ -143,11 +143,33 @@ export interface PolicyBuilderInput {
 }
 
 // odrl:profile 은 배포 대상 커넥터에 맞춰 설정한다.
-// - KMX-EDC(기본): 프로파일을 검증하지 않고(kmx-policy-extension 에 validator 없음) 자체
-//   e2e 도 프로파일 없이 정책을 만든다 → 기본은 주입하지 않는다.
-// - Catena-X 커넥터를 겨냥할 때만 env EDC_POLICY_PROFILE 로 켠다(CX-0152 는 profile2405 필수).
-//   예: EDC_POLICY_PROFILE=cx-policy:profile2405
+// - env EDC_POLICY_PROFILE 이 있으면 그 값을 그대로 쓴다(다른 커넥터 겨냥용 override).
+// - 미설정이면 CX 제약/액션을 쓰는 정책에만 CX-0152 네임스페이스를 자동 주입한다
+//   (kmx-edc CxPolicyDefinitionValidator CAC-010 이 profile 선언을 요구).
 const EDC_POLICY_PROFILE = process.env.EDC_POLICY_PROFILE?.trim() || "";
+
+// 커넥터 정책 엔진은 leftOperand/action 을 바인딩 IRI 와 "문자열 비교"한다. 접두형
+// (cx-policy:X, kmx:X)을 문자열로 보내면 JSON-LD 확장 대상이 아니라서(값이 @id 가 아닌
+// @value) 리터럴 그대로 저장되고, 커넥터 바인딩(전체 IRI)과 불일치해 제약이 평가에서
+// 조용히 제거된다(=무조건 허용). 저장 직전에 전체 IRI 로 정규화해 이를 막는다.
+export const CX_POLICY_NS = "https://w3id.org/catenax/2025/9/policy/";
+const KMX_POLICY_NS = "https://w3id.org/kmx/v0.1/ns/";
+function canonicalizePolicyIri(v: string): string {
+  if (v.startsWith("cx-policy:")) {
+    return CX_POLICY_NS + v.slice("cx-policy:".length);
+  }
+  if (v.startsWith("kmx:")) {
+    return KMX_POLICY_NS + v.slice("kmx:".length);
+  }
+  return v;
+}
+// 읽기(목록/편집 라운드트립)에서는 전체 IRI 를 접두형으로 되돌려 화면 표기를 짧게 유지한다.
+export function compactPolicyIri(v: string): string {
+  if (v.startsWith(CX_POLICY_NS)) {
+    return "cx-policy:" + v.slice(CX_POLICY_NS.length);
+  }
+  return v;
+}
 // 복수 값을 받는 operator → rightOperand 를 배열로(쉼표 분리). Catena-X 다중 BPN 등.
 const MULTI_VALUE_OPS = new Set([
   "odrl:isAnyOf",
@@ -162,7 +184,9 @@ export function buildPolicyDefinition(
   const ruleType = input.ruleType ?? "permission";
   const ruleKey = `odrl:${ruleType}`;
   const actionRaw = input.action ?? "use";
-  const actionId = actionRaw.includes(":") ? actionRaw : `odrl:${actionRaw}`;
+  const actionId = canonicalizePolicyIri(
+    actionRaw.includes(":") ? actionRaw : `odrl:${actionRaw}`
+  );
 
   const constraintNodes = (input.constraints ?? []).map(c => {
     // isAnyOf/in 등 복수값 operator 는 rightOperand 를 배열로 직렬화(Catena-X 표준).
@@ -173,7 +197,7 @@ export function buildPolicyDefinition(
           .filter(Boolean)
       : c.rightOperand;
     return {
-      "odrl:leftOperand": c.leftOperand,
+      "odrl:leftOperand": canonicalizePolicyIri(c.leftOperand),
       "odrl:operator": { "@id": c.operator },
       "odrl:rightOperand": right,
     };
@@ -189,21 +213,30 @@ export function buildPolicyDefinition(
   };
   if (constraintField.length) rule["odrl:constraint"] = constraintField;
 
-  // 정책 본문 — profile 은 EDC_POLICY_PROFILE 이 설정된 경우에만 넣는다(위 주석 참조).
+  // 정책 본문 — profile 은 env 우선, 없으면 CX 정책(2025/9 제약·액션 사용)에 자동 주입.
+  // kmx 전용 정책(transferCount/BPN 등)은 CX 검증기 관할 밖이므로 넣지 않는다.
   const policyBody: Record<string, unknown> = { "@type": "odrl:Set" };
+  const usesCxPolicy =
+    actionId.startsWith(CX_POLICY_NS) ||
+    constraintNodes.some(n =>
+      (n["odrl:leftOperand"] as string).startsWith(CX_POLICY_NS)
+    );
   if (EDC_POLICY_PROFILE) {
     policyBody["odrl:profile"] = { "@id": EDC_POLICY_PROFILE };
+  } else if (usesCxPolicy) {
+    policyBody["odrl:profile"] = { "@id": CX_POLICY_NS };
   }
   policyBody[ruleKey] = [rule];
 
   // @context 는 문서 전체에 cx-policy 프리픽스를 적용한다. 정책 객체에 별도 odrl.jsonld
   // 컨텍스트를 두면 cx-policy 가 미정의되어 profile/leftOperand 프리픽스 해석이 깨지므로
-  // 명시 odrl: 접두 + 단일 외곽 @context 를 쓴다.
+  // 명시 odrl: 접두 + 단일 외곽 @context 를 쓴다. (leftOperand 값 자체는 위에서 이미
+  // 전체 IRI 로 정규화됨 — 프리픽스는 env profile 등 @id 위치의 축약형 해석용.)
   return {
     "@context": {
       "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
       odrl: "http://www.w3.org/ns/odrl/2/",
-      "cx-policy": "https://w3id.org/catenax/policy/",
+      "cx-policy": CX_POLICY_NS,
     },
     "@type": "PolicyDefinition",
     "@id": input.policyId,
@@ -340,9 +373,10 @@ export function mapAsset(raw: Record<string, unknown>) {
   const da = (raw["dataAddress"] ?? {}) as Record<string, unknown>;
   // dct:type may come as { "@id": "cx-taxo:..." } or as a plain string.
   // 표준 IRI(http)를 우선하되, 과거 https 로 저장된 자산도 계속 읽을 수 있게 둔다.
-  const dctTypeRaw = p["dct:type"]
-    ?? p["http://purl.org/dc/terms/type"]
-    ?? p["https://purl.org/dc/terms/type"];
+  const dctTypeRaw =
+    p["dct:type"] ??
+    p["http://purl.org/dc/terms/type"] ??
+    p["https://purl.org/dc/terms/type"];
   const dctType = dctTypeRaw
     ? typeof dctTypeRaw === "object"
       ? (((dctTypeRaw as Record<string, unknown>)["@id"] as string) ?? "")
@@ -361,10 +395,11 @@ export function mapAsset(raw: Record<string, unknown>) {
     id: raw["@id"] ?? jld(p, "id") ?? "",
     type: dctType,
     ver: jld(p, "cx-common:version") ?? jld(p, "version") ?? "",
-    sem: jld(p, "aas-semantics:semanticId")
-      ?? p["https://admin-shell.io/aas/3/0/HasSemantics/semanticId"]
-      ?? jld(p, "semanticId")
-      ?? null,
+    sem:
+      jld(p, "aas-semantics:semanticId") ??
+      p["https://admin-shell.io/aas/3/0/HasSemantics/semanticId"] ??
+      jld(p, "semanticId") ??
+      null,
     offered: true,
     created: jld(raw, "createdAt")
       ? fmtDateTimeShort(new Date(jld(raw, "createdAt") as number))
@@ -401,6 +436,19 @@ export function mapAsset(raw: Record<string, unknown>) {
  *  레거시 p.constraint(parseConstraints)는 점진 제거 가능. constraint 토큰 구분자는 "; ".
  */
 
+// EDC 가 배열 rightOperand(isAnyOf 등)를 수용할 때 JSON-LD 잔재(List<Map{@value:...}>)의
+// toString 문자열로 되돌려주는 경우가 있다(커넥터 평가는 자체 unwrap 으로 정상 동작).
+// 예: "[{@value={valueType=STRING, chars=X, string=X}}, ...]" → "X,Y" 로 복원해
+// 화면 표시·편집 라운드트립(저장 시 쉼표분리→배열 재직렬화)을 유지한다.
+function unmangleRightOperand(v: string): string {
+  if (!v.startsWith("[{@value=")) return v;
+  // 각 원소는 "...string=<값>}}" 로 끝난다 — 값 안의 쉼표가 잘리지 않도록 종결 "}}" 까지 캡처.
+  const values = [...v.matchAll(/string=([^}]*)\}\}/g)]
+    .map(m => m[1].trim())
+    .filter(Boolean);
+  return values.length ? values.join(",") : v;
+}
+
 // 단일 constraint 노드를 {left, op(=odrl: 접두 제거), right}로 평탄화.
 function mapPolicyConstraint(c: Record<string, unknown> | undefined): {
   left: string;
@@ -429,8 +477,12 @@ function mapPolicyConstraint(c: Record<string, unknown> | undefined): {
   // 복수값 operator(isAnyOf/in 등)는 rightOperand 가 배열로 온다 → 쉼표 결합해 편집 모델과 일치.
   const right = Array.isArray(rightRaw)
     ? rightRaw.map(extractRight).filter(Boolean).join(",")
-    : extractRight(rightRaw);
-  return { left, op: opId.replace(/^odrl:/, ""), right };
+    : unmangleRightOperand(extractRight(rightRaw));
+  return {
+    left: compactPolicyIri(left),
+    op: opId.replace(/^odrl:/, ""),
+    right,
+  };
 }
 
 // odrl:and/or/xone 논리 래퍼를 재귀적으로 풀어 평탄한 constraint 배열로.
@@ -498,7 +550,8 @@ export function mapPolicy(raw: Record<string, unknown>) {
       const consNode = rr?.["odrl:constraint"] ?? rr?.["constraint"];
       rules.push({
         ruleType,
-        action: action.replace(/^odrl:/, ""),
+        // CX access 액션(전체 IRI)은 접두형으로 되돌려 빌더 편집 라운드트립을 유지한다.
+        action: compactPolicyIri(action).replace(/^odrl:/, ""),
         logic: detectPolicyLogic(consNode),
         constraints: flattenPolicyConstraints(consNode),
       });
