@@ -51,6 +51,7 @@ import {
   Pencil,
   Files,
   ChevronsRight,
+  ChevronDown,
   List,
   Lock,
   Users,
@@ -62,13 +63,13 @@ import { cn, clickable } from "@/lib/utils";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 /* ─── ODRL Constants (spec 4.3.1) ────────────────────────────── */
-// kmx-edc 정책 확장(kmx-bpn-policy·kmx-policy-extension)이 인지하는 leftOperand 는 전체 IRI.
-// 평문 "BusinessPartnerNumber"는 @vocab(edc ns)으로 확장돼 커넥터의 검증·평가 대상에서
-// 벗어나므로(제약이 시행되지 않는 정책이 됨) 반드시 kmx IRI 를 사용한다.
+// leftOperand 는 커넥터가 바인딩한 전체 IRI 여야 시행된다. UI 는 읽기 좋은 접두형
+// (cx-policy:/kmx:)을 쓰고, 서버 buildPolicyDefinition 이 저장 직전 전체 IRI 로
+// 정규화한다(읽기 시엔 다시 접두형으로 축약 — 라운드트립 유지).
 const KMX_NS = "https://w3id.org/kmx/v0.1/ns/";
-const BPN_LEFT = `${KMX_NS}BusinessPartnerNumber`;
-const BPN_GROUP_LEFT = `${KMX_NS}BusinessPartnerGroup`;
-const TRANSFER_COUNT_LEFT = `${KMX_NS}transferCount`;
+const BPN_LEFT = "kmx:BusinessPartnerNumber";
+const BPN_GROUP_LEFT = "kmx:BusinessPartnerGroup";
+const TRANSFER_COUNT_LEFT = "kmx:transferCount";
 
 // 서버 buildPolicyDefinition 과 동일한 정규화(미리보기=저장 정합) — 접두형 문자열은
 // 커넥터에 리터럴로 저장되어 제약이 시행되지 않으므로 전체 IRI 로 확장해 보여준다.
@@ -157,6 +158,120 @@ function operatorsFor(leftOperand: string) {
 function reconcileOperator(leftOperand: string, operator: string): string {
   const allowed = operatorsFor(leftOperand);
   return allowed.some(o => o.value === operator) ? operator : allowed[0].value;
+}
+
+/** 왼쪽 피연산자 콤보박스 — 브라우저 기본 datalist 대신 앱 스타일 드롭다운.
+ *  자유 입력은 유지하되, 값이 비어 있거나 옵션과 정확히 일치하면 전체 목록을 보여준다
+ *  (datalist 는 채워진 값으로 필터해 나머지 옵션이 가려짐 — 실사용 오인 원인). */
+function LeftOperandCombobox({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(-1);
+  const exact = LEFT_OPERANDS.some(o => o.value === value);
+  const q = value.trim().toLowerCase();
+  const options =
+    exact || !q
+      ? LEFT_OPERANDS
+      : LEFT_OPERANDS.filter(
+          o =>
+            o.value.toLowerCase().includes(q) ||
+            o.label.toLowerCase().includes(q)
+        );
+  const select = (v: string) => {
+    onChange(v);
+    setOpen(false);
+    setHighlight(-1);
+  };
+  return (
+    <div className="relative">
+      <input
+        value={value}
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        onChange={e => {
+          onChange(e.target.value);
+          setOpen(true);
+          setHighlight(-1);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          setOpen(false);
+          setHighlight(-1);
+        }}
+        onKeyDown={e => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setOpen(true);
+            setHighlight(h => Math.min(h + 1, options.length - 1));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlight(h => Math.max(h - 1, 0));
+          } else if (e.key === "Enter") {
+            if (open && highlight >= 0 && options[highlight]) {
+              e.preventDefault();
+              select(options[highlight].value);
+            }
+          } else if (e.key === "Escape") {
+            setOpen(false);
+            setHighlight(-1);
+          }
+        }}
+        placeholder={placeholder}
+        className={`${inputBase} mono pr-8`}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        // mousedown 에서 기본동작을 막아 input blur(→닫힘)를 방지하고 토글만 한다.
+        onMouseDown={e => {
+          e.preventDefault();
+          setOpen(o => !o);
+        }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      >
+        <ChevronDown
+          className={cn("w-4 h-4 transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open && options.length > 0 && (
+        <div
+          role="listbox"
+          className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-card border border-border rounded-lg shadow-lg py-1"
+        >
+          {options.map((o, i) => (
+            <div
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              // click 은 blur 이후라 유실됨 — blur 전에 실행되는 mousedown 에서 선택.
+              onMouseDown={e => {
+                e.preventDefault();
+                select(o.value);
+              }}
+              onMouseEnter={() => setHighlight(i)}
+              className={cn(
+                "px-3 py-1.5 cursor-pointer",
+                i === highlight && "bg-muted",
+                o.value === value && "bg-primary/10"
+              )}
+            >
+              <div className="text-[12px] mono text-foreground">{o.value}</div>
+              <div className="text-[11px] text-muted-foreground">{o.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface PolicyTemplate {
@@ -1876,22 +1991,11 @@ function ODRLBuilder({
               </div>
               <div className="grid grid-cols-1 gap-3">
                 <FormField label={t.policies.leftOperand}>
-                  <input
+                  <LeftOperandCombobox
                     value={c.leftOperand}
-                    onChange={e =>
-                      updateConstraint(idx, "leftOperand", e.target.value)
-                    }
-                    list="odrl-left-operands"
                     placeholder={t.policies.leftOperandPlaceholder}
-                    className={`${inputBase} mono`}
+                    onChange={v => updateConstraint(idx, "leftOperand", v)}
                   />
-                  <datalist id="odrl-left-operands">
-                    {LEFT_OPERANDS.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </datalist>
                 </FormField>
                 <FormField label={t.policies.operator}>
                   <select

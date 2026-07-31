@@ -412,6 +412,21 @@ describe("mapPolicy (라운드트립)", () => {
     expect(m.rules[0].constraints[0].left).toBe("cx-policy:Membership");
     expect(m.constraint).toBe("cx-policy:Membership eq active");
   });
+
+  it("kmx 전체 IRI leftOperand 를 kmx: 접두형으로 축약 복원", () => {
+    const built = buildPolicyDefinition({
+      policyId: "p",
+      constraints: [
+        {
+          leftOperand: "kmx:BusinessPartnerNumber",
+          operator: "odrl:eq",
+          rightOperand: "BPNL000000000CON",
+        },
+      ],
+    });
+    const m = mapPolicy(built);
+    expect(m.rules[0].constraints[0].left).toBe("kmx:BusinessPartnerNumber");
+  });
 });
 
 // ── 협상 상태 매핑 ────────────────────────────────────────────────

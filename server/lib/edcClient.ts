@@ -164,9 +164,13 @@ function canonicalizePolicyIri(v: string): string {
   return v;
 }
 // 읽기(목록/편집 라운드트립)에서는 전체 IRI 를 접두형으로 되돌려 화면 표기를 짧게 유지한다.
+// (클라 빌더 옵션 값이 cx-policy:/kmx: 접두형 — 축약이 있어야 편집 진입 시 값이 일치)
 export function compactPolicyIri(v: string): string {
   if (v.startsWith(CX_POLICY_NS)) {
     return "cx-policy:" + v.slice(CX_POLICY_NS.length);
+  }
+  if (v.startsWith(KMX_POLICY_NS)) {
+    return "kmx:" + v.slice(KMX_POLICY_NS.length);
   }
   return v;
 }
