@@ -13,8 +13,14 @@ import {
   mapWithConcurrency,
   FLEET_FANOUT_CONCURRENCY,
 } from "../lib/concurrency.js";
+import { createTtlCache } from "../lib/ttlCache.js";
 
 const router = Router();
+
+// KPI 도 커넥터당 3 outbound 팬아웃이라 대시보드 폴링에서 tail(p99)이 크다. 테넌트별
+// 짧은 TTL 캐시로 재사용(기본 5초). 커넥터 변경은 최대 TTL 만큼 지연 반영(집계라 무해).
+const KPI_TTL_MS = Number(process.env.FLEET_KPI_CACHE_MS ?? 5000);
+const kpiCache = createTtlCache<unknown>(KPI_TTL_MS);
 
 const JSON_LD_QUERY = {
   "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
@@ -40,6 +46,12 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
       res.status(403).json({ error: "no-tenant" });
+      return;
+    }
+    // 캐시 히트 시 팬아웃 생략(부하 하 p99 tail 감소).
+    const cachedKpi = kpiCache.get(tenantId);
+    if (cachedKpi !== undefined) {
+      res.json(cachedKpi);
       return;
     }
     const connectors = await listConnectors(tenantId);
@@ -129,7 +141,7 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
     const down = perConnector.length - up - warn;
 
     // Match client FleetKPI interface
-    res.json({
+    const kpi = {
       totalConnectors: perConnector.length,
       up,
       warn,
@@ -143,7 +155,9 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
       totalTransfers: perConnector.reduce((sum, c) => sum + c.transfers, 0),
       vcWarnings: 0,
       perConnector,
-    });
+    };
+    kpiCache.set(tenantId, kpi);
+    res.json(kpi);
   } catch (error) {
     next(error);
   }

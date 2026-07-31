@@ -29,8 +29,14 @@ import {
   mapWithConcurrency,
   FLEET_FANOUT_CONCURRENCY,
 } from "../lib/concurrency.js";
+import { createTtlCache } from "../lib/ttlCache.js";
 
 const router = Router();
+
+// GET / 는 커넥터당 4 outbound 팬아웃이라 부하 하에서 tail(p99)이 크다. 사이드바가 잦게
+// 폴링하므로 테넌트별 짧은 TTL 캐시로 재사용한다(등록/수정/삭제 시 무효화). 기본 5초.
+const FLEET_LIST_TTL_MS = Number(process.env.FLEET_LIST_CACHE_MS ?? 5000);
+const fleetListCache = createTtlCache<unknown>(FLEET_LIST_TTL_MS);
 const adminOnly = requireRole("admin");
 const operatorOrAdmin = requireRole("admin", "operator");
 
@@ -86,6 +92,12 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       res.status(403).json({ error: "no-tenant" });
       return;
     }
+    // 캐시 히트 시 팬아웃 생략(부하 하 p99 tail 감소).
+    const cached = fleetListCache.get(tenantId);
+    if (cached !== undefined) {
+      res.json(cached);
+      return;
+    }
     const connectors = await listConnectors(tenantId);
 
     // 동시성 상한 fan-out(커넥터당 4 outbound). 무제한 Promise.all 은 커넥터가 많은
@@ -136,6 +148,7 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       }
     );
 
+    fleetListCache.set(tenantId, withStatus);
     res.json(withStatus);
   } catch (error) {
     next(error);
@@ -173,6 +186,7 @@ router.post(
         return;
       }
       const connector = await registerConnector(entry, tenantId);
+      fleetListCache.clear();
       const { apiKey: _apiKey, ...safe } = connector;
       res.status(201).json(safe);
     } catch (error) {
@@ -277,6 +291,7 @@ router.put(
         res.status(404).json({ error: "connector-not-found" });
         return;
       }
+      fleetListCache.clear();
       const { apiKey: _apiKey, ...safe } = updated;
       res.json(safe);
     } catch (error) {
@@ -297,6 +312,7 @@ router.delete(
         res.status(404).json({ error: "connector-not-found" });
         return;
       }
+      fleetListCache.clear();
       res.status(204).end();
     } catch (error) {
       next(error);
