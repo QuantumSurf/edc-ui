@@ -46,6 +46,16 @@ export default defineConfig({
     strictPort: false, // Will find next available port if 3000 is busy
     host: true,
     allowedHosts: ["localhost", "127.0.0.1"],
+    // dev 콜드스타트 완화: 도커 바인드마운트에서 첫 방문 시 모듈 변환에 ~10s가 걸린다
+    // (실측: 로그인 화면 그래프 75모듈 cold 10.7s vs warm 0.6s). 서버 기동 직후 유휴
+    // 시간에 엔트리·주요 랜딩 페이지를 미리 변환해 첫 방문을 warm 상태로 만든다.
+    warmup: {
+      clientFiles: [
+        "./src/main.tsx",
+        "./src/pages/PageFleet.tsx",
+        "./src/pages/PageDashboard.tsx",
+      ],
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
