@@ -73,11 +73,10 @@ resources:
     cpu: "1"
     memory: 640Mi
 
-# EDC connector configuration
-edc:
-  # REQUIRED — override per environment (values override or --set). 하드코딩 금지.
-  apiKey: ""
-  defaultUrl: "https://kmx-edc-cp.prod.kmx.io/management"
+# 커넥터의 Management API 키·URL 은 차트가 아니라 콘솔에서 커넥터를 등록할 때 입력하고
+# 테넌트별로 DB 에 저장한다(api_key 는 AES-256-GCM at-rest 암호화). 과거의 전역 edc.apiKey/
+# edc.defaultUrl 은 코드가 읽지 않는 죽은 설정이라 제거했다 — 채워도 아무 효과가 없었다.
+# (이미 --set edc.apiKey=... 로 넘기는 배포가 있어도 helm 은 미사용 값을 무시하므로 안전)
 
 # Application environment variables
 env:

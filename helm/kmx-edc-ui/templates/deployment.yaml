@@ -14,7 +14,6 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
@@ -59,11 +58,6 @@ spec:
               value: {{ .Values.env.VITE_DISABLE_DEMO | quote }}
             - name: TRUST_PROXY
               value: {{ .Values.env.TRUST_PROXY | quote }}
-            - name: EDC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kmx-edc-ui.fullname" . }}-secret
-                  key: edc-api-key
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -71,11 +65,6 @@ spec:
                   key: {{ include "kmx-edc-ui.dbSecretPasswordKey" . }}
             - name: DATABASE_URL
               value: {{ include "kmx-edc-ui.databaseUrl" . | quote }}
-            - name: EDC_DEFAULT_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "kmx-edc-ui.fullname" . }}-config
-                  key: edc-default-url
             {{- if .Values.oidc.enabled }}
             # ── OIDC(Keycloak) SSO — docs/KEYCLOAK.md ──
             - name: OIDC_ENABLED

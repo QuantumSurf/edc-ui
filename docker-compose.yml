@@ -47,8 +47,6 @@ services:
       #  가드를 무력화했었음 — 제거함.)
       - PORT=3001
       - DATABASE_URL=postgresql://kmx:${POSTGRES_PASSWORD}@postgres:5432/kmx_edc
-      - EDC_API_KEY=${EDC_API_KEY:-}
-      - EDC_DEFAULT_URL=${EDC_DEFAULT_URL:-}
       - VITE_DISABLE_DEMO=${VITE_DISABLE_DEMO:-false}
       # JWT 서명키 — 강한 32자+ 시크릿(공개 약한값 금지, server/lib/auth.ts 가드). 필수.
       - JWT_SECRET=${JWT_SECRET:?set a strong JWT_SECRET in .env}
