@@ -130,8 +130,21 @@ export function buildApp(): Express {
 
   // Prometheus 메트릭 — /api 밖(무인증), k8s prometheus 스크레이프용(helm podAnnotations
   // prometheus.io/scrape). 라벨에 tenant 를 넣지 않아 정보 노출/카디널리티 위험이 없다.
-  // (공개 인그레스 노출이 우려되면 NetworkPolicy 로 스크레이프 소스만 허용할 것.)
-  app.get("/metrics", async (_req, res) => {
+  //
+  // 인그레스 경유 요청은 거부한다 — 인그레스 path 가 "/" Prefix 라 그대로 두면 /metrics 가
+  // 무인증으로 인터넷에 노출된다. 프로메테우스는 파드 IP(ClusterIP)로 직접 스크레이프하므로
+  // X-Forwarded-* 가 없어 영향이 없다. 프록시/서비스메시 경유 스크레이프가 필요한 배포만
+  // METRICS_ALLOW_FORWARDED=true 로 해제한다. 존재를 광고하지 않도록 403 이 아닌 404.
+  app.get("/metrics", async (req, res) => {
+    if (
+      process.env.METRICS_ALLOW_FORWARDED !== "true" &&
+      (req.headers["x-forwarded-for"] ||
+        req.headers["x-forwarded-host"] ||
+        req.headers["x-forwarded-proto"])
+    ) {
+      res.status(404).end();
+      return;
+    }
     try {
       res.set("Content-Type", metricsRegister.contentType);
       res.end(await metricsRegister.metrics());
@@ -206,8 +219,13 @@ export function buildApp(): Express {
   // Field History — 작성 폼 자동완성용 입력 이력(테넌트 범위, 인증 사용자)
   app.use("/api/field-history", fieldHistoryRouter);
 
-  // Error handler (must be after routes)
-  app.use(errorHandler);
+  // 미매칭 /api 경로는 여기서 JSON 404 로 끝낸다. 이 가드가 없으면 아래 SPA 폴백(app.get("*"))
+  // 이 잡아 GET /api/오타 에 200 + index.html(HTML)을 돌려준다 — 클라이언트는 성공으로 보고
+  // JSON 파싱에서 터진다. 정적 서빙이 켜지는 프로덕션에서만 발현되는 계약 위반이라 dev 에서
+  // 드러나지 않는다.
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "Not Found" });
+  });
 
   // ── Static Files (Production) ─────────────────────────────────
   const staticPath =
@@ -221,6 +239,9 @@ export function buildApp(): Express {
   app.get("*", (_req, res) => {
     res.sendFile(path.join(staticPath, "index.html"));
   });
+
+  // Error handler — 모든 라우트(정적·SPA 폴백 포함) 뒤에 두어야 그 안에서 난 오류도 잡는다.
+  app.use(errorHandler);
 
   return app;
 }

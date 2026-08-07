@@ -134,6 +134,17 @@ describe("라우트 가드 (통합: 인증·CSRF·세션·RBAC)", () => {
     expect([401, 403]).toContain(res.status);
   });
 
+  it("인증된 사용자가 없는 /api 경로를 치면 SPA HTML 이 아니라 404 JSON 을 받는다", async ctx => {
+    if (!ready) ctx.skip();
+    // SPA 폴백(app.get("*"))이 /api 를 삼키면 200 + index.html 이 나가 클라이언트가 성공으로
+    // 오인한다(정적 서빙이 켜지는 프로덕션에서만 발현). 404 JSON 이어야 한다.
+    const { agent } = await login(adminBpn);
+    const res = await agent.get("/api/no-such-endpoint");
+    expect(res.status).toBe(404);
+    expect(res.headers["content-type"]).toMatch(/application\/json/);
+    expect(res.text).not.toContain("<!doctype html");
+  });
+
   it("operator 는 admin 전용 라우트에서 403 (역할 게이팅)", async ctx => {
     if (!ready) ctx.skip();
     const { agent, csrf } = await login(operatorBpn);
