@@ -1,7 +1,7 @@
 // Connector Hub — Policy Management with ODRL Builder (spec 4.3)
 // Left/Right Operand dynamic suggestions, responsive JSON preview
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import {
@@ -272,6 +272,8 @@ function LeftOperandCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
+  // ARIA 콤보박스는 input 이 팝업을 aria-controls 로 가리켜야 보조기술이 둘을 연결한다.
+  const listboxId = useId();
   const exact = LEFT_OPERANDS.some(o => o.value === value);
   const q = value.trim().toLowerCase();
   const options =
@@ -293,6 +295,12 @@ function LeftOperandCombobox({
         value={value}
         role="combobox"
         aria-expanded={open}
+        aria-controls={listboxId}
+        aria-activedescendant={
+          open && highlight >= 0 && options[highlight]
+            ? `${listboxId}-${highlight}`
+            : undefined
+        }
         aria-autocomplete="list"
         onChange={e => {
           onChange(e.target.value);
@@ -342,13 +350,18 @@ function LeftOperandCombobox({
       </button>
       {open && options.length > 0 && (
         <div
+          id={listboxId}
           role="listbox"
           className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-card border border-border rounded-lg shadow-lg py-1"
         >
           {options.map((o, i) => (
             <div
               key={o.value}
+              id={`${listboxId}-${i}`}
               role="option"
+              // 콤보박스 패턴에서 포커스는 input 에 머물고 옵션은 aria-activedescendant 로
+              // 가리킨다 — 탭 순서에는 넣지 않되 프로그램적으로는 포커스 가능해야 한다.
+              tabIndex={-1}
               aria-selected={o.value === value}
               // click 은 blur 이후라 유실됨 — blur 전에 실행되는 mousedown 에서 선택.
               onMouseDown={e => {
