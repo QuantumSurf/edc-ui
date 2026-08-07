@@ -1,0 +1,16 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+# 자발적 중단(노드 드레인·클러스터 업그레이드) 시 최소 가용 파드 수를 보장한다. PDB 가 없으면
+# 노드 드레인이 replicaCount 개 파드를 한꺼번에 축출할 수 있어(같은 노드에 스케줄된 경우)
+# 콘솔이 통째로 내려간다. 진행 중인 대량전송도 함께 끊긴다.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "kmx-edc-ui.fullname" . }}
+  labels:
+    {{- include "kmx-edc-ui.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "kmx-edc-ui.selectorLabels" . | nindent 6 }}
+{{- end }}

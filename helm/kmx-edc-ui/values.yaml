@@ -55,13 +55,23 @@ ingress:
       hosts:
         - edc-ui.kmx.io
 
+# 메모리 산정 근거(node:22-alpine 컨테이너 실측):
+#   · 프로덕션 의존성 로드만으로 RSS 94Mi (express·pg·@aws-sdk/client-s3·lib-storage·prom-client 등)
+#   · 대량전송 워커는 잡당 파트버퍼 ≈16Mi(PART_SIZE 8Mi × 2: 업로드 중 파트 + 다음 파트 누적).
+#     기본 동시 4잡(env.BULK_TRANSFER_MAX_JOBS) → +64Mi → 실측 RSS 162Mi.
+#   · 파트 버퍼는 V8 힙이 아니라 external 메모리라 힙 상한으로 억제되지 않는다. 한도를 넘으면
+#     JS 예외 없이 커널에 OOMKill 당하고, 재기동 → 잡 재개 → 같은 프로파일 → 크래시 루프가 된다.
+#   한도 = 94Mi + (BULK_TRANSFER_MAX_JOBS × 16Mi) + 요청 처리·GC 여유. 동시 잡 수를 올리면
+#   이 값도 같이 올릴 것.
 resources:
   requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
+    cpu: 200m
     memory: 256Mi
+  limits:
+    # Node 는 단일 스레드 — 500m(0.5코어)면 커넥터 팬아웃과 스트리밍이 겹칠 때 CPU 스로틀로
+    # p95 가 SLO(800ms)를 넘고 프로브 타임아웃 위험도 커진다. 최소 1코어.
+    cpu: "1"
+    memory: 640Mi
 
 # EDC connector configuration
 edc:
@@ -83,6 +93,11 @@ env:
   API_RATE_LIMIT_WINDOW_MS: "60000"
   DB_STATEMENT_TIMEOUT_MS: "" # 폭주 쿼리 방어(기본 off). 예 "30000"
   AUDIT_RETENTION_DAYS: "90" # 감사 로그 보존기간(컴플라이언스)
+  # /metrics 는 무인증인데 인그레스 path 가 "/" Prefix 라 그대로 두면 인터넷에 노출된다.
+  # 앱이 X-Forwarded-* 가 붙은(=인그레스 경유) /metrics 요청을 404 로 막는다. 프로메테우스는
+  # 파드 IP 로 직접 스크레이프하므로 영향 없음. 프록시/서비스메시 경유로 스크레이프해야 하는
+  # 배포만 "true" 로 해제할 것(그 경우 인그레스에서 /metrics 를 별도 차단해야 한다).
+  METRICS_ALLOW_FORWARDED: ""
   EDC_QUERY_LIMIT: "1000"
   DISPLAY_TZ: "Asia/Seoul"
   # 대량 데이터 전송(유즈케이스1: 소스 pull → S3/MinIO 스트리밍) 튜닝.
@@ -212,6 +227,12 @@ networkPolicy:
   # Prometheus 등 스크레이퍼 네임스페이스(3001 포트 허용).
   monitoringNamespaceSelector:
     kubernetes.io/metadata.name: monitoring
+
+# 자발적 중단(노드 드레인·클러스터 업그레이드) 보호. replicaCount 2 에서 minAvailable 1 이면
+# 한 번에 한 파드씩만 축출된다. replicaCount 를 1 로 낮추면 드레인이 막히므로 enabled=false 로.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
 
 autoscaling:
   enabled: false
