@@ -34,22 +34,31 @@ async function resolveConnector(id: string) {
   };
 }
 
-// EDC ContractOfferId 포맷: base64url(정의ID):base64url(assetId):uuid
+// EDC ContractOfferId 포맷: base64url(정의ID):base64url(assetId):<uuid>
 // 카탈로그의 정책 @id는 이 인코딩 형태라 화면에 그대로 노출하면 가독성이 나쁘다.
 // 표시용으로 정의ID(첫 세그먼트)를 디코딩한다. (협상 ContractRequest에는 raw offerId가 별도로 쓰임)
-const OFFER_UUID_RE = /^[0-9a-fA-F-]{36}$/;
-function decodePolicyId(id: string): string {
+// 세 번째 세그먼트는 커넥터 버전에 따라 raw UUID(EDC 코어) 또는 base64url(UUID)
+// (kmx-edc 0.17)로 온다 — 둘 다 UUID로 인식해 첫 세그먼트를 디코딩한다.
+const OFFER_UUID_RE =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+function b64ToUtf8(s: string): string | null {
+  try {
+    const out = Buffer.from(s, "base64url").toString("utf8");
+    return out && /^[\x20-\x7E]+$/.test(out) ? out : null; // 출력 가능한 ASCII만
+  } catch {
+    return null;
+  }
+}
+export function decodePolicyId(id: string): string {
   if (!id) return id;
   const parts = id.split(":");
-  if (parts.length === 3 && OFFER_UUID_RE.test(parts[2])) {
-    try {
-      const def = Buffer.from(parts[0], "base64url").toString("utf8");
-      if (def && /^[\x20-\x7E]+$/.test(def)) return def; // 출력 가능한 ASCII만 채택
-    } catch {
-      /* 디코딩 실패 시 원본 유지 */
-    }
-  }
-  return id;
+  if (parts.length !== 3) return id;
+  // 세 번째 세그먼트가 raw UUID 이거나, base64url 로 디코딩했을 때 UUID 여야 오퍼 ID 로 본다.
+  const isOfferId =
+    OFFER_UUID_RE.test(parts[2]) ||
+    OFFER_UUID_RE.test(b64ToUtf8(parts[2]) ?? "");
+  if (!isOfferId) return id;
+  return b64ToUtf8(parts[0]) ?? id;
 }
 
 /* ── DCAT JSON-LD → CatalogOffer[] mapper ──────────────────── */
