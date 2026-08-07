@@ -24,21 +24,26 @@ FROM node:22-alpine AS production
 
 RUN corepack enable && corepack prepare pnpm@10.4.1 --activate
 
-WORKDIR /app
-
-# Copy only production artifacts
-COPY package.json pnpm-lock.yaml ./
-COPY patches/ ./patches/
-RUN pnpm install --frozen-lockfile --prod
-
 # pg requires native deps on alpine - ensure they're available
 RUN apk add --no-cache postgresql-client
 
-COPY --from=builder /app/dist ./dist
-
-# 비root 실행 — 컨테이너 침해 시 권한 최소화(node 이미지 기본 비root 유저 uid 1000).
-RUN chown -R node:node /app
+WORKDIR /app
+# /app 을 미리 node 소유로 만들고 이후 COPY/install 을 node 유저로 수행한다.
+# 과거처럼 마지막에 `RUN chown -R node:node /app` 을 하면 chown 이 모든 파일의 메타데이터를
+# 바꿔 유니온 FS 가 /app 전체를 새 레이어에 복사한다 → 이미지에 node_modules 가 두 벌
+# 들어가 레이어 하나가 199MB 늘었다(실측). 소유권은 생성 시점에 정하는 게 맞다.
+RUN chown node:node /app
 USER node
+
+# Copy only production artifacts
+# --prod 는 devDependencies 를 건너뛴다. 클라이언트 라이브러리(react·radix·recharts·
+# lucide-react·react-day-picker→date-fns 등)는 Vite 가 빌드 시 dist/public 으로 번들하므로
+# 런타임에 필요 없다 → devDependencies 에 둬야 이 스테이지에 설치되지 않는다.
+COPY --chown=node:node package.json pnpm-lock.yaml ./
+COPY --chown=node:node patches/ ./patches/
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=builder --chown=node:node /app/dist ./dist
 
 # Environment
 ENV NODE_ENV=production
