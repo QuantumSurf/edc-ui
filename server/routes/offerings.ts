@@ -8,11 +8,42 @@ import {
   type NextFunction,
 } from "express";
 import { getConnector } from "../lib/connectorRegistry.js";
-import { getEdcClient, withJsonLd, mapOffering } from "../lib/edcClient.js";
+import {
+  getEdcClient,
+  withJsonLd,
+  EDC_QUERY_LIMIT,
+  mapOffering,
+  buildAssetAgreementCounts,
+  countAgreementsForAssets,
+} from "../lib/edcClient.js";
 import { requireRole } from "../middleware/auth.js";
+import type { AxiosInstance } from "axios";
 
 const router = Router();
 const writeGuard = requireRole("admin", "operator");
+
+// 계약(agreement) 조회용 QuerySpec — withJsonLd 기본 sortField=createdAt 은
+// contractagreements 엔티티가 지원하지 않아 500 을 내므로, 정렬 없이 limit 만 보낸다.
+const AGREEMENTS_QUERY = {
+  "@context": { "@vocab": "https://w3id.org/edc/v0.0.1/ns/" },
+  "@type": "QuerySpec",
+  limit: EDC_QUERY_LIMIT,
+};
+
+/** assetId → 계약(agreement) 수 맵을 조회. 계약 조회 실패 시 빈 맵(오퍼링 목록은 정상 반환). */
+async function agreementCounts(
+  client: AxiosInstance
+): Promise<Map<string, number>> {
+  try {
+    const res = await client.post(
+      "/v3/contractagreements/request",
+      AGREEMENTS_QUERY
+    );
+    return buildAssetAgreementCounts(res.data);
+  } catch {
+    return new Map();
+  }
+}
 
 async function resolveConnector(id: string) {
   const conn = await getConnector(id);
@@ -80,6 +111,17 @@ router.post(
       const mapped = Array.isArray(response.data)
         ? response.data.map(mapOffering)
         : response.data;
+      // cnt(계약 수): 오퍼링 자산이 참조되는 실제 계약(agreement) 수를 채운다.
+      // (과거: mapOffering 이 0 하드코딩 → 화면 '계약 수'가 항상 0·삭제 차단 미작동)
+      if (Array.isArray(mapped)) {
+        const counts = await agreementCounts(client);
+        for (const o of mapped) {
+          (o as { asset: string; cnt: number }).cnt = countAgreementsForAssets(
+            (o as { asset: string }).asset,
+            counts
+          );
+        }
+      }
       res.json(mapped);
     } catch (error) {
       next(error);
@@ -123,7 +165,11 @@ router.get(
       const response = await client.get(
         `/v3/contractdefinitions/${req.params.offId}`
       );
-      res.json(mapOffering(response.data));
+      const offering = mapOffering(response.data);
+      // 상세도 계약 수를 채운다 — 삭제 차단(계약 참조 시)이 올바로 동작하도록.
+      const counts = await agreementCounts(client);
+      offering.cnt = countAgreementsForAssets(offering.asset, counts);
+      res.json(offering);
     } catch (error) {
       next(error);
     }

@@ -838,8 +838,35 @@ export function mapOffering(raw: Record<string, unknown>) {
     asset,
     access: (jld(raw, "accessPolicyId") as string) ?? "",
     contract: (jld(raw, "contractPolicyId") as string) ?? "",
+    // cnt(계약 수)는 라우트가 계약(agreement) 조회로 채운다(기본 0 — 계약 데이터 없을 때).
     cnt: 0,
   };
+}
+
+/** 계약(agreement) 목록에서 assetId → 계약 수 맵을 만든다. */
+export function buildAssetAgreementCounts(
+  agreements: unknown
+): Map<string, number> {
+  const m = new Map<string, number>();
+  if (!Array.isArray(agreements)) return m;
+  for (const a of agreements) {
+    const rec = a as Record<string, unknown>;
+    const aid = (rec?.["assetId"] ?? rec?.["edc:assetId"] ?? "") as string;
+    if (aid) m.set(aid, (m.get(aid) ?? 0) + 1);
+  }
+  return m;
+}
+
+/** 오퍼링의 자산(콤마결합)들이 참조되는 계약 수 합계. 여러 자산이면 합산. */
+export function countAgreementsForAssets(
+  assetCsv: string,
+  counts: Map<string, number>
+): number {
+  return String(assetCsv ?? "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .reduce((sum, a) => sum + (counts.get(a) ?? 0), 0);
 }
 
 /** Cache of per-connector clients */

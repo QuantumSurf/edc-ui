@@ -10,6 +10,8 @@ import {
   mapTransfer,
   mapEDR,
   mapOffering,
+  buildAssetAgreementCounts,
+  countAgreementsForAssets,
   fmtDateTimeShort,
 } from "./edcClient.js";
 
@@ -544,6 +546,41 @@ describe("mapOffering", () => {
   it("다중 자산(operandRight 배열)은 쉼표결합", () => {
     const m = mapOffering({ assetsSelector: { operandRight: ["a", "b"] } });
     expect(m.asset).toBe("a,b");
+  });
+
+  it("cnt 기본값은 0(라우트가 계약 조회로 채움)", () => {
+    expect(mapOffering({ "@id": "o1" }).cnt).toBe(0);
+  });
+});
+
+// ── 오퍼링 계약 수 집계 ───────────────────────────────────────────
+describe("buildAssetAgreementCounts / countAgreementsForAssets", () => {
+  const agreements = [
+    { assetId: "mt-asset-01" },
+    { assetId: "mt-asset-01" },
+    { "edc:assetId": "pcf-asset" },
+    { assetId: "" }, // assetId 없는 항목은 무시
+    { foo: "bar" },
+  ];
+
+  it("assetId 별 계약 수 집계(edc: 접두형·빈값 처리)", () => {
+    const m = buildAssetAgreementCounts(agreements);
+    expect(m.get("mt-asset-01")).toBe(2);
+    expect(m.get("pcf-asset")).toBe(1);
+    expect(m.size).toBe(2);
+  });
+
+  it("오퍼링 자산(콤마결합)의 계약 수 합계", () => {
+    const m = buildAssetAgreementCounts(agreements);
+    expect(countAgreementsForAssets("mt-asset-01", m)).toBe(2);
+    expect(countAgreementsForAssets("mt-asset-01,pcf-asset", m)).toBe(3);
+    expect(countAgreementsForAssets("nope", m)).toBe(0);
+    expect(countAgreementsForAssets("", m)).toBe(0);
+  });
+
+  it("계약 목록이 배열이 아니면 빈 맵", () => {
+    expect(buildAssetAgreementCounts(null).size).toBe(0);
+    expect(buildAssetAgreementCounts(undefined).size).toBe(0);
   });
 });
 
