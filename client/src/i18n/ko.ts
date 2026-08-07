@@ -551,6 +551,8 @@ const ko = {
     query: "카탈로그 조회",
     querying: "조회 중...",
     offersFound: (n: number) => `${n}개 데이터 오퍼 검색됨`,
+    // 정책 열: 계약 정책 제약이 없으면(공개 데이터) 표시.
+    noConstraints: "제한 없음",
     startNegotiation: "협상 시작",
     negotiationStarted:
       "협상이 시작되었습니다. 3초 간격으로 상태를 확인합니다.",

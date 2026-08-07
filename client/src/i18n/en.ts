@@ -549,6 +549,7 @@ const en: Translations = {
     query: "Query Catalog",
     querying: "Querying...",
     offersFound: (n: number) => `${n} data offers found`,
+    noConstraints: "No restriction",
     startNegotiation: "Start Negotiation",
     negotiationStarted: "Negotiation started. Polling status every 3 seconds.",
     dspRequired: "Please enter the DSP Endpoint URL.",

@@ -61,12 +61,112 @@ export function decodePolicyId(id: string): string {
   return b64ToUtf8(parts[0]) ?? id;
 }
 
+// ── 오퍼 정책 제약 요약 ──────────────────────────────────────────
+// 카탈로그의 "정책" 열은 오퍼 ID(mt-offer-01) 만으로는 "이 데이터를 쓰려면 무슨 조건을
+// 충족해야 하나"를 알 수 없다. offerPolicy(계약 정책)의 제약을 사람이 읽을 수 있는
+// {left, op, right} 로 평탄화해 화면에 칩으로 노출한다.
+export interface OfferConstraint {
+  left: string;
+  op: string;
+  right: string;
+}
+
+// operator 로컬명 → 사람이 읽는 기호(없으면 로컬명 그대로).
+const OP_SYMBOLS: Record<string, string> = {
+  eq: "=",
+  neq: "≠",
+  gt: ">",
+  lt: "<",
+  gteq: "≥",
+  lteq: "≤",
+  isAnyOf: "∈",
+  isNoneOf: "∉",
+  in: "∈",
+};
+
+function localName(v: string): string {
+  const i = Math.max(
+    v.lastIndexOf("/"),
+    v.lastIndexOf("#"),
+    v.lastIndexOf(":")
+  );
+  return i < 0 ? v : v.slice(i + 1);
+}
+
+function operandName(v: unknown): string {
+  const s =
+    v && typeof v === "object"
+      ? String((v as Record<string, unknown>)["@id"] ?? "")
+      : String(v ?? "");
+  return localName(s);
+}
+
+function opDisplay(op: unknown): string {
+  const s =
+    op && typeof op === "object"
+      ? String((op as Record<string, unknown>)["@id"] ?? "")
+      : String(op ?? "");
+  const name = localName(s);
+  return OP_SYMBOLS[name] ?? name;
+}
+
+function rightDisplay(r: unknown): string {
+  if (Array.isArray(r)) return r.map(rightDisplay).filter(Boolean).join(", ");
+  if (r && typeof r === "object") {
+    const o = r as Record<string, unknown>;
+    return String(o["@value"] ?? o["@id"] ?? "");
+  }
+  return String(r ?? "");
+}
+
+/**
+ * offerPolicy(카탈로그 DCAT 축약형 또는 odrl: 접두형) 에서 permission 제약을 평탄화한다.
+ * 논리 래퍼(and/or/xone)는 재귀적으로 풀고, atomic 제약만 {left, op, right} 로 수집한다.
+ */
+export function extractOfferConstraints(
+  policy: Record<string, unknown> | null | undefined
+): OfferConstraint[] {
+  if (!policy) return [];
+  const LOGICAL = ["and", "or", "xone"];
+  const out: OfferConstraint[] = [];
+  const walk = (node: unknown) => {
+    if (!node) return;
+    for (const n of Array.isArray(node) ? node : [node]) {
+      if (!n || typeof n !== "object") continue;
+      const obj = n as Record<string, unknown>;
+      const logical = LOGICAL.map(k => [k, `odrl:${k}`]).find(
+        ([a, b]) => obj[a] !== undefined || obj[b] !== undefined
+      );
+      if (logical) {
+        walk(obj[logical[0]] ?? obj[logical[1]]);
+        continue;
+      }
+      const left = obj["leftOperand"] ?? obj["odrl:leftOperand"];
+      if (left == null) continue;
+      out.push({
+        left: operandName(left),
+        op: opDisplay(obj["operator"] ?? obj["odrl:operator"]),
+        right: rightDisplay(obj["rightOperand"] ?? obj["odrl:rightOperand"]),
+      });
+    }
+  };
+  const perms = policy["permission"] ?? policy["odrl:permission"] ?? [];
+  for (const p of Array.isArray(perms) ? perms : [perms]) {
+    if (!p || typeof p !== "object") continue;
+    const po = p as Record<string, unknown>;
+    walk(po["constraint"] ?? po["odrl:constraint"]);
+  }
+  return out;
+}
+
 /* ── DCAT JSON-LD → CatalogOffer[] mapper ──────────────────── */
 interface CatalogOffer {
   name: string;
   type: string;
   src: string;
   pols: string[];
+  // constraints: 화면 "정책" 열에 표시할 사람이 읽는 제약 요약(offerPolicy 에서 추출).
+  constraints: OfferConstraint[];
   offerId: string;
   // offerPolicy: 협상(ContractRequest)에 그대로 넘기는 전체 정책 객체. 선언↔페이로드 정합(id 80).
   offerPolicy: Record<string, unknown> | null;
@@ -229,6 +329,8 @@ function mapCatalogResponse(
 
     // pols: 화면 표시용 — 인코딩된 offer @id를 정의ID로 디코딩
     const pols = rawPols.map(decodePolicyId);
+    // constraints: 계약 정책의 제약을 사람이 읽는 요약으로(정책 열 표시).
+    const constraints = extractOfferConstraints(offerPolicy);
 
     // Source from distribution or dataAddress
     const dist = ds["dcat:distribution"] ?? ds["distribution"];
@@ -262,6 +364,7 @@ function mapCatalogResponse(
       type,
       src,
       pols,
+      constraints,
       offerId,
       offerPolicy,
       assetId,

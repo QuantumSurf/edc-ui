@@ -48,6 +48,36 @@ interface PageCatalogProps {
   onNav: (path: string) => void;
 }
 
+/** 정책 열 — 계약 정책 제약을 "이름 연산자 값" 칩으로. 없으면 "제한 없음". */
+function PolicyCell({
+  offer,
+  emptyLabel,
+}: {
+  offer: CatalogOffer;
+  emptyLabel: string;
+}) {
+  const constraints = offer.constraints ?? [];
+  if (constraints.length === 0) {
+    return <span className="text-xs text-muted-foreground">{emptyLabel}</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {constraints.map((c, i) => {
+        const text = `${c.left} ${c.op} ${c.right}`.trim();
+        return (
+          <span key={`${text}-${i}`} title={text}>
+            <Badge variant="purple" className="!font-normal">
+              <span className="font-medium">{c.left}</span>
+              <span className="mx-1 opacity-70">{c.op}</span>
+              <span>{c.right}</span>
+            </Badge>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PageCatalog({ onNav }: PageCatalogProps) {
   const { t, locale } = useI18n();
   const connector = useConnectorStore(s => s.connector);
@@ -475,21 +505,10 @@ function CatalogResults({
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {o.pols.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      ) : (
-                        o.pols.map((p, pi) => (
-                          <Badge
-                            key={`${p}-${pi}`}
-                            variant="purple"
-                            className="!font-normal"
-                          >
-                            {p}
-                          </Badge>
-                        ))
-                      )}
-                    </div>
+                    <PolicyCell
+                      offer={o}
+                      emptyLabel={t.catalog.noConstraints}
+                    />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <RoleGate permission="transaction:write">
@@ -547,16 +566,8 @@ function CatalogResults({
                 {t.catalog.twinLink}: {o.aasIdShort || o.aasId}
               </div>
             )}
-            <div className="flex flex-wrap gap-1 mb-3">
-              {o.pols.map((p, pi) => (
-                <Badge
-                  key={`${p}-${pi}`}
-                  variant="purple"
-                  className="!font-normal"
-                >
-                  {p}
-                </Badge>
-              ))}
+            <div className="mb-3">
+              <PolicyCell offer={o} emptyLabel={t.catalog.noConstraints} />
             </div>
             <RoleGate permission="transaction:write">
               <button

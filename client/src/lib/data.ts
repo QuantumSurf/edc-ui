@@ -185,11 +185,19 @@ export interface ShellDescriptor {
   createdAt: string;
 }
 
+export interface OfferConstraint {
+  left: string;
+  op: string;
+  right: string;
+}
+
 export interface CatalogOffer {
   name: string;
   type: string;
   src: string;
   pols: string[];
+  // 정책 열 표시용 — 계약 정책 제약 요약(서버 extractOfferConstraints). 없으면 제한 없음.
+  constraints?: OfferConstraint[];
   offerId: string;
   offerPolicy?: Record<string, unknown>;
   assetId: string;
