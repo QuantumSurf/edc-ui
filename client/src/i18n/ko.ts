@@ -333,6 +333,44 @@ const ko = {
     savePolicy: "정책 저장",
     saving: "저장 중...",
     createFailed: "정책 생성에 실패했습니다.",
+    // 커넥터 검증 실패 원문 → 사용자 친화 문구 (lib/policyErrors.ts 가 소비)
+    err: {
+      usageRequired: (names: string) =>
+        `사용(use) 정책에는 ${names} 제약이 반드시 포함되어야 합니다. 제약 조건에 추가해 주세요.`,
+      notAllowedInRule: (name: string) =>
+        `'${name}' 제약은 현재 규칙 유형·액션에서는 사용할 수 없습니다.`,
+      bpnAccessOnlyHint:
+        "(BPN 계열 제약은 접근 정책(액션 cx-policy:access) 전용입니다.)",
+      mutuallyExclusive: (a: string, b: string) =>
+        `'${a}' 제약과 '${b}' 제약은 한 정책에 함께 넣을 수 없습니다. 하나만 남겨 주세요.`,
+      operatorNotAllowed: (name: string, op: string, allowed: string) =>
+        `'${name}' 제약에는 연산자 '${op}'를 쓸 수 없습니다. 사용 가능한 연산자: ${allowed}`,
+      valueNotAllowed: (name: string, value: string, allowed: string) =>
+        `'${name}' 제약의 값 '${value}'은(는) 허용되지 않습니다. 허용되는 값: ${allowed}`,
+      badFormat: (name: string, hint: string) =>
+        `'${name}' 제약의 값 형식이 올바르지 않습니다 — ${hint}`,
+      unknownConstraint: (name: string) =>
+        `'${name}'은(는) 커넥터가 지원하지 않는 제약입니다. 목록에서 제약을 선택해 주세요.`,
+      duplicateId:
+        "같은 ID의 정책이 이미 존재합니다. 다른 정책 ID를 사용해 주세요.",
+      mixedActions:
+        "한 정책에 접근(access)과 사용(use) 규칙을 섞을 수 없습니다.",
+      andOnly:
+        "여러 제약은 AND 결합만 지원됩니다. 결합 방식을 AND로 변경해 주세요.",
+      singleValue: (name: string) =>
+        `'${name}' 제약에는 값을 하나만 넣을 수 있습니다.`,
+      duplicateValues: (name: string) =>
+        `'${name}' 제약의 값에 중복이 있습니다.`,
+      emptyValue: (name: string) => `'${name}' 제약의 값을 입력해 주세요.`,
+      actionMustBe: (rule: string, action: string) =>
+        `이 정책 유형에서 ${rule} 규칙의 액션은 '${action}'이어야 합니다.`,
+      ruleNotAllowed: (rule: string) =>
+        `이 정책 유형에서는 ${rule} 규칙을 사용할 수 없습니다(허가 규칙만 가능).`,
+      formatBpnl: "BPNL로 시작하는 16자리여야 합니다 (예: BPNL000000000CON)",
+      formatInteger: "숫자만 입력하세요 (예: 12)",
+      formatDate:
+        "UTC 초 단위 ISO-8601 형식이어야 합니다 (예: 2027-12-31T23:59:59Z)",
+    },
     policyIdRequired: "정책 ID를 입력하세요.",
     leftOperandRequired: "모든 제약 조건의 왼쪽 피연산자를 입력하세요.",
     rightOperandRequired: "모든 제약 조건의 오른쪽 피연산자를 입력하세요.",

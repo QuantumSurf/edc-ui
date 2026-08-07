@@ -60,6 +60,7 @@ import { RoleGate } from "@/components/RoleGate";
 import { BpnGroupsDialog } from "@/components/BpnGroupsDialog";
 import { toast } from "sonner";
 import { cn, clickable } from "@/lib/utils";
+import { friendlyPolicyError } from "@/lib/policyErrors";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 /* ─── ODRL Constants (spec 4.3.1) ────────────────────────────── */
@@ -1925,8 +1926,14 @@ function ODRLBuilder({
           ?.response?.data?.message ||
         (err as Error)?.message ||
         "";
+      // 커넥터 검증기 원문(전체 IRI·규칙 덤프)은 사용자용 문구로 변환해 보여주고,
+      // 원문은 진단용으로 콘솔에만 남긴다.
+      const friendly = msg ? friendlyPolicyError(msg, t.policies.err) : "";
+      if (msg && friendly !== msg) {
+        console.warn("[policy] 저장 실패 원문:", msg);
+      }
       toast.error(isEdit ? t.policies.updateFailed : t.policies.createFailed, {
-        description: msg || undefined,
+        description: friendly || msg || undefined,
       });
       submittingRef.current = false;
       setSubmitting(false);

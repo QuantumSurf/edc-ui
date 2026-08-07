@@ -329,6 +329,44 @@ const en: Translations = {
     savePolicy: "Save Policy",
     saving: "Saving...",
     createFailed: "Failed to create policy.",
+    // Connector validation raw errors → user-friendly text (consumed by lib/policyErrors.ts)
+    err: {
+      usageRequired: (names: string) =>
+        `A usage (use) policy must include the ${names} constraint(s). Please add them.`,
+      notAllowedInRule: (name: string) =>
+        `The '${name}' constraint cannot be used with the current rule type/action.`,
+      bpnAccessOnlyHint:
+        "(BPN constraints are only allowed in access policies — action cx-policy:access.)",
+      mutuallyExclusive: (a: string, b: string) =>
+        `The '${a}' and '${b}' constraints cannot be used together. Keep only one.`,
+      operatorNotAllowed: (name: string, op: string, allowed: string) =>
+        `Operator '${op}' is not allowed for the '${name}' constraint. Allowed: ${allowed}`,
+      valueNotAllowed: (name: string, value: string, allowed: string) =>
+        `Value '${value}' is not allowed for the '${name}' constraint. Allowed values: ${allowed}`,
+      badFormat: (name: string, hint: string) =>
+        `Invalid value format for the '${name}' constraint — ${hint}`,
+      unknownConstraint: (name: string) =>
+        `'${name}' is not a constraint supported by the connector. Please pick one from the list.`,
+      duplicateId:
+        "A policy with this ID already exists. Please use a different Policy ID.",
+      mixedActions: "A policy cannot mix access and use rules.",
+      andOnly:
+        "Multiple constraints support AND combination only. Please switch the combinator to AND.",
+      singleValue: (name: string) =>
+        `The '${name}' constraint accepts a single value only.`,
+      duplicateValues: (name: string) =>
+        `The '${name}' constraint has duplicate values.`,
+      emptyValue: (name: string) =>
+        `Please enter a value for the '${name}' constraint.`,
+      actionMustBe: (rule: string, action: string) =>
+        `For this policy type, the ${rule} rule's action must be '${action}'.`,
+      ruleNotAllowed: (rule: string) =>
+        `This policy type does not allow ${rule} rules (permission only).`,
+      formatBpnl:
+        "Must be BPNL followed by 12 characters (e.g. BPNL000000000CON)",
+      formatInteger: "Numbers only (e.g. 12)",
+      formatDate: "ISO-8601 UTC with seconds (e.g. 2027-12-31T23:59:59Z)",
+    },
     policyIdRequired: "Please enter a Policy ID.",
     leftOperandRequired: "All Constraints must have a Left Operand.",
     rightOperandRequired: "All Constraints must have a Right Operand.",
