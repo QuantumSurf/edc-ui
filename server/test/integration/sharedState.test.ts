@@ -21,9 +21,11 @@ let ready = false;
 type DbMod = typeof import("../../lib/db.js");
 type EdrMod = typeof import("../../lib/edrRefresh.js");
 type PubMod = typeof import("../../lib/pubsub.js");
+type BulkMod = typeof import("../../lib/bulkTransferService.js");
 let db: DbMod;
 let edr: EdrMod;
 let pub: PubMod;
+let bulk: BulkMod;
 
 const C = "conn-shared-1";
 const TP = "tp-shared-1";
@@ -41,6 +43,7 @@ beforeAll(async () => {
   db = await import("../../lib/db.js");
   edr = await import("../../lib/edrRefresh.js");
   pub = await import("../../lib/pubsub.js");
+  bulk = await import("../../lib/bulkTransferService.js");
   await db.initDb();
   ready = true;
 }, 180_000);
@@ -104,6 +107,91 @@ describe("EDR 토큰 공유 저장소(edr_tokens)", () => {
     await edr.pruneEdrTokens(0); // maxAge 0 → 모든 행 삭제
     const { rowCount } = await db.getPool().query(`SELECT 1 FROM edr_tokens`);
     expect(rowCount).toBe(0);
+  });
+});
+
+describe("대량전송 잡 리스(transfer_job) — 중복 재개 차단", () => {
+  const CJ = "conn-lease-1";
+  const plan = (tp: string) => ({
+    connectorId: CJ,
+    transferId: tp,
+    files: [{ key: "obj-a" }],
+    s3: { bucket: "b", region: "us-east-1" },
+  });
+
+  it("실행 중(리스 유효)인 잡은 다른 레플리카가 인수하지 않는다", async () => {
+    if (!ready) return;
+    // 레플리카 A 가 잡을 시작 → 리스 보유.
+    await bulk.saveJobPlan(plan("tp-lease-1"), "replica-A");
+
+    // 롤링배포로 새로 뜬 레플리카 B 가 부팅 재개를 시도한다.
+    const claimedByB = await bulk.claimPendingJobPlans("replica-B");
+    expect(claimedByB).toHaveLength(0);
+  });
+
+  it("동시에 부팅한 두 레플리카 중 하나만 잡을 가져간다", async () => {
+    if (!ready) return;
+    await bulk.saveJobPlan(plan("tp-lease-2"), "replica-A");
+    // A 가 죽어 리스가 만료된 상태를 만든다.
+    await db
+      .getPool()
+      .query(
+        `UPDATE transfer_job SET lease_until = NOW() - interval '1 minute' WHERE transfer_id=$1`,
+        ["tp-lease-2"]
+      );
+
+    const [b, c] = await Promise.all([
+      bulk.claimPendingJobPlans("replica-B"),
+      bulk.claimPendingJobPlans("replica-C"),
+    ]);
+    const claims = [...b, ...c].filter(p => p.transferId === "tp-lease-2");
+    expect(claims).toHaveLength(1);
+  });
+
+  it("리스 만료 후에는 다른 레플리카가 인수한다(죽은 워커 복구)", async () => {
+    if (!ready) return;
+    await bulk.saveJobPlan(plan("tp-lease-3"), "replica-A");
+    await db
+      .getPool()
+      .query(
+        `UPDATE transfer_job SET lease_until = NOW() - interval '1 minute' WHERE transfer_id=$1`,
+        ["tp-lease-3"]
+      );
+    const claimed = await bulk.claimPendingJobPlans("replica-B");
+    expect(claimed.map(p => p.transferId)).toContain("tp-lease-3");
+  });
+
+  it("renewLease 는 소유자만 연장할 수 있다", async () => {
+    if (!ready) return;
+    await bulk.saveJobPlan(plan("tp-lease-4"), "replica-A");
+    await db
+      .getPool()
+      .query(
+        `UPDATE transfer_job SET lease_until = NOW() - interval '1 minute' WHERE transfer_id=$1`,
+        ["tp-lease-4"]
+      );
+    // 소유자가 아닌 레플리카의 갱신은 아무 행도 바꾸지 못한다 → 여전히 인수 가능.
+    await bulk.renewLease(CJ, "tp-lease-4", "replica-X");
+    expect(
+      (await bulk.claimPendingJobPlans("replica-B")).map(p => p.transferId)
+    ).toContain("tp-lease-4");
+  });
+
+  it("markJobDone 은 리스를 반납하고 재개 대상에서 제외한다", async () => {
+    if (!ready) return;
+    await bulk.saveJobPlan(plan("tp-lease-5"), "replica-A");
+    await bulk.markJobDone(CJ, "tp-lease-5");
+    const { rows } = await db
+      .getPool()
+      .query(
+        `SELECT status, lease_owner FROM transfer_job WHERE transfer_id=$1`,
+        ["tp-lease-5"]
+      );
+    expect(rows[0].status).toBe("DONE");
+    expect(rows[0].lease_owner).toBeNull();
+    expect(
+      (await bulk.claimPendingJobPlans("replica-B")).map(p => p.transferId)
+    ).not.toContain("tp-lease-5");
   });
 });
 

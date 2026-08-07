@@ -211,6 +211,17 @@ async function createSchema(): Promise<void> {
       PRIMARY KEY (transfer_id, connector_id)
     );
   `);
+  // 잡 리스(소유권) — 멀티레플리카/롤링배포에서 같은 잡을 두 워커가 동시에 이어받는 것을 막는다.
+  // 롤링업데이트는 새 파드를 먼저 띄우므로(maxSurge), 리스가 없으면 새 파드의 부팅 재개가
+  // "구 파드에서 아직 돌고 있는" 잡을 중복 실행한다 → 같은 uploadId 에 두 워커가 파트를 올리고
+  // 먼저 Complete 한 쪽 때문에 다른 쪽이 NoSuchUpload 로 실패, 완료된 전송이 FAILED 로 뒤집힌다.
+  // 추가 컬럼이라 구버전 파드와 호환(구 파드는 무시) → SCHEMA_VERSION 은 올리지 않는다.
+  await getPool().query(
+    `ALTER TABLE transfer_job ADD COLUMN IF NOT EXISTS lease_owner TEXT;`
+  );
+  await getPool().query(
+    `ALTER TABLE transfer_job ADD COLUMN IF NOT EXISTS lease_until TIMESTAMPTZ;`
+  );
   // transfer_multipart: 객체별 S3 멀티파트 상태(uploadId + 완료 파트). 재개 시 ListParts 로
   //   S3 를 authoritative 로 재조정한 뒤 남은 파트만 이어 올린다.
   await getPool().query(`

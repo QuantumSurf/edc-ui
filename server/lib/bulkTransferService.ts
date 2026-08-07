@@ -5,13 +5,20 @@
 // 않으므로 재개는 자격이 env 로 있을 때만 가능하다(요청별 dataSink 시크릿은 재기동 후 소실).
 
 import axios from "axios";
+import { randomUUID } from "node:crypto";
 import type { Readable } from "node:stream";
+import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { getPool } from "./db.js";
 import { getConnector } from "./connectorRegistry.js";
 import { getEdcClient } from "./edcClient.js";
 import { pullEdrData, evictEdrTokens } from "./edrRefresh.js";
 import { assertEndpointPublic } from "../middleware/validation.js";
-import { resolveS3Target, isS3TargetUsable, type S3Target } from "./s3.js";
+import {
+  resolveS3Target,
+  isS3TargetUsable,
+  makeS3Client,
+  type S3Target,
+} from "./s3.js";
 import {
   createResumableS3Uploader,
   createDbMultipartStore,
@@ -52,13 +59,36 @@ function appendProxyPath(endpoint: string, path?: string): string | null {
   return endpoint.replace(/\/+$/, "") + (rel.startsWith("/") ? rel : `/${rel}`);
 }
 
-export async function saveJobPlan(plan: JobPlan): Promise<void> {
+// ── 잡 리스(소유권) ────────────────────────────────────────────────────────────
+// 이 프로세스(레플리카)의 식별자. 잡을 실행 중인 워커만 리스를 보유하고, 리스가 살아 있는
+// 잡은 다른 레플리카가 재개하지 않는다. 리스가 없으면 롤링배포(새 파드 선기동)마다 구 파드에서
+// 진행 중인 잡을 새 파드가 중복 실행한다.
+const INSTANCE_ID = randomUUID();
+// 리스 유효기간 — 이보다 오래 갱신이 없으면 죽은 워커로 보고 다른 레플리카가 인수한다.
+const LEASE_TTL_SEC = 90;
+// 갱신 주기(진행 스냅샷 콜백에 편승 — 별도 타이머 없음).
+const LEASE_RENEW_MS = 30_000;
+const lastRenewAt = new Map<string, number>();
+
+/** 잡 리스를 이 인스턴스 이름으로 획득/연장한다(잡 시작·재개 시점). */
+export async function saveJobPlan(
+  plan: JobPlan,
+  owner: string = INSTANCE_ID
+): Promise<void> {
   await getPool().query(
-    `INSERT INTO transfer_job (transfer_id, connector_id, plan, status, updated_at)
-     VALUES ($1,$2,$3,'RUNNING',NOW())
+    `INSERT INTO transfer_job
+       (transfer_id, connector_id, plan, status, lease_owner, lease_until, updated_at)
+     VALUES ($1,$2,$3,'RUNNING',$4, NOW() + ($5 || ' seconds')::interval, NOW())
      ON CONFLICT (transfer_id, connector_id) DO UPDATE
-       SET plan=EXCLUDED.plan, status='RUNNING', updated_at=NOW()`,
-    [plan.transferId, plan.connectorId, JSON.stringify(plan)]
+       SET plan=EXCLUDED.plan, status='RUNNING', lease_owner=EXCLUDED.lease_owner,
+           lease_until=EXCLUDED.lease_until, updated_at=NOW()`,
+    [
+      plan.transferId,
+      plan.connectorId,
+      JSON.stringify(plan),
+      owner,
+      LEASE_TTL_SEC,
+    ]
   );
 }
 
@@ -66,11 +96,38 @@ export async function markJobDone(
   connectorId: string,
   transferId: string
 ): Promise<void> {
+  lastRenewAt.delete(`${connectorId}::${transferId}`);
   await getPool().query(
-    `UPDATE transfer_job SET status='DONE', updated_at=NOW()
+    `UPDATE transfer_job SET status='DONE', lease_owner=NULL, lease_until=NULL, updated_at=NOW()
       WHERE transfer_id=$1 AND connector_id=$2`,
     [transferId, connectorId]
   );
+}
+
+/**
+ * 실행 중 리스 갱신. 진행 스냅샷(≈1/s)마다 호출되지만 실제 UPDATE 는 LEASE_RENEW_MS 마다만
+ * 나간다(DB 부하 억제). 갱신을 멈추면 TTL 만료 후 다른 레플리카가 인수할 수 있다.
+ */
+export async function renewLease(
+  connectorId: string,
+  transferId: string,
+  owner: string = INSTANCE_ID
+): Promise<void> {
+  const k = `${connectorId}::${transferId}`;
+  const now = Date.now();
+  const prev = lastRenewAt.get(k) ?? 0;
+  if (now - prev < LEASE_RENEW_MS) return;
+  lastRenewAt.set(k, now);
+  try {
+    await getPool().query(
+      `UPDATE transfer_job
+          SET lease_until = NOW() + ($3 || ' seconds')::interval, updated_at=NOW()
+        WHERE transfer_id=$1 AND connector_id=$2 AND lease_owner=$4`,
+      [transferId, connectorId, LEASE_TTL_SEC, owner]
+    );
+  } catch (e) {
+    console.error("[bulk] 리스 갱신 실패:", (e as Error).message);
+  }
 }
 
 /**
@@ -107,9 +164,21 @@ async function completeEdcTransfer(
   }
 }
 
-async function loadPendingJobPlans(): Promise<JobPlan[]> {
+/**
+ * 재개 대상 잡을 **원자적으로 인수**한다(UPDATE ... RETURNING). 리스가 살아 있는 잡(=다른
+ * 레플리카가 실행 중)은 WHERE 에서 제외되므로 중복 재개가 발생하지 않는다. 동시 실행되는 다른
+ * 레플리카의 UPDATE 는 행잠금에서 대기했다가 갱신된 행으로 조건을 재평가해 0건을 얻는다.
+ */
+export async function claimPendingJobPlans(
+  owner: string = INSTANCE_ID
+): Promise<JobPlan[]> {
   const { rows } = await getPool().query(
-    `SELECT plan FROM transfer_job WHERE status='RUNNING'`
+    `UPDATE transfer_job
+        SET lease_owner=$1, lease_until = NOW() + ($2 || ' seconds')::interval, updated_at=NOW()
+      WHERE status='RUNNING'
+        AND (lease_owner IS NULL OR lease_until IS NULL OR lease_until < NOW())
+      RETURNING plan`,
+    [owner, LEASE_TTL_SEC]
   );
   return rows.map(r => r.plan as JobPlan);
 }
@@ -236,6 +305,10 @@ export async function startBulkFromPlan(
       uploader,
       onProgress: s => {
         void persistSnapshot(s);
+        // 실행 중에는 리스를 계속 살려 둔다 — 그래야 롤링배포로 새 파드가 떠도 이 잡을
+        // 인수(중복 실행)하지 않는다. 실제 UPDATE 는 LEASE_RENEW_MS 마다만 나간다.
+        if (s.state === "RUNNING")
+          void renewLease(plan.connectorId, plan.transferId);
         if (
           s.state === "COMPLETED" ||
           s.state === "FAILED" ||
@@ -263,11 +336,60 @@ export async function startBulkFromPlan(
   }
 }
 
+/**
+ * 확정 실패한 잡의 멀티파트 잔재를 정리한다. 재개가 불가능해진(=DONE/FAILED 확정) 잡의
+ * uploadId 를 그대로 두면 S3 에 미완료 멀티파트가 영구히 남아 과금되고(버킷 목록에도 안 보임)
+ * transfer_multipart 행도 무한 증가한다. 자격이 있으면 Abort 까지, 없으면 행만 지운다.
+ */
+async function discardJobMultiparts(
+  connectorId: string,
+  transferId: string,
+  target?: S3Target
+): Promise<void> {
+  try {
+    const { rows } = await getPool().query<{
+      object_key: string;
+      upload_id: string;
+    }>(
+      `SELECT object_key, upload_id FROM transfer_multipart
+        WHERE transfer_id=$1 AND connector_id=$2`,
+      [transferId, connectorId]
+    );
+    if (rows.length === 0) return;
+    if (target && isS3TargetUsable(target)) {
+      const client = makeS3Client(target);
+      for (const r of rows) {
+        await client
+          .send(
+            new AbortMultipartUploadCommand({
+              Bucket: target.bucket,
+              Key: r.object_key,
+              UploadId: r.upload_id,
+            })
+          )
+          .catch(() => {});
+      }
+    } else {
+      console.warn(
+        `[resume] ${transferId}: S3 자격 없음 → 미완료 멀티파트 ${rows.length}건을 Abort 하지 못했습니다. ` +
+          `버킷에 AbortIncompleteMultipartUpload 수명주기 규칙을 두세요(미완료 파트는 계속 과금됩니다).`
+      );
+    }
+    await getPool().query(
+      `DELETE FROM transfer_multipart WHERE transfer_id=$1 AND connector_id=$2`,
+      [transferId, connectorId]
+    );
+  } catch (e) {
+    console.error("[resume] 멀티파트 정리 실패:", (e as Error).message);
+  }
+}
+
 /** 부팅 시 진행 중이던(RUNNING) 잡을 이어받는다. S3 자격은 env 필요. best-effort. */
 export async function resumePendingTransfers(): Promise<void> {
   let plans: JobPlan[];
   try {
-    plans = await loadPendingJobPlans();
+    // 리스를 획득한 잡만 이어받는다 — 다른 레플리카가 실행 중인 잡은 인수하지 않는다.
+    plans = await claimPendingJobPlans();
   } catch (e) {
     console.error("[resume] 잡 플랜 로드 실패:", (e as Error).message);
     return;
@@ -293,6 +415,7 @@ export async function resumePendingTransfers(): Promise<void> {
       await persistSnapshot(
         failedSnapshot(plan, "resume requires S3 credentials in env")
       ).catch(() => {});
+      await discardJobMultiparts(plan.connectorId, plan.transferId);
       await markJobDone(plan.connectorId, plan.transferId).catch(() => {});
       continue;
     }
@@ -301,6 +424,7 @@ export async function resumePendingTransfers(): Promise<void> {
       if (r.error) {
         console.warn(`[resume] ${plan.transferId}: ${r.error} → 재개 중단`);
         await persistSnapshot(failedSnapshot(plan, r.error)).catch(() => {});
+        await discardJobMultiparts(plan.connectorId, plan.transferId, target);
         await markJobDone(plan.connectorId, plan.transferId).catch(() => {});
       } else {
         console.log(`[resume] ${plan.transferId} 재개 시작`);
