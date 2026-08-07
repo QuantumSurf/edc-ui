@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n";
 import { fetchCatalog, startNegotiation, fetchConnectors } from "@/services";
 import { type CatalogOffer } from "@/lib/data";
+import { describeConstraint } from "@/lib/constraintLabels";
 import { useConnectorStore } from "@/stores/connectorStore";
 import {
   Card,
@@ -48,13 +49,15 @@ interface PageCatalogProps {
   onNav: (path: string) => void;
 }
 
-/** 정책 열 — 계약 정책 제약을 "이름 연산자 값" 칩으로. 없으면 "제한 없음". */
+/** 정책 열 — 계약 정책 제약을 사람이 읽는 문구 칩으로(원문은 툴팁). 없으면 "제한 없음". */
 function PolicyCell({
   offer,
   emptyLabel,
+  locale,
 }: {
   offer: CatalogOffer;
   emptyLabel: string;
+  locale: "ko" | "en";
 }) {
   const constraints = offer.constraints ?? [];
   if (constraints.length === 0) {
@@ -63,13 +66,12 @@ function PolicyCell({
   return (
     <div className="flex flex-wrap gap-1">
       {constraints.map((c, i) => {
-        const text = `${c.left} ${c.op} ${c.right}`.trim();
+        // 툴팁에는 원문(제약 종류/연산자/값)을 남겨 정확한 값 확인이 가능하게.
+        const raw = `${c.left} ${c.op} ${c.right}`.trim();
         return (
-          <span key={`${text}-${i}`} title={text}>
+          <span key={`${raw}-${i}`} title={raw}>
             <Badge variant="purple" className="!font-normal">
-              <span className="font-medium">{c.left}</span>
-              <span className="mx-1 opacity-70">{c.op}</span>
-              <span>{c.right}</span>
+              {describeConstraint(c, locale)}
             </Badge>
           </span>
         );
@@ -432,7 +434,7 @@ function CatalogResults({
   onNegotiate: (o: CatalogOffer) => void;
   isRowPending: (o: CatalogOffer) => boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const {
     paginatedData,
     totalItems,
@@ -508,6 +510,7 @@ function CatalogResults({
                     <PolicyCell
                       offer={o}
                       emptyLabel={t.catalog.noConstraints}
+                      locale={locale}
                     />
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -567,7 +570,11 @@ function CatalogResults({
               </div>
             )}
             <div className="mb-3">
-              <PolicyCell offer={o} emptyLabel={t.catalog.noConstraints} />
+              <PolicyCell
+                offer={o}
+                emptyLabel={t.catalog.noConstraints}
+                locale={locale}
+              />
             </div>
             <RoleGate permission="transaction:write">
               <button
