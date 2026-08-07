@@ -119,8 +119,7 @@ Keycloak 쪽 설정과 env 값만 채우면 된다. 연동 코드는 이미 들�
 
 ## 6. 로컬 검증 (회사 IdP 없이)
 
-[keycloak/realm-import/](../keycloak/README.md) 가 realm `kmx` 를 완성 상태(클라이언트
-+매퍼+역할+테스트 사용자)로 자동 생성한다 — 1~3단계 수동 작업 불필요:
+[keycloak/realm-import/](../keycloak/README.md) 가 realm `kmx` 를 완성 상태(클라이언트 +매퍼+역할+테스트 사용자)로 자동 생성한다 — 1~3단계 수동 작업 불필요:
 
 ```powershell
 # 1) 로컬 Keycloak — realm kmx 자동 import (레포 루트에서)

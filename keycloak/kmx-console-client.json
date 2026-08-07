@@ -11,9 +11,7 @@
   "directAccessGrantsEnabled": false,
   "serviceAccountsEnabled": false,
   "frontchannelLogout": true,
-  "redirectUris": [
-    "https://kmx-console.example.com/api/auth/oidc/callback"
-  ],
+  "redirectUris": ["https://kmx-console.example.com/api/auth/oidc/callback"],
   "webOrigins": ["https://kmx-console.example.com"],
   "attributes": {
     "pkce.code.challenge.method": "S256",

@@ -36,7 +36,10 @@ describe("CX-0002 자산 JSON-LD 매핑", () => {
   });
 
   it("CAC-018: 명시된 version 은 그대로 보존한다", () => {
-    const props = toEdcAssetBody({ ...base, ver: "3.1" }).properties as Record<string, unknown>;
+    const props = toEdcAssetBody({ ...base, ver: "3.1" }).properties as Record<
+      string,
+      unknown
+    >;
     expect(props["cx-common:version"]).toBe("3.1");
   });
 
@@ -44,7 +47,9 @@ describe("CX-0002 자산 JSON-LD 매핑", () => {
     const body = toEdcAssetBody(base);
     const ctx = body["@context"] as Record<string, string>;
     const props = body.properties as Record<string, unknown>;
-    expect(ctx["aas-semantics"]).toBe("https://admin-shell.io/aas/3/0/HasSemantics/");
+    expect(ctx["aas-semantics"]).toBe(
+      "https://admin-shell.io/aas/3/0/HasSemantics/"
+    );
     expect(props["aas-semantics:semanticId"]).toBe(base.sem);
     expect(props.semanticId).toBeUndefined();
   });
@@ -58,8 +63,11 @@ describe("CX-0002 자산 JSON-LD 매핑", () => {
     const mapped = mapAsset({
       "@id": "urn:uuid:sub-1",
       properties: {
-        "http://purl.org/dc/terms/type": { "@id": "https://w3id.org/catenax/taxonomy#Submodel" },
-        "https://admin-shell.io/aas/3/0/HasSemantics/semanticId": "urn:samm:x#Y",
+        "http://purl.org/dc/terms/type": {
+          "@id": "https://w3id.org/catenax/taxonomy#Submodel",
+        },
+        "https://admin-shell.io/aas/3/0/HasSemantics/semanticId":
+          "urn:samm:x#Y",
         "cx-common:version": "3.0",
       },
       dataAddress: { type: "HttpData" },
@@ -73,17 +81,24 @@ describe("CX-0002 자산 JSON-LD 매핑", () => {
     const mapped = mapAsset({
       "@id": "legacy",
       properties: {
-        "https://purl.org/dc/terms/type": { "@id": "https://w3id.org/catenax/taxonomy#DigitalTwinRegistry" },
+        "https://purl.org/dc/terms/type": {
+          "@id": "https://w3id.org/catenax/taxonomy#DigitalTwinRegistry",
+        },
       },
       dataAddress: { type: "HttpData" },
     });
-    expect(mapped.type).toBe("https://w3id.org/catenax/taxonomy#DigitalTwinRegistry");
+    expect(mapped.type).toBe(
+      "https://w3id.org/catenax/taxonomy#DigitalTwinRegistry"
+    );
   });
 
   it("사용자 정의 속성은 표준 키를 덮어쓰지 않는다", () => {
     const props = toEdcAssetBody({
       ...base,
-      customProperties: { "cx-common:version": "9.9", "http://purl.org/dc/terms/type": "x" },
+      customProperties: {
+        "cx-common:version": "9.9",
+        "http://purl.org/dc/terms/type": "x",
+      },
     }).properties as Record<string, unknown>;
     expect(props["cx-common:version"]).toBe("3.0");
     expect(props["dct:type"]).toEqual({ "@id": "cx-taxo:Submodel" });
