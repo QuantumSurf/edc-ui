@@ -72,11 +72,29 @@ kubectl create secret docker-registry harbor-quantum-x \
 
 ```bash
 helm upgrade --install kmx-edc-ui oci://harbor.quantum-x.co.kr/kmx/charts/kmx-edc-ui \
-  --version 0.1.0 \
+  --version 0.2.1 \
   -n <namespace> \
   --set image.tag=<sha> \
+  --atomic --timeout 10m \
   -f <운영 values 오버라이드>
 ```
+
+`--atomic` 권장 — 새 파드가 Ready 에 도달하지 못하면 helm 이 자동으로 이전 리비전으로
+되돌린다. 없으면 실패한 롤아웃이 그대로 방치돼 수동 `helm rollback` 전까지 열화 상태가
+유지된다. `--timeout` 은 readinessProbe 예산(initialDelay 5s + period 10s × failureThreshold 3)
+보다 넉넉하게 준다.
+
+### 스키마 마이그레이션과 무중단
+
+마이그레이션은 파드 부팅 시 `initDb()` 가 pg advisory lock 으로 직렬화해 실행한다(별도
+마이그레이션 Job 불필요). `/readyz` 는 **DB 스키마 버전 ≥ 파드가 요구하는 버전**일 때 Ready 다
+(동등 비교가 아니다 — `server/lib/db.ts` 의 `isSchemaVersionSatisfied`). 덕분에 롤링 중
+새 파드가 DB 를 먼저 올려도 구 파드가 계속 서빙한다.
+
+이게 성립하려면 **모든 마이그레이션이 N-1 하위호환**이어야 한다(expand/contract). 컬럼·테이블
+추가는 그대로 배포하면 되고, 삭제·이름변경·NOT NULL 승격은 반드시 두 릴리스로 나눈다:
+① 새 컬럼 추가 + 양쪽 쓰기 → 전체 배포 완료, ② 다음 릴리스에서 구 컬럼 제거.
+규약 전문은 `SCHEMA_VERSION` 상수 주석에 있다.
 
 `SEED_*`·`OIDC_*`·DB 접속 등 운영 시크릿 주입은 `helm/kmx-edc-ui/values.yaml` 주석과
 `docs/KEYCLOAK.md`를 따른다.

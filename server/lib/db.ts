@@ -706,21 +706,57 @@ async function migrateConnectorApiKeys(): Promise<void> {
     console.log(`[DB] connector api_key ${migrated}건 at-rest 암호화 완료`);
 }
 
-/** 스키마/마이그레이션 버전 — 스키마 변경 시 갱신한다. readiness 게이팅에 사용:
- *  롤링 배포 때 구버전 파드가 새 스키마로 마이그레이션된 DB 를 만나면 NotReady 로 빠져
- *  트래픽에서 제외된다(구/신 스키마 파드 동시 서빙으로 인한 일시 500 방지). */
+/**
+ * 스키마/마이그레이션 버전 — `YYYY-MM-DD` 형식(사전순 비교 = 시간순 비교). 스키마를 바꿀 때
+ * 갱신한다. 이 빌드가 **최소한 요구하는** DB 스키마 버전이기도 하다(readiness 하한선).
+ *
+ * ── 마이그레이션 규약: expand/contract (하위호환 필수) ──────────────────────────
+ * 롤링 배포 중에는 구 파드와 신 파드가 **같은 DB 를 동시에** 쓴다. 따라서 모든 마이그레이션은
+ * 직전 릴리스(N-1)의 코드가 계속 동작하는 형태여야 한다:
+ *   허용 — 컬럼/테이블/인덱스 추가, nullable 컬럼 추가, 기본값 추가
+ *   금지 — 컬럼/테이블 삭제, 이름 변경, 타입 축소, NOT NULL 승격(같은 릴리스에서)
+ * 제거·이름변경이 꼭 필요하면 2단계로 나눈다: (1) 새 컬럼 추가 + 양쪽 쓰기(expand) → 배포 완료,
+ * (2) 다음 릴리스에서 구 컬럼 제거(contract).
+ */
 export const SCHEMA_VERSION = "2026-07-02";
 
-/** 이 프로세스의 SCHEMA_VERSION 이 DB 에 기록된 버전과 일치하는지 — /readyz 게이팅용. */
+const SCHEMA_VERSION_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * DB 스키마가 이 빌드가 요구하는 수준 **이상**인지 — /readyz 게이팅용.
+ *
+ * 정확히 같은지(`===`)가 아니라 하한선(`>=`)으로 본다. 동등 비교를 쓰면 스키마 버전을 올리는
+ * 릴리스에서 **확정적인 순단**이 난다: 롤링 업데이트는 새 파드를 먼저 띄우는데(replicas 2 면
+ * k8s 기본값이 maxSurge 1 / maxUnavailable 0), 새 파드가 마이그레이션을 끝내고 DB 에 새 버전을
+ * 쓰는 순간 구 파드 전부가 자기 상수와 불일치해 503 으로 빠진다 → 새 파드가 readiness 를
+ * 통과할 때까지 서빙 파드 0. 새 버전이 기동에 실패하면 그 상태로 무기한 멈춘다.
+ *
+ * 하한선 비교면 구 파드는 "DB 가 나보다 새것"이라 계속 Ready 를 유지한다. 이게 성립하는
+ * 전제가 위 SCHEMA_VERSION 주석의 expand/contract 규약이다(N-1 하위호환).
+ * 반대로 아직 마이그레이션되지 않은 DB(기록 버전 < 내 요구치)는 여전히 NotReady 로 잡아낸다.
+ *
+ * 값이 없거나 형식이 깨졌으면 fail-closed(false).
+ */
 export async function isSchemaReady(): Promise<boolean> {
   try {
     const { rows } = await getPool().query<{ value: string }>(
       `SELECT value FROM app_settings WHERE key = 'schema_version'`
     );
-    return rows[0]?.value === SCHEMA_VERSION;
+    return isSchemaVersionSatisfied(rows[0]?.value);
   } catch {
     return false;
   }
+}
+
+/** 순수 비교부(단위테스트용). dbVersion >= SCHEMA_VERSION 이면 true. */
+export function isSchemaVersionSatisfied(
+  dbVersion: string | undefined | null,
+  required: string = SCHEMA_VERSION
+): boolean {
+  if (!dbVersion || !SCHEMA_VERSION_RE.test(dbVersion)) return false;
+  if (!SCHEMA_VERSION_RE.test(required)) return false;
+  // YYYY-MM-DD 는 제로패딩이라 사전순 비교가 곧 시간순 비교다.
+  return dbVersion >= required;
 }
 
 /** Initialize database: create schema + seed */
