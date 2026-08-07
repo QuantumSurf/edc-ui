@@ -92,63 +92,60 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       res.status(403).json({ error: "no-tenant" });
       return;
     }
-    // 캐시 히트 시 팬아웃 생략(부하 하 p99 tail 감소).
-    const cached = fleetListCache.get(tenantId);
-    if (cached !== undefined) {
-      res.json(cached);
-      return;
-    }
-    const connectors = await listConnectors(tenantId);
+    // 캐시 히트면 팬아웃 생략, 미스면 테넌트당 1회만 계산하고 동시 요청은 그 결과를 공유한다
+    // (single-flight — ttlCache.getOrCompute 주석의 캐시 스탬피드 참조).
+    const withStatus = await fleetListCache.getOrCompute(tenantId, async () => {
+      const connectors = await listConnectors(tenantId);
 
-    // 동시성 상한 fan-out(커넥터당 4 outbound). 무제한 Promise.all 은 커넥터가 많은
-    // 테넌트에서 단일 요청으로 소켓/이벤트루프를 고갈시킬 수 있어 상한을 둔다.
-    const withStatus = await mapWithConcurrency(
-      connectors,
-      FLEET_FANOUT_CONCURRENCY,
-      async ({ apiKey, ...safe }) => {
-        // 부분 장애(일부 API만 실패) 표현을 위해 up/warn/down 3-state로 산출.
-        let status: "up" | "warn" | "down" = "down";
-        let assets = 0,
-          offers = 0,
-          negs = 0,
-          transfers = 0;
+      // 동시성 상한 fan-out(커넥터당 4 outbound). 무제한 Promise.all 은 커넥터가 많은
+      // 테넌트에서 단일 요청으로 소켓/이벤트루프를 고갈시킬 수 있어 상한을 둔다.
+      return mapWithConcurrency(
+        connectors,
+        FLEET_FANOUT_CONCURRENCY,
+        async ({ apiKey, ...safe }) => {
+          // 부분 장애(일부 API만 실패) 표현을 위해 up/warn/down 3-state로 산출.
+          let status: "up" | "warn" | "down" = "down";
+          let assets = 0,
+            offers = 0,
+            negs = 0,
+            transfers = 0;
 
-        try {
-          const client = createEdcClient({
-            managementUrl: safe.managementUrl,
-            apiKey,
-            timeoutMs: 5_000,
-          });
+          try {
+            const client = createEdcClient({
+              managementUrl: safe.managementUrl,
+              apiKey,
+              timeoutMs: 5_000,
+            });
 
-          const [assetsRes, offersRes, negsRes, transfersRes] =
-            await Promise.allSettled([
-              client.post("/v3/assets/request", JSON_LD_QUERY),
-              client.post("/v3/contractdefinitions/request", JSON_LD_QUERY),
-              client.post("/v3/contractnegotiations/request", JSON_LD_QUERY),
-              client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
-            ]);
+            const [assetsRes, offersRes, negsRes, transfersRes] =
+              await Promise.allSettled([
+                client.post("/v3/assets/request", JSON_LD_QUERY),
+                client.post("/v3/contractdefinitions/request", JSON_LD_QUERY),
+                client.post("/v3/contractnegotiations/request", JSON_LD_QUERY),
+                client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
+              ]);
 
-          assets = countArray(assetsRes);
-          offers = countArray(offersRes);
-          negs = countArray(negsRes);
-          transfers = countArray(transfersRes);
+            assets = countArray(assetsRes);
+            offers = countArray(offersRes);
+            negs = countArray(negsRes);
+            transfers = countArray(transfersRes);
 
-          // 4개 모두 성공=up, 0개=down, 일부만 성공=warn(부분 장애/열화).
-          const oks = [assetsRes, offersRes, negsRes, transfersRes].filter(
-            r => r.status === "fulfilled"
-          ).length;
-          status = oks === 0 ? "down" : oks === 4 ? "up" : "warn";
-        } catch {
-          /* all failed → down */
+            // 4개 모두 성공=up, 0개=down, 일부만 성공=warn(부분 장애/열화).
+            const oks = [assetsRes, offersRes, negsRes, transfersRes].filter(
+              r => r.status === "fulfilled"
+            ).length;
+            status = oks === 0 ? "down" : oks === 4 ? "up" : "warn";
+          } catch {
+            /* all failed → down */
+          }
+
+          // 클라 계약 호환: 카드가 dcpVersion으로 DCP 배지를 표시하므로 dcpVersion을 그대로 노출.
+          // (safe에 이미 dcpVersion 포함 — 별도 alias 불필요)
+          return { ...safe, status, assets, offers, negs, transfers };
         }
+      );
+    });
 
-        // 클라 계약 호환: 카드가 dcpVersion으로 DCP 배지를 표시하므로 dcpVersion을 그대로 노출.
-        // (safe에 이미 dcpVersion 포함 — 별도 alias 불필요)
-        return { ...safe, status, assets, offers, negs, transfers };
-      }
-    );
-
-    fleetListCache.set(tenantId, withStatus);
     res.json(withStatus);
   } catch (error) {
     next(error);

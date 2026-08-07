@@ -48,115 +48,113 @@ router.get("/kpi", async (req: Request, res: Response, next: NextFunction) => {
       res.status(403).json({ error: "no-tenant" });
       return;
     }
-    // 캐시 히트 시 팬아웃 생략(부하 하 p99 tail 감소).
-    const cachedKpi = kpiCache.get(tenantId);
-    if (cachedKpi !== undefined) {
-      res.json(cachedKpi);
-      return;
-    }
-    const connectors = await listConnectors(tenantId);
+    // 캐시 히트면 팬아웃 생략, 미스면 테넌트당 1회만 계산하고 동시 요청은 그 결과를 공유한다
+    // (single-flight). 단순 get/set 이면 TTL 만료 순간 동시 요청이 전부 각자 팬아웃을 열어
+    // 커넥터 1개만 응답이 없어도 BFF 가 통째로 무너진다(ttlCache.getOrCompute 주석 참조).
+    const kpi = await kpiCache.getOrCompute(tenantId, async () => {
+      const connectors = await listConnectors(tenantId);
 
-    // Short-circuit: if no connectors registered, return immediately
-    if (connectors.length === 0) {
-      return res.json({
-        totalConnectors: 0,
-        up: 0,
-        warn: 0,
-        down: 0,
-        totalAssets: 0,
-        totalOffers: 0,
-        totalNegotiations: 0,
-        totalTransfers: 0,
-        vcWarnings: 0,
-        perConnector: [],
-      });
-    }
-
-    // 동시성 상한 fan-out(커넥터당 3 outbound). 무제한 병렬은 커넥터가 많은 테넌트에서
-    // 단일 요청으로 BFF 소켓/이벤트루프를 고갈시킬 수 있어 상한을 둔다. 부분 장애는
-    // 커넥터 단위 try/catch 로 흡수해 down 상태로 폴백(allSettled 동등 내성).
-    const perConnector: ConnectorKpi[] = await mapWithConcurrency(
-      connectors,
-      FLEET_FANOUT_CONCURRENCY,
-      async (conn): Promise<ConnectorKpi> => {
-        try {
-          const client = createEdcClient({
-            managementUrl: conn.managementUrl,
-            apiKey: conn.apiKey,
-            timeoutMs: 3_000, // 5s → 3s for faster initial response
-          });
-
-          const [assetsRes, negotiationsRes, transfersRes] =
-            await Promise.allSettled([
-              client.post("/v3/assets/request", JSON_LD_QUERY),
-              client.post("/v3/contractnegotiations/request", JSON_LD_QUERY),
-              client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
-            ]);
-
-          // 3개 모두 성공=up, 0개=down, 일부만=warn(부분 장애).
-          const oks = [assetsRes, negotiationsRes, transfersRes].filter(
-            r => r.status === "fulfilled"
-          ).length;
-          const status: "up" | "warn" | "down" =
-            oks === 0 ? "down" : oks === 3 ? "up" : "warn";
-
-          return {
-            id: conn.id,
-            name: conn.name,
-            status,
-            assets:
-              assetsRes.status === "fulfilled"
-                ? Array.isArray(assetsRes.value.data)
-                  ? assetsRes.value.data.length
-                  : 0
-                : 0,
-            negotiations:
-              negotiationsRes.status === "fulfilled"
-                ? Array.isArray(negotiationsRes.value.data)
-                  ? negotiationsRes.value.data.length
-                  : 0
-                : 0,
-            transfers:
-              transfersRes.status === "fulfilled"
-                ? Array.isArray(transfersRes.value.data)
-                  ? transfersRes.value.data.length
-                  : 0
-                : 0,
-          };
-        } catch {
-          return {
-            id: conn.id,
-            name: conn.name,
-            status: "down",
-            assets: 0,
-            negotiations: 0,
-            transfers: 0,
-          };
-        }
+      // Short-circuit: if no connectors registered, return immediately
+      if (connectors.length === 0) {
+        return {
+          totalConnectors: 0,
+          up: 0,
+          warn: 0,
+          down: 0,
+          totalAssets: 0,
+          totalOffers: 0,
+          totalNegotiations: 0,
+          totalTransfers: 0,
+          vcWarnings: 0,
+          perConnector: [],
+        };
       }
-    );
 
-    const up = perConnector.filter(c => c.status === "up").length;
-    const warn = perConnector.filter(c => c.status === "warn").length;
-    const down = perConnector.length - up - warn;
+      // 동시성 상한 fan-out(커넥터당 3 outbound). 무제한 병렬은 커넥터가 많은 테넌트에서
+      // 단일 요청으로 BFF 소켓/이벤트루프를 고갈시킬 수 있어 상한을 둔다. 부분 장애는
+      // 커넥터 단위 try/catch 로 흡수해 down 상태로 폴백(allSettled 동등 내성).
+      const perConnector: ConnectorKpi[] = await mapWithConcurrency(
+        connectors,
+        FLEET_FANOUT_CONCURRENCY,
+        async (conn): Promise<ConnectorKpi> => {
+          try {
+            const client = createEdcClient({
+              managementUrl: conn.managementUrl,
+              apiKey: conn.apiKey,
+              timeoutMs: 3_000, // 5s → 3s for faster initial response
+            });
 
-    // Match client FleetKPI interface
-    const kpi = {
-      totalConnectors: perConnector.length,
-      up,
-      warn,
-      down,
-      totalAssets: perConnector.reduce((sum, c) => sum + c.assets, 0),
-      totalOffers: 0,
-      totalNegotiations: perConnector.reduce(
-        (sum, c) => sum + c.negotiations,
-        0
-      ),
-      totalTransfers: perConnector.reduce((sum, c) => sum + c.transfers, 0),
-      vcWarnings: 0,
-      perConnector,
-    };
-    kpiCache.set(tenantId, kpi);
+            const [assetsRes, negotiationsRes, transfersRes] =
+              await Promise.allSettled([
+                client.post("/v3/assets/request", JSON_LD_QUERY),
+                client.post("/v3/contractnegotiations/request", JSON_LD_QUERY),
+                client.post("/v3/transferprocesses/request", JSON_LD_QUERY),
+              ]);
+
+            // 3개 모두 성공=up, 0개=down, 일부만=warn(부분 장애).
+            const oks = [assetsRes, negotiationsRes, transfersRes].filter(
+              r => r.status === "fulfilled"
+            ).length;
+            const status: "up" | "warn" | "down" =
+              oks === 0 ? "down" : oks === 3 ? "up" : "warn";
+
+            return {
+              id: conn.id,
+              name: conn.name,
+              status,
+              assets:
+                assetsRes.status === "fulfilled"
+                  ? Array.isArray(assetsRes.value.data)
+                    ? assetsRes.value.data.length
+                    : 0
+                  : 0,
+              negotiations:
+                negotiationsRes.status === "fulfilled"
+                  ? Array.isArray(negotiationsRes.value.data)
+                    ? negotiationsRes.value.data.length
+                    : 0
+                  : 0,
+              transfers:
+                transfersRes.status === "fulfilled"
+                  ? Array.isArray(transfersRes.value.data)
+                    ? transfersRes.value.data.length
+                    : 0
+                  : 0,
+            };
+          } catch {
+            return {
+              id: conn.id,
+              name: conn.name,
+              status: "down",
+              assets: 0,
+              negotiations: 0,
+              transfers: 0,
+            };
+          }
+        }
+      );
+
+      const up = perConnector.filter(c => c.status === "up").length;
+      const warn = perConnector.filter(c => c.status === "warn").length;
+      const down = perConnector.length - up - warn;
+
+      // Match client FleetKPI interface
+      return {
+        totalConnectors: perConnector.length,
+        up,
+        warn,
+        down,
+        totalAssets: perConnector.reduce((sum, c) => sum + c.assets, 0),
+        totalOffers: 0,
+        totalNegotiations: perConnector.reduce(
+          (sum, c) => sum + c.negotiations,
+          0
+        ),
+        totalTransfers: perConnector.reduce((sum, c) => sum + c.transfers, 0),
+        vcWarnings: 0,
+        perConnector,
+      };
+    });
     res.json(kpi);
   } catch (error) {
     next(error);
